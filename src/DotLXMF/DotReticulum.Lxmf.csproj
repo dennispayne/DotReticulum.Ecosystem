@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DotReticulum.Core\DotReticulum.Core.csproj" />
+    <ProjectReference Include="..\DotReticulum.Transport\DotReticulum.Transport.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DotReticulum.Lxmf.Tests" />
+  </ItemGroup>
+
+</Project>
+

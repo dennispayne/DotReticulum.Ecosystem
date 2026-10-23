@@ -213,7 +213,8 @@ public sealed class LxmRouter : IAsyncDisposable
         var packet = Packet.Create(PacketType.Data, DestinationType.Single, message.DestinationHash, encrypted);
         message.DeliveryAttempts++;
         message.NextAttempt = Now + _options.DeliveryRetryWait.TotalSeconds;
-        var receipt = await _router.SendWithReceiptAsync(packet, identity, _options.ReceiptTimeout, ct).ConfigureAwait(false);
+        var receipt = await _router.SendWithReceiptAsync(packet, identity, _options.ReceiptTimeout, ct).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("An opportunistic LXMF data packet did not qualify for a delivery receipt.");
         message.State = LxmState.Sent;
         receipt.Delivered = _ => message.State = LxmState.Delivered;
         if (receipt.Status == PacketReceiptStatus.Delivered) message.State = LxmState.Delivered;

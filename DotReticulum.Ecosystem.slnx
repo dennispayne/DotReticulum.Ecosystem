@@ -1,8 +1,10 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/DotLXMF/DotLXMF.csproj" />
+    <Project Path="src/DotTelemetry/DotTelemetry.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DotLXMF.Tests/DotLXMF.Tests.csproj" />
+    <Project Path="tests/DotTelemetry.Tests/DotTelemetry.Tests.csproj" />
   </Folder>
 </Solution>

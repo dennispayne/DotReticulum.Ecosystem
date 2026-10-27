@@ -1,8 +1,81 @@
+using System.Buffers.Binary;
+
 namespace DotLXST.Audio;
 
 public static class AudioResampler
 {
     private const int PcmScale = short.MaxValue;
+
+    public static byte[] Resample(
+        ReadOnlySpan<byte> sampleBytes,
+        int bitDepth,
+        int channels,
+        int inputSampleRate,
+        int outputSampleRate,
+        bool normalize = false)
+    {
+        if (bitDepth != 16) throw new ArgumentOutOfRangeException(nameof(bitDepth), "Only signed 16-bit PCM is supported.");
+        ArgumentOutOfRangeException.ThrowIfLessThan(channels, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(channels, 32);
+        ArgumentOutOfRangeException.ThrowIfLessThan(inputSampleRate, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(outputSampleRate, 1);
+
+        var frameSize = checked(channels * sizeof(short));
+        if (sampleBytes.Length % frameSize != 0)
+            throw new ArgumentException("PCM data must contain complete interleaved frames.", nameof(sampleBytes));
+        if (sampleBytes.IsEmpty) return [];
+
+        var inputFrames = sampleBytes.Length / frameSize;
+        var pcm = new short[checked(inputFrames * channels)];
+        var peak = 0;
+        for (var i = 0; i < pcm.Length; i++)
+        {
+            pcm[i] = BinaryPrimitives.ReadInt16LittleEndian(sampleBytes.Slice(i * sizeof(short), sizeof(short)));
+            peak = Math.Max(peak, Math.Abs((int)pcm[i]));
+        }
+
+        if (normalize && peak > 0)
+        {
+            var gain = 32768.0 / peak;
+            for (var i = 0; i < pcm.Length; i++)
+            {
+                var scaled = (long)Math.Floor(pcm[i] * gain);
+                pcm[i] = (short)Math.Clamp(scaled, short.MinValue, short.MaxValue);
+            }
+        }
+
+        if (inputSampleRate == outputSampleRate)
+        {
+            var unchanged = new byte[sampleBytes.Length];
+            for (var i = 0; i < pcm.Length; i++)
+                BinaryPrimitives.WriteInt16LittleEndian(unchanged.AsSpan(i * sizeof(short)), pcm[i]);
+            return unchanged;
+        }
+
+        var outputFrames = checked((int)(((long)(inputFrames - 1) * outputSampleRate) / inputSampleRate) + 1);
+        var output = new byte[checked(outputFrames * frameSize)];
+        long phase = 0;
+        for (var frame = 0; frame < outputFrames; frame++)
+        {
+            var inputIndex = (int)(phase / outputSampleRate);
+            var remainder = phase % outputSampleRate;
+            var nextIndex = Math.Min(inputIndex + 1, inputFrames - 1);
+            for (var channel = 0; channel < channels; channel++)
+            {
+                var first = pcm[inputIndex * channels + channel];
+                var second = pcm[nextIndex * channels + channel];
+                var numerator = (long)first * (outputSampleRate - remainder) + (long)second * remainder;
+                var sample = FloorDivide(numerator, outputSampleRate);
+                BinaryPrimitives.WriteInt16LittleEndian(
+                    output.AsSpan((frame * channels + channel) * sizeof(short)),
+                    (short)Math.Clamp(sample, short.MinValue, short.MaxValue));
+            }
+
+            phase += inputSampleRate;
+        }
+
+        return output;
+    }
 
     public static AudioFrame Resample(AudioFrame frame, int outputSampleRate, bool normalize = false)
     {
@@ -85,6 +158,12 @@ public static class AudioResampler
     {
         var scaled = (long)Math.Truncate(sample * PcmScale);
         return (short)Math.Clamp(scaled, short.MinValue, short.MaxValue);
+    }
+
+    private static long FloorDivide(long numerator, int denominator)
+    {
+        var quotient = Math.DivRem(numerator, denominator, out var remainder);
+        return remainder < 0 ? quotient - 1 : quotient;
     }
 
     private static void ValidateFiniteSamples(AudioFrame frame)

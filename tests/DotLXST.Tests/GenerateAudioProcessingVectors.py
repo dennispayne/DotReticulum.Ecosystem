@@ -1,13 +1,17 @@
 import hashlib
 import json
+import math
 import os
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 
 from LXST.Codecs.Codec import resample
+from LXST.Codecs.Codec import resample_bytes
 from LXST.Codecs.Codec import Null
+from LXST.Codecs.Opus import Opus
 from LXST import Filters
 from LXST.Filters import AGC, BandPass, HighPass, LowPass
 from LXST.Generators import ToneSource
@@ -19,6 +23,8 @@ ROOT = Path(os.environ["DOTRETICULUM_LXST_UPSTREAM"]).resolve(strict=True)
 PINNED_REVISION = "3b596f48ddd252ddc9c315ef8f3020cfd3688223"
 SOURCE_FILES = [
     "LXST/Codecs/Codec.py",
+    "LXST/Codecs/Opus.py",
+    "LXST/Codecs/Codec2.py",
     "LXST/Filters.py",
     "LXST/Filters.c",
     "LXST/Filters.h",
@@ -107,6 +113,32 @@ def main():
     ]
     resampled = resample(samples(resample_input), 16, 2, 8000, 12000)
     normalized = resample(samples(resample_input), 16, 2, 8000, 12000, normalize=True)
+    byte_cases = []
+    for channels, input_rate, output_rate, values, normalize_bytes in (
+        (1, 8000, 12000, [-5, 0, 5, -2, 0, 2], False),
+        (2, 44100, 48000, [-32768, 1234, 32767, -2345, 8192, -8192, 0, 12], False),
+        (1, 22050, 8000, [0, 1, 3, 7, -7, -3, -1], True),
+        (2, 48000, 16000, [123, -456, 789, -1000, 321, -654, 987, -111], False),
+    ):
+        source_bytes = np.asarray(values, dtype=np.int16).tobytes()
+        output_bytes = resample_bytes(source_bytes, 16, channels, input_rate, output_rate, normalize_bytes)
+        byte_cases.append({
+            "channels": channels,
+            "inputRate": input_rate,
+            "outputRate": output_rate,
+            "normalize": normalize_bytes,
+            "input": source_bytes.hex(),
+            "output": output_bytes.hex(),
+        })
+
+    codec_input_rate = 44_100
+    codec_input = np.asarray(
+        [math.sin(2 * math.pi * 440 * i / codec_input_rate) * 0.3 for i in range(1_764)],
+        dtype=np.float32,
+    ).reshape(-1, 1)
+    reference_opus = Opus()
+    reference_opus.source = SimpleNamespace(samplerate=codec_input_rate)
+    codec_encoded = reference_opus.encode(codec_input)
 
     filter_input = [
         0.0, 0.5, -0.25, 0.75, -0.5, 0.25, 1.0, -1.0,
@@ -167,6 +199,18 @@ def main():
             "outputRate": 12000,
             "output": resampled.tolist(),
             "normalizedOutput": normalized.tolist(),
+        },
+        "resampleBytes": {
+            "bitDepth": 16,
+            "cases": byte_cases,
+        },
+        "resamplingCodec": {
+            "codec": "Opus",
+            "inputRate": codec_input_rate,
+            "codecRate": 8_000,
+            "channels": 1,
+            "input": codec_input.reshape(-1).tolist(),
+            "encoded": codec_encoded.hex(),
         },
         "filters": {
             "input": filter_input,

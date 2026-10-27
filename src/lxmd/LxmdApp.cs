@@ -287,9 +287,9 @@ internal static class LxmdApp
 
     private static LxmPropagationOptions CreatePropagationOptions(LxmdConfig config, string configDirectory)
     {
-        var transferKilobytes = config.GetNumber("propagation", "propagation_transfer_max_accepted_size", 256);
-        if (config.Get("propagation", "propagation_message_max_accepted_size") is not null)
-            transferKilobytes = config.GetNumber("propagation", "propagation_message_max_accepted_size", transferKilobytes);
+        // Upstream parses the legacy key, then overwrites it even when the new key is absent.
+        _ = config.GetNumber("propagation", "propagation_transfer_max_accepted_size", 256);
+        var transferKilobytes = config.GetNumber("propagation", "propagation_message_max_accepted_size", 256);
         var syncKilobytes = config.GetNumber("propagation", "propagation_sync_max_accepted_size", 256 * 40);
         var storageMegabytes = config.GetNumber("propagation", "message_storage_limit", 500);
         if (!double.IsFinite(transferKilobytes) || !double.IsFinite(syncKilobytes) || !double.IsFinite(storageMegabytes))

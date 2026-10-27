@@ -23,7 +23,9 @@ def main():
         aspect_filter = "lxmf.propagation"
 
         def received_announce(self, destination_hash, announced_identity, app_data):
-            emit({"event": "pn-announce", "dest": destination_hash.hex()})
+            import RNS.vendor.umsgpack as msgpack
+            config = msgpack.unpackb(app_data)
+            emit({"event": "pn-announce", "dest": destination_hash.hex(), "transfer_limit": config[3]})
 
     RNS.Transport.register_announce_handler(PropagationHandler())
     identity = RNS.Identity()

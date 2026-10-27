@@ -535,14 +535,24 @@ enable_node = yes
 autopeer = no
 announce_at_start = yes
 control_allowed = $($ready.identity_hash)
+propagation_transfer_max_accepted_size = 0.38
 [logging]
 loglevel = 6
 "@ | Set-Content -LiteralPath (Join-Path $daemonConfig 'config') -Encoding utf8
+            $referenceParser = Join-Path (Join-Path (Join-Path $script:repository 'tests') 'Interop') 'lxmd_config_reference.py'
+            $configuration = Start-CapturedProcess $script:python @($referenceParser, (Join-Path $daemonConfig 'config')) $environment
+            try {
+                $referenceLine = Wait-OutputMatch $configuration '^\{' 15
+                $configuration.Process.WaitForExit(15000) | Should -BeTrue
+                $configuration.Process.ExitCode | Should -Be 0
+                $referenceConfiguration = $referenceLine | ConvertFrom-Json
+            } finally { Stop-CapturedProcess $configuration }
             $daemon = Start-CapturedProcess $script:binary @('--config', $daemonConfig, '--rnsconfig', $rnsConfig)
             $line = Wait-OutputMatch $daemon 'lxmd: propagation destination ([0-9a-f]{32})'
             $null = $line -match 'lxmd: propagation destination ([0-9a-f]{32})'
             $nativeDestination = $Matches[1]
-            $null = Wait-Event $python 'pn-announce' 30 -Destination $nativeDestination -Other @($daemon)
+            $announce = Wait-Event $python 'pn-announce' 30 -Destination $nativeDestination -Other @($daemon)
+            $announce.transfer_limit | Should -Be $referenceConfiguration.propagation_transfer_max_accepted_size
             $python.Process.StandardInput.WriteLine("status $nativeDestination")
             $python.Process.StandardInput.Flush()
             $status = Wait-Event $python 'status' 30 -Other @($daemon)

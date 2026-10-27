@@ -56,7 +56,7 @@ Live interoperability tests are opt-in and need the pinned Python reference: set
 | Opportunistic and direct delivery, large Resources | Live against Python `LXMRouter` in both directions |
 | Delivery to `lxmd` | Live delivery to a real `lxmd` destination; this does not establish propagation support |
 | Tickets and delivery ratchets | Live reply-ticket exchange, signed ratchet-file handoffs and old-key delivery after restart; exact boundaries in [docs/lxmf.md](docs/lxmf.md) |
-| Propagation client and peers | Live bidirectional retrieval and 2.2 MB explicit peer synchronization with Python; full peer-policy compatibility remains incomplete |
+| Propagation client and peers | Live bidirectional 2.2 MB synchronization, retrieval progress/cancellation/cache recovery and source-executed admission/reload/maintenance policies; documented safety differences and unverified hardware boundaries remain |
 | Native `lxmd` | Windows/Linux NativeAOT delivery, control, persistence and autonomous mixed-node propagation/restart acceptance; not full daemon compatibility |
 | LXST framing and codecs | Executed upstream vectors, arbitrary signal maps and rate conversion; native Opus/Codec2 bitstreams verified in WSL. Extended raw precision is host-format-specific |
 | LXST stream sessions and telephone calls | Live Python in both call directions, direct and through Python/.NET transport hops; all eight initial telephone profiles, policy rejection and timeout/recovery cases use virtual audio. Remaining gaps are in [docs/lxst.md](docs/lxst.md) |

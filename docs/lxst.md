@@ -179,13 +179,13 @@ capture/playback quality claim follows from these headless processing tests.
 | Configuration directory precedence, default config creation and first-run behavior | partial | Precedence implemented; minimal original default config, no bundled assets |
 | Identity generation/load/failure and `storage` directory | implemented | Native Pester restart test; owner-only Unix creation; buffers zeroed |
 | Bundled ringtone copying and ringtone/ringer output | partial | No upstream sounds redistributed; user-supplied Opus ringtone loops on a separate selected sink and stops on answer; real native virtual-sink acceptance |
-| `[telephone]`: `speaker`, `microphone`, `ringer`, `ringtone`, `allowed_callers`, `blocked_callers` | partial | Implemented; runtime sink/capture reconfiguration tested; PulseAudio exact device identifiers instead of fuzzy matching |
+| `[telephone]`: `speaker`, `microphone`, `ringer`, `ringtone`, `allowed_callers`, `blocked_callers` | implemented software; platform coverage bounded | Runtime sink/capture reconfiguration tested; Linux identifier/substring/fuzzy selection and monitor exclusion match executed primary lookup; Windows uses explicit numeric/default identifiers |
 | `[phonebook]`: names, identity hashes, optional filtered numeric aliases, authorization integration | implemented | Actual primary ConfigObj/apply_config/load_phonebook/menu fixtures cover quoted comma values, inline comments, ASCII numeric filtering, self exclusion, trailing-comma allowed/blocked lists, ignored extra columns and skipped malformed phonebook rows; native menu/reload/restart acceptance |
 | `[hardware]`: `keypad`, `keypad_hook_pin`, `display` | implemented software; physical execution unverified | `gpio_4x4`, integer hook pin and `i2c_lcd1602` select owned Linux providers; unknown drivers/platforms and unavailable devices fail explicitly before identity creation; changing hardware settings on reload requires restart |
 | Commented amplifier-mute options | upstream-placeholder | Default config mentions `amp_mute_pin`/`amp_mute_level`; `apply_config` does not consume them |
 | `ignored` and `allowed` paths | upstream-placeholder | `reload_config` assigns paths; no persistence implementation established |
 | GPIO 4x4 keypad events, hook and key maps; I2C LCD1602 text/sleep/wake | implemented software; physical execution unverified | Fakeable `Hardware.MatrixKeypad` and `Lcd1602` match primary driver vectors; Linux GPIO-v2/i2c-dev providers and `rnphone` dialing/hook/display wiring exist; kernel ABI, error paths and fake-bus contracts are verified, not successful physical peripheral I/O; 5x5 is a non-target mirror addition |
-| Example programs: file player/recorder/source, filters, mixer, pipelines, tone generator | missing | `examples/*.py`; these are examples, not additional installed console entry points |
+| Example programs: file player/recorder/source, filters, mixer, pipelines, tone generator | not-applicable as additional executables | `examples/*.py` are source examples, not installed console entry points; independently implemented/tested library primitives cover these feature flows; literal licensed scripts are not redistributed |
 
 ### Dependencies and platform evidence
 
@@ -369,7 +369,7 @@ asynchronously after that outcome. That callback timing difference is explicit.
 
 | Environment | Evidence |
 |---|---|
-| Windows x64 | Managed contracts and actual endpoint enumeration; strict NativeAOT WinMM probe plays synthetic silence and tests cancellation/reuse; microphone capture, physical quality, native codec DLLs and telephone device interoperability unverified |
+| Windows x64 | Managed contracts and actual endpoint enumeration; strict NativeAOT WinMM probe plays synthetic silence and tests cancellation/reuse; actual NativeAOT phone pair exchanges real native Opus with headless silence/discard devices, profiles, reverse call and restart; physical capture/quality and telephone-to-physical-device interoperability unverified |
 | Ubuntu x64 under WSL | libopus 1.6.1 and libcodec2 1.2.0 vectors; real stream/telephone interop; NativeAOT executable and virtual PulseAudio process flow |
 | Physical audio hardware | Unverified; tests use isolated silent/generated virtual devices, never the desktop microphone |
 | macOS, Android, other architectures | Unverified; no device implementation or support claim |
@@ -420,9 +420,34 @@ freeing memory. The parent-provided acceptance executed actual Windows endpoint
 enumeration and synthetic-silence default output cancellation/buffer reuse,
 including strict NativeAOT `--help`/`--silence` probes (six input/six output
 entries including defaults). `DOTLXST_WINDOWS_AUDIO=1` opts into silent output
-only; normal Windows enumeration requires no opt-in. No microphone was opened
+and the headless Windows process gate; normal Windows enumeration requires no opt-in. No microphone was opened
 for this evidence. Physical input, audio quality, loopback and WASAPI-specific or
 low-latency behavior remain unverified/unimplemented, not inferred from WinMM.
+
+`AudioDeviceSelection` matches the primary Linux identifier, name-substring and
+anchored fuzzy lookup, including duplicate-name replacement and monitor
+exclusion. `GenerateDeviceSelectionVectors.py` executes the unchanged actual
+lookup function with only the device list substituted; it does not initialize
+the upstream global Pulse context. The .NET selector has a defensive 256-character
+bound and a 100 ms regex timeout.
+
+The explicit `--headless-audio` extension selects
+`HeadlessAudioDeviceBackend`: paced synthetic-silence capture and discard output,
+with no operating-system microphone or speaker opened. It still uses actual
+native codecs, profile changes and Reticulum traffic; it is not evidence of
+physical audio I/O. Capture has a single reader, cancellation and asynchronous
+lease disposal.
+
+The Windows process gate initially failed with a missing `opus.dll`. Its passing
+run used an independently built official Xiph Opus **1.6.1** release, peeled
+commit `22244de5a79bd1d6d623c32e72bf1954b56235be`, not a DLL from the LXST
+repository. Installed MSVC and Visual Studio CMake built the original release
+with `BUILD_SHARED_LIBS=ON`, `OPUS_BUILD_TESTING=OFF` and
+`OPUS_BUILD_PROGRAMS=OFF`; `Release/opus.dll` was placed beside the published
+binary. The observed DLL SHA-256 was
+`c382251483938f030f22487963f9ee9898ea97bfa4817d518abf9dcd4122e78b`.
+This is a runtime dependency, not a committed or redistributed reference asset.
+Other Windows codec/file DLLs have not been verified by this headless Opus gate.
 
 ## Evidence and reproduction
 
@@ -460,14 +485,18 @@ $env:DOTLXST_RNPHONE_BINARY = "<published rnphone>"
 pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 -Tag Native
 # Python-free release gate: only the binary and isolated virtual audio are needed.
 pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 -Tag NativeStandalone
+# Windows source/Python/device-free real Opus process gate; install official
+# opus.dll beside the win-x64 NativeAOT binary first.
+$env:DOTLXST_WINDOWS_AUDIO = "1"
+pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 -Tag NativeWindows
 ```
 
 Recorded results:
 
-- Windows deterministic/unit suite: **82 passed**; with actual endpoint
-  enumeration and opted-in synthetic-silence output: **84 passed, zero skipped**.
+- Windows deterministic/unit, headless lifecycle, actual endpoint enumeration
+  and opted-in synthetic-silence output selection: **86 passed, zero skipped**.
 - WSL full LXST suite against the actual primary-release checkout:
-  **141 passed, two Windows-only integration cases explicitly skipped**,
+  **143 passed, two Windows-only integration cases explicitly skipped**,
   including six real telephone topology cases,
   sixteen initial-profile cases and seven policy/rejection/timeout recovery cases.
 - Telephone lifecycle cases include a blocked sink proving that a second
@@ -476,6 +505,10 @@ Recorded results:
   the next call.
 - Linux and Windows NativeAOT publish with both warning-as-error properties:
   **passed**; published `--help` on both and Windows `--list-devices`: **passed**.
+- Native Windows `NativeWindows` process acceptance: **one passed, zero skipped**;
+  two actual NativeAOT processes exchange real Opus in both directions, switch
+  Medium to HighQuality, tear down, reverse-call and retain identity on restart.
+  Their explicit headless backend opens neither microphone nor speaker.
 - Native Linux rnphone Pester process acceptance: **7 passed, zero skipped**:
   CLI/error behavior; explicit unsupported-hardware rejection; calls in both
   directions, encoder/decoder/device-process paths, teardown, protected identity
@@ -574,6 +607,24 @@ matrices, hardware I/O and long-duration recovery remain unverified.
 
 ### Remaining software versus environment limits
 
+The remaining grouped `partial` rows do **not** mean their named Linux feature
+has no implementation. Their exact disposition is:
+
+| Inventory row | Remaining boundary and reason |
+|---|---|
+| Ring/wait/connect timeouts, path requests, periodic announcements | Implemented; exhaustive relative timing/periodic-announcement matrix unverified. Mutable connect deadlines and timeout recovery execute; this is evidence scope, not an absent timer. |
+| Ringing/established/ended/busy/rejected callbacks | Implemented through a single typed state event instead of five Python setters; original API shape, not missing observable call states. Busy/rejected notification timing intentionally differs as disclosed above. |
+| Receive/transmit gain, mute, AGC, low-latency output, ringer/device selection | Gain/mute/AGC, Linux devices and ringtone implemented. Actual Linux low-latency operation is unsupported upstream; Android backend/OS unavailable; Windows WinMM is not WASAPI/loopback/low-latency parity. |
+| Resample functions, normalize option and supported channel handling | Executed mono/stereo rate conversion and normalization implemented. Arbitrary host-native float128 formats unverified outside the pinned Linux x86 representation; no replacement format is invented. |
+| Line capture/playback, preferred devices, buffers, gain, filters and low latency | Generic and Linux/Windows software exists; successful physical capture/quality/latency and unavailable platform branches unverified. Fake/virtual tests are not physical evidence. |
+| `rnphone`, CLI flags and interactive controls | Installed entry point, listed flags/aliases, dial/redial, answer/hangup, phonebook and profile controls implemented. Help/systemd text, ANSI styling, prompts and call-duration formatting are original; complete terminal byte/key/timing matrices are not claimed. |
+| Service mode/signals/shutdown/systemd | Implemented and SIGTERM/restart verified; long-duration operation unverified. Original systemd example paths/text, not a copied asset. |
+| Configuration precedence/default/first-run and bundled ringtone copying | Precedence/default creation/identity implemented. No upstream licensed sounds/default-comment template is redistributed; user-supplied Opus ringtone flow is verified. |
+| Sources/Sinks/backend and Telephone device/default helper rows | Generic enumeration/defaults and leased device I/O exist and utility composition uses them. Device-independent endpoint deliberately does not own devices or emulate Python backend object layouts; OS methods live in `IAudioDeviceBackend`, not a missing factory. |
+| Hardware enablement/state/display rows | Linux provider/wiring and primary-executed software controls implemented. No GPIO/I2C devices are exposed by current WSL; successful physical transactions, board line-offset mapping and arm64 kernel execution unverified. |
+| Raw native big-endian/IEEE binary128 hosts | No matching host exists; unsupported formats fail rather than claiming portable equivalence. |
+| macOS/Android providers | Missing platform implementations with no corresponding OS/runtime/toolchain available here to execute their required device APIs. Explicit unsupported-platform failure; not covered by Linux/Windows evidence. |
+
 - **Unavailable target platforms:** macOS/Android audio providers remain absent;
   no matching OS/runtime exists in the current environment to compile/run their
   device paths. Windows now has an original, tested WinMM alternative, not a
@@ -586,14 +637,14 @@ matrices, hardware I/O and long-duration recovery remain unverified.
   asynchronous CLI busy tones, bounded asynchronous queues and explicit
   ownership. These are not claimed as byte-for-byte Python application behavior.
 - **Unavailable execution environments:** physical audio/GPIO/I2C/RNode,
-  non-Linux device platforms, big-endian and IEEE binary128 hosts. No physical
+  macOS/Android device platforms, big-endian and IEEE binary128 hosts. No physical
   quality, device latency or support claim follows from virtual/fake tests.
   Exhaustive timing matrices and long-duration operation remain unverified.
 
 ### Reticulum adapter guarantees and ownership
 
 The adapter uses public `Link.TrySend` and the exclusive
-`Link.RegisterPacketReceiver` lease at tested stack pin `985930d`.
+`Link.RegisterPacketReceiver` lease at tested stack commit `b8a1cc5`.
 `TrySend` distinguishes a rejected local enqueue from successful receiptless
 enqueue; it does not invent delivery receipts or network reliability.
 The short core ingress receiver copies into a bounded queue and updates counters

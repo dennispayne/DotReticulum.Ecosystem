@@ -115,6 +115,74 @@ BeforeAll {
     }
 }
 
+Describe 'Two Windows native rnphone processes without audio hardware' -Tag Integration, NativeWindows -Skip:(
+    !$IsWindows -or $env:DOTLXST_WINDOWS_AUDIO -ne '1' -or !$env:DOTLXST_RNPHONE_BINARY) {
+    It 'exchanges real Opus profiles in both directions with synthetic silence and retains identity across restart' {
+        $root = Join-Path $script:phoneArtifacts ('rnphone-win-headless-' + [Guid]::NewGuid().ToString('N'))
+        $firstConfig = Join-Path $root 'first'
+        $secondConfig = Join-Path $root 'second'
+        $serverConfig = Join-Path $root 'server'
+        $clientConfig = Join-Path $root 'client'
+        New-Item -ItemType Directory -Force $firstConfig, $secondConfig, $serverConfig, $clientConfig | Out-Null
+        $first = $null
+        $second = $null
+        try {
+            $port = Get-PhonePort
+            "[reticulum]`nshare_instance = no`n[logging]`nloglevel = 4`n[interfaces]`n[[Server]]`ntype = TCPServerInterface`nenabled = yes`nlisten_ip = 127.0.0.1`nlisten_port = $port`n" |
+                Set-Content (Join-Path $serverConfig 'config')
+            "[reticulum]`nshare_instance = no`n[logging]`nloglevel = 4`n[interfaces]`n[[Client]]`ntype = TCPClientInterface`nenabled = yes`ntarget_host = 127.0.0.1`ntarget_port = $port`n" |
+                Set-Content (Join-Path $clientConfig 'config')
+            $firstArgs = @('--headless-audio', '--config', $firstConfig, '--rnsconfig', $serverConfig)
+            $secondArgs = @('--headless-audio', '--config', $secondConfig, '--rnsconfig', $clientConfig)
+            $first = Start-PhoneProcess $script:phoneBinary $firstArgs
+            $second = Start-PhoneProcess $script:phoneBinary $secondArgs
+            foreach ($phone in @($first, $second)) {
+                Wait-PhoneLine $phone 'Headless audio: synthetic silence' | Out-Null
+                Wait-PhoneLine $phone 'Reticulum Telephone ready' | Out-Null
+            }
+            $firstIdentity = [regex]::Match((Wait-PhoneLine $first '^Identity hash:'), '[a-f0-9]{32}').Value
+            $secondIdentity = [regex]::Match((Wait-PhoneLine $second '^Identity hash:'), '[a-f0-9]{32}').Value
+            Send-PhoneLine $first 'announce'
+            Send-PhoneLine $second $firstIdentity
+            Wait-PhoneLine $first '^State: Ringing' | Out-Null
+            Send-PhoneLine $first ''
+            foreach ($phone in @($first, $second)) {
+                Wait-PhoneLine $phone '^State: Established' | Out-Null
+                Wait-PhoneLine $phone '^Audio transmit ready' | Out-Null
+                Wait-PhoneLine $phone '^Audio receive ready' | Out-Null
+            }
+            Send-PhoneLine $first 'profile'
+            Wait-PhoneLine $first '^Profile: HighQuality' | Out-Null
+            foreach ($phone in @($first, $second)) { Wait-PhoneLine $phone '^Audio transmit ready' -Occurrence 2 | Out-Null }
+            Send-PhoneLine $second ''
+            foreach ($phone in @($first, $second)) { Wait-PhoneLine $phone '^State: Available' | Out-Null }
+            Send-PhoneLine $second 'announce'
+            Send-PhoneLine $first $secondIdentity
+            Wait-PhoneLine $second '^State: Ringing' -Occurrence 2 | Out-Null
+            Send-PhoneLine $second ''
+            foreach ($phone in @($first, $second)) { Wait-PhoneLine $phone '^State: Established' -Occurrence 2 | Out-Null }
+            Send-PhoneLine $first ''
+            foreach ($phone in @($first, $second)) { Wait-PhoneLine $phone '^State: Available' -Occurrence 2 | Out-Null }
+            Send-PhoneLine $second 'quit'
+            $second.Process.WaitForExit(10000) | Should -BeTrue
+            $second.Process.ExitCode | Should -Be 0
+            Stop-PhoneProcess $second
+            $second = Start-PhoneProcess $script:phoneBinary $secondArgs
+            Wait-PhoneLine $second 'Reticulum Telephone ready' | Out-Null
+            (Wait-PhoneLine $second '^Identity hash:') | Should -Match $secondIdentity
+            foreach ($phone in @($first, $second)) {
+                Send-PhoneLine $phone 'quit'
+                $phone.Process.WaitForExit(10000) | Should -BeTrue
+                $phone.Process.ExitCode | Should -Be 0
+            }
+        } finally {
+            Stop-PhoneProcess $second
+            Stop-PhoneProcess $first
+            Remove-Item -LiteralPath $root -Recurse -Force
+        }
+    }
+}
+
 Describe 'Published rnphone CLI' -Tag Integration, Native -Skip:(!$env:DOTLXST_RNPHONE_BINARY -and !$env:DOTRETICULUM_RNPHONE_BINARY) {
     It 'validates options and prints upstream-named CLI entry points without opening audio' {
         $help = Invoke-PhoneCommand $script:phoneBinary @('--help')

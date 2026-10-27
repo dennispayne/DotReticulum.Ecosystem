@@ -1,0 +1,79 @@
+{
+  "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+  "source_sha256": "f3be4c181f56a69e24d98129c6c9bbb7ba856e7cf33f231276ef54bcd1976542",
+  "method": "Compiled and executed unchanged AST of actual _match_soundcard; only device enumeration input is synthetic.",
+  "devices": [
+    {
+      "id": "out0",
+      "name": "Primary Speakers"
+    },
+    {
+      "id": "out1",
+      "name": "Desk Soundbar"
+    },
+    {
+      "id": "duplicate-first",
+      "name": "Duplicate"
+    },
+    {
+      "id": "duplicate-last",
+      "name": "Duplicate"
+    },
+    {
+      "id": "source.monitor",
+      "name": "Monitor Input"
+    }
+  ],
+  "cases": [
+    {
+      "selector": "out1",
+      "loopback": false,
+      "id": "out1"
+    },
+    {
+      "selector": "Sound",
+      "loopback": false,
+      "id": "out1"
+    },
+    {
+      "selector": "DS",
+      "loopback": false,
+      "id": "out1"
+    },
+    {
+      "selector": "PS",
+      "loopback": false,
+      "id": "out0"
+    },
+    {
+      "selector": "Duplicate",
+      "loopback": false,
+      "id": "duplicate-last"
+    },
+    {
+      "selector": "source.monitor",
+      "loopback": false,
+      "error": "IndexError"
+    },
+    {
+      "selector": "source.monitor",
+      "loopback": true,
+      "id": "source.monitor"
+    },
+    {
+      "selector": "",
+      "loopback": false,
+      "id": "out0"
+    },
+    {
+      "selector": "not-found",
+      "loopback": false,
+      "error": "IndexError"
+    },
+    {
+      "selector": "D[",
+      "loopback": false,
+      "error": "PatternError"
+    }
+  ]
+}

@@ -45,20 +45,24 @@ public sealed class PulseAudioDeviceBackend : IAudioDeviceBackend
         }).ToArray();
     }
 
-    public ValueTask<IAudioCapture> OpenCaptureAsync(string? device, AudioDeviceFormat format, CancellationToken cancellationToken = default)
+    public async ValueTask<IAudioCapture> OpenCaptureAsync(string? device, AudioDeviceFormat format, CancellationToken cancellationToken = default)
     {
         EnsureLinux();
         format.Validate();
         cancellationToken.ThrowIfCancellationRequested();
-        return ValueTask.FromResult<IAudioCapture>(new Capture(device, format));
+        var selected = device is null ? null : AudioDeviceSelection.Resolve(device,
+            await ListInputsAsync(cancellationToken).ConfigureAwait(false)).Id;
+        return new Capture(selected, format);
     }
 
-    public ValueTask<IAudioPlayback> OpenPlaybackAsync(string? device, AudioDeviceFormat format, CancellationToken cancellationToken = default)
+    public async ValueTask<IAudioPlayback> OpenPlaybackAsync(string? device, AudioDeviceFormat format, CancellationToken cancellationToken = default)
     {
         EnsureLinux();
         format.Validate();
         cancellationToken.ThrowIfCancellationRequested();
-        return ValueTask.FromResult<IAudioPlayback>(new Playback(device, format));
+        var selected = device is null ? null : AudioDeviceSelection.Resolve(device,
+            await ListOutputsAsync(cancellationToken).ConfigureAwait(false)).Id;
+        return new Playback(selected, format);
     }
 
     private static void EnsureLinux()

@@ -80,6 +80,8 @@ internal sealed class PhoneHardware : IAsyncDisposable
                         if (state != previous)
                         {
                             if (state == CallState.Available) _controls.Ready(_clock.Elapsed);
+                            if (state == CallState.Ringing && _controls.State == HardwareDialState.Sleeping)
+                                _controls.Ready(_clock.Elapsed);
                             if (state == CallState.Established) connected = _clock.Elapsed;
                             previous = state;
                         }

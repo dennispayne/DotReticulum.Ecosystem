@@ -15,6 +15,7 @@ public static class PhoneApp
           -s, --service        Run without an interactive command loop
           --systemd            Print a service-unit example
           --version            Print the targeted upstream release
+          --headless-audio     Extension: synthetic silence input/discard output; no audio devices
           -h, --help           Show this help
 
         Interactive: identity, desthash, announce, phonebook, redial, profile, quit.
@@ -32,6 +33,7 @@ public static class PhoneApp
         var service = false;
         var list = false;
         var verbosity = 0;
+        var headlessAudio = false;
         try
         {
             for (var i = 0; i < args.Length; i++)
@@ -41,6 +43,7 @@ public static class PhoneApp
                 {
                     case "-h" or "--help": await output.WriteLineAsync(Usage); return 0;
                     case "--version": await output.WriteLineAsync("rnphone 0.4.5"); return 0;
+                    case "--headless-audio": headlessAudio = true; break;
                     case "--config": config = Next(); break;
                     case "--rnsconfig": rnsConfig = Next(); break;
                     case "-s" or "--service": service = true; break;
@@ -61,7 +64,7 @@ public static class PhoneApp
         {
             if (list)
             {
-                var backend = CreateDeviceBackend();
+                var backend = headlessAudio ? new HeadlessAudioDeviceBackend() : CreateDeviceBackend();
                 foreach (var device in await backend.ListOutputsAsync(stop)) await output.WriteLineAsync($"Output : {device.Name} [{device.Id}]");
                 foreach (var device in await backend.ListInputsAsync(stop)) await output.WriteLineAsync($"Input : {device.Name} [{device.Id}]");
                 return 0;
@@ -78,7 +81,8 @@ public static class PhoneApp
             settings.ExcludeLocalIdentity(identity.HexHash);
             await using var node = ReticulumNode.Open(rnsConfig,
                 (level, message) => { if (level <= 3 + verbosity) error.WriteLine($"Reticulum[{level}]: {message}"); });
-            IAudioDeviceBackend devices = CreateDeviceBackend();
+            IAudioDeviceBackend devices = headlessAudio ? new HeadlessAudioDeviceBackend() : CreateDeviceBackend();
+            if (headlessAudio) await output.WriteLineAsync("Headless audio: synthetic silence input; decoded output discarded; no microphone/speaker opened");
             await using var sink = new DeviceAudioSink(devices, settings.Speaker, () => output.WriteLine("Audio receive ready"));
             await using var toneSink = new DeviceAudioSink(devices, settings.Speaker);
             await using var ringerSink = new DeviceAudioSink(devices, settings.Ringer);

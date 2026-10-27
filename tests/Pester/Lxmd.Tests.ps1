@@ -107,6 +107,26 @@ BeforeAll {
         throw "Timed out waiting for '$Pattern'. Exit=$exit`nstdout:`n$stdout`nstderr:`n$stderr"
     }
 
+    function Invoke-AdapterCommand {
+        param($Running, [string] $Command, [string] $Event, [int] $TimeoutSeconds = 30, [object[]] $Other = @())
+        $start = $Running.Output.Count
+        $Running.Process.StandardInput.WriteLine($Command)
+        $Running.Process.StandardInput.Flush()
+        Wait-Event $Running $Event $TimeoutSeconds -Other $Other -StartIndex $start
+    }
+
+    function Wait-NodeCount {
+        param($Running, [string] $Destination, [int] $Count, [object[]] $Other, [int] $TimeoutSeconds = 150, [int] $MinimumPeers = 0)
+        $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+        do {
+            $status = Invoke-AdapterCommand $Running "status $Destination" 'status' 30 -Other $Other
+            if ($status.messages -eq $Count -and $status.peers -ge $MinimumPeers) { return $status }
+            Start-Sleep -Seconds 2
+        } while ([DateTime]::UtcNow -lt $deadline)
+        $local = Invoke-AdapterCommand $Running 'local-status' 'local-status' 15 -Other $Other
+        throw "Node $Destination did not reach $Count stored messages and $MinimumPeers peers; latest status: $($status | ConvertTo-Json -Depth 8 -Compress); reference local status: $($local | ConvertTo-Json -Depth 8 -Compress).`n$($Running.Output -join "`n")`nstderr:`n$($Running.Error -join "`n")`n$($Other | ForEach-Object { $_.Output -join "`n" })"
+    }
+
     function Stop-CapturedProcess {
         param($Running, [switch] $SendQuit)
         if (!$Running) { return }
@@ -165,7 +185,7 @@ Describe 'Published lxmd command line' -Tag Integration, Native -Skip:(!$env:DOT
         (Invoke-Lxmd @('--help=unexpected')).ExitCode | Should -Be 2
     }
 
-    It 'rejects malformed configuration and unsupported ConfigObj syntax before creating an identity' {
+    It 'rejects malformed configuration and unresolved interpolation before creating an identity' {
         $root = Join-Path (Join-Path $script:repository 'artifacts') ('lxmd-invalid-' + [Guid]::NewGuid().ToString('N'))
         $null = New-Item -ItemType Directory -Force -Path $root
         try {
@@ -177,8 +197,19 @@ Describe 'Published lxmd command line' -Tag Integration, Native -Skip:(!$env:DOT
             "[lxmf]`ndisplay_name = %(undefined)s" | Set-Content -LiteralPath (Join-Path $root 'config') -Encoding utf8
             $unsupported = Invoke-Lxmd @('--config', $root)
             $unsupported.ExitCode | Should -Be 1
-            $unsupported.Error | Should -Match 'interpolation are not supported'
+            $unsupported.Error | Should -Match 'interpolation option'
             Test-Path -LiteralPath (Join-Path $root 'identity') | Should -BeFalse
+            foreach ($invalidConfig in @(
+                "[lxmf]`ndisplay_name = %(loop)s`nloop = %(display_name)s",
+                "[lxmf]`ndisplay_name = first, second",
+                "[lxmf]`ndisplay_name = 'unterminated",
+                "[lxmf]`n[lxmf]",
+                "[[skipped-level]]"
+            )) {
+                $invalidConfig | Set-Content -LiteralPath (Join-Path $root 'config') -Encoding utf8
+                (Invoke-Lxmd @("--config=$root")).ExitCode | Should -Be 1
+                Test-Path -LiteralPath (Join-Path $root 'identity') | Should -BeFalse
+            }
         } finally {
             Remove-Item -LiteralPath $root -Recurse -Force
         }
@@ -211,17 +242,38 @@ Describe 'Native lxmd delivery and restart' -Tag Integration, Native -Skip:(!$en
             $pythonDestination = $ready.dest
 
             @'
+base = "lxmd # acceptance"
+prefix = daemon's identity # unquoted apostrophe does not quote the comment
+[DEFAULT]
+suffix = """multiline
+with comma, apostrophe's and #hash"""
 [lxmf] # delivery settings
-display_name = "lxmd # acceptance" # literal quoted hash is not a comment
+display_name = """%(prefix)s :: %(base)s :: %(suffix)s :: 100%%"""
 announce_at_start = yes
 delivery_transfer_max_accepted_size = 1000
+stamp_cost = %(cost)s
+[[DEFAULT]]
+cost = 12
 
 [propagation]
 enable_node = no
 
 [logging]
 loglevel = 6
+
+[ignored_extension]
+[[nested]]
+unused = %(not_consumed_by_lxmd)s
 '@ | Set-Content -LiteralPath (Join-Path $daemonConfig 'config') -Encoding utf8
+            $referenceParser = Join-Path (Join-Path (Join-Path $script:repository 'tests') 'Interop') 'lxmd_config_reference.py'
+            $configuration = Start-CapturedProcess $script:python @($referenceParser, (Join-Path $daemonConfig 'config')) @{
+                DOTRETICULUM_UPSTREAM = $script:upstream; PYTHONPATH = $script:referenceModulePath; PYTHONIOENCODING = 'utf-8'
+            }
+            $referenceLine = Wait-OutputMatch $configuration '^\{' 15
+            $configuration.Process.WaitForExit(15000) | Should -BeTrue
+            $configuration.Process.ExitCode | Should -Be 0
+            $referenceConfiguration = $referenceLine | ConvertFrom-Json
+            Stop-CapturedProcess $configuration
             @"
 [reticulum]
 enable_transport = no
@@ -250,7 +302,7 @@ target_port = $port
             $announce = Wait-Event $python 'announce' 45
             $announce.dest | Should -Be $deliveryDestination
             $announce.dest | Should -Not -BeNullOrEmpty
-            $announce.display_name | Should -Be 'lxmd # acceptance'
+            $announce.display_name | Should -Be $referenceConfiguration.display_name
             $identityFingerprint = (Get-FileHash -LiteralPath (Join-Path $daemonConfig 'identity') -Algorithm SHA256).Hash
 
             $title = 'lxmd-persisted-message'
@@ -334,6 +386,7 @@ target_port = $port
                 }
                 $ready = Wait-Event $python 'ready' 60
                 @"
+    recipient = $($ready.dest)
     [lxmf]
     display_name = lxmd propagation acceptance
     announce_at_start = yes
@@ -345,7 +398,7 @@ target_port = $port
     auth_required = yes
     propagation_stamp_cost_target = 13
     propagation_stamp_cost_flexibility = 0
-    prioritise_destinations = $($ready.dest)
+    prioritise_destinations = "%(recipient)s",
     sequential_pn_stamp_validation = yes
     static_peers_bypass_sequential = yes
     max_inbound_syncs = 3
@@ -495,12 +548,18 @@ loglevel = 6
             $status = Wait-Event $python 'status' 30 -Other @($daemon)
             $status.dest | Should -Be $nativeDestination
             $status.messages | Should -Be 0
+            $rejected = Invoke-AdapterCommand $python "bad-stamp $nativeDestination" 'bad-stamp-rejected' 90 -Other @($daemon)
+            $rejected.response | Should -Be $rejected.expected
+            $healthy = Invoke-AdapterCommand $python "status $nativeDestination" 'status' 30 -Other @($daemon)
+            $healthy.messages | Should -Be 0
 
             $nativeStatus = Invoke-Lxmd @('--status', '--peers', '--identity', $identity,
                 "--remote=$($ready.dest)", '--rnsconfig', $clientConfig, '--timeout', '10')
             $nativeStatus.ExitCode | Should -Be 0 -Because ($nativeStatus.Output + $nativeStatus.Error)
             $nativeStatus.Output | Should -Match 'LXMF Propagation Node running on'
             $nativeStatus.Output | Should -Match 'Messagestore contains 0 messages'
+            $nativeStatus.Output | Should -Match 'clients.client_propagation_messages_received ='
+            $nativeStatus.Output | Should -Match 'messagestore.limit ='
 
             $unpeer = Invoke-Lxmd @('--break', ('00' * 16), '--identity', $identity,
                 '--remote', $ready.dest, '--rnsconfig', $clientConfig, '--timeout', '10')
@@ -514,6 +573,130 @@ loglevel = 6
             }
         } finally {
             Stop-CapturedProcess $daemon
+            Stop-CapturedProcess $python -SendQuit
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+        }
+    }
+
+    It 'automatically synchronizes two native daemons with Python and recovers after a failed peer and restart' {
+        $root = Join-Path (Join-Path $script:repository 'artifacts') ('lxmd-peering-' + [Guid]::NewGuid().ToString('N'))
+        $pythonConfig = Join-Path $root 'python-rns'
+        $clientConfig = Join-Path $root 'control-rns'
+        $identity = Join-Path $root 'reference-identity'
+        $null = New-Item -ItemType Directory -Force -Path $pythonConfig, $clientConfig
+        $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+        $listener.Start()
+        $port = ([Net.IPEndPoint]$listener.LocalEndpoint).Port
+        $listener.Stop()
+        $python = $null
+        $daemons = @($null, $null)
+        $destinations = @('', '')
+        try {
+            @"
+[reticulum]
+share_instance = no
+enable_transport = yes
+[logging]
+loglevel = 2
+[interfaces]
+[[daemon peering acceptance]]
+type = TCPServerInterface
+enabled = yes
+listen_ip = 127.0.0.1
+listen_port = $port
+"@ | Set-Content -LiteralPath (Join-Path $pythonConfig 'config') -Encoding utf8
+            $adapter = Join-Path (Join-Path (Join-Path $script:repository 'tests') 'Interop') 'lxmd_control_peer.py'
+            $python = Start-CapturedProcess $script:python @($adapter, $pythonConfig, (Join-Path $root 'python-storage'), $identity, '--autopeer') @{
+                PYTHONPATH = $script:referenceModulePath; PYTHONIOENCODING = 'utf-8'; PYTHONNOUSERSITE = '1'
+            }
+            $ready = Wait-Event $python 'ready' 30
+            foreach ($index in 0..1) {
+                $config = Join-Path $root "native-$index"
+                $rns = Join-Path $root "rns-$index"
+                $null = New-Item -ItemType Directory -Force -Path $config, $rns
+                @"
+[lxmf]
+announce_at_start = yes
+[propagation]
+enable_node = yes
+autopeer = yes
+announce_at_start = yes
+announce_interval = 1
+propagation_stamp_cost_target = 13
+propagation_stamp_cost_flexibility = 0
+peering_cost = 18
+control_allowed = "$($ready.identity_hash)",
+[logging]
+loglevel = 6
+"@ | Set-Content -LiteralPath (Join-Path $config 'config') -Encoding utf8
+                @"
+[reticulum]
+share_instance = no
+enable_transport = no
+[logging]
+loglevel = 2
+[interfaces]
+[[Python propagation hub]]
+type = TCPClientInterface
+enabled = yes
+target_host = 127.0.0.1
+target_port = $port
+"@ | Set-Content -LiteralPath (Join-Path $rns 'config') -Encoding utf8
+                if ($index -eq 0) { Copy-Item -LiteralPath (Join-Path $rns 'config') -Destination (Join-Path $clientConfig 'config') }
+                $daemons[$index] = Start-CapturedProcess $script:binary @('--config', $config, '--rnsconfig', $rns)
+                $line = Wait-OutputMatch $daemons[$index] '^lxmd: propagation destination '
+                $destinations[$index] = $line.Split(' ')[-1]
+                $null = Wait-Event $python 'pn-announce' 30 -Destination $destinations[$index] -Other @($daemons[$index])
+                if ($index -eq 0) {
+                    # The upstream scheduler randomly selects one peer per interval.
+                    # Establish the mixed-reference edge before introducing a second candidate.
+                    $null = Invoke-AdapterCommand $python 'announce' 'announced' 15 -Other @($daemons[0])
+                    $seeded = Invoke-AdapterCommand $python 'seed python-origin 1024' 'seeded' 60 -Other @($daemons[0])
+                    $null = Wait-NodeCount $python $destinations[0] 1 @($daemons[0])
+                }
+            }
+            $null = Invoke-AdapterCommand $python 'announce' 'announced' 15 -Other $daemons
+            $firstB = Wait-NodeCount $python $destinations[1] 1 $daemons -MinimumPeers 2
+            $firstA = Wait-NodeCount $python $destinations[0] 1 $daemons -MinimumPeers 2
+            $firstA.peers | Should -BeGreaterOrEqual 2
+            $firstB.peers | Should -BeGreaterOrEqual 2
+
+            $null = Invoke-AdapterCommand $python "send $($destinations[0]) native-origin 1024" 'queued' 30 -Other $daemons
+            $null = Wait-Event $python 'sent' 90 -Other $daemons
+            $null = Wait-NodeCount $python $destinations[1] 2 $daemons
+            $deadline = [DateTime]::UtcNow.AddSeconds(150)
+            do {
+                $local = Invoke-AdapterCommand $python 'local-status' 'local-status' 15 -Other $daemons
+                if ($local.messages -eq 2) { break }
+                Start-Sleep -Seconds 2
+            } while ([DateTime]::UtcNow -lt $deadline)
+            $local.messages | Should -Be 2
+            $local.ids | Should -Contain $seeded.transient
+
+            Stop-CapturedProcess $daemons[1]
+            $daemons[1] = $null
+            $sync = Invoke-Lxmd @('--sync', $destinations[1], '--remote', $destinations[0], '--identity', $identity,
+                '--rnsconfig', $clientConfig, '--timeout', '10')
+            $sync.ExitCode | Should -Be 0 -Because ($sync.Output + $sync.Error)
+            $null = Invoke-AdapterCommand $python 'seed after-peer-failure 1024' 'seeded' 60 -Other @($daemons[0])
+            $surviving = Wait-NodeCount $python $destinations[0] 3 @($daemons[0])
+            $surviving.messages | Should -Be 3
+
+            $configB = Join-Path $root 'native-1'
+            $rnsB = Join-Path $root 'rns-1'
+            $restartIndex = $python.Output.Count
+            $daemons[1] = Start-CapturedProcess $script:binary @('--config', $configB, '--rnsconfig', $rnsB)
+            $line = Wait-OutputMatch $daemons[1] '^lxmd: propagation destination '
+            $line.Split(' ')[-1] | Should -Be $destinations[1]
+            $null = Wait-Event $python 'pn-announce' 30 -Destination $destinations[1] -StartIndex $restartIndex -Other $daemons
+            $null = Wait-NodeCount $python $destinations[1] 3 $daemons
+            $unpeer = Invoke-Lxmd @('--break', $destinations[1], '--remote', $destinations[0], '--identity', $identity,
+                '--rnsconfig', $clientConfig, '--timeout', '10')
+            $unpeer.ExitCode | Should -Be 0 -Because ($unpeer.Output + $unpeer.Error)
+            $after = Invoke-AdapterCommand $python "status $($destinations[0])" 'status' 30 -Other $daemons
+            @($after.peer_details | Where-Object dest -EQ $destinations[1]).Count | Should -Be 0
+        } finally {
+            foreach ($daemon in $daemons) { Stop-CapturedProcess $daemon }
             Stop-CapturedProcess $python -SendQuit
             if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
         }

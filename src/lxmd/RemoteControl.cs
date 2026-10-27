@@ -129,5 +129,35 @@ internal static class RemoteControl
             foreach (var (key, value) in peers)
                 if (key is byte[] hash && value is Dictionary<object, object?> peer)
                     await output.WriteLineAsync($"<{Convert.ToHexStringLower(hash)}> {Text(peer, "type")}: {(peer.GetValueOrDefault("alive") is true ? "Available" : "Unreachable")}, unhandled messages {(peer.GetValueOrDefault("messages") is Dictionary<object, object?> messages ? Text(messages, "unhandled") : "unknown")}").ConfigureAwait(false);
+        foreach (var (key, value) in stats)
+        {
+            if (key is not string name || name == "peers" && !showPeers || name != "peers" && !showStatus) continue;
+            await PrintFieldsAsync(name, value, output, 0).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task PrintFieldsAsync(string name, object? value, TextWriter output, int depth)
+    {
+        if (depth > 16) throw new InvalidDataException("Control statistics are nested too deeply.");
+        if (value is Dictionary<object, object?> map)
+        {
+            foreach (var (key, item) in map)
+            {
+                var label = key is byte[] hash ? Convert.ToHexStringLower(hash) : Convert.ToString(key, CultureInfo.InvariantCulture);
+                await PrintFieldsAsync($"{name}.{label}", item, output, depth + 1).ConfigureAwait(false);
+            }
+            if (map.Count == 0) await output.WriteLineAsync($"{name} = {{}}").ConfigureAwait(false);
+        }
+        else
+        {
+            var text = value switch
+            {
+                null => "unknown",
+                byte[] bytes => Convert.ToHexStringLower(bytes),
+                IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+                _ => value.ToString(),
+            };
+            await output.WriteLineAsync($"{name} = {text}").ConfigureAwait(false);
+        }
     }
 }

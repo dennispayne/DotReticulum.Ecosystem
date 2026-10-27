@@ -35,7 +35,7 @@ internal static class LxmdApp
           -h, --help            Show this help
 
         This experimental .NET daemon supports delivery destinations, propagation storage, and inbox persistence.
-        ConfigObj interpolation, multiline values and nested lxmd sections are not supported.
+        ConfigObj-style quotes, lists, sections, multiline values and interpolation are supported.
         """;
 
     private sealed record Arguments(

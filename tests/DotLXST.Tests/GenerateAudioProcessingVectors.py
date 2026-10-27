@@ -20,6 +20,7 @@ from LXST.Mixer import Mixer
 from LXST.Sources import Loopback
 from LXST.Sources import Source
 from LXST.Sinks import Sink
+from LXST import Sinks
 from LXST.Pipeline import Pipeline
 from LXST import Network
 from LXST.Network import codec_header_byte, codec_type
@@ -110,6 +111,104 @@ class CapturedPacket:
 
     def send(self):
         return True
+
+
+class PlaybackClock:
+    def __init__(self):
+        self.now = 0.0
+
+    def time(self):
+        self.now += 0.0001
+        return self.now
+
+    def sleep(self, duration):
+        self.now += duration
+
+
+class PlaybackBackend:
+    SAMPLERATE = 8000
+
+    def __init__(self, **kwargs):
+        self.samplerate = 8000
+        self.device = SimpleNamespace(channels=1)
+        self.frames = []
+        self.releases = 0
+        self.low_latency = None
+
+    def get_player(self, **kwargs):
+        self.low_latency = kwargs["low_latency"]
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        pass
+
+    def play(self, frame):
+        self.frames.append(np.asarray(frame).tolist())
+
+    def release_player(self):
+        self.releases += 1
+
+
+class ObservedPlaybackThread:
+    starts = 0
+
+    def __init__(self, **kwargs):
+        pass
+
+    def start(self):
+        ObservedPlaybackThread.starts += 1
+
+
+def observe_playback():
+    original_backend, original_time, original_threading = Sinks.Backend, Sinks.time, Sinks.threading
+    clock = PlaybackClock()
+    try:
+        Sinks.Backend, Sinks.time = PlaybackBackend, clock
+        sink = Sinks.LineSink(autodigest=False, low_latency=True)
+        can_receive = []
+        for value in range(8):
+            sink.handle_frame(np.asarray([[value, -value]], dtype=np.float32))
+            can_receive.append(sink.can_receive())
+        queued = [float(frame[0, 0]) for frame in sink.frame_deque]
+        sink.enable_low_latency()
+        sink.should_run = True
+        sink._LineSink__digest_job()
+        first_frames = list(sink.backend.frames)
+        stopped_after_starvation = not sink.should_run
+        sink.handle_frame(np.asarray([[10, -10]], dtype=np.float32))
+        sink.should_run = True
+        sink._LineSink__digest_job()
+        Sinks.threading = SimpleNamespace(Lock=original_threading.Lock, Thread=ObservedPlaybackThread)
+        ObservedPlaybackThread.starts = 0
+        autostart_sink = Sinks.LineSink()
+        autostart_sink.handle_frame(np.asarray([[0.25]], dtype=np.float32))
+        autostart_after_one = autostart_sink.should_run
+        autostart_sink.stop()
+        stopped_explicitly = not autostart_sink.should_run
+        autostart_sink.start()
+        return {
+            "maximumQueuedFrames": Sinks.LineSink.MAX_FRAMES,
+            "canReceiveAfterWrites": can_receive,
+            "queuedAfterEightWrites": queued,
+            "played": first_frames,
+            "restartPlayed": sink.backend.frames[len(first_frames):],
+            "stoppedAfterStarvation": stopped_after_starvation,
+            "timeoutFrames": sink.frame_timeout,
+            "frameSeconds": sink.frame_time,
+            "playerOpenLowLatency": sink.backend.low_latency,
+            "runtimeLowLatencySupported": hasattr(sink.backend, "enable_low_latency"),
+            "playerReleases": sink.backend.releases,
+            "autostartAfterOneFrame": autostart_after_one,
+            "stopClearsRunning": stopped_explicitly,
+            "startRestarts": autostart_sink.should_run,
+            "observedThreadStarts": ObservedPlaybackThread.starts,
+            "method": "Executed LineSink with fake Backend/player/clock and observed (not spawned) autostart threads; no audio hardware or network used.",
+        }
+    finally:
+        Sinks.Backend, Sinks.time, Sinks.threading = original_backend, original_time, original_threading
 
 
 def mix_reference(gain_db, muted):
@@ -339,6 +438,7 @@ def main():
             "targetGains": transition_targets,
             "framesByEase": tone_transitions,
         },
+        "bufferedPlayback": observe_playback(),
         "nullCodec": {
             "encodeReturnsSameObject": null_encoded is null_input,
             "decodeReturnsSameObject": null_decoded is null_input,

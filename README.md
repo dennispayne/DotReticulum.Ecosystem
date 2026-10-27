@@ -61,6 +61,7 @@ Live interoperability tests are opt-in and need the pinned Python reference: set
 | LXST framing and codecs | Executed upstream vectors, arbitrary signal maps and rate conversion; native Opus/Codec2 bitstreams verified in WSL. Extended raw precision is host-format-specific |
 | LXST stream sessions and telephone calls | Live Python in both call directions, direct and through Python/.NET transport hops; all eight initial telephone profiles, policy rejection and timeout/recovery cases use virtual audio. Remaining gaps are in [docs/lxst.md](docs/lxst.md) |
 | LXST headless audio processing | Reference-executed resampling, filters/AGC, mutable tones, bounded mixing/playback, encoded pipelines and file controls; no physical audio-quality claim |
+| Windows LXST device adapter | Original PCM16 waveform backend: endpoint enumeration and native synthetic-silence playback/cancellation/reuse verified, including NativeAOT; physical capture, quality and reference WASAPI/loopback behavior are not verified |
 | `rnphone` | Linux NativeAOT calls with Python and another native process, virtual audio, configuration reload, persisted identity and service shutdown; hardware integration and other-platform backends remain incomplete |
 | Telemetry (`telemetry`) | .NET-only: nodes publish and view reports through direct links and a .NET `rnsd` hop; no upstream counterpart |
 

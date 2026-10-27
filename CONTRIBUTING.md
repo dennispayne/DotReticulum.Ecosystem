@@ -65,6 +65,13 @@ Headless native codec cases require `DOTLXST_NATIVE=1` with compatible Opus and 
 
 Telephone audio cases additionally require `DOTLXST_VIRTUAL_AUDIO=1` on Linux with PulseAudio and its `pactl`, `pacat` and `parec` tools. They use virtual audio, not physical microphone/speaker or audio-quality acceptance.
 
+The original Windows waveform device adapter has deterministic lifecycle tests
+on both operating systems and a Windows-only endpoint enumeration case.
+`DOTLXST_WINDOWS_AUDIO=1` additionally opens the default Windows output to verify
+synthetic-silence playback, cancellation and buffer reuse. It never opens a
+microphone. This is not reference WASAPI/loopback or physical audio-quality
+acceptance; physical capture remains unverified.
+
 With the reference paths configured, enable all three LXST modes to run its
 complete provisioned Linux suite:
 

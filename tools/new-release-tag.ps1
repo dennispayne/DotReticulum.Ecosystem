@@ -33,9 +33,17 @@ $branch = git rev-parse --abbrev-ref HEAD
 if ($branch -ne 'main') { throw "Releases are tagged from main, not '$branch'." }
 
 $property = if ($Application -eq 'telemetry') { 'NuGetPackageVersion' } else { 'AssemblyFileVersion' }
-$version = (dotnet msbuild $Project "-getProperty:$property" -p:Configuration=Release -t:GetBuildVersion | Select-Object -Last 1).Trim()
+$intermediate = [IO.Directory]::CreateTempSubdirectory('DotReticulum.ReleaseTag-')
+try {
+    $result = @(dotnet msbuild $Project -restore "-getProperty:$property" -p:Configuration=Release `
+        -p:UseArtifactsOutput=true "-p:ArtifactsPath=$($intermediate.FullName)" -t:GetBuildVersion 2>&1)
+    if ($LASTEXITCODE -ne 0) { throw "Could not determine the release version: $($result -join "`n")" }
+    $version = ([string]($result | Select-Object -Last 1)).Trim()
+} finally {
+    $intermediate.Delete($true)
+}
 $pattern = if ($Application -eq 'telemetry') { '^\d+\.\d+\.\d+$' } else { '^\d+\.\d+\.\d+\.\d+$' }
-if ($LASTEXITCODE -ne 0 -or $version -notmatch $pattern) { throw "Unexpected version '$version'." }
+if ($version -notmatch $pattern) { throw "Unexpected version '$version'." }
 
 $tag = "$Application-v$version"
 if (git tag --list $tag) { throw "Tag $tag already exists." }

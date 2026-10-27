@@ -136,5 +136,23 @@
       "frame_ms": 10,
       "codec": "Opus"
     }
+  ],
+  "connect_timeouts": [
+    {
+      "requested": 10,
+      "stored": 10
+    },
+    {
+      "requested": 0,
+      "stored": 0
+    },
+    {
+      "requested": -1,
+      "stored": -1
+    },
+    {
+      "requested": 0.125,
+      "stored": 0.125
+    }
   ]
 }

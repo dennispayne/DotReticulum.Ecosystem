@@ -93,6 +93,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     private bool _receiveMuted;
     private bool _transmitMuted;
     private bool _useAutomaticGainControl;
+    private TimeSpan _connectTimeout;
     private TaskCompletionSource? _disposeCompletion;
     private Task _announcements = Task.CompletedTask;
     private CallState _state = CallState.Available;
@@ -110,6 +111,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         _receiveGainDb = _options.ReceiveGainDb;
         _transmitGainDb = _options.TransmitGainDb;
         _useAutomaticGainControl = _options.UseAutomaticGainControl;
+        _connectTimeout = _options.ConnectTimeout;
         if (_options.RingTimeout <= TimeSpan.Zero || _options.WaitTimeout <= TimeSpan.Zero ||
             _options.ConnectTimeout <= TimeSpan.Zero || _options.AnnounceInterval <= TimeSpan.Zero ||
             _options.AutoAnswerDelay < TimeSpan.Zero || _options.ReceiveCapacity < 1)
@@ -128,6 +130,12 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     public TelephoneProfile? ActiveProfile { get { lock (_gate) return _call?.Profile; } }
     public Identity? RemoteIdentity { get { lock (_gate) return _call?.Link.RemoteIdentity; } }
     public bool IsIncomingCall { get { lock (_gate) return _call is { Outgoing: false }; } }
+    /// <summary>Changes future outgoing establishment deadlines; an already scheduled deadline is not rewritten.</summary>
+    public TimeSpan ConnectTimeout
+    {
+        get { lock (_gate) return _connectTimeout; }
+        set { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); _connectTimeout = value; } }
+    }
     public float ReceiveGainDb
     {
         get { lock (_gate) return _receiveGainDb; }
@@ -214,6 +222,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         if (!Enum.IsDefined(profile)) throw new ArgumentOutOfRangeException(nameof(profile));
         var destination = Destination.Create(DestinationType.Single, "lxst", ["telephony"], remote);
         var started = Stopwatch.GetTimestamp();
+        TimeSpan connectTimeout;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token, cancellationToken);
         timeout.CancelAfter(_options.WaitTimeout);
         lock (_gate)
@@ -221,6 +230,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
             if (_externalBusy || _call is not null || _state != CallState.Available) throw new InvalidOperationException("Telephone is busy.");
             _pendingDial = timeout;
             _state = CallState.Calling;
+            connectTimeout = _connectTimeout;
         }
         Notify(StateChanged, CallState.Calling);
         try
@@ -234,12 +244,13 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
                 timeout.Token.ThrowIfCancellationRequested();
                 if (_state != CallState.Calling || !ReferenceEquals(_pendingDial, timeout))
                     throw new OperationCanceledException("Call was cancelled.");
-                var link = _router.Links.Connect(remote, destination.Hash, establishmentTimeout: _options.ConnectTimeout.TotalSeconds);
+                var link = _router.Links.Connect(remote, destination.Hash,
+                    establishmentTimeout: Math.Max(.001, connectTimeout.TotalSeconds));
                 var call = _call = Attach(link, true, profile);
                 var elapsed = Stopwatch.GetElapsedTime(started);
                 call.Deadline = Task.WhenAll(
                     WatchTimeoutAsync(call, Remaining(_options.WaitTimeout, elapsed)),
-                    WatchTimeoutAsync(call, Remaining(_options.ConnectTimeout, elapsed), CallState.Ringing));
+                    WatchTimeoutAsync(call, Remaining(connectTimeout, elapsed), CallState.Ringing));
                 _pendingDial = null;
             }
         }
@@ -487,7 +498,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     {
         try
         {
-            await Task.Delay(timeout, call.Stop.Token).ConfigureAwait(false);
+            await Task.Delay(timeout <= TimeSpan.Zero ? TimeSpan.Zero : timeout, call.Stop.Token).ConfigureAwait(false);
             lock (_gate)
             {
                 if (ReferenceEquals(_call, call) && _state < before)

@@ -51,10 +51,14 @@ def main():
                 "frame_ms": Profiles.get_frame_time(profile),
                 "codec": type(codec).__name__,
             })
+        timeouts = []
+        for value in [10, 0, -1, .125]:
+            phone.set_connect_timeout(value)
+            timeouts.append({"requested": value, "stored": phone.establishment_timeout})
         output = {
             "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
             "telephony_sha256": hashlib.sha256((root / "LXST" / "Primitives" / "Telephony.py").read_bytes()).hexdigest(),
-            "policies": policies, "profiles": profiles,
+            "policies": policies, "profiles": profiles, "connect_timeouts": timeouts,
         }
         Path(args.output).write_text(json.dumps(output, indent=2) + "\n")
     finally:

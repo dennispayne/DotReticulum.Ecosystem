@@ -115,6 +115,11 @@ deadline for reaching ringing. Incoming manual rejection sends status `1` before
 teardown; a ring timeout does not. Manual ring timeout is not applied to delayed
 auto-answer calls. Unidentified incoming links have a bounded connect deadline,
 an explicit defensive .NET extension rather than a claimed Python timeout.
+The mutable `ConnectTimeout` property follows executed `set_connect_timeout`
+observations: zero and negative values are retained and make the next outgoing
+deadline expire immediately; changing the property does not rewrite a deadline
+already captured by an outgoing call. The defensive incoming-link timeout is
+separate and retains its construction-time option.
 The source `set_announce_interval()` stores `announce_interval`, but `__jobs`
 reads the `ANNOUNCE_INTERVAL` constant; that mutable setter has no demonstrated
 effect. The .NET configurable interval is an explicit extension.
@@ -251,7 +256,7 @@ features to reproduce.
 | `Primitives/Recorders.py`: `FileRecorder.running/recording/set_source/set_output_path/start/stop/record` | Device-independent recorder implemented; effective stopped-only output-path replacement is an explicit extension |
 | `Primitives/Telephony.py`: `Profiles.available_profiles/profile_index/profile_name/profile_abbrevation/get_codec/get_frame_time/next_profile`, `Signalling` constants | Profile metadata/factory/cycle and telephone signal values implemented; executed primary values |
 | `Telephone`: `available_outputs/available_inputs/default_output/default_input`, `set_speaker/set_microphone/set_ringer/set_ringtone`, `set_low_latency_output` | Linux utility device/ringtone composition only; no generic device-backed telephone facade or invented Linux low-latency effect |
-| `Telephone`: `teardown/announce/set_allowed/set_blocked/set_connect_timeout/set_announce_interval`, `set_ringing_callback/set_established_callback/set_ended_callback/set_busy_callback/set_rejected_callback` | Endpoint lifecycle, authorization and isolated state events implemented; connect timeout configured at construction, not a mutable endpoint setter; announce-interval setter is ineffective upstream |
+| `Telephone`: `teardown/announce/set_allowed/set_blocked/set_connect_timeout/set_announce_interval`, `set_ringing_callback/set_established_callback/set_ended_callback/set_busy_callback/set_rejected_callback` | Endpoint lifecycle, authorization, mutable outgoing `ConnectTimeout` and isolated state events implemented; announce-interval setter is ineffective upstream |
 | `Telephone`: `set_busy_tone_time/enable_agc/disable_agc/set_busy/busy/active_profile/receive_muted/transmit_muted` | Configurable tone duration through source construction; AGC, busy override, profile and mute state implemented; CLI tone scheduling differs explicitly |
 | `Telephone`: `signal/answer/hangup/mute_receive/unmute_receive/mute_transmit/unmute_transmit/set_receive_gain/set_transmit_gain/switch_profile/call/signalling_received` | Endpoint/session behavior implemented, including actual profile negotiation, gains/mute and both-direction calls |
 | Hardware `LCD.print/clear/is_sleeping/sleep/wake/close`; `Event`; `Keypad.enable_hook/set_key_map/is_down/is_up/start/stop` | Fakeable software protocols implemented; OS providers and utility wiring missing |

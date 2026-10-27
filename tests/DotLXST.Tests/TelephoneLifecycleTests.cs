@@ -252,6 +252,25 @@ public sealed class TelephoneLifecycleTests
     }
 
     [Fact]
+    public async Task MutableConnectTimeoutAppliesToFutureCallsWithoutRewritingAnExistingDeadline()
+    {
+        await using var rig = new Rig(new() { ConnectTimeout = TimeSpan.FromSeconds(10), WaitTimeout = TimeSpan.FromSeconds(20) });
+        await rig.StartAsync();
+        await rig.AnnounceSilentPeerAsync();
+        rig.Phone.ConnectTimeout = TimeSpan.FromMilliseconds(150);
+        await rig.DialPeerAsync();
+        rig.Phone.ConnectTimeout = TimeSpan.FromSeconds(10);
+        await LiveStreamTests.WaitForAsync(() => rig.Phone.State == CallState.Available);
+        rig.Phone.ConnectTimeout = TimeSpan.FromMilliseconds(-1);
+        await rig.DialPeerAsync();
+        await LiveStreamTests.WaitForAsync(() => rig.Phone.State == CallState.Available);
+        rig.Phone.ConnectTimeout = TimeSpan.FromSeconds(2);
+        await rig.DialPeerAsync();
+        Assert.Equal(CallState.Calling, rig.Phone.State);
+        rig.Phone.Hangup();
+    }
+
+    [Fact]
     public async Task AutoAnswerIsNotCancelledByTheShorterManualRingDeadline()
     {
         await using var rig = new Rig(new()

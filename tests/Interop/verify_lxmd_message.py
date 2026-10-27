@@ -15,9 +15,10 @@ from reference_environment import verify_reference
 
 def main():
     if len(sys.argv) != 4:
-        raise SystemExit("usage: verify_lxmd_message.py <path> <title> <content-size>")
+        raise SystemExit("usage: verify_lxmd_message.py <path> <title> <content-size> | --notify <output> <path>")
     verify_reference(require_lxmf=True)
-    path, expected_title, expected_size = sys.argv[1], sys.argv[2], int(sys.argv[3])
+    notify = sys.argv[1] == "--notify"
+    path = sys.argv[3] if notify else sys.argv[1]
     with open(path, "rb") as message_file:
         container = msgpack.unpackb(message_file.read(), raw=False, strict_map_key=False)
     if not isinstance(container, dict) or set(container) != {
@@ -25,13 +26,18 @@ def main():
     }:
         raise AssertionError("Persisted file is not an upstream LXMF packed container")
     message = LXMF.LXMessage.unpack_from_bytes(container["lxmf_bytes"])
-    if message.title_as_string() != expected_title:
+    if not notify and message.title_as_string() != sys.argv[2]:
         raise AssertionError("Persisted title did not survive container decoding")
-    if len(message.content) != expected_size:
+    if not notify and len(message.content) != int(sys.argv[3]):
         raise AssertionError("Persisted payload length did not survive container decoding")
     if os.path.basename(path) != message.hash.hex():
         raise AssertionError("Message-store filename is not the upstream message hash")
-    print(json.dumps({"hash": message.hash.hex(), "title": message.title_as_string(), "size": len(message.content)}))
+    result = {"hash": message.hash.hex(), "title": message.title_as_string(), "size": len(message.content)}
+    if notify:
+        with open(sys.argv[2], "w", encoding="utf-8") as notification:
+            json.dump(result, notification)
+    else:
+        print(json.dumps(result))
 
 
 if __name__ == "__main__":

@@ -52,12 +52,13 @@ internal sealed class LxmdConfig
         sections[section] = new(StringComparer.OrdinalIgnoreCase);
         foreach (var original in File.ReadLines(path))
         {
-            var line = original.Trim();
+            var line = RemoveComment(original).Trim();
             if (line.Length == 0 || line.StartsWith('#') || line.StartsWith(';')) continue;
             if (line.StartsWith('[') && line.EndsWith(']'))
             {
                 section = line[1..^1].Trim();
                 if (section.Length == 0) throw new FormatException("Configuration contains an empty section.");
+                if (section.StartsWith('[')) throw new NotSupportedException("Nested lxmd configuration sections are not supported.");
                 if (!sections.TryGetValue(section, out var values)) sections[section] = values = new(StringComparer.OrdinalIgnoreCase);
                 continue;
             }
@@ -66,9 +67,10 @@ internal sealed class LxmdConfig
             if (separator <= 0) throw new FormatException($"Invalid configuration line: {line}");
             var key = line[..separator].Trim();
             var value = line[(separator + 1)..].Trim();
-            var comment = value.IndexOf(" #", StringComparison.Ordinal);
-            if (comment >= 0) value = value[..comment].TrimEnd();
-            if (value.Length >= 2 && value[0] is '\'' or '"' && value[^1] == value[0]) value = value[1..^1];
+            if (value.StartsWith("\"\"\"", StringComparison.Ordinal) || value.StartsWith("'''", StringComparison.Ordinal) ||
+                value.Contains("%(", StringComparison.Ordinal))
+                throw new NotSupportedException("ConfigObj multiline values and interpolation are not supported.");
+            if (value.Length >= 2 && value[0] is '\'' or '"' && value.IndexOf(value[0], 1) == value.Length - 1) value = value[1..^1];
             if (!sections[section].TryAdd(key, value)) throw new FormatException($"Duplicate configuration option '{key}' in [{section}].");
         }
 
@@ -99,5 +101,19 @@ internal sealed class LxmdConfig
             : fallback;
 
     public IReadOnlyList<string> GetList(string section, string key) =>
-        Get(section, key) is { } value ? value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) : [];
+        Get(section, key) is { } value ? value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(item => item.Length >= 2 && item[0] is '\'' or '"' && item[^1] == item[0] ? item[1..^1] : item).ToArray() : [];
+
+    private static string RemoveComment(string line)
+    {
+        char quote = '\0';
+        for (var index = 0; index < line.Length; index++)
+        {
+            var character = line[index];
+            if (quote != '\0') { if (character == quote) quote = '\0'; }
+            else if (character is '\'' or '"') quote = character;
+            else if (character == '#') return line[..index];
+        }
+        return line;
+    }
 }

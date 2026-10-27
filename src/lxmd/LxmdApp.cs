@@ -1,6 +1,7 @@
 using System.Globalization;
 using DotLXMF;
 using DotReticulum.Applications;
+using DotReticulum.Applications.Rnsd;
 using DotReticulum.Core;
 
 namespace Lxmd;
@@ -34,7 +35,7 @@ internal static class LxmdApp
           -h, --help            Show this help
 
         This experimental .NET daemon supports delivery destinations, propagation storage, and inbox persistence.
-        Automatic peering and remote management operations fail explicitly until matching router APIs are available.
+        ConfigObj interpolation, multiline values and nested lxmd sections are not supported.
         """;
 
     private sealed record Arguments(
@@ -69,17 +70,10 @@ internal static class LxmdApp
         if (options.Version) { await output.WriteLineAsync($"lxmd {Version}").ConfigureAwait(false); return 0; }
         if (options.ExampleConfig) { await output.WriteLineAsync(LxmdConfig.Example).ConfigureAwait(false); return 0; }
 
-        if (options.Status || options.Peers || options.Sync is not null || options.Unpeer is not null || options.Remote is not null)
-        {
-            await error.WriteLineAsync("lxmd: remote propagation management operations are not implemented by this build; no network request was made.").ConfigureAwait(false);
-            return 1;
-        }
-
-        if (options.IdentityPath is not null)
-        {
-            await error.WriteLineAsync("lxmd: --identity is only applicable to remote management operations, which are not implemented.").ConfigureAwait(false);
-            return 1;
-        }
+        if (options.Status || options.Peers || options.Sync is not null || options.Unpeer is not null)
+            return await RemoteControl.RunAsync(GetConfigDirectory(options.ConfigDirectory), options.ReticulumDirectory,
+                options.IdentityPath is null ? null : ExpandHome(options.IdentityPath), options.Remote, options.Sync, options.Unpeer,
+                options.Status, options.Peers, options.Timeout, output, error, stop).ConfigureAwait(false);
 
         string configDirectory;
         try
@@ -97,6 +91,7 @@ internal static class LxmdApp
             var propagationEnabled = options.PropagationNode || config.GetBoolean("propagation", "enable_node", false);
             var displayName = config.Get("lxmf", "display_name", "Anonymous Peer");
             var stampCost = Math.Max(1, config.GetInteger("lxmf", "stamp_cost", 12)!.Value);
+            if (stampCost >= 255) throw new FormatException("stamp_cost must be below 255.");
             var acceptedKilobytes = Math.Max(0.38, config.GetNumber("lxmf", "delivery_transfer_max_accepted_size", 1));
             if (!double.IsFinite(acceptedKilobytes)) throw new FormatException("delivery_transfer_max_accepted_size must be finite.");
             var announceInterval = config.GetInteger("lxmf", "announce_interval", null);
@@ -105,24 +100,17 @@ internal static class LxmdApp
             var propagationAnnounceInterval = config.GetInteger("propagation", "announce_interval", null);
             if (propagationAnnounceInterval is < 0) throw new FormatException("propagation announce_interval cannot be negative.");
             var propagationAnnounceAtStart = config.GetBoolean("propagation", "announce_at_start", false);
-            var logLevel = Math.Clamp(config.GetInteger("logging", "loglevel", 4)!.Value + options.Verbosity, 0, 7);
+            var logLevel = (int)Math.Clamp((long)config.GetInteger("logging", "loglevel", 3)!.Value + options.Verbosity, 0, 8);
             var onInbound = options.OnInbound ?? config.Get("lxmf", "on_inbound");
             var ignored = LoadHashes(Path.Combine(configDirectory, "ignored"));
+            var propagationOptions = propagationEnabled ? CreatePropagationOptions(config, configDirectory) : null;
             var storageDirectory = Path.Combine(configDirectory, "storage");
             var messagesDirectory = Path.Combine(storageDirectory, "messages");
             Directory.CreateDirectory(messagesDirectory);
 
-            StreamWriter? serviceLog = null;
-            TextWriter logOutput = output;
-            if (options.Service)
             {
-                serviceLog = new StreamWriter(new FileStream(Path.Combine(configDirectory, "logfile"), FileMode.Append, FileAccess.Write, FileShare.Read));
-                logOutput = serviceLog;
-            }
-
-            try
-            {
-                var logger = CreateLogger(logOutput, logLevel);
+                var logger = new RnsdLogger(logLevel, timestamps: true, output, error,
+                    options.Service ? Path.Combine(configDirectory, "logfile") : null).Log;
                 logger(3, $"Configuration loaded from {configPath}");
                 await using var node = ReticulumNode.Open(options.ReticulumDirectory, logger);
                 using var identity = LoadOrCreateIdentity(Path.Combine(configDirectory, "identity"), logger);
@@ -132,11 +120,11 @@ internal static class LxmdApp
                     InboundStampCost = stampCost,
                     StoragePath = storageDirectory,
                 };
-                var propagationOptions = propagationEnabled ? CreatePropagationOptions(config, configDirectory) : null;
                 await using var router = new LxmRouter(node.Router, identity, displayName, routerOptions)
                 {
                     Log = message => logger(5, message),
                 };
+                foreach (var ignoredSource in ignored) router.IgnoreDestination(Convert.FromHexString(ignoredSource));
                 var propagationNode = propagationOptions is null ? null : router.EnablePropagationNode(propagationOptions);
                 if (propagationNode is not null) propagationNode.Log = message => logger(5, message);
                 var store = new MessageStore(messagesDirectory);
@@ -144,10 +132,9 @@ internal static class LxmdApp
                 {
                     try
                     {
-                        if (ignored.Contains(Convert.ToHexStringLower(received.Message.SourceHash))) return;
                         var path = store.Save(received.Message);
                         logger(6, $"Received {received.Message} written to {path}");
-                        if (!string.IsNullOrWhiteSpace(onInbound)) RunInbound(onInbound, path, logger);
+                        if (!string.IsNullOrWhiteSpace(onInbound)) RunInbound(onInbound, path, logger, stop);
                     }
                     catch (Exception ex) { logger(1, $"Error processing received {received.Message}: {ex}"); }
                 };
@@ -155,6 +142,8 @@ internal static class LxmdApp
                 await node.StartAsync(stop).ConfigureAwait(false);
                 router.Start();
                 await output.WriteLineAsync($"lxmd: delivery destination {router.DeliveryHashHex}").ConfigureAwait(false);
+                if (propagationNode is not null)
+                    await output.WriteLineAsync($"lxmd: propagation destination {Convert.ToHexStringLower(propagationNode.DestinationHash)}").ConfigureAwait(false);
                 logger(3, $"LXMF delivery destination ready <{router.DeliveryHashHex}>");
 
                 using var jobs = CancellationTokenSource.CreateLinkedTokenSource(stop);
@@ -170,10 +159,6 @@ internal static class LxmdApp
                 }
 
                 return 0;
-            }
-            finally
-            {
-                if (serviceLog is not null) await serviceLog.DisposeAsync().ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException) when (stop.IsCancellationRequested) { return 0; }
@@ -200,8 +185,16 @@ internal static class LxmdApp
         for (var index = 0; index < args.Length; index++)
         {
             var option = args[index];
+            string? inlineValue = null;
+            var equals = option.StartsWith("--", StringComparison.Ordinal) ? option.IndexOf('=') : -1;
+            if (equals >= 0)
+            {
+                inlineValue = option[(equals + 1)..];
+                option = option[..equals];
+            }
             string Value()
             {
+                if (inlineValue is { } value) { inlineValue = null; return value; }
                 if (++index >= args.Length) throw new ArgumentException($"{option} requires a value.");
                 return args[index];
             }
@@ -222,8 +215,9 @@ internal static class LxmdApp
                 case "--sync": sync = Value(); break;
                 case "-b" or "--break": unpeer = Value(); break;
                 case "--timeout":
-                    if (!double.TryParse(Value(), NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) || seconds <= 0 || !double.IsFinite(seconds))
-                        throw new ArgumentException("--timeout must be a positive finite number.");
+                    if (!double.TryParse(Value(), NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) ||
+                        seconds <= 0 || !double.IsFinite(seconds) || seconds * 1000 > uint.MaxValue - 1)
+                        throw new ArgumentException("--timeout must be positive, finite, and within the platform timer limit.");
                     timeout = seconds;
                     break;
                 case "-r" or "--remote": remote = Value(); break;
@@ -239,6 +233,7 @@ internal static class LxmdApp
 
                     throw new ArgumentException($"unrecognized argument '{option}'.");
             }
+            if (inlineValue is not null) throw new ArgumentException($"{option} does not accept a value.");
         }
 
         return new(config, rnsConfig, onInbound, identity, remote, sync, unpeer, timeout, verbosity, propagation, service, status, peers, example, help, version);
@@ -292,18 +287,6 @@ internal static class LxmdApp
 
     private static LxmPropagationOptions CreatePropagationOptions(LxmdConfig config, string configDirectory)
     {
-        if (config.GetBoolean("propagation", "autopeer", true))
-            throw new NotSupportedException("Propagation autopeering is not implemented; set [propagation] autopeer = no.");
-        if (config.GetInteger("propagation", "max_peers", null) is not null)
-            throw new NotSupportedException("Propagation max_peers is not implemented; remove the max_peers option.");
-        if (config.GetList("propagation", "prioritise_destinations").Count > 0)
-            throw new NotSupportedException("Propagation prioritise_destinations is not implemented; remove the option.");
-        if (config.GetList("propagation", "control_allowed").Count > 0)
-            throw new NotSupportedException("Propagation control_allowed is not implemented; remove the option.");
-        foreach (var unsupported in new[] { "sequential_pn_stamp_validation", "static_peers_bypass_sequential", "max_inbound_syncs" })
-            if (config.Get("propagation", unsupported) is not null)
-                throw new NotSupportedException($"Propagation {unsupported} is not implemented; remove the option.");
-
         var transferKilobytes = config.GetNumber("propagation", "propagation_transfer_max_accepted_size", 256);
         if (config.Get("propagation", "propagation_message_max_accepted_size") is not null)
             transferKilobytes = config.GetNumber("propagation", "propagation_message_max_accepted_size", transferKilobytes);
@@ -322,10 +305,19 @@ internal static class LxmdApp
             StampCost = Math.Max(13, config.GetInteger("propagation", "propagation_stamp_cost_target", 16)!.Value),
             StampFlexibility = Math.Max(0, config.GetInteger("propagation", "propagation_stamp_cost_flexibility", 3)!.Value),
             PeeringCost = Math.Max(0, config.GetInteger("propagation", "peering_cost", 18)!.Value),
+            MaxPeers = config.GetInteger("propagation", "max_peers", 20)!.Value,
             RequireAuthentication = config.GetBoolean("propagation", "auth_required", false),
             AllowedIdentities = LoadHashes(Path.Combine(configDirectory, "allowed")).Select(hash => Convert.FromHexString(hash)).ToArray(),
             FromStaticOnly = config.GetBoolean("propagation", "from_static_only", false),
             StaticPeers = staticPeers,
+            AutoPeer = config.GetBoolean("propagation", "autopeer", true),
+            AutoPeerMaxDepth = Math.Max(0, config.GetInteger("propagation", "autopeer_maxdepth", 4)!.Value),
+            MaxPeeringCost = Math.Max(0, config.GetInteger("propagation", "remote_peering_cost_max", 26)!.Value),
+            ControlAllowedIdentities = config.GetList("propagation", "control_allowed").Select(ParseHash).ToArray(),
+            PrioritisedDestinations = config.GetList("propagation", "prioritise_destinations").Select(ParseHash).ToArray(),
+            MaxInboundSyncs = Math.Max(1, config.GetInteger("propagation", "max_inbound_syncs", 3)!.Value),
+            SequentialValidation = config.GetBoolean("propagation", "sequential_pn_stamp_validation", true),
+            StaticPeerSequential = !config.GetBoolean("propagation", "static_peers_bypass_sequential", true),
         };
     }
 
@@ -338,16 +330,6 @@ internal static class LxmdApp
             return hash;
         }
         catch (FormatException) { throw new FormatException($"Invalid 16-byte hash in propagation configuration: {value}"); }
-    }
-
-    private static Action<int, string> CreateLogger(TextWriter writer, int level)
-    {
-        var gate = new object();
-        return (severity, message) =>
-        {
-            if (severity > level) return;
-            lock (gate) writer.WriteLine($"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}] {message}");
-        };
     }
 
     private static async Task RunAnnounceJobsAsync(LxmRouter router, LxmPropagationNode? propagationNode,
@@ -404,20 +386,35 @@ internal static class LxmdApp
         }
     }
 
-    private static void RunInbound(string command, string messagePath, Action<int, string> log)
+    private static void RunInbound(string command, string messagePath, Action<int, string> log, CancellationToken stop)
     {
         try
         {
             var parts = SplitCommand(command);
             if (parts.Count == 0) return;
-            var start = new System.Diagnostics.ProcessStartInfo(parts[0]) { UseShellExecute = false };
+            var start = new System.Diagnostics.ProcessStartInfo(parts[0])
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
             foreach (var argument in parts.Skip(1)) start.ArgumentList.Add(argument);
             start.ArgumentList.Add(messagePath);
             using var process = System.Diagnostics.Process.Start(start) ?? throw new IOException("Inbound handler did not start.");
-            if (!process.WaitForExit(60_000))
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stop);
+            timeout.CancelAfter(TimeSpan.FromSeconds(60));
+            var stdout = process.StandardOutput.BaseStream.CopyToAsync(Stream.Null, timeout.Token);
+            var stderr = process.StandardError.BaseStream.CopyToAsync(Stream.Null, timeout.Token);
+            try
             {
-                process.Kill(entireProcessTree: true);
-                log(1, $"Inbound handler timed out for {messagePath}.");
+                process.WaitForExitAsync(timeout.Token).GetAwaiter().GetResult();
+                Task.WhenAll(stdout, stderr).GetAwaiter().GetResult();
+                if (process.ExitCode != 0) log(2, $"Inbound handler returned {process.ExitCode} for {messagePath}.");
+            }
+            catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+            {
+                if (!process.HasExited) process.Kill(entireProcessTree: true);
+                log(1, $"Inbound handler {(stop.IsCancellationRequested ? "cancelled" : "timed out")} for {messagePath}.");
             }
         }
         catch (Exception ex) { log(1, $"Inbound handler failed for {messagePath}: {ex.Message}"); }

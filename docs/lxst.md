@@ -493,6 +493,15 @@ pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 
 
 Recorded results:
 
+- Final strict NativeAOT republication at root `683dd12`, stack `3cdf5be`,
+  passed on both hosts. Linux binary SHA-256:
+  `aa961bf6fc69d5242bcd0319bc371e74ba029515d02ca6227f15284512def0b0`;
+  Windows:
+  `cd08867d5908855d0bed4eaf1042532f1c0c6fb05d6375b4950c609d6a815420`.
+  Independent final-binary acceptance passed Linux **7/7**, zero skips,
+  and Windows `NativeWindows` **1/1**, zero skips. Linux includes actual Python
+  calls and a source-free native pair; Windows uses synthetic headless Opus,
+  not physical microphone capture.
 - Windows deterministic/unit, headless lifecycle, actual endpoint enumeration
   and opted-in synthetic-silence output selection: **86 passed, zero skipped**.
 - WSL full LXST suite against the actual primary-release checkout:

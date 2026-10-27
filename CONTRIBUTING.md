@@ -35,7 +35,20 @@ Live tests compare against the actual Python reference and are skipped unless en
 - `DOTRETICULUM_PYTHON` - a Python venv containing `lxmf` 1.2.1 (and the RNS it needs)
 - `DOTRETICULUM_UPSTREAM` - a working checkout of the pinned RNS revision; the harness verifies the imported source and Git revision
 
-`tests/Interop/reference_environment.py` holds the pins (RNS commit and LXMF version). It is a copy of the DotReticulum file of the same name; keep the RNS pin identical to the one in the submodule. Obtain RNS updates with DotReticulum's `rngit fetch` and verify the objects; the GitHub mirror is only a secondary comparison source. Disclose reference-side shims and non-default peer limits (for example an `lxmd` transfer-size limit). Unsupported test modes must explicitly skip rather than return a false pass.
+`tests/Interop/reference_environment.py` holds the pins. Keep its RNS commit identical to the one in the submodule. The verifier checks the actual RNS module path, version, Git revision and clean source tree, including untracked files. Use a native Linux checkout when running in WSL: a Windows checkout with CRLF conversion can appear modified to Linux Git.
+
+LXMF 1.2.1 is pinned to the PyPI wheel SHA-256 `4bd95325b00e5fae81241e28f26a5ed22b38fea941e128d1c63a33c99e931440` and every shipped Python source file is fingerprinted. A matching installed distribution version alone is insufficient. The inspected GitHub mirror has no 1.2.1 tag and reports 1.2.0 at its HEAD; do not claim that mirror revision as the release's source provenance.
+
+Obtain RNS updates with DotReticulum's `rngit fetch` and verify the objects; the GitHub mirror is only a secondary comparison source. Disclose reference-side shims and non-default peer limits (for example an `lxmd` transfer-size limit). Unsupported test modes must explicitly skip rather than return a false pass.
+
+Run provenance acceptance and rejection tests with the reference environment variables set:
+
+```powershell
+& $env:DOTRETICULUM_PYTHON tests\Interop\reference_environment.py --require-lxmf
+pwsh -NoProfile -File tests\run-pester.ps1
+```
+
+The Pester suite requires Pester 5.7.1 or later. Reference-dependent cases explicitly skip when the environment variables are absent; with them set, a missing or incorrect reference fails.
 
 ## Language ownership
 

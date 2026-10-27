@@ -257,6 +257,17 @@ def main():
                     time.sleep(0.05)
                 else:
                     raise AssertionError(f"Three incomplete Resources did not saturate admission: {response}")
+                rejected_resource = RNS.Resource(os.urandom(8192), probe, auto_compress=False)
+                deadline = time.monotonic() + 10
+                while rejected_resource.status not in (RNS.Resource.REJECTED, RNS.Resource.FAILED, RNS.Resource.COMPLETE) and time.monotonic() < deadline:
+                    time.sleep(0.05)
+                if rejected_resource.status != RNS.Resource.REJECTED:
+                    raise AssertionError(f"Saturated node did not reject fourth independent Resource: {rejected_resource.status}")
+                static_link, _ = connect(target)
+                links.append(static_link)
+                static_response = request_offer(static_link, key, fresh)
+                if static_response is not True:
+                    raise AssertionError(f"Configured static peer did not bypass saturated admission: {static_response}")
                 for link in links:
                     link.teardown()
                 links.clear()
@@ -269,7 +280,8 @@ def main():
                 else:
                     raise AssertionError(f"Admission did not recover after failed senders: {response}")
                 emit({"event": "admission-recovered", "saturated": LXMPeer.ERROR_THROTTLED,
-                      "recovered": response, "held_resources": 3})
+                      "recovered": response, "held_resources": 3, "static_bypass": static_response,
+                      "fourth_resource_status": rejected_resource.status})
             finally:
                 for link in links:
                     link.teardown()

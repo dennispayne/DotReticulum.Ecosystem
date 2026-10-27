@@ -540,6 +540,8 @@ autopeer = no
 announce_at_start = yes
 control_allowed = $($ready.identity_hash), invalid-identity, deadbeef
 prioritise_destinations = invalid-destination, deadbeef
+static_peers = $($ready.dest)
+static_peers_bypass_sequential = yes
 propagation_transfer_max_accepted_size = 0.38
 propagation_sync_max_accepted_size = 1
 [logging]
@@ -580,6 +582,8 @@ loglevel = 6
             $admission.saturated | Should -Be 246
             $admission.recovered | Should -BeTrue
             $admission.held_resources | Should -Be 3
+            $admission.static_bypass | Should -BeTrue
+            $admission.fourth_resource_status | Should -Be 9
             $rejected = Invoke-AdapterCommand $python "bad-stamp $nativeDestination" 'bad-stamp-rejected' 90 -Other @($daemon)
             $rejected.response | Should -Be $rejected.expected
             $elapsed = [Diagnostics.Stopwatch]::StartNew()

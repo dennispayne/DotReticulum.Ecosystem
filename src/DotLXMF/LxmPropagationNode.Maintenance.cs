@@ -12,7 +12,7 @@ public sealed partial class LxmPropagationNode
     private Task _maintenance = Task.CompletedTask;
     private Task _scheduledSync = Task.CompletedTask;
     private readonly HashSet<string> _queuedPeers = [];
-    private readonly double _started = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+    private readonly double _started;
     private long _clientMessagesReceived;
     private long _clientMessagesServed;
     private long _unpeeredIncoming;
@@ -252,7 +252,7 @@ public sealed partial class LxmPropagationNode
             return new Dictionary<object, object?>
             {
                 ["identity_hash"] = _identity.Hash, ["destination_hash"] = DestinationHash,
-                ["uptime"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0 - _started,
+                ["uptime"] = Now - _started,
                 ["delivery_limit"] = _deliveryLimit / 1000.0, ["propagation_limit"] = _options.TransferLimit / 1000.0,
                 ["sync_limit"] = _options.SyncLimit / 1000.0, ["target_stamp_cost"] = (long)_options.StampCost,
                 ["stamp_cost_flexibility"] = (long)_options.StampFlexibility, ["peering_cost"] = (long)_options.PeeringCost,

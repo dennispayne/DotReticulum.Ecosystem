@@ -181,7 +181,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
             else if (LxmfAppData.StampCost(_router.Engine.Known.RecallAppData(message.DestinationHash)) is { } cost)
             {
                 var id = message.ComputeHash();
-                stamp = await Task.Run(() => LxStamper.Generate(id, cost, cancellationToken), cancellationToken).ConfigureAwait(false);
+                stamp = await LxStamper.GenerateAsync(id, cost, cancellationToken).ConfigureAwait(false);
             }
 
             if (message.DesiredMethod == LxmMethod.Propagated)
@@ -192,8 +192,8 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 if (!LxmfPropagationAnnounce.TryParse(_router.Engine.Known.RecallAppData(node), out var announced))
                     throw new InvalidOperationException("Propagation node has not announced valid limits and stamp costs.");
                 message.Pack(stamp, identity, _router.Engine.Known.GetRatchet(message.DestinationHash));
-                var propagationStamp = await Task.Run(() => LxStamper.Generate(message.TransientId!, announced!.StampCost,
-                    cancellationToken, LxStamper.WorkblockExpandRoundsPn), cancellationToken).ConfigureAwait(false);
+                var propagationStamp = await LxStamper.GenerateAsync(message.TransientId!, announced!.StampCost,
+                    cancellationToken, LxStamper.WorkblockExpandRoundsPn).ConfigureAwait(false);
                 message.SetPropagationStamp(propagationStamp);
                 if (message.PropagationPacked!.LongLength > announced!.TransferLimitKilobytes * 1000)
                     throw new ArgumentException("Message exceeds the propagation node transfer limit.", nameof(message));

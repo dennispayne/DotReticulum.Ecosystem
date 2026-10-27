@@ -159,6 +159,28 @@ for protect_static in (False, True):
     router.rotate_peers()
     rotation_cases.append({"static": [entry.hex() for entry in router.static_peers],
                            "peers": before, "remaining": [entry.hex() for entry in router.peers]})
+Path(router.storagepath).mkdir(parents=True)
+router.propagation_entries = {}
+router.prioritised_list = [bytes([3]) * 16]
+router.message_storage_limit = 700
+eviction_entries = []
+for index, size, age_days in ((1, 100, 0), (2, 400, 8), (3, 600, 1)):
+    transient_id = bytes([index]) * 32
+    destination_hash = bytes([index]) * 16
+    received_at = 1700000302.0 - age_days * 86400
+    file_path = Path(router.storagepath) / f"{transient_id.hex()}_{received_at}_13"
+    file_path.write_bytes(b"x" * size)
+    router.propagation_entries[transient_id] = [destination_hash, str(file_path), received_at, size, [], [], 13]
+    with patch.object(router_module.time, "time", return_value=1700000302.0):
+        weight = router.get_weight(transient_id)
+    eviction_entries.append({"id": transient_id.hex(), "destination": destination_hash.hex(),
+                             "received": received_at, "size": size, "weight": weight})
+with patch.object(router_module.time, "time", return_value=1700000302.0):
+    router.clean_message_store()
+eviction_remaining = [entry.hex() for entry in router.propagation_entries]
+for file_path in Path(router.storagepath).iterdir():
+    file_path.unlink()
+Path(router.storagepath).rmdir()
 
 announces = [
     b"Legacy",
@@ -201,6 +223,8 @@ output = {
     "binary_fields": {"packed": binary_fields.packed.hex(), "hash": binary_fields.hash.hex()},
     "delivery_cache_packed": delivery_cache_packed.hex(),
     "peer_rotation": rotation_cases,
+    "store_eviction": {"entries": eviction_entries, "prioritised": [entry.hex() for entry in router.prioritised_list],
+                       "limit": router.message_storage_limit, "remaining": eviction_remaining},
     "propagation": {
         "packed": propagated.packed.hex(),
         "envelope": propagated.propagation_packed.hex(),

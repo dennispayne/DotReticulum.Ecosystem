@@ -85,6 +85,50 @@ internal sealed class LxmfPair : IAsyncDisposable
 public class LxmRouterTests
 {
     [Fact]
+    public async Task IgnoredSource_IsDroppedAndCanBeReenabled()
+    {
+        await using var pair = await LxmfPair.CreateAsync();
+        pair.Server.IgnoreDestination(pair.Client.DeliveryHash);
+        var ignored = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "ignored", method: LxmMethod.Opportunistic);
+        await pair.Client.SendAsync(ignored);
+        var barrier = LxMessage.Create(pair.Server.DeliveryHash, pair.ServerIdentity, "barrier", method: LxmMethod.Opportunistic);
+        await pair.Client.SendAsync(barrier);
+        await pair.WaitAsync(() => pair.ServerInbox.Count == 1);
+        Assert.False(pair.Server.HasMessage(ignored.Hash!));
+        pair.Server.UnignoreDestination(pair.Client.DeliveryHash);
+        var resumed = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "resumed", method: LxmMethod.Opportunistic);
+        await pair.Client.SendAsync(resumed);
+        await pair.WaitAsync(() => pair.ServerInbox.Count == 2);
+        Assert.Equal(new[] { "barrier", "resumed" }, pair.ServerInbox.Select(message => message.Message.Content));
+    }
+
+    [Fact]
+    public async Task DeliveryHistory_ImportsUpstreamBinaryKeysAndExpiresOldEntries()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "delivery-history-import-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            using var vectors = System.Text.Json.JsonDocument.Parse(File.ReadAllText(
+                Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxmf-contract-vectors.json")));
+            var packed = Convert.FromHexString(vectors.RootElement.GetProperty("delivery_cache_packed").GetString()!);
+            var history = Assert.IsType<Dictionary<object, object?>>(MsgPack.UnpackApplicationValue(packed));
+            var hash = Assert.IsType<byte[]>(Assert.Single(history).Key);
+            Directory.CreateDirectory(Path.Combine(path, "lxmf"));
+            var historyPath = Path.Combine(path, "lxmf", "local_deliveries");
+            File.WriteAllBytes(historyPath, packed);
+            await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = path });
+            Assert.False(pair.Server.HasMessage(hash));
+            await pair.Server.DisposeAsync();
+            history[hash] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+            File.WriteAllBytes(historyPath, MsgPack.Pack(history));
+            await using var restarted = new LxmRouter(pair.ServerRouter, pair.ServerIdentity,
+                options: new LxmRouterOptions { StoragePath = path });
+            Assert.True(restarted.HasMessage(hash));
+        }
+        finally { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); }
+    }
+
+    [Fact]
     public async Task PersistentDeliveryHistory_SuppressesDuplicatesAfterRouterRestart()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "delivery-history-" + Guid.NewGuid().ToString("N"));

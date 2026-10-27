@@ -39,6 +39,26 @@ def emit(obj):
         sys.stdout.flush()
 
 
+def command_lines():
+    # A buffered stdin read holds its lock while idle. Forked upstream stamp
+    # workers close stdin during startup and would inherit that locked reader.
+    pending = bytearray()
+    while True:
+        chunk = os.read(sys.stdin.fileno(), 4096)
+        if not chunk:
+            if pending:
+                yield pending.decode("utf-8")
+            return
+        pending.extend(chunk)
+        while (end := pending.find(b"\n")) >= 0:
+            if end > 65536:
+                raise ValueError("Harness command exceeds 64 KiB")
+            yield pending[:end].decode("utf-8")
+            del pending[:end + 1]
+        if len(pending) > 65536:
+            raise ValueError("Harness command exceeds 64 KiB")
+
+
 def write_config(path, tcp_server_port, rnsd_port):
     interfaces = ""
     if tcp_server_port:
@@ -93,11 +113,12 @@ def main():
     parser.add_argument("--tcp-server-port", type=int, default=0)
     parser.add_argument("--rnsd-port", type=int, default=0)
     parser.add_argument("--stamp-cost", type=int, default=None)
+    parser.add_argument("--loglevel", type=int, default=RNS.LOG_WARNING)
     args = parser.parse_args()
 
     verify_reference(require_lxmf=True)
     write_config(args.config, args.tcp_server_port, args.rnsd_port)
-    RNS.Reticulum(configdir=args.config, loglevel=RNS.LOG_WARNING)
+    RNS.Reticulum(configdir=args.config, loglevel=args.loglevel)
     RNS.Transport.register_announce_handler(Handler())
     RNS.Transport.register_announce_handler(PropagationHandler())
 
@@ -118,7 +139,7 @@ def main():
     router.register_delivery_callback(on_message)
     emit({"event": "ready", "dest": local.hash.hex(), "identity_hash": identity.hash.hex()})
 
-    for line in sys.stdin:
+    for line in command_lines():
         parts = line.strip().split()
         if not parts:
             continue

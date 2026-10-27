@@ -8,6 +8,7 @@ namespace DotLXMF;
 /// <summary>LXMF proof-of-work stamps (upstream <c>LXStamper.py</c>): a 32-byte value whose hash with an HKDF-expanded workblock has <c>cost</c> leading zero bits.</summary>
 public static class LxStamper
 {
+    private static readonly SemaphoreSlim GenerationGate = new(1, 1);
     public const int StampSize = 32;
     public const int WorkblockExpandRounds = 3000;
     public const int WorkblockExpandRoundsPn = 1000;
@@ -46,10 +47,35 @@ public static class LxStamper
     /// <summary>Searches for a stamp of at least <paramref name="cost"/> bits for <paramref name="messageId"/> using all cores.</summary>
     public static byte[] Generate(byte[] messageId, int cost, CancellationToken cancellationToken = default, int expandRounds = WorkblockExpandRounds)
     {
+        ValidateGeneration(messageId, cost, cancellationToken, expandRounds);
+        GenerationGate.Wait(cancellationToken);
+        try { return GenerateCore(messageId, cost, cancellationToken, expandRounds); }
+        finally { GenerationGate.Release(); }
+    }
+
+    public static async Task<byte[]> GenerateAsync(byte[] messageId, int cost, CancellationToken cancellationToken = default,
+        int expandRounds = WorkblockExpandRounds)
+    {
+        ValidateGeneration(messageId, cost, cancellationToken, expandRounds);
+        await GenerationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await Task.Run(() => GenerateCore(messageId, cost, cancellationToken, expandRounds), CancellationToken.None).ConfigureAwait(false);
+        }
+        finally { GenerationGate.Release(); }
+    }
+
+    private static void ValidateGeneration(byte[] messageId, int cost, CancellationToken cancellationToken, int expandRounds)
+    {
         ArgumentNullException.ThrowIfNull(messageId);
         ArgumentOutOfRangeException.ThrowIfNegative(cost);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(cost, 256);
+        ArgumentOutOfRangeException.ThrowIfNegative(expandRounds);
         cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    private static byte[] GenerateCore(byte[] messageId, int cost, CancellationToken cancellationToken, int expandRounds)
+    {
         var workblock = Workblock(messageId, expandRounds);
         byte[]? found = null;
         var workers = Math.Max(1, Environment.ProcessorCount);
@@ -63,6 +89,8 @@ public static class LxStamper
                 cancellationToken.ThrowIfCancellationRequested();
                 for (var i = 0; i < 256; i++)
                 {
+                    if (Volatile.Read(ref found) is not null) return;
+                    cancellationToken.ThrowIfCancellationRequested();
                     RandomNumberGenerator.Fill(candidate);
                     candidate.CopyTo(buffer.AsSpan(workblock.Length));
                     if (LeadingZeroBits(SHA256.HashData(buffer)) >= cost)
@@ -73,7 +101,11 @@ public static class LxStamper
                 }
             }
         }, CancellationToken.None)).ToArray();
-        Task.WaitAll(tasks);
+        try { Task.WaitAll(tasks); }
+        catch (AggregateException ex) when (ex.Flatten().InnerExceptions.All(error => error is OperationCanceledException))
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
         return found!;
     }
 

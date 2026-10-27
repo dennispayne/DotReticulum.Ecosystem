@@ -23,6 +23,11 @@ public sealed class LxmPropagationOptions
     public int AutoPeerMaxDepth { get; init; } = 4;
     public int MaxPeeringCost { get; init; } = 26;
     public IReadOnlyCollection<byte[]> ControlAllowedIdentities { get; init; } = [];
+    public IReadOnlyCollection<byte[]> PrioritisedDestinations { get; init; } = [];
+    public TimeProvider TimeProvider { get; init; } = TimeProvider.System;
+    public int MaxInboundSyncs { get; init; } = 3;
+    public bool SequentialValidation { get; init; } = true;
+    public bool StaticPeerSequential { get; init; }
 }
 
 /// <summary>Encrypted propagation storage, authenticated client retrieval and explicit peer synchronization.</summary>
@@ -38,8 +43,12 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
     private readonly long _deliveryLimit;
     private readonly Dictionary<string, Entry> _entries = [];
     private readonly HashSet<string> _validatedLinks = [];
+    private readonly HashSet<string> _transferringLinks = [];
+    private readonly HashSet<string> _validatingLinks = [];
+    private readonly Dictionary<string, double> _throttledPeers = [];
     private readonly HashSet<Link> _links = [];
     private readonly Dictionary<string, LxmPeer> _peers = [];
+    private readonly HashSet<string> _prioritised = [];
     private readonly object _gate = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly SemaphoreSlim _sync = new(1, 1);
@@ -54,15 +63,18 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         _identity = identity ?? throw new ArgumentNullException(nameof(identity));
         ArgumentException.ThrowIfNullOrWhiteSpace(storagePath);
         _options = options ?? new LxmPropagationOptions();
+        _started = Now;
         _deliveryLimit = deliveryLimit;
         if (_options.StampCost is < 13 or > 256 || _options.StampFlexibility < 0 || _options.PeeringCost is < 0 or > 256 ||
             _options.TransferLimit <= 0 || _options.SyncLimit < _options.TransferLimit || _options.StorageLimit <= 0 ||
             _options.RequestTimeout <= TimeSpan.Zero || _options.MaxPeers < 1 || _options.AutoPeerMaxDepth < 0 ||
-            _options.MaxPeeringCost is < 0 or > 256 || deliveryLimit <= 0 ||
+            _options.MaxPeeringCost is < 0 or > 256 || _options.MaxInboundSyncs < 1 || deliveryLimit <= 0 ||
             _options.StaticPeers.Select(Convert.ToHexStringLower).Distinct().Count() > _options.MaxPeers)
             throw new ArgumentException("Invalid propagation limits or costs.", nameof(options));
-        if (_options.AllowedIdentities.Concat(_options.StaticPeers).Concat(_options.ControlAllowedIdentities).Any(hash => hash.Length != 16))
+        if (_options.AllowedIdentities.Concat(_options.StaticPeers).Concat(_options.ControlAllowedIdentities)
+            .Concat(_options.PrioritisedDestinations).Any(hash => hash.Length != 16))
             throw new ArgumentException("Identity and destination hashes must be 16 bytes.", nameof(options));
+        foreach (var destination in _options.PrioritisedDestinations) _prioritised.Add(Convert.ToHexStringLower(destination));
         _localDelivery = localDelivery;
         _directory = Path.Combine(storagePath, "lxmf", "messagestore");
         Directory.CreateDirectory(_directory);
@@ -94,6 +106,29 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
     public long StoredBytes { get { lock (_gate) return _storedBytes; } }
     public Action<string>? Log { get; set; }
     public IReadOnlyList<LxmPeer> Peers { get { lock (_gate) return _peers.Values.ToArray(); } }
+    private double Now => _options.TimeProvider.GetUtcNow().ToUnixTimeMilliseconds() / 1000.0;
+
+    public static double CalculateStorageWeight(long size, double received, double now, bool prioritised) =>
+        (prioritised ? 0.1 : 1) * Math.Max(1, (now - received) / (86400 * 4)) * size;
+
+    public double GetWeight(ReadOnlySpan<byte> transientId)
+    {
+        lock (_gate)
+        {
+            var entry = _entries[Convert.ToHexStringLower(transientId)];
+            return CalculateStorageWeight(entry.Size, entry.Received, Now, _prioritised.Contains(Convert.ToHexStringLower(entry.Destination)));
+        }
+    }
+
+    public long? GetSize(ReadOnlySpan<byte> transientId)
+    {
+        lock (_gate) return _entries.TryGetValue(Convert.ToHexStringLower(transientId), out var entry) ? entry.Size : null;
+    }
+
+    public int? GetStampValue(ReadOnlySpan<byte> transientId)
+    {
+        lock (_gate) return _entries.TryGetValue(Convert.ToHexStringLower(transientId), out var entry) ? entry.StampValue : null;
+    }
 
     public ValueTask AnnounceAsync(CancellationToken cancellationToken = default)
     {
@@ -130,23 +165,63 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
 
         link.ResourceStrategy = ResourceStrategy.AcceptApp;
         link.ResourceAdvertised = advertisement =>
-            advertisement.DataSize <= _options.SyncLimit && StaticPeerAllowed(link.RemoteIdentity);
+        {
+            lock (_gate)
+            {
+                if (_disposed || advertisement.DataSize > _options.SyncLimit || !StaticPeerAllowed(link.RemoteIdentity) ||
+                    !BypassSequential(link.RemoteIdentity) && _transferringLinks.Count >= _options.MaxInboundSyncs) return false;
+                _transferringLinks.Add(link.LinkIdHex);
+                return true;
+            }
+        };
         link.ResourceReceived = resource =>
         {
-            if (resource.Status == ResourceStatus.Complete && resource.Data is { } bytes)
-                ProcessEnvelope(bytes, link, resource: true);
+            try
+            {
+                if (resource.Status != ResourceStatus.Complete || resource.Data is not { } bytes) return;
+                lock (_gate) _validatingLinks.Add(link.LinkIdHex);
+                if (!ProcessEnvelope(bytes, link, resource: true, out var invalidStamps))
+                {
+                    if (invalidStamps && link.RemoteIdentity is { } remote)
+                    {
+                        lock (_gate)
+                        {
+                            foreach (var key in _throttledPeers.Where(entry => entry.Value <= Now).Select(entry => entry.Key).ToArray())
+                                _throttledPeers.Remove(key);
+                            if (_throttledPeers.Count < 65_536) _throttledPeers[Convert.ToHexStringLower(PropagationHash(remote))] = Now + 180;
+                        }
+                    }
+                    link.Teardown();
+                }
+            }
+            finally
+            {
+                lock (_gate) { _transferringLinks.Remove(link.LinkIdHex); _validatingLinks.Remove(link.LinkIdHex); }
+            }
         };
         link.Closed += closed =>
         {
-            lock (_gate) { _links.Remove(closed); _validatedLinks.Remove(closed.LinkIdHex); }
+            lock (_gate)
+            {
+                _links.Remove(closed);
+                _validatedLinks.Remove(closed.LinkIdHex);
+                _transferringLinks.Remove(closed.LinkIdHex);
+                _validatingLinks.Remove(closed.LinkIdHex);
+            }
         };
     }
+
+    private bool BypassSequential(Identity? identity) => !_options.StaticPeerSequential && identity is not null &&
+        _options.StaticPeers.Any(hash => hash.AsSpan().SequenceEqual(PropagationHash(identity)));
 
     private bool StaticPeerAllowed(Identity? identity) => !_options.FromStaticOnly || identity is not null &&
         _options.StaticPeers.Any(hash => hash.AsSpan().SequenceEqual(PropagationHash(identity)));
 
-    private bool ProcessEnvelope(byte[] bytes, Link link, bool resource)
+    private bool ProcessEnvelope(byte[] bytes, Link link, bool resource) => ProcessEnvelope(bytes, link, resource, out _);
+
+    private bool ProcessEnvelope(byte[] bytes, Link link, bool resource, out bool invalidStamps)
     {
+        invalidStamps = false;
         try
         {
             if (bytes.LongLength > _options.SyncLimit || !StaticPeerAllowed(link.RemoteIdentity) ||
@@ -162,6 +237,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
                 if (value is not byte[] stamped || !ValidateStamped(stamped, out var data, out var stampValue))
                 {
                     valid = false;
+                    invalidStamps = true;
                     continue;
                 }
 
@@ -216,9 +292,25 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
             CleanStore();
             if (_entries.ContainsKey(key)) return;
-            if (_entries.Count >= 65_536 || stamped.LongLength > _options.StorageLimit - _storedBytes)
-                throw new InvalidOperationException("Propagation store capacity reached.");
-            var received = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+            if (stamped.LongLength > _options.StorageLimit) return;
+            var received = Now;
+            var pending = new Entry(id, data[..16].ToArray(), "", stamped.LongLength, received, stampValue);
+            var excess = _storedBytes + stamped.LongLength - _options.StorageLimit;
+            var countExcess = _entries.Count + 1 - 65_536;
+            if (excess > 0 || countExcess > 0)
+            {
+                var victims = new List<Entry>();
+                foreach (var entry in _entries.Values.Append(pending).OrderByDescending(entry =>
+                    CalculateStorageWeight(entry.Size, entry.Received, received, _prioritised.Contains(Convert.ToHexStringLower(entry.Destination)))))
+                {
+                    if (excess <= 0 && countExcess <= 0) break;
+                    victims.Add(entry);
+                    excess -= entry.Size;
+                    countExcess--;
+                }
+                if (victims.Contains(pending)) return;
+                foreach (var entry in victims) Remove(entry);
+            }
             var path = Path.Combine(_directory, key + "_" + received.ToString("R", CultureInfo.InvariantCulture) + "_" + stampValue);
             var output = path + ".out";
             try
@@ -278,6 +370,17 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
     private object Offer(RequestContext request)
     {
         if (request.RemoteIdentity is not { } identity) return 0xf0L;
+        lock (_gate)
+        {
+            if (!BypassSequential(identity) &&
+                (_options.SequentialValidation && _validatingLinks.Count > 0 || _transferringLinks.Count >= _options.MaxInboundSyncs)) return 0xf6L;
+            var remote = Convert.ToHexStringLower(PropagationHash(identity));
+            if (_throttledPeers.TryGetValue(remote, out var expires))
+            {
+                if (Now < expires) return 0xf6L;
+                _throttledPeers.Remove(remote);
+            }
+        }
         if (!StaticPeerAllowed(identity)) return 0xf1L;
         if (request.Data is not object?[] { Length: >= 2 } offer ||
             offer[0] is not byte[] { Length: LxStamper.StampSize } key || offer[1] is not object?[] ids ||
@@ -335,8 +438,8 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             if (peer.PeeringKey is null || peer.PeeringKeyValue < config.PeeringCost)
             {
                 Log?.Invoke($"Generating propagation peering key at cost {config.PeeringCost}.");
-                peer.PeeringKey = await Task.Run(() => LxStamper.Generate(peeringId, config.PeeringCost, owned.Token,
-                    LxStamper.WorkblockExpandRoundsPeering), owned.Token).ConfigureAwait(false);
+                peer.PeeringKey = await LxStamper.GenerateAsync(peeringId, config.PeeringCost, owned.Token,
+                    LxStamper.WorkblockExpandRoundsPeering).ConfigureAwait(false);
                 peer.PeeringKeyValue = LxStamper.Value(LxStamper.Workblock(peeringId, LxStamper.WorkblockExpandRoundsPeering), peer.PeeringKey);
             }
             Entry[] entries;
@@ -419,9 +522,9 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             var parts = Path.GetFileName(path).Split('_');
             if (parts.Length != 3 || parts[0].Length != 64 || !double.TryParse(parts[1], CultureInfo.InvariantCulture, out var received) ||
                 !double.IsFinite(received) || !int.TryParse(parts[2], out var value)) continue;
-            if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > received + TimeSpan.FromDays(30).TotalSeconds) { File.Delete(path); continue; }
+            if (Now > received + TimeSpan.FromDays(30).TotalSeconds) { File.Delete(path); continue; }
             var size = new FileInfo(path).Length;
-            if (size <= LxMessage.Overhead + LxStamper.StampSize || size > _options.SyncLimit || size > _options.StorageLimit - _storedBytes)
+            if (size <= LxMessage.Overhead + LxStamper.StampSize || size > _options.SyncLimit || _entries.Count >= 65_536)
                 throw new InvalidDataException("Invalid or oversized propagation store entry.");
             var stamped = File.ReadAllBytes(path);
             var id = Identity.FullHash(stamped.AsSpan(0, stamped.Length - LxStamper.StampSize));
@@ -429,12 +532,19 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             if (!_entries.TryAdd(parts[0], new Entry(id, stamped[..16], path, size, received, value))) throw new InvalidDataException("Duplicate propagation store entry.");
             _storedBytes += size;
         }
+        CleanStore();
     }
 
     private void CleanStore()
     {
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var now = Now;
         foreach (var entry in _entries.Values.Where(entry => now > entry.Received + TimeSpan.FromDays(30).TotalSeconds).ToArray()) Remove(entry);
+        foreach (var entry in _entries.Values.OrderByDescending(entry =>
+            CalculateStorageWeight(entry.Size, entry.Received, now, _prioritised.Contains(Convert.ToHexStringLower(entry.Destination)))).ToArray())
+        {
+            if (_storedBytes <= _options.StorageLimit) break;
+            Remove(entry);
+        }
     }
 
     private void Remove(Entry entry)

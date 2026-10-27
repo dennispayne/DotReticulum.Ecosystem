@@ -8,6 +8,33 @@ namespace DotLXMF.Tests;
 [Trait("Category", "Unit")]
 public class LxmfContractTests
 {
+    [Fact]
+    public void StorageWeights_MatchExecutedUpstreamAgeAndPriorityCases()
+    {
+        var fixture = Root.GetProperty("store_eviction");
+        var prioritised = fixture.GetProperty("prioritised").EnumerateArray().Select(value => value.GetString()).ToArray();
+        foreach (var entry in fixture.GetProperty("entries").EnumerateArray())
+            Assert.Equal(entry.GetProperty("weight").GetDouble(), LxmPropagationNode.CalculateStorageWeight(
+                entry.GetProperty("size").GetInt64(), entry.GetProperty("received").GetDouble(), 1700000302.0,
+                prioritised.Contains(entry.GetProperty("destination").GetString())));
+    }
+
+    [Fact]
+    public async Task StampGeneration_CancelsQueuedAndActiveWorkWithoutPoisoningTheWorkerPool()
+    {
+        var id = Identity.FullHash("cancellation"u8);
+        using var activeCancellation = new CancellationTokenSource();
+        using var queuedCancellation = new CancellationTokenSource();
+        var active = LxStamper.GenerateAsync(id, 256, activeCancellation.Token, LxStamper.WorkblockExpandRoundsPeering);
+        var queued = LxStamper.GenerateAsync(id, 4, queuedCancellation.Token, LxStamper.WorkblockExpandRoundsPeering);
+        queuedCancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => queued);
+        activeCancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => active);
+        var stamp = await LxStamper.GenerateAsync(id, 4, expandRounds: LxStamper.WorkblockExpandRoundsPeering);
+        Assert.True(LxStamper.IsValid(stamp, 4, LxStamper.Workblock(id, LxStamper.WorkblockExpandRoundsPeering)));
+    }
+
     private sealed class Clock(double now) : TimeProvider
     {
         public double Now { get; set; } = now;

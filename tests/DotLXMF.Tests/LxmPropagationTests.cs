@@ -4,6 +4,41 @@ namespace DotLXMF.Tests;
 public class LxmPropagationTests
 {
     [Fact]
+    public async Task StoreCapacity_PreservesLowerWeightPriorityMessages()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "propagation-capacity-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = path });
+            using var preferredIdentity = DotReticulum.Core.Identity.Generate();
+            var preferred = LxMessage.DeliveryDestinationHash(preferredIdentity);
+            pair.ClientRouter.Engine.Known.Remember(preferred, new byte[32], preferredIdentity.ExportPublicKey(), null);
+            var node = pair.Server.EnablePropagationNode(new LxmPropagationOptions
+            {
+                StampCost = 13, StorageLimit = 800, AutoPeer = false, PrioritisedDestinations = [preferred],
+            });
+            await node.AnnounceAsync();
+            await pair.WaitAsync(() => pair.ClientRouter.HasPath(node.DestinationHash));
+            pair.Client.OutboundPropagationNode = node.DestinationHash;
+            var first = LxMessage.Create(pair.Client.DeliveryHash, pair.ClientIdentity, new string('a', 32), method: LxmMethod.Propagated);
+            await pair.Client.SendAsync(first);
+            Assert.Equal(LxmState.Sent, await first.Completion.WaitAsync(TimeSpan.FromSeconds(60)));
+            await pair.WaitAsync(() => node.GetSize(first.TransientId!) is not null);
+            var large = LxMessage.Create(pair.Client.DeliveryHash, pair.ClientIdentity, new string('b', 384), method: LxmMethod.Propagated);
+            await pair.Client.SendAsync(large);
+            Assert.Equal(LxmState.Sent, await large.Completion.WaitAsync(TimeSpan.FromSeconds(60)));
+            var priority = LxMessage.Create(preferred, pair.ClientIdentity, new string('c', 384), method: LxmMethod.Propagated);
+            await pair.Client.SendAsync(priority);
+            Assert.Equal(LxmState.Sent, await priority.Completion.WaitAsync(TimeSpan.FromSeconds(60)));
+            await pair.WaitAsync(() => node.GetSize(priority.TransientId!) is not null);
+            Assert.Null(node.GetSize(first.TransientId!));
+            Assert.Null(node.GetSize(large.TransientId!));
+            Assert.InRange(node.StoredBytes, 1, 800);
+        }
+        finally { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); }
+    }
+
+    [Fact]
     public async Task PeerRotation_MatchesUpstreamAndProtectsStaticPeers()
     {
         using var vectors = System.Text.Json.JsonDocument.Parse(File.ReadAllText(

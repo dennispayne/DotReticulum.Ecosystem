@@ -224,6 +224,19 @@ def main():
     tone = ToneSource(frequency=440, gain=0.2, ease=False, target_frame_ms=10, codec=Null())
     tone.ease_gain = 1.0
     tone_output = tone._ToneSource__generate().reshape(-1).tolist()
+    transition_targets = [0.04, 0.0, 0.0, 0.04, 0.04, 0.01]
+    tone_transitions = {}
+    for ease in (False, True):
+        transitioning_tone = ToneSource(
+            frequency=400, gain=0.04, ease=ease, ease_time_ms=1,
+            target_frame_ms=1, codec=Null(), channels=2,
+        )
+        transitioning_tone.ease_gain = 0.0 if ease else 1.0
+        transition_frames = []
+        for target in transition_targets:
+            transitioning_tone.gain = target
+            transition_frames.append(transitioning_tone._ToneSource__generate().reshape(-1).tolist())
+        tone_transitions[str(ease).lower()] = transition_frames
 
     null = Null()
     null_input = object()
@@ -315,6 +328,16 @@ def main():
             "sampleRate": 48000,
             "channels": 1,
             "samples": tone_output,
+        },
+        "toneGainTransitions": {
+            "frequency": 400,
+            "initialGain": 0.04,
+            "sampleRate": 48_000,
+            "channels": 2,
+            "frameMilliseconds": 1,
+            "easeMilliseconds": 1,
+            "targetGains": transition_targets,
+            "framesByEase": tone_transitions,
         },
         "nullCodec": {
             "encodeReturnsSameObject": null_encoded is null_input,

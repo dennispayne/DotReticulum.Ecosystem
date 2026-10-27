@@ -9,8 +9,10 @@ public sealed class ToneAudioSource : IAudioSource
     private readonly int _channels;
     private readonly bool _ease;
     private readonly float _easeStep;
+    private readonly double _gainStep;
     private double _phase;
-    private float _gain;
+    private double _gain;
+    private float _targetGain;
     private float _easeGain;
     private volatile bool _stopRequested;
     private volatile bool _running;
@@ -41,12 +43,22 @@ public sealed class ToneAudioSource : IAudioSource
         _ease = ease;
         _easeGain = ease ? 0f : 1f;
         _easeStep = (float)(1.0 / (sampleRate * easeTime.TotalSeconds));
+        _gainStep = 0.02 / (sampleRate * easeTime.TotalSeconds);
         _sampleRate = sampleRate;
         _channels = channels;
     }
 
     public float Frequency { get; }
-    public float Gain { get; }
+    /// <summary>Target amplitude; changes ramp by 0.02 per ease duration, even when start/stop easing is disabled.</summary>
+    public float Gain
+    {
+        get => Volatile.Read(ref _targetGain);
+        set
+        {
+            if (!float.IsFinite(value) || value < 0) throw new ArgumentOutOfRangeException(nameof(value));
+            Volatile.Write(ref _targetGain, value);
+        }
+    }
     public bool IsRunning => _running && !_stopRequested;
 
     public void Stop() => _stopRequested = true;
@@ -68,9 +80,13 @@ public sealed class ToneAudioSource : IAudioSource
                 for (var sample = 0; sample < samplesPerFrame; sample++)
                 {
                     _phase += phaseStep;
-                    var value = (float)Math.Sin(_phase) * _gain * _easeGain;
+                    var value = (float)(Math.Sin(_phase) * _gain * _easeGain);
                     for (var channel = 0; channel < _channels; channel++)
                         samples[sample * _channels + channel] = value;
+
+                    var targetGain = Gain;
+                    if (targetGain > _gain) _gain = Math.Min(targetGain, _gain + _gainStep);
+                    else if (targetGain < _gain) _gain = Math.Max(targetGain, _gain - _gainStep);
 
                     if (!_ease) continue;
                     if (!_stopRequested && _easeGain < 1f)

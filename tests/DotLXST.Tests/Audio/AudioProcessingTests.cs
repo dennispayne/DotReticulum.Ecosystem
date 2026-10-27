@@ -134,6 +134,38 @@ public sealed class AudioProcessingTests
         Assert.False(source.IsRunning);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ToneGainChangesRampAcrossFramesLikePinnedGenerator(bool ease)
+    {
+        var source = Vectors.RootElement.GetProperty("toneGainTransitions");
+        var tone = new ToneAudioSource(
+            frequency: source.GetProperty("frequency").GetSingle(),
+            gain: source.GetProperty("initialGain").GetSingle(),
+            ease: ease,
+            easeDuration: TimeSpan.FromMilliseconds(source.GetProperty("easeMilliseconds").GetDouble()),
+            frameDuration: TimeSpan.FromMilliseconds(source.GetProperty("frameMilliseconds").GetDouble()),
+            sampleRate: source.GetProperty("sampleRate").GetInt32(),
+            channels: source.GetProperty("channels").GetInt32());
+        await using var frames = tone.CaptureAsync().GetAsyncEnumerator();
+        var expectedFrames = source.GetProperty("framesByEase").GetProperty(ease ? "true" : "false");
+        var index = 0;
+        foreach (var target in source.GetProperty("targetGains").EnumerateArray())
+        {
+            tone.Gain = target.GetSingle();
+            Assert.Equal(target.GetSingle(), tone.Gain);
+            Assert.True(await frames.MoveNextAsync());
+            // Float target/ease state differs from NumPy's double scalar by less than 1e-7.
+            AssertSamples(expectedFrames[index++], frames.Current.Samples.Span, 1e-7f);
+        }
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => tone.Gain = float.NaN);
+        Assert.Throws<ArgumentOutOfRangeException>(() => tone.Gain = float.PositiveInfinity);
+        Assert.Throws<ArgumentOutOfRangeException>(() => tone.Gain = -0.1f);
+        tone.Stop();
+    }
+
     private static float[] Flatten(JsonElement rows) =>
         rows.EnumerateArray().SelectMany(row => row.EnumerateArray().Select(value => value.GetSingle())).ToArray();
 

@@ -5,7 +5,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>dottelemetry</AssemblyName>
+    <AssemblyName>telemetry</AssemblyName>
     <RootNamespace>DotTelemetry</RootNamespace>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>

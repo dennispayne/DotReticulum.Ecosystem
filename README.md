@@ -16,7 +16,7 @@ Native C# / .NET 10 implementations of the applications and protocols layered on
 | Project | Upstream | Status |
 | --- | --- | --- |
 | [`DotLXMF`](src/DotLXMF) | [LXMF](https://github.com/markqvist/LXMF) 1.2.1 | Implemented in part: message format, signing, stamps, opportunistic and direct delivery. No propagation nodes, tickets or delivery-destination ratchets. See [docs/lxmf.md](docs/lxmf.md) |
-| [`DotTelemetry`](src/DotTelemetry) | None: a DotReticulum-specific format, not part of upstream Reticulum or LXMF | Implemented: `dottelemetry` daemon and viewer. No Python interoperability target. See [docs/telemetry.md](docs/telemetry.md) |
+| [`DotTelemetry`](src/DotTelemetry) | None: a DotReticulum-specific format, not part of upstream Reticulum or LXMF | Implemented: `telemetry` daemon and viewer. No Python interoperability target. See [docs/telemetry.md](docs/telemetry.md) |
 | DotLXST | [LXST](https://github.com/markqvist/LXST) | Not started |
 | DotSideband | [Sideband](https://github.com/markqvist/Sideband) | Not started. Sideband depends on RNS, LXMF and LXST, so it would need DotLXST for voice calls |
 | DotNomad | [NomadNet](https://github.com/markqvist/NomadNet) | Not started |
@@ -54,7 +54,7 @@ Live interoperability tests are opt-in and need the pinned Python reference: set
 | Opportunistic and direct delivery, large Resources | Live against Python `LXMRouter` in both directions |
 | Delivery to `lxmd` | Live delivery to a real `lxmd` destination; this does not establish propagation support |
 | Propagation, tickets, ratchets, an `lxmd` equivalent | Not implemented |
-| Telemetry (`dottelemetry`) | .NET-only: nodes publish and view reports through direct links and a .NET `rnsd` hop; no upstream counterpart |
+| Telemetry (`telemetry`) | .NET-only: nodes publish and view reports through direct links and a .NET `rnsd` hop; no upstream counterpart |
 
 The Reticulum stack's own compatibility status and platform support are documented in the [DotReticulum README](https://github.com/dennispayne/DotReticulum#compatibility). Platform behavior here follows from it; nothing in this repository has been verified separately on other platforms.
 

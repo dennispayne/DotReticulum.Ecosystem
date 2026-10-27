@@ -8,13 +8,13 @@ namespace DotTelemetry;
 public static class TelemetryApp
 {
     public const string Usage = """
-        dottelemetry - publish and view node telemetry over Reticulum (experimental, DotReticulum-specific format)
+        telemetry - publish and view node telemetry over Reticulum (experimental, DotReticulum-specific format)
 
         Usage:
-          dottelemetry daemon [-i seconds] [-b seconds]   Publish periodic system/node metrics
-          dottelemetry watch <destination> [-n count]     Subscribe to a daemon and print its reports
-          dottelemetry get <destination>                  Print one report and exit
-          dottelemetry -p                                 Print this node's telemetry destination and exit
+          telemetry daemon [-i seconds] [-b seconds]   Publish periodic system/node metrics
+          telemetry watch <destination> [-n count]     Subscribe to a daemon and print its reports
+          telemetry get <destination>                  Print one report and exit
+          telemetry -p                                 Print this node's telemetry destination and exit
 
         Options:
           --config <path>      Reticulum config directory or file (default ~/.dotreticulum)

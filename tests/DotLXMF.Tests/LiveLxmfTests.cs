@@ -226,6 +226,59 @@ public class LiveLxmfTests
 
     [LiveFact]
     [Trait("Category", "Live")]
+    public Task PythonReply_UsesNativeInitiatedDeliveryBackchannel() => VerifyDirectBackchannel(true);
+
+    [LiveFact]
+    [Trait("Category", "Live")]
+    public Task NativeReply_UsesPythonInitiatedDeliveryBackchannel() => VerifyDirectBackchannel(false);
+
+    private static async Task VerifyDirectBackchannel(bool nativeInitiated)
+    {
+        await using var rig = await Rig.StartAsync();
+        if (nativeInitiated)
+        {
+            var first = LxMessage.Create(rig.Py.Hash, rig.Identity, "native opens direct link");
+            await rig.Lxmf.SendAsync(first);
+            await rig.Py.NextAsync("received", 0, TimeSpan.FromSeconds(30));
+            Assert.Equal(LxmState.Delivered, await first.Completion.WaitAsync(TimeSpan.FromSeconds(30)));
+        }
+        else
+        {
+            await rig.Py.Command($"send {rig.Lxmf.DeliveryHashHex} direct 32 backchannel opening", "sent_queued", TimeSpan.FromSeconds(30));
+            await rig.Py.NextAsync("delivered", 0, TimeSpan.FromSeconds(30));
+            await WaitFor(() => rig.Inbox.Count == 1, 20);
+        }
+
+        var link = Assert.Single(rig.Router.Links.Links, value => value.Status == LinkStatus.Active);
+        await WaitFor(() => link.RemoteIdentity is not null, 20);
+        Assert.True(rig.Router.DropPath(rig.Py.Hash));
+        foreach (var size in new[] { 32, 600_000 })
+        {
+            var index = size == 32 ? 0 : 1;
+            if (nativeInitiated)
+            {
+                var queued = await rig.Py.Command($"send {rig.Lxmf.DeliveryHashHex} direct {size} backchannel reply", "sent_queued", TimeSpan.FromSeconds(30));
+                await rig.Py.NextAsync("delivered", index, TimeSpan.FromSeconds(30));
+                await WaitFor(() => rig.Inbox.Count == index + 1, 20);
+                Assert.Equal(queued.GetProperty("sha256").GetString(),
+                    Convert.ToHexStringLower(SHA256.HashData(rig.Inbox[index].Message.ContentBytes)));
+            }
+            else
+            {
+                var bytes = new byte[size];
+                RandomNumberGenerator.Fill(bytes);
+                var reply = LxMessage.CreateBinary(rig.Py.Hash, rig.Identity, bytes);
+                await rig.Lxmf.SendAsync(reply);
+                var received = await rig.Py.NextAsync("received", index, TimeSpan.FromSeconds(30));
+                Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(bytes)), received.GetProperty("sha256").GetString());
+                Assert.Equal(LxmState.Delivered, await reply.Completion.WaitAsync(TimeSpan.FromSeconds(30)));
+            }
+        }
+        Assert.Equal(link.LinkId, Assert.Single(rig.Router.Links.Links, value => value.Status == LinkStatus.Active).LinkId);
+    }
+
+    [LiveFact]
+    [Trait("Category", "Live")]
     public async Task ReplyTickets_AreExchangedAndValidatedInBothDirections()
     {
         await using var rig = await Rig.StartAsync(stampCost: 8);
@@ -322,7 +375,10 @@ public class LiveLxmfTests
             await using var rig = await Rig.StartAsync(storagePath: storage, smallPropagationBatches: true);
             var node = rig.Lxmf.EnablePropagationNode(new LxmPropagationOptions
             {
-                StampCost = 13, TransferLimit = 1000, SyncLimit = 1000, AutoPeer = false,
+                StampCost = 13,
+                TransferLimit = 1000,
+                SyncLimit = 1000,
+                AutoPeer = false,
                 TimeProvider = new UnscheduledClock(),
             });
             node.Log = _ => throw new InvalidOperationException("test propagation log observer failure");

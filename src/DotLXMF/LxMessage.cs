@@ -211,6 +211,12 @@ public sealed class LxMessage
 
     public byte[]? Stamp { get; private set; }
     public int? StampCost { get; internal set; }
+    public int? MaxDeliveryAttempts { get; internal set; }
+    public bool AwaitingPath { get; internal set; }
+    public bool SentOnPath { get; internal set; }
+    public bool SentOnSlowPath { get; internal set; }
+    public TimeSpan? ReceiptTimeout { get; internal set; }
+    public double? NextDeliveryAttempt => NextAttempt == 0 ? null : NextAttempt;
     public int? StampValue { get; internal set; }
     public bool StampChecked { get; internal set; }
     public bool StampValid { get; internal set; }

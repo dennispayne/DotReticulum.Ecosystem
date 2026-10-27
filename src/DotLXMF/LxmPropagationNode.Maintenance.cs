@@ -145,16 +145,18 @@ public sealed partial class LxmPropagationNode
 
     private async Task MaintainPeersAsync(CancellationToken ct)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(24), _options.TimeProvider);
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(4), _options.TimeProvider);
         try
         {
             while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
+                CleanLinks();
                 lock (_gate)
                 {
                     if (_disposed) break;
+                    if (++_maintenanceTicks % 6 != 0) continue;
                     if (!_enabled) continue;
-                    if (++_maintenanceTicks % 56 == 0) RotatePeers();
+                    if (_maintenanceTicks % 336 == 0) RotatePeers();
                     var now = Now;
                     foreach (var peer in _peers.Values.ToArray())
                         if (now > peer.LastHeard + TimeSpan.FromDays(14).TotalSeconds &&
@@ -167,8 +169,7 @@ public sealed partial class LxmPropagationNode
                         ? alive.Concat(waiting.Where(peer => peer.Alive && peer.SyncTransferRate == 0).Take(alive.Length)).ToArray()
                         : waiting.Where(peer => now >= peer.NextSyncAttempt).ToArray();
                     if (pool.Length > 0) QueuePeer(pool[Random.Shared.Next(pool.Length)].DestinationHash);
-                    CleanStore();
-                    if (_maintenanceTicks % 20 == 0) { SavePeers(); SaveNodeStats(); }
+                    if (_maintenanceTicks % 120 == 0) { CleanStore(); SavePeers(); SaveNodeStats(); }
                 }
             }
         }
@@ -217,6 +218,28 @@ public sealed partial class LxmPropagationNode
             if (removed > 0) SavePeers();
             return removed;
         }
+    }
+
+    public int CleanLinks()
+    {
+        Link[] expired;
+        lock (_gate)
+        {
+            expired = _links.Where(link => link.NoDataFor > 180).ToArray();
+            foreach (var link in expired)
+            {
+                _links.Remove(link);
+                _validatedLinks.Remove(link.LinkIdHex);
+                _transferringLinks.Remove(link.LinkIdHex);
+                _validatingLinks.Remove(link.LinkIdHex);
+            }
+        }
+        foreach (var link in expired)
+        {
+            try { link.Teardown(); }
+            catch (Exception ex) { Report("Could not close idle propagation link: " + ex.Message); }
+        }
+        return expired.Length;
     }
 
     private async Task StopMaintenanceAsync()

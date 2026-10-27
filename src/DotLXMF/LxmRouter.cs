@@ -313,6 +313,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 await _wake.WaitAsync(_options.ProcessingInterval, ct).ConfigureAwait(false);
                 while (_wake.CurrentCount > 0) await _wake.WaitAsync(0, ct).ConfigureAwait(false);
                 await ProcessAsync(ct).ConfigureAwait(false);
+                MaintainDeliveryLinks();
                 SaveOutboundStampCosts();
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -341,7 +342,16 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 continue;
             }
 
-            if (message.State == LxmState.Sending || Now < message.NextAttempt) continue;
+            if (message.State == LxmState.Sending) continue;
+            var target = message.Method == LxmMethod.Propagated ? message.PropagationNodeHash : message.DestinationHash;
+            var activeLink = false;
+            if (message.Method != LxmMethod.Opportunistic && message.State == LxmState.Outbound && target is not null)
+            {
+                lock (_gate) activeLink = _links.TryGetValue(Convert.ToHexStringLower(target), out var available) &&
+                    available.Status == LinkStatus.Active;
+                if (!activeLink && message.Method == LxmMethod.Direct) activeLink = FindBackchannel(target) is not null;
+            }
+            if (!activeLink && Now < message.NextAttempt) continue;
             if (message.State == LxmState.Sent && message.Method != LxmMethod.Opportunistic) continue;
             if (message.DeliveryAttempts > _options.MaxDeliveryAttempts)
             {
@@ -423,10 +433,12 @@ public sealed partial class LxmRouter : IAsyncDisposable
             {
                 _links.Remove(key);
                 _identified.Remove(key);
+                _propagationLinks.Remove(link);
                 link = null;
             }
         }
 
+        if (link is null && !propagated) link = FindBackchannel(destination);
         if (link is null)
         {
             if (!await EnsurePathAsync(message, ct, allowPathless: true, destination).ConfigureAwait(false)) return;
@@ -434,12 +446,17 @@ public sealed partial class LxmRouter : IAsyncDisposable
             message.DeliveryAttempts++;
             message.NextAttempt = Now + _options.DeliveryRetryWait.TotalSeconds;
             var created = _router.Links.Connect(identity, destination, _ => _wake.Release(), _ => _wake.Release());
-            lock (_gate) _links[key] = created;
+            if (!propagated) OnLinkEstablished(created);
+            lock (_gate)
+            {
+                _links[key] = created;
+                if (propagated) _propagationLinks.Add(created);
+            }
             return;
         }
 
         if (link.Status != LinkStatus.Active) return;
-        if (!propagated) IdentifyOnce(key, link);
+        if (!propagated && link.IsInitiator) IdentifyOnce(key, link);
         if (message.IsResource)
         {
             message.State = LxmState.Sending;
@@ -466,6 +483,8 @@ public sealed partial class LxmRouter : IAsyncDisposable
         else
         {
             message.DeliveryAttempts++;
+            message.State = LxmState.Sending;
+            if (message.State == LxmState.Cancelled) return;
             var receipt = link.Send(packed, createReceipt: true);
             if (receipt is null)
             {
@@ -473,9 +492,11 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 return;
             }
 
-            message.State = propagated ? LxmState.Sending : LxmState.Sent;
             receipt.Delivered = _ => message.State = propagated ? LxmState.Sent : LxmState.Delivered;
             receipt.TimedOut = _ => FailAttempt(message, link);
+            if (receipt.Status == PacketReceiptStatus.Delivered)
+                message.State = propagated ? LxmState.Sent : LxmState.Delivered;
+            else if (receipt.Status == PacketReceiptStatus.Failed) FailAttempt(message, link);
         }
     }
 
@@ -506,15 +527,18 @@ public sealed partial class LxmRouter : IAsyncDisposable
 
     private void OnLinkEstablished(Link link)
     {
-        lock (_gate)
-        {
-            if (_disposed == 0) _incomingLinks.Add(link);
-        }
-        if (Volatile.Read(ref _disposed) != 0) { link.Teardown(); return; }
+        link.ProofStrategy = ProofStrategy.All;
+        link.TrackPhysicalLayer(true);
         link.Closed += closed =>
         {
             lock (_gate) _incomingLinks.Remove(closed);
         };
+        lock (_gate)
+        {
+            if (_disposed == 0 && link.Status != LinkStatus.Closed) _incomingLinks.Add(link);
+        }
+        if (Volatile.Read(ref _disposed) != 0) { link.Teardown(); return; }
+        if (link.Status == LinkStatus.Closed) return;
         link.ResourceStrategy = ResourceStrategy.AcceptApp;
         link.PacketReceived = (data, _) => Deliver(data, LxmMethod.Direct);
         link.ResourceAdvertised = advertisement => advertisement.DataSize <= _options.DeliveryPerTransferLimit;
@@ -654,6 +678,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         {
             links = _links.Values.Concat(_incomingLinks).Distinct().ToArray();
             _links.Clear();
+            _propagationLinks.Clear();
             _incomingLinks.Clear();
             foreach (var message in _outbound) message.State = LxmState.Cancelled;
             _outbound.Clear();

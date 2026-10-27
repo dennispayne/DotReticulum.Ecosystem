@@ -23,7 +23,7 @@ internal sealed class LxmfPair : IAsyncDisposable
     public List<ReceivedMessage> ServerInbox { get; } = [];
     public List<ReceivedMessage> ClientInbox { get; } = [];
 
-    private LxmfPair()
+    private LxmfPair(TimeProvider? timeProvider)
     {
         int port;
         using (var l = new TcpListener(IPAddress.Loopback, 0))
@@ -34,13 +34,14 @@ internal sealed class LxmfPair : IAsyncDisposable
 
         _serverManager = new PacketInterfaceManager([new TcpServerPacketInterface(new IPEndPoint(IPAddress.Loopback, port), perClientInterfaces: true)]);
         _clientManager = new PacketInterfaceManager([new TcpClientPacketInterface("127.0.0.1", port)]);
-        ServerRouter = new TransportRouter(_serverManager, new TransportRouterOptions());
-        ClientRouter = new TransportRouter(_clientManager, new TransportRouterOptions());
+        ServerRouter = new TransportRouter(_serverManager, new TransportRouterOptions { TimeProvider = timeProvider });
+        ClientRouter = new TransportRouter(_clientManager, new TransportRouterOptions { TimeProvider = timeProvider });
     }
 
-    public static async Task<LxmfPair> CreateAsync(LxmRouterOptions? serverOptions = null, LxmRouterOptions? clientOptions = null)
+    public static async Task<LxmfPair> CreateAsync(LxmRouterOptions? serverOptions = null, LxmRouterOptions? clientOptions = null,
+        TimeProvider? transportTimeProvider = null)
     {
-        var pair = new LxmfPair();
+        var pair = new LxmfPair(transportTimeProvider);
         await pair._serverManager.StartAsync(pair._cts.Token);
         await pair._clientManager.StartAsync(pair._cts.Token);
         pair._runs.Add(Task.Run(() => pair.ServerRouter.RunAsync(pair._cts.Token)));
@@ -84,6 +85,118 @@ internal sealed class LxmfPair : IAsyncDisposable
 [Trait("Category", "Integration")]
 public class LxmRouterTests
 {
+    private sealed class LinkClock : TimeProvider
+    {
+        private readonly DateTimeOffset _start = DateTimeOffset.UtcNow;
+        private long _ticks;
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => Interlocked.Read(ref _ticks);
+        public override DateTimeOffset GetUtcNow() => _start.AddTicks(GetTimestamp());
+        public void Advance(TimeSpan interval) => Interlocked.Add(ref _ticks, interval.Ticks);
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) => new InertTimer();
+        private sealed class InertTimer : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+            public void Dispose() { }
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+    }
+
+    [Theory]
+    [InlineData(32)]
+    [InlineData(10000)]
+    public async Task IdentifiedBackchannel_ReusesLinkWithoutAPathAndReceivesOnInitiator(int replySize)
+    {
+        await using var pair = await LxmfPair.CreateAsync(clientOptions: new LxmRouterOptions
+        {
+            ProcessingInterval = TimeSpan.FromMilliseconds(50),
+            DeliveryRetryWait = TimeSpan.FromMinutes(1),
+        });
+        var logs = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        pair.Server.Log = logs.Enqueue;
+        pair.ServerRouter.Log = logs.Enqueue;
+        pair.ClientRouter.Log = logs.Enqueue;
+        var first = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "open a backchannel");
+        await pair.Client.SendAsync(first);
+        Assert.Equal(LxmState.Delivered, await first.Completion.WaitAsync(TimeSpan.FromSeconds(10)));
+        await pair.WaitAsync(() => pair.ServerInbox.Count == 1);
+        var incoming = Assert.Single(pair.ServerRouter.Links.Links, link => link.Status == LinkStatus.Active);
+        await pair.WaitAsync(() => incoming.RemoteIdentity is not null);
+        Assert.Null(incoming.RemoteIdentified);
+        Assert.True(pair.ServerRouter.DropPath(pair.Client.DeliveryHash));
+        var reply = LxMessage.Create(pair.Client.DeliveryHash, pair.ServerIdentity, new string('b', replySize));
+        await pair.Server.SendAsync(reply);
+        Assert.Equal(LxmState.Delivered, await reply.Completion.WaitAsync(TimeSpan.FromSeconds(10)));
+        await pair.WaitAsync(() => pair.ClientInbox.Count == 1);
+        Assert.Equal(reply.Content, pair.ClientInbox[0].Message.Content);
+        Assert.True(incoming.LinkId.AsSpan().SequenceEqual(Assert.Single(pair.ServerRouter.Links.Links,
+            link => link.Status == LinkStatus.Active).LinkId),
+            $"Original {incoming.Status}/{incoming.TeardownReason}, RTT {incoming.Rtt}, attempts {reply.DeliveryAttempts}: {string.Join("\n", logs)}");
+        Assert.Equal(incoming.LinkId, Assert.Single(pair.ClientRouter.Links.Links, link => link.Status == LinkStatus.Active).LinkId);
+    }
+
+    [Fact]
+    public async Task IdleDeliveryLink_MatchesExecutedReferenceStrictExpiryAndReconnects()
+    {
+        var clock = new LinkClock();
+        await using var pair = await LxmfPair.CreateAsync(clientOptions: new LxmRouterOptions
+        {
+            ProcessingInterval = TimeSpan.FromHours(1),
+        }, transportTimeProvider: clock);
+        var message = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "before idle cleanup");
+        await pair.Client.SendAsync(message);
+        Assert.Equal(LxmState.Delivered, await message.Completion.WaitAsync(TimeSpan.FromSeconds(10)));
+        var original = Assert.Single(pair.ClientRouter.Links.Links, link => link.Status == LinkStatus.Active);
+        clock.Advance(TimeSpan.FromSeconds(600));
+        Assert.Equal(0, pair.Client.CleanLinks());
+        Assert.Equal(LinkStatus.Active, original.Status);
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        Assert.Equal(1, pair.Client.CleanLinks());
+        Assert.Equal(LinkStatus.Closed, original.Status);
+        var next = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "after idle cleanup");
+        await pair.Client.SendAsync(next);
+        Assert.Equal(LxmState.Delivered, await next.Completion.WaitAsync(TimeSpan.FromSeconds(10)));
+        await pair.WaitAsync(() => pair.ServerInbox.Count == 2);
+        Assert.NotEqual(original.LinkId, Assert.Single(pair.ClientRouter.Links.Links, link => link.Status == LinkStatus.Active).LinkId);
+    }
+
+    [Fact]
+    public async Task IdlePropagationLinks_ExpireStrictlyAfter180SecondsAndReconnect()
+    {
+        var storage = Path.Combine(AppContext.BaseDirectory, "idle-propagation-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var clock = new LinkClock();
+            await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = storage },
+                transportTimeProvider: clock);
+            var node = pair.Server.EnablePropagationNode(new LxmPropagationOptions
+            {
+                StampCost = 13,
+                TimeProvider = clock,
+            });
+            await node.AnnounceAsync();
+            await pair.WaitAsync(() => pair.ClientRouter.HasPath(node.DestinationHash));
+            pair.Client.OutboundPropagationNode = node.DestinationHash;
+            var message = LxMessage.Create(pair.Client.DeliveryHash, pair.ClientIdentity, "before propagation idle", method: LxmMethod.Propagated);
+            await pair.Client.SendAsync(message);
+            Assert.Equal(LxmState.Sent, await message.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+            var link = Assert.Single(pair.ClientRouter.Links.Links, value => value.Status == LinkStatus.Active);
+            clock.Advance(TimeSpan.FromSeconds(180));
+            Assert.Equal(0, node.CleanLinks());
+            Assert.Equal(0, pair.Client.CleanLinks());
+            clock.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.Equal(1, node.CleanLinks());
+            Assert.Equal(1, pair.Client.CleanLinks());
+            Assert.Equal(LinkStatus.Closed, link.Status);
+            var next = LxMessage.Create(pair.Client.DeliveryHash, pair.ClientIdentity, "after propagation idle", method: LxmMethod.Propagated);
+            await pair.Client.SendAsync(next);
+            Assert.Equal(LxmState.Sent, await next.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+            Assert.NotEqual(link.LinkId, Assert.Single(pair.ClientRouter.Links.Links, value => value.Status == LinkStatus.Active).LinkId);
+            Assert.Equal(2, node.MessageCount);
+        }
+        finally { if (Directory.Exists(storage)) Directory.Delete(storage, true); }
+    }
+
     [Fact]
     public async Task OutboundStampCache_ImportsExecutedPythonFormatExpiresAndSurvivesRestart()
     {
@@ -537,7 +650,8 @@ public class LxmRouterTests
         {
             ProcessingInterval = TimeSpan.FromMilliseconds(200),
             DeliveryRetryWait = TimeSpan.FromSeconds(2),
-            InboundStampCost = 5, EnforceStamps = true,
+            InboundStampCost = 5,
+            EnforceStamps = true,
         };
         await using var pair = await LxmfPair.CreateAsync(serverOptions: serverOptions);
         Assert.Equal(5, LxmfAppData.StampCost(pair.ClientRouter.Engine.Known.RecallAppData(pair.Server.DeliveryHash)));

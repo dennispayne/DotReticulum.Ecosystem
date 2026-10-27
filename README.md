@@ -15,7 +15,7 @@ Native C# / .NET 10 implementations of the applications and protocols layered on
 
 | Project | Upstream | Status |
 | --- | --- | --- |
-| [`DotLXMF`](src/DotLXMF) | [LXMF](https://github.com/markqvist/LXMF) 1.2.1 | Partial: messages, stamps, direct/opportunistic delivery, ratchets, tickets, propagation components and NativeAOT `lxmd`. Full propagation/daemon compatibility is not established. See [docs/lxmf.md](docs/lxmf.md) |
+| [`DotLXMF`](src/DotLXMF) | [LXMF](https://github.com/markqvist/LXMF) 1.2.1 | Partial: messages, stamps, direct/opportunistic delivery, ratchets, tickets, propagation synchronization and NativeAOT `lxmd`, including mixed-node peering and restart acceptance. Full public-contract compatibility is not established. See [docs/lxmf.md](docs/lxmf.md) |
 | [`DotTelemetry`](src/DotTelemetry) | None: a DotReticulum-specific format, not part of upstream Reticulum or LXMF | Implemented: `telemetry` daemon and viewer. No Python interoperability target. See [docs/telemetry.md](docs/telemetry.md) |
 | [`DotLXST`](src/DotLXST) | [LXST](https://github.com/markqvist/LXST) 0.4.5 | Partial: framing, native Opus/Codec2, audio processing, stream sessions, telephony and Linux `rnphone`. Full API/utility/platform parity is not complete. See [docs/lxst.md](docs/lxst.md) |
 | DotSideband | [Sideband](https://github.com/markqvist/Sideband) | Not started. Sideband depends on RNS, LXMF and LXST, so it would need DotLXST for voice calls |
@@ -55,10 +55,11 @@ Live interoperability tests are opt-in and need the pinned Python reference: set
 | LXMF message format, signing, hashing, stamps | Reference-generated vectors; messages opened by upstream LXMF both ways |
 | Opportunistic and direct delivery, large Resources | Live against Python `LXMRouter` in both directions |
 | Delivery to `lxmd` | Live delivery to a real `lxmd` destination; this does not establish propagation support |
-| Tickets and delivery ratchets | Implemented components; exact persistence and live acceptance boundaries are in [docs/lxmf.md](docs/lxmf.md) |
-| Propagation and native `lxmd` | Partial; direct delivery does not prove propagation synchronization or complete daemon compatibility |
+| Tickets and delivery ratchets | Live reply-ticket exchange, signed ratchet-file handoffs and old-key delivery after restart; exact boundaries in [docs/lxmf.md](docs/lxmf.md) |
+| Propagation client and peers | Live bidirectional retrieval and 2.2 MB explicit peer synchronization with Python; full peer-policy compatibility remains incomplete |
+| Native `lxmd` | Windows/Linux NativeAOT delivery, control, persistence and autonomous mixed-node propagation/restart acceptance; not full daemon compatibility |
 | LXST framing and codecs | Executed upstream vectors; native Opus/Codec2 bitstream cases verified in WSL |
-| LXST stream sessions and telephone calls | Live Python in both call directions, direct and through Python/.NET transport hops, using virtual audio; remaining profile/failure/device gaps are in [docs/lxst.md](docs/lxst.md) |
+| LXST stream sessions and telephone calls | Live Python in both call directions, direct and through Python/.NET transport hops; all eight initial telephone profiles, policy rejection and timeout/recovery cases use virtual audio. Remaining gaps are in [docs/lxst.md](docs/lxst.md) |
 | LXST headless audio processing | Reference-executed resampling, filters/AGC, tone, bounded mixing and pipeline cases; no physical audio-quality claim |
 | `rnphone` | Partial; native utility coverage is not full upstream API/platform parity |
 | Telemetry (`telemetry`) | .NET-only: nodes publish and view reports through direct links and a .NET `rnsd` hop; no upstream counterpart |

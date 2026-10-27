@@ -6,8 +6,32 @@ namespace DotLXMF;
 public sealed partial class LxmRouter
 {
     private readonly HashSet<Link> _propagationLinks = [];
+    private readonly Dictionary<Link, LxMessage> _propagationMessages = [];
     private double _lastLinkCleanup;
     private double _lastResourceCleanup;
+
+    private void ConfigurePropagationSignals(Link link)
+    {
+        link.PacketReceived = (data, _) =>
+        {
+            try
+            {
+                if (MsgPack.UnpackApplicationValue(data) is not object?[] { Length: > 0 } values ||
+                    MsgPack.ToInt64(values[0]) != 0xf5) return;
+                LxMessage? message;
+                lock (_gate)
+                {
+                    if (_disposed != 0 || !_propagationMessages.TryGetValue(link, out message) ||
+                        message.State is LxmState.Delivered or LxmState.Cancelled or LxmState.Failed) return;
+                    message.State = LxmState.Rejected;
+                }
+                message.ActiveResource?.Cancel();
+                _wake.Release();
+            }
+            catch (Exception ex) { Report("Could not process propagation transfer signalling: " + ex.Message); }
+        };
+        link.Closed += closed => { lock (_gate) _propagationMessages.Remove(closed); };
+    }
 
     private Link? FindBackchannel(ReadOnlySpan<byte> destination)
     {
@@ -37,6 +61,7 @@ public sealed partial class LxmRouter
                 _links.Remove(key);
                 _identified.Remove(key);
                 _propagationLinks.Remove(link);
+                _propagationMessages.Remove(link);
             }
         }
         foreach (var link in expired)
@@ -64,5 +89,6 @@ public sealed partial class LxmRouter
         var now = Now;
         if (now - _lastLinkCleanup >= 4) { _lastLinkCleanup = now; CleanLinks(); }
         if (now - _lastResourceCleanup >= 8) { _lastResourceCleanup = now; CleanResourceTracking(); }
+        if (now - _lastTransientCleanup >= 240) { _lastTransientCleanup = now; CleanTransientIdCaches(); }
     }
 }

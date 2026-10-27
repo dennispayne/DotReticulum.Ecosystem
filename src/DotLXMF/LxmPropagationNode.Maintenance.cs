@@ -11,6 +11,7 @@ public sealed partial class LxmPropagationNode
     private Channel<byte[]> _syncQueue = null!;
     private Task _maintenance = Task.CompletedTask;
     private Task _scheduledSync = Task.CompletedTask;
+    private Task _staticPeerPaths = Task.CompletedTask;
     private readonly HashSet<string> _queuedPeers = [];
     private readonly double _started;
     private long _clientMessagesReceived;
@@ -33,7 +34,8 @@ public sealed partial class LxmPropagationNode
         _control.RegisterRequestHandler("/pn/peer/unpeer", request => ControlPeer(request, sync: false),
             RequestPolicy.All, useApplicationValues: true);
         _router.RegisterLocalDestination(_control);
-        _syncQueue = System.Threading.Channels.Channel.CreateBounded<byte[]>(new BoundedChannelOptions(Math.Max(1, _options.MaxPeers))
+        _syncQueue = System.Threading.Channels.Channel.CreateBounded<byte[]>(new BoundedChannelOptions(
+            (int)Math.Clamp((long)_options.MaxPeers + _options.StaticPeers.Count, 1, 65_536))
         {
             SingleReader = true,
             FullMode = BoundedChannelFullMode.Wait,
@@ -43,17 +45,61 @@ public sealed partial class LxmPropagationNode
             var name = Convert.ToHexStringLower(destination);
             if (!_peers.ContainsKey(name))
             {
-                if (_peers.Count >= _options.MaxPeers) throw new ArgumentException("Static peers exceed MaxPeers.");
+                if (_peers.Count >= 65_536) throw new ArgumentException("Static peers exceed bounded peer capacity.");
                 var peer = new LxmPeer(destination) { SyncStrategy = (int)_options.SyncStrategy };
                 foreach (var entry in _entries.Values) peer.AddUnhandled(entry.Id);
                 _peers.Add(name, peer);
             }
+
         }
 
         _announceHandler = new CallbackAnnounceHandler("lxmf.propagation", ReceiveNodeAnnounce, receivePathResponses: true);
         _router.Engine.RegisterHandler(_announceHandler);
         _maintenance = MaintainPeersAsync(_cts.Token);
         _scheduledSync = RunScheduledSyncAsync(_cts.Token);
+        _staticPeerPaths = RequestStaticPeerPathsAsync(_cts.Token);
+    }
+
+    private async Task RequestStaticPeerPathsAsync(CancellationToken ct)
+    {
+        foreach (var destination in _options.StaticPeers.DistinctBy(Convert.ToHexStringLower))
+        {
+            bool request;
+            lock (_gate) request = _peers.TryGetValue(Convert.ToHexStringLower(destination), out var peer) && peer.LastHeard == 0;
+            if (!request) continue;
+            try { await _router.RequestPathAsync(destination, cancellationToken: ct).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
+            catch (Exception ex) { Report("Could not request static propagation peer path: " + ex.Message); }
+        }
+    }
+
+    private void DiscoverIncomingPeer(Link link)
+    {
+        if (!_options.AutoPeer || link.RemoteIdentity is not { } identity) return;
+        var destination = PropagationHash(identity);
+        if (!LxmfPropagationAnnounce.TryParse(_router.Engine.Known.RecallAppData(destination), out var config) ||
+            !config!.Enabled || config.PeeringCost > _options.MaxPeeringCost ||
+            (_router.HopsTo(destination) ?? int.MaxValue) > _options.AutoPeerMaxDepth) return;
+        lock (_gate)
+        {
+            var key = Convert.ToHexStringLower(destination);
+            if (_disposed || !_enabled || _peers.ContainsKey(key) || _peers.Count >= Math.Min(_options.MaxPeers, 65_536)) return;
+            var peer = new LxmPeer(destination)
+            {
+                SyncStrategy = (int)_options.SyncStrategy,
+                Alive = true,
+                LastHeard = Now,
+                PeeringTimebase = config.Timebase,
+                TransferLimitKilobytes = config.TransferLimitKilobytes,
+                SyncLimitKilobytes = config.SyncLimitKilobytes,
+                StampCost = config.StampCost,
+                StampFlexibility = config.StampFlexibility,
+                PeeringCost = config.PeeringCost,
+                Metadata = config.Metadata,
+            };
+            foreach (var entry in _entries.Values) peer.AddUnhandled(entry.Id);
+            _peers.Add(key, peer);
+        }
     }
 
     private bool ControlAllowed(RequestContext request)
@@ -110,14 +156,14 @@ public sealed partial class LxmPropagationNode
 
             if (peer is null)
             {
-                if (_peers.Count >= _options.MaxPeers) return;
+                if (_peers.Count >= Math.Min(_options.MaxPeers, 65_536)) return;
                 peer = new LxmPeer(received.DestinationHash) { SyncStrategy = (int)_options.SyncStrategy };
                 foreach (var entry in _entries.Values) peer.AddUnhandled(entry.Id);
                 _peers.Add(key, peer);
             }
             else if (config.Timebase <= peer.PeeringTimebase) return;
             peer.Alive = true;
-            peer.LastHeard = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+            peer.LastHeard = Now;
             peer.PeeringTimebase = config.Timebase;
             peer.TransferLimitKilobytes = config.TransferLimitKilobytes;
             peer.SyncLimitKilobytes = config.SyncLimitKilobytes;
@@ -150,30 +196,45 @@ public sealed partial class LxmPropagationNode
         {
             while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
-                CleanLinks();
-                lock (_gate)
+                try
                 {
-                    if (_disposed) break;
-                    if (++_maintenanceTicks % 6 != 0) continue;
-                    if (!_enabled) continue;
-                    if (_maintenanceTicks % 336 == 0) RotatePeers();
-                    var now = Now;
-                    foreach (var peer in _peers.Values.ToArray())
-                        if (now > peer.LastHeard + TimeSpan.FromDays(14).TotalSeconds &&
-                            !_options.StaticPeers.Any(hash => hash.AsSpan().SequenceEqual(peer.DestinationHash)))
-                            _peers.Remove(Convert.ToHexStringLower(peer.DestinationHash));
-                    var waiting = _peers.Values.Where(peer => peer.UnhandledCount > 0 && now >= peer.NextSyncAttempt &&
-                        !_queuedPeers.Contains(Convert.ToHexStringLower(peer.DestinationHash))).ToArray();
-                    var alive = waiting.Where(peer => peer.Alive).OrderByDescending(peer => peer.SyncTransferRate).Take(2).ToArray();
-                    var pool = alive.Length > 0
-                        ? alive.Concat(waiting.Where(peer => peer.Alive && peer.SyncTransferRate == 0).Take(alive.Length)).ToArray()
-                        : waiting.Where(peer => now >= peer.NextSyncAttempt).ToArray();
-                    if (pool.Length > 0) QueuePeer(pool[Random.Shared.Next(pool.Length)].DestinationHash);
-                    if (_maintenanceTicks % 120 == 0) { CleanStore(); SavePeers(); SaveNodeStats(); }
+                    CleanLinks();
+                    lock (_gate)
+                    {
+                        if (_disposed) break;
+                        if (++_maintenanceTicks % 6 != 0) continue;
+                        CleanThrottledPeers();
+                        if (!_enabled) continue;
+                        if (_maintenanceTicks % 336 == 0) RotatePeers();
+                        var now = Now;
+                        foreach (var peer in _peers.Values.ToArray())
+                            if (now > peer.LastHeard + TimeSpan.FromDays(14).TotalSeconds &&
+                                !_options.StaticPeers.Any(hash => hash.AsSpan().SequenceEqual(peer.DestinationHash)))
+                                _peers.Remove(Convert.ToHexStringLower(peer.DestinationHash));
+                        var waiting = _peers.Values.Where(peer => peer.State == 0 && peer.UnhandledCount > 0 && now > peer.NextSyncAttempt &&
+                            !_queuedPeers.Contains(Convert.ToHexStringLower(peer.DestinationHash))).ToArray();
+                        var alive = waiting.Where(peer => peer.Alive).OrderByDescending(peer => peer.SyncTransferRate).Take(2).ToArray();
+                        var pool = alive.Length > 0
+                            ? alive.Concat(waiting.Where(peer => peer.Alive && peer.SyncTransferRate == 0).Take(alive.Length)).ToArray()
+                            : waiting;
+                        if (pool.Length > 0) QueuePeer(pool[Random.Shared.Next(pool.Length)].DestinationHash);
+                        if (_maintenanceTicks % 120 == 0) { CleanStore(); SavePeers(); SaveNodeStats(); }
+                    }
                 }
+                catch (Exception ex) { Report("LXMF propagation maintenance failed: " + ex.Message); }
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+    }
+
+    public int CleanThrottledPeers()
+    {
+        lock (_gate)
+        {
+            var expired = _throttledPeers.Where(entry => Now > entry.Value).Select(entry => entry.Key).ToArray();
+            foreach (var key in expired) _throttledPeers.Remove(key);
+            return expired.Length;
+        }
     }
 
     private async Task RunScheduledSyncAsync(CancellationToken ct)
@@ -246,7 +307,8 @@ public sealed partial class LxmPropagationNode
     {
         _router.Engine.DeregisterHandler(_announceHandler);
         _syncQueue.Writer.TryComplete();
-        await Task.WhenAll(_maintenance, _scheduledSync).ConfigureAwait(false);
+        _announcements.Writer.TryComplete();
+        await Task.WhenAll(_maintenance, _scheduledSync, _staticPeerPaths, _announcer).ConfigureAwait(false);
     }
 
     public Dictionary<object, object?>? CompileStats()
@@ -333,6 +395,7 @@ public sealed partial class LxmPropagationNode
     private void LoadNodeStats()
     {
         var path = Path.Combine(Path.GetDirectoryName(_directory)!, "node_stats");
+        LxmPersistence.RemoveInterruptedWrites(path);
         if (!File.Exists(path)) return;
         if (new FileInfo(path).Length > 4096 ||
             MsgPack.UnpackApplicationValue(File.ReadAllBytes(path)) is not Dictionary<object, object?> map)

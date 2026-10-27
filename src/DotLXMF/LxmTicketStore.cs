@@ -32,7 +32,8 @@ public sealed class LxmTicketStore : IDisposable
         _lease = new FileStream(_path + ".lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         try
         {
-            if (File.Exists(_path)) Load();
+            LxmPersistence.RemoveInterruptedWrites(_path);
+            if (File.Exists(_path)) Load(_path);
         }
         catch
         {
@@ -137,6 +138,30 @@ public sealed class LxmTicketStore : IDisposable
         }
     }
 
+    public void Save()
+    {
+        lock (_gate) { ThrowIfDisposed(); SaveCore(); }
+    }
+
+    public bool Reload()
+    {
+        lock (_gate)
+        {
+            ThrowIfDisposed();
+            if (_path is null || !File.Exists(_path)) return false;
+            using var loaded = new LxmTicketStore(timeProvider: _time, capacity: _capacity);
+            loaded.Load(_path);
+            ClearSecrets();
+            foreach (var (key, tickets) in loaded._inbound) _inbound.Add(key, tickets);
+            foreach (var (key, ticket) in loaded._outbound) _outbound.Add(key, ticket);
+            foreach (var (key, timestamp) in loaded._lastDeliveries) _lastDeliveries.Add(key, timestamp);
+            loaded._inbound.Clear();
+            loaded._outbound.Clear();
+            loaded._lastDeliveries.Clear();
+            return true;
+        }
+    }
+
     private void CleanCore(double now)
     {
         foreach (var key in _outbound.Where(entry => entry.Value.Expires < now).Select(entry => entry.Key).ToArray())
@@ -193,9 +218,9 @@ public sealed class LxmTicketStore : IDisposable
         }
     }
 
-    private void Load()
+    private void Load(string path)
     {
-        using var stream = new FileStream(_path!, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
         if (stream.Length > MaximumFileBytes) throw new InvalidDataException("Ticket store exceeds maximum size.");
         var bytes = new byte[checked((int)stream.Length)];
         object? decoded = null;
@@ -274,17 +299,22 @@ public sealed class LxmTicketStore : IDisposable
     private static LxmTicket Copy(LxmTicket ticket) => new(ticket.Expires, ticket.Token.ToArray());
     private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);
 
+    private void ClearSecrets()
+    {
+        foreach (var ticket in _outbound.Values.Concat(_inbound.Values.SelectMany(tickets => tickets)))
+            CryptographicOperations.ZeroMemory(ticket.Token);
+        _outbound.Clear();
+        _inbound.Clear();
+        _lastDeliveries.Clear();
+    }
+
     public void Dispose()
     {
         lock (_gate)
         {
             if (_disposed) return;
             _disposed = true;
-            foreach (var ticket in _outbound.Values.Concat(_inbound.Values.SelectMany(tickets => tickets)))
-                CryptographicOperations.ZeroMemory(ticket.Token);
-            _outbound.Clear();
-            _inbound.Clear();
-            _lastDeliveries.Clear();
+            ClearSecrets();
             _lease?.Dispose();
         }
     }

@@ -71,7 +71,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             _options.RequestTimeout <= TimeSpan.Zero || _options.MaxPeers < 0 || _options.AutoPeerMaxDepth < 0 ||
             _options.MaxPeeringCost is < 0 or > 256 || _options.MaxInboundSyncs < 0 || deliveryLimit <= 0 ||
             _options.SyncStrategy is not (LxmPeerSyncStrategy.Lazy or LxmPeerSyncStrategy.Persistent) ||
-            _options.StaticPeers.Select(Convert.ToHexStringLower).Distinct().Count() > _options.MaxPeers)
+            _options.StaticPeers.Count > 65_536)
             throw new ArgumentException("Invalid propagation limits or costs.", nameof(options));
         if (_options.AllowedIdentities.Concat(_options.StaticPeers).Concat(_options.ControlAllowedIdentities)
             .Concat(_options.PrioritisedDestinations).Any(hash => hash.Length != 16))
@@ -87,8 +87,8 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             LoadStore();
             LoadPeers();
             LoadNodeStats();
-            if (_peers.Keys.Concat(_options.StaticPeers.Select(Convert.ToHexStringLower)).Distinct().Count() > _options.MaxPeers)
-                throw new InvalidDataException("Persisted and static peers exceed MaxPeers.");
+            if (_peers.Keys.Concat(_options.StaticPeers.Select(Convert.ToHexStringLower)).Distinct().Count() > 65_536)
+                throw new InvalidDataException("Persisted and static peers exceed the bounded peer capacity.");
         }
         catch { _storeLease.Dispose(); throw; }
         _local = new LocalDestination(identity, Destination.Create(DestinationType.Single, LxmRouter.AppName, ["propagation"], identity))
@@ -103,6 +103,8 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         _local.SetDefaultAppDataProvider(GetAnnounceAppData);
         router.RegisterLocalDestination(_local);
         InitializeMaintenance();
+        _announcer = RunAnnouncementsAsync(_cts.Token);
+        ScheduleAnnounce();
     }
 
     public byte[] DestinationHash => _local.Destination.Hash;
@@ -155,10 +157,14 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         return announce.Pack();
     }
 
-    public ValueTask AnnounceAsync(CancellationToken cancellationToken = default)
+    /// <summary>Announces immediately; use <see cref="ScheduleAnnounce"/> for the upstream delay.</summary>
+    public async ValueTask AnnounceAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        return _router.AnnounceAsync(_local, cancellationToken: cancellationToken);
+        await _router.AnnounceAsync(_local, cancellationToken: cancellationToken).ConfigureAwait(false);
+        bool announceControl;
+        lock (_gate) announceControl = _controlIdentities.Any(hash => hash != Convert.ToHexStringLower(_identity.Hash));
+        if (announceControl) await _router.AnnounceAsync(_control, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     private bool ProvePropagation(Packet packet)
@@ -171,7 +177,6 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             link.Send(MsgPack.Pack(new object?[] { 0xf5L }), createReceipt: false);
             link.Teardown();
         }
-
         return valid;
     }
 
@@ -207,13 +212,15 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
                     {
                         lock (_gate)
                         {
-                            foreach (var key in _throttledPeers.Where(entry => entry.Value <= Now).Select(entry => entry.Key).ToArray())
+                            foreach (var key in _throttledPeers.Where(entry => entry.Value < Now).Select(entry => entry.Key).ToArray())
                                 _throttledPeers.Remove(key);
                             if (_throttledPeers.Count < 65_536) _throttledPeers[Convert.ToHexStringLower(PropagationHash(remote))] = Now + 180;
                         }
                     }
+                    if (invalidStamps) Report("LXMF propagation Resource rejected due to invalid stamps.");
                     link.Teardown();
                 }
+                else Report("LXMF propagation Resource accepted.");
             }
             finally
             {
@@ -249,6 +256,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
                 MsgPack.UnpackApplicationValue(bytes) is not object?[] { Length: 2 } envelope ||
                 envelope[1] is not object?[] messages) return false;
             _ = MsgPack.ToDouble(envelope[0]);
+            if (resource) DiscoverIncomingPeer(link);
             lock (_gate)
                 if (_disposed || resource && messages.Length > 1 && !_validatedLinks.Contains(link.LinkIdHex)) return false;
             if (messages.Length == 1 && bytes.LongLength > _options.TransferLimit) return false;
@@ -262,7 +270,9 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
                     continue;
                 }
 
-                if (_localDelivery?.Invoke(data) != true) Store(stamped, stampValue);
+                var fromPeer = resource && link.RemoteIdentity is { } source
+                    ? Convert.ToHexStringLower(PropagationHash(source)) : null;
+                if (_localDelivery?.Invoke(data) != true) Store(stamped, stampValue, fromPeer);
                 lock (_gate)
                 {
                     if (resource && link.RemoteIdentity is { } remote &&
@@ -303,7 +313,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         return true;
     }
 
-    private void Store(byte[] stamped, int stampValue)
+    private void Store(byte[] stamped, int stampValue, string? fromPeer)
     {
         var data = stamped.AsSpan(0, stamped.Length - LxStamper.StampSize);
         var id = Identity.FullHash(data);
@@ -346,7 +356,8 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
                 File.Move(output, path);
                 _entries.Add(key, new Entry(id, data[..16].ToArray(), path, stamped.LongLength, received, stampValue));
                 _storedBytes += stamped.LongLength;
-                foreach (var peer in _peers.Values) peer.AddUnhandled(id);
+                foreach (var (destination, peer) in _peers)
+                    if (destination != fromPeer) peer.AddUnhandled(id);
             }
             finally { if (File.Exists(output)) File.Delete(output); }
         }
@@ -400,7 +411,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             var remote = Convert.ToHexStringLower(PropagationHash(identity));
             if (_throttledPeers.TryGetValue(remote, out var expires))
             {
-                if (Now < expires) return 0xf6L;
+                if (Now <= expires) return 0xf6L;
                 _throttledPeers.Remove(remote);
             }
         }
@@ -430,7 +441,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             var name = Convert.ToHexStringLower(destinationHash);
             if (!_peers.TryGetValue(name, out var peer))
             {
-                if (_peers.Count >= _options.MaxPeers) throw new InvalidOperationException("Propagation peer capacity reached.");
+                if (_peers.Count >= Math.Min(_options.MaxPeers, 65_536)) throw new InvalidOperationException("Propagation peer capacity reached.");
                 peer = new LxmPeer(destinationHash.ToArray()) { LastHeard = Now };
                 foreach (var entry in _entries.Values) peer.AddUnhandled(entry.Id);
                 _peers.Add(name, peer);
@@ -455,7 +466,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
                 var name = Convert.ToHexStringLower(destinationHash);
                 if (!_peers.TryGetValue(name, out peer))
                 {
-                    if (_peers.Count >= _options.MaxPeers) throw new InvalidOperationException("Propagation peer capacity reached.");
+                    if (_peers.Count >= Math.Min(_options.MaxPeers, 65_536)) throw new InvalidOperationException("Propagation peer capacity reached.");
                     peer = new LxmPeer(destinationHash) { LastHeard = Now, SyncStrategy = (int)_options.SyncStrategy };
                     foreach (var entry in _entries.Values) peer.AddUnhandled(entry.Id);
                     _peers.Add(name, peer);
@@ -588,6 +599,14 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
     {
         foreach (var path in Directory.EnumerateFiles(_directory))
         {
+            if (path.EndsWith(".out", StringComparison.Ordinal))
+            {
+                var name = Path.GetFileName(path)[..^4].Split('_');
+                if (name.Length == 3 && name[0].Length == 64 && name[0].All(char.IsAsciiHexDigit) &&
+                    double.TryParse(name[1], CultureInfo.InvariantCulture, out var time) && double.IsFinite(time) &&
+                    int.TryParse(name[2], out _)) File.Delete(path);
+                continue;
+            }
             var parts = Path.GetFileName(path).Split('_');
             if (parts.Length != 3 || parts[0].Length != 64 || !double.TryParse(parts[1], CultureInfo.InvariantCulture, out var received) ||
                 !double.IsFinite(received) || !int.TryParse(parts[2], out var value)) continue;
@@ -627,14 +646,21 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
     private void LoadPeers()
     {
         var path = Path.Combine(Path.GetDirectoryName(_directory)!, "peers");
+        LxmPersistence.RemoveInterruptedWrites(path);
         if (!File.Exists(path)) return;
         if (new FileInfo(path).Length > 16 * 1024 * 1024) throw new InvalidDataException("Propagation peer file is oversized.");
-        if (MsgPack.UnpackApplicationValue(File.ReadAllBytes(path)) is not object?[] entries || entries.Length > _options.MaxPeers)
+        if (MsgPack.UnpackApplicationValue(File.ReadAllBytes(path)) is not object?[] entries || entries.Length > 65_536)
             throw new InvalidDataException("Invalid propagation peer list.");
         foreach (var value in entries)
         {
             if (value is not byte[] bytes) throw new InvalidDataException("Invalid serialized propagation peer.");
             var peer = LxmPeer.FromBytes(bytes, id => _entries.ContainsKey(Convert.ToHexStringLower(id)));
+            using var identity = _router.Engine.Known.Recall(peer.DestinationHash);
+            if (identity is null)
+            {
+                Report("Discarding persisted propagation peer whose identity cannot be recalled.");
+                continue;
+            }
             _peers.Add(Convert.ToHexStringLower(peer.DestinationHash), peer);
         }
     }

@@ -79,6 +79,7 @@ public sealed partial class LxmRouter
     {
         if (_options.StoragePath is not { } storage) return;
         var path = Path.Combine(storage, "lxmf", "outbound_stamp_costs");
+        LxmPersistence.RemoveInterruptedWrites(path);
         if (!File.Exists(path)) return;
         if (new FileInfo(path).Length > 8 * 1024 * 1024 ||
             MsgPack.UnpackApplicationValue(File.ReadAllBytes(path)) is not Dictionary<object, object?> map || map.Count > 65_536)

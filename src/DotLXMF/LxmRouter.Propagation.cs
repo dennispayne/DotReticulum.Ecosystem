@@ -1,4 +1,5 @@
 using DotReticulum.Core;
+using DotReticulum.Transport;
 
 namespace DotLXMF;
 
@@ -16,6 +17,7 @@ public sealed partial class LxmRouter
     public LxmPropagationNode? PropagationNode { get; private set; }
     public LxmPropagationTransferState PropagationTransferState { get; private set; }
     public bool RetainNodeMessages { get; set; }
+    public byte[]? InboundPropagationNode => OutboundPropagationNode;
 
     public byte[]? OutboundPropagationNode
     {
@@ -23,8 +25,45 @@ public sealed partial class LxmRouter
         set
         {
             if (value is not null && value.Length != 16) throw new ArgumentException("Propagation destination must be 16 bytes.", nameof(value));
-            lock (_gate) _outboundPropagationNode = value?.ToArray();
+            Link? retired;
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(_disposed != 0, this);
+                _outboundPropagationNode = value?.ToArray();
+                retired = _retrievalLink is { } link && (_retrievalDestination is null || value is null ||
+                    !_retrievalDestination.AsSpan().SequenceEqual(value)) ? link : null;
+            }
+            if (retired is not null)
+            {
+                ForgetRetrievalLink(retired);
+                try { retired.Teardown(); }
+                catch (Exception ex) { Report("Could not retire changed propagation retrieval link: " + ex.Message); }
+            }
         }
+    }
+
+    public async Task<int?> GetOutboundPropagationCostAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed != 0, this);
+        var node = OutboundPropagationNode ?? throw new InvalidOperationException("No propagation node configured.");
+        using var owned = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
+        return (await GetPropagationConfigurationAsync(node, owned.Token).ConfigureAwait(false))?.StampCost;
+    }
+
+    private async Task<LxmfPropagationAnnounce?> GetPropagationConfigurationAsync(byte[] node, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (LxmfPropagationAnnounce.TryParse(_router.Engine.Known.RecallAppData(node), out var announced)) return announced;
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(TimeSpan.FromSeconds(PathRequestWait));
+        try
+        {
+            await RequestPathAsync(node, deadline.Token).ConfigureAwait(false);
+            while (_router.Engine.Known.RecallAppData(node) is null)
+                await Task.Delay(TimeSpan.FromMilliseconds(500), deadline.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return null; }
+        return LxmfPropagationAnnounce.TryParse(_router.Engine.Known.RecallAppData(node), out announced) ? announced : null;
     }
 
     /// <summary>Starts a propagation destination on this transport using the router's configured persistent storage root.</summary>
@@ -45,11 +84,12 @@ public sealed partial class LxmRouter
     public ValueTask DisablePropagationNodeAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
+        cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
             if (PropagationNode is not { } node) return ValueTask.CompletedTask;
             node.SetEnabled(false);
-            return node.AnnounceAsync(cancellationToken);
+            return ValueTask.CompletedTask;
         }
     }
 
@@ -77,7 +117,7 @@ public sealed partial class LxmRouter
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         ArgumentOutOfRangeException.ThrowIfNegative(maxMessages);
         var keepOnNode = retain ?? RetainNodeMessages;
-        var node = destinationHash?.ToArray() ?? OutboundPropagationNode ?? throw new InvalidOperationException("No propagation node configured.");
+        var node = destinationHash?.ToArray() ?? InboundPropagationNode ?? throw new InvalidOperationException("No propagation node configured.");
         if (node.Length != 16) throw new ArgumentException("Propagation destination must be 16 bytes.", nameof(destinationHash));
         using var owned = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
         await _retrieval.WaitAsync(owned.Token).ConfigureAwait(false);

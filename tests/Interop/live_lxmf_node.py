@@ -122,6 +122,8 @@ def main():
     parser.add_argument("--storage")
     parser.add_argument("--enforce-ratchets", action="store_true")
     parser.add_argument("--parallel-pn-validation", action="store_true")
+    parser.add_argument("--observe-resources", action="store_true")
+    parser.add_argument("--no-compression", action="store_true")
     args = parser.parse_args()
 
     verify_reference(require_lxmf=True)
@@ -142,6 +144,18 @@ def main():
                             sequential_validation=not args.parallel_pn_validation,
                             delivery_limit=args.delivery_limit_kb)
     local = router.register_delivery_identity(identity, display_name="PyLxmf", stamp_cost=args.stamp_cost)
+    if args.observe_resources:
+        def established(link):
+            router.delivery_link_established(link)
+            started = link.callbacks.resource_started
+
+            def observed(resource):
+                started(resource)
+                emit({"event": "resource-started", "compressed": resource.compressed})
+
+            link.set_resource_started_callback(observed)
+
+        local.set_link_established_callback(established)
 
     def on_message(message):
         emit({"event": "received", "hash": message.hash.hex(), "source": message.source_hash.hex(), "title": message.title_as_string(),
@@ -193,7 +207,12 @@ def main():
         if cmd == "quit":
             break
         if cmd == "announce":
-            router.announce(local.hash)
+            if args.no_compression:
+                app_data = msgpack.unpackb(router.get_announce_app_data(local.hash))
+                app_data[2] = []
+                local.announce(app_data=msgpack.packb(app_data))
+            else:
+                router.announce(local.hash)
             emit({"event": "announced", "dest": local.hash.hex()})
         elif cmd == "enable-pn":
             router.enable_propagation()

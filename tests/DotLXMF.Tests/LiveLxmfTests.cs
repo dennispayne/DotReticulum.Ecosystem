@@ -52,12 +52,17 @@ public class LiveLxmfTests
         }
 
         public static async Task<Rig> StartAsync(int? stampCost = null, string? storagePath = null, bool largeMessages = false,
-            bool smallPropagationBatches = false, int? referenceLogLevel = null)
+            bool smallPropagationBatches = false, int? referenceLogLevel = null, bool? referenceCompression = null)
         {
             var port = FreePort();
             var arguments = new List<string>();
             if (stampCost is { } cost) arguments.AddRange(["--stamp-cost", cost.ToString()]);
             if (referenceLogLevel is { } level) arguments.AddRange(["--loglevel", level.ToString()]);
+            if (referenceCompression.HasValue)
+            {
+                arguments.Add("--observe-resources");
+                if (!referenceCompression.Value) arguments.Add("--no-compression");
+            }
             if (largeMessages) arguments.AddRange(["--delivery-limit-kb", "4000", "--propagation-limit-kb", "4000"]);
             if (smallPropagationBatches) arguments.AddRange(["--propagation-limit-kb", "1", "--propagation-sync-limit-kb", "1",
                 "--parallel-pn-validation"]);
@@ -96,6 +101,26 @@ public class LiveLxmfTests
     private static string HexContent(int size, int seed) => Convert.ToHexStringLower(new Random(seed).GetItems(Enumerable.Range(0, 256).Select(i => (byte)i).ToArray(), size / 2));
 
     private static string Sha(byte[] data) => Convert.ToHexStringLower(SHA256.HashData(data));
+
+    [LiveTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("Category", "Live")]
+    public async Task DirectResource_HonorsAdvertisedCompressionAndPythonObservesActualWireFlag(bool compression)
+    {
+        await using var rig = await Rig.StartAsync(largeMessages: true, referenceCompression: compression);
+        Assert.Equal(compression, LxmfAppData.CompressionSupported(rig.Router.Engine.Known.RecallAppData(rig.Py.Hash)));
+        var content = Enumerable.Repeat((byte)'c', 2_200_000).ToArray();
+        var message = LxMessage.CreateBinary(rig.Py.Hash, rig.Identity, content);
+        await rig.Lxmf.SendAsync(message);
+        Assert.Equal(LxmState.Delivered, await message.Completion.WaitAsync(TimeSpan.FromSeconds(60)));
+        var resource = await rig.Py.NextAsync("resource-started", 0, TimeSpan.FromSeconds(10));
+        Assert.Equal(compression, resource.GetProperty("compressed").GetBoolean());
+        var received = await rig.Py.NextAsync("received", 0, TimeSpan.FromSeconds(10));
+        Assert.Equal(content.Length, received.GetProperty("size").GetInt32());
+        Assert.Equal(Sha(content), received.GetProperty("sha256").GetString());
+        Assert.True(received.GetProperty("signature_validated").GetBoolean());
+    }
 
     [LiveFact]
     [Trait("Category", "Live")]
@@ -308,6 +333,37 @@ public class LiveLxmfTests
         Assert.Equal(16, received.GetProperty("stamp_size").GetInt32());
         Assert.True(received.GetProperty("stamp_valid").GetBoolean());
         Assert.True(received.GetProperty("signature_validated").GetBoolean());
+    }
+
+    [LiveFact]
+    [Trait("Category", "Live")]
+    public async Task PythonPropagationNode_InvalidPacketSignalRejectsNativeMessageAndSubsequentDeliveryRecovers()
+    {
+        await using var rig = await Rig.StartAsync();
+        var ready = await rig.Py.Command("enable-pn", "pn-ready", TimeSpan.FromSeconds(15));
+        var node = Convert.FromHexString(ready.GetProperty("dest").GetString()!);
+        await WaitFor(() => rig.Router.HasPath(node), 20);
+        rig.Lxmf.OutboundPropagationNode = node;
+        Assert.True(LxmfPropagationAnnounce.TryParse(rig.Router.Engine.Known.RecallAppData(node), out var announced));
+        var message = LxMessage.Create(rig.Lxmf.DeliveryHash, rig.Identity, "invalid propagation stamp", method: LxmMethod.Propagated);
+        message.Pack(destinationIdentity: rig.Identity);
+        var stamp = new byte[LxStamper.StampSize];
+        var block = LxStamper.Workblock(message.TransientId!, LxStamper.WorkblockExpandRoundsPn);
+        var cost = Math.Max(0, announced!.StampCost - announced.StampFlexibility);
+        for (var attempt = 0; attempt < 256 && LxStamper.IsValid(stamp, cost, block); attempt++) stamp[0]++;
+        Assert.False(LxStamper.IsValid(stamp, cost, block));
+        message.SetPropagationStamp(stamp);
+        message.PropagationNodeHash = node;
+        await rig.Lxmf.SendAsync(message);
+        Assert.Equal(LxmState.Rejected, await message.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+        var empty = await rig.Py.Command("pn-count", "pn-count", TimeSpan.FromSeconds(10));
+        Assert.Equal(0, empty.GetProperty("count").GetInt32());
+        var recovery = LxMessage.Create(rig.Lxmf.DeliveryHash, rig.Identity, "valid recovery", method: LxmMethod.Propagated);
+        await rig.Lxmf.SendAsync(recovery);
+        Assert.Equal(LxmState.Sent, await recovery.Completion.WaitAsync(TimeSpan.FromSeconds(60)));
+        Assert.Equal(1, await rig.Lxmf.RequestMessagesFromPropagationNodeAsync());
+        await WaitFor(() => rig.Inbox.Count == 1, 20);
+        Assert.Equal(recovery.Content, rig.Inbox[0].Message.Content);
     }
 
     [LiveFact]
@@ -554,6 +610,12 @@ public class LiveLxmfTests
             var synced = await rig.Py.Command($"peer-sync {Convert.ToHexStringLower(dotnetNode.DestinationHash)}", "peer-synced", TimeSpan.FromSeconds(90));
             Assert.Equal(1, synced.GetProperty("outgoing").GetInt32());
             await WaitFor(() => dotnetNode.MessageCount == 1, 20);
+            await WaitFor(() => dotnetNode.Peers.Any(peer => peer.DestinationHash.AsSpan().SequenceEqual(pythonNode) &&
+                peer.IsHandled(first.TransientId!)), 20);
+            using (var policy = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(
+                AppContext.BaseDirectory, "Fixtures", "lxmf-node-policy-vectors.json"))))
+                Assert.Equal(policy.RootElement.GetProperty("distribution").GetProperty("origin_queued").GetInt32(),
+                    dotnetNode.Peers.Single(peer => peer.DestinationHash.AsSpan().SequenceEqual(pythonNode)).UnhandledCount);
             var stored = File.ReadAllBytes(Directory.EnumerateFiles(Path.Combine(storage, "lxmf", "messagestore"),
                 Convert.ToHexStringLower(first.TransientId!) + "_*").Single());
             var decrypted = offline.Decrypt(stored.AsSpan(LxMessage.DestinationLength, stored.Length - LxMessage.DestinationLength - LxStamper.StampSize));

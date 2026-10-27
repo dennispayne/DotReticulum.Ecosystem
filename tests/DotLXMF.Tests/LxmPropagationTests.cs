@@ -168,6 +168,11 @@ public class LxmPropagationTests
                 File.WriteAllBytes(Path.Combine(path, "lxmf", "peers"), DotReticulum.Core.MsgPack.Pack(
                     testCase.GetProperty("peers").EnumerateArray().Select(peer => (object?)Convert.FromHexString(peer.GetString()!)).ToArray()));
                 await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = path });
+                foreach (var serialized in testCase.GetProperty("peers").EnumerateArray())
+                {
+                    var peer = LxmPeer.FromBytes(Convert.FromHexString(serialized.GetString()!), _ => false);
+                    pair.ServerRouter.Engine.Known.Remember(peer.DestinationHash, new byte[32], pair.ClientIdentity.ExportPublicKey(), null);
+                }
                 var node = pair.Server.EnablePropagationNode(new LxmPropagationOptions
                 {
                     MaxPeers = 3,
@@ -273,10 +278,13 @@ public class LxmPropagationTests
             Assert.Equal(0, node.MessageCount);
             Assert.Equal(0, await pair.Client.RequestMessagesFromPropagationNodeAsync());
             Assert.Equal(cachedLink, pair.Client.PropagationLinkId);
+            var observed = Assert.IsType<Dictionary<object, object?>>(node.CompileStats()!["clients"]);
+            var receivedPackets = Assert.IsType<long>(observed["client_propagation_messages_received"]);
+            Assert.True(receivedPackets >= 1);
             await node.DisposeAsync();
             await using var reopened = new LxmPropagationNode(pair.ServerRouter, pair.ServerIdentity, path);
             var clients = Assert.IsType<Dictionary<object, object?>>(reopened.CompileStats()!["clients"]);
-            Assert.Equal(1L, clients["client_propagation_messages_received"]);
+            Assert.Equal(receivedPackets, clients["client_propagation_messages_received"]);
             Assert.Equal(1L, clients["client_propagation_messages_served"]);
         }
         finally { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); }

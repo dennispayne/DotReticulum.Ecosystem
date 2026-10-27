@@ -217,7 +217,8 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 var node = OutboundPropagationNode ?? throw new InvalidOperationException("No outbound propagation node configured.");
                 var identity = message.DestinationHash.AsSpan().SequenceEqual(DeliveryHash) ? _identity : _router.Engine.Known.Recall(message.DestinationHash)
                     ?? throw new InvalidOperationException("The propagated recipient identity is unknown.");
-                if (!LxmfPropagationAnnounce.TryParse(_router.Engine.Known.RecallAppData(node), out var announced))
+                var announced = await GetPropagationConfigurationAsync(node, cancellationToken).ConfigureAwait(false);
+                if (announced is null)
                     throw new InvalidOperationException("Propagation node has not announced valid limits and stamp costs.");
                 message.Pack(stamp, identity, _router.Engine.Known.GetRatchet(message.DestinationHash));
                 message.PropagationTargetCost = announced!.StampCost;
@@ -475,6 +476,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
             ScheduleAttempt(message, destination);
             var created = _router.Links.Connect(identity, destination, _ => _wake.Release(), _ => _wake.Release());
             if (!propagated) OnLinkEstablished(created);
+            else ConfigurePropagationSignals(created);
             lock (_gate)
             {
                 _links[key] = created;
@@ -484,6 +486,14 @@ public sealed partial class LxmRouter : IAsyncDisposable
         }
 
         if (link.Status != LinkStatus.Active) return;
+        if (propagated)
+        {
+            lock (_gate)
+            {
+                if (_propagationMessages.TryGetValue(link, out var previous) && previous.State == LxmState.Sending) return;
+                _propagationMessages[link] = message;
+            }
+        }
         if (!propagated && link.IsInitiator) IdentifyOnce(key, link);
         message.SentOnSlowPath = SlowPath(destination);
         if (!propagated) message.RatchetId = link.LinkId;
@@ -495,6 +505,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 autoCompress: propagated || LxmfAppData.CompressionSupported(_router.Engine.Known.RecallAppData(message.DestinationHash)) != false, concluded: resource =>
             {
                 message.ActiveResource = null;
+                if (message.State is LxmState.Rejected or LxmState.Cancelled or LxmState.Failed) return;
                 if (resource.Status == ResourceStatus.Complete)
                 {
                     message.State = propagated ? LxmState.Sent : LxmState.Delivered;
@@ -521,9 +532,14 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 return;
             }
 
-            receipt.Delivered = _ => message.State = propagated ? LxmState.Sent : LxmState.Delivered;
+            receipt.Delivered = _ =>
+            {
+                if (message.State is not (LxmState.Rejected or LxmState.Cancelled or LxmState.Failed))
+                    message.State = propagated ? LxmState.Sent : LxmState.Delivered;
+            };
             receipt.TimedOut = _ => FailAttempt(message, link);
-            if (receipt.Status == PacketReceiptStatus.Delivered)
+            if (receipt.Status == PacketReceiptStatus.Delivered &&
+                message.State is not (LxmState.Rejected or LxmState.Cancelled or LxmState.Failed))
                 message.State = propagated ? LxmState.Sent : LxmState.Delivered;
             else if (receipt.Status == PacketReceiptStatus.Failed) FailAttempt(message, link);
         }
@@ -538,7 +554,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
 
     private void FailAttempt(LxMessage message, Link link)
     {
-        if (message.State is LxmState.Delivered or LxmState.Cancelled) return;
+        if (message.State is LxmState.Delivered or LxmState.Cancelled or LxmState.Rejected or LxmState.Failed) return;
         try { link.Teardown(); }
         catch (Exception) { /* already closed */ }
         ScheduleAttempt(message, OutboundTarget(message));
@@ -711,6 +727,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         {
             links = _links.Values.Concat(_incomingLinks).Distinct().ToArray();
             _links.Clear();
+            _propagationMessages.Clear();
             _propagationLinks.Clear();
             _incomingLinks.Clear();
             _retrievalLink = null;

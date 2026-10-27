@@ -6,6 +6,25 @@ public sealed partial class LxmRouter
 {
     private static readonly TimeSpan DeliveryHistoryRetention = TimeSpan.FromDays(180);
     private readonly Dictionary<string, double> _processed = [];
+    private double _lastTransientCleanup;
+
+    public int CleanTransientIdCaches()
+    {
+        lock (_gate)
+        {
+            var now = Now;
+            var removed = 0;
+            foreach (var (name, history) in new[] { ("local_deliveries", _seen), ("locally_processed", _processed) })
+            {
+                var expired = history.Where(entry => now > entry.Value + DeliveryHistoryRetention.TotalSeconds)
+                    .Select(entry => entry.Key).ToArray();
+                foreach (var key in expired) history.Remove(key);
+                if (expired.Length > 0) SaveHistory(name, history);
+                removed += expired.Length;
+            }
+            return removed;
+        }
+    }
 
     private void LoadDeliveryHistory() => LoadHistory("local_deliveries", _seen);
 
@@ -15,6 +34,7 @@ public sealed partial class LxmRouter
     {
         if (_options.StoragePath is not { } storage) return;
         var path = Path.Combine(storage, "lxmf", name);
+        LxmPersistence.RemoveInterruptedWrites(path);
         if (!File.Exists(path)) return;
         if (new FileInfo(path).Length > 8 * 1024 * 1024 ||
             MsgPack.UnpackApplicationValue(File.ReadAllBytes(path)) is not Dictionary<object, object?> map || map.Count > 65_536)

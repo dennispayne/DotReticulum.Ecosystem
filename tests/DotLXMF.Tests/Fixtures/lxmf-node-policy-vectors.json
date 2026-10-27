@@ -1,0 +1,181 @@
+{
+  "lxmf_sha": "e8ba02483217af43be284a72f1c059c730b7d047",
+  "rns_sha": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "source_sha256": "56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9",
+  "message_source_sha256": "2fe8a1cb610e70f3d1c0b4f5086f660a45607484ce8dd53bd925943e95398aea",
+  "static": {
+    "max_peers": 0,
+    "peer_count": 1,
+    "static_present": true,
+    "path_requests": 1
+  },
+  "delayed_announce": {
+    "sleeps": [
+      20,
+      20
+    ],
+    "propagation_enabled": [
+      true,
+      false
+    ],
+    "control_announces": 1
+  },
+  "reload": {
+    "max_peers": 0,
+    "restored": [
+      "6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b"
+    ],
+    "serialized": [
+      "de0016b070656572696e675f74696d656261736500a5616c697665c2a86d65746164617461c0aa6c6173745f686561726400ad73796e635f737472617465677902ab70656572696e675f6b6579c0b064657374696e6174696f6e5f68617368c4106b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6bb76c696e6b5f65737461626c6973686d656e745f7261746500b273796e635f7472616e736665725f7261746500ba70726f7061676174696f6e5f7472616e736665725f6c696d6974c0b670726f7061676174696f6e5f73796e635f6c696d6974c0b670726f7061676174696f6e5f7374616d705f636f7374c0d92270726f7061676174696f6e5f7374616d705f636f73745f666c65786962696c697479c0ac70656572696e675f636f7374c0b16c6173745f73796e635f617474656d707400a76f66666572656400a86f7574676f696e6700a8696e636f6d696e6700a872785f627974657300a874785f627974657300ab68616e646c65645f69647390ad756e68616e646c65645f69647390",
+      "de0016b070656572696e675f74696d656261736500a5616c697665c2a86d65746164617461c0aa6c6173745f686561726400ad73796e635f737472617465677902ab70656572696e675f6b6579c0b064657374696e6174696f6e5f68617368c41075757575757575757575757575757575b76c696e6b5f65737461626c6973686d656e745f7261746500b273796e635f7472616e736665725f7261746500ba70726f7061676174696f6e5f7472616e736665725f6c696d6974c0b670726f7061676174696f6e5f73796e635f6c696d6974c0b670726f7061676174696f6e5f7374616d705f636f7374c0d92270726f7061676174696f6e5f7374616d705f636f73745f666c65786962696c697479c0ac70656572696e675f636f7374c0b16c6173745f73796e635f617474656d707400a76f66666572656400a86f7574676f696e6700a8696e636f6d696e6700a872785f627974657300a874785f627974657300ab68616e646c65645f69647390ad756e68616e646c65645f69647390"
+    ],
+    "known_public_key": "07a37cbc142093c8b755dc1b10e86cb426374ad16aa853ed0bdfc0b2b86d1c7cda29e95b02e00ffa15645775fb1d2ba222a1943395eea06b94e2c057b7be69d0"
+  },
+  "incoming": [
+    {
+      "autopeer": true,
+      "enabled": true,
+      "hops": 1,
+      "max_depth": 4,
+      "peering_cost": 18,
+      "peer_count": 1
+    },
+    {
+      "autopeer": false,
+      "enabled": true,
+      "hops": 1,
+      "max_depth": 4,
+      "peering_cost": 18,
+      "peer_count": 0
+    },
+    {
+      "autopeer": true,
+      "enabled": false,
+      "hops": 1,
+      "max_depth": 4,
+      "peering_cost": 18,
+      "peer_count": 0
+    },
+    {
+      "autopeer": true,
+      "enabled": true,
+      "hops": 1,
+      "max_depth": 0,
+      "peering_cost": 18,
+      "peer_count": 0
+    },
+    {
+      "autopeer": true,
+      "enabled": true,
+      "hops": 1,
+      "max_depth": 4,
+      "peering_cost": 27,
+      "peer_count": 0
+    }
+  ],
+  "rejection": {
+    "packet": "91ccf5",
+    "closed": true,
+    "cancelled": [
+      [
+        "6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d",
+        253
+      ]
+    ]
+  },
+  "jobs": {
+    "interval": 4,
+    "cadence": {
+      "process_outbound": {
+        "first": 1,
+        "count": 336,
+        "interval": 1
+      },
+      "process_deferred_stamps": {
+        "first": 1,
+        "count": 336,
+        "interval": 1
+      },
+      "clean_links": {
+        "first": 1,
+        "count": 336,
+        "interval": 1
+      },
+      "clean_resource_tracking": {
+        "first": 2,
+        "count": 168,
+        "interval": 2
+      },
+      "flush_queues": {
+        "first": 6,
+        "count": 56,
+        "interval": 6
+      },
+      "sync_peers": {
+        "first": 6,
+        "count": 56,
+        "interval": 6
+      },
+      "clean_throttled_peers": {
+        "first": 6,
+        "count": 56,
+        "interval": 6
+      },
+      "clean_transient_id_caches": {
+        "first": 60,
+        "count": 5,
+        "interval": 60
+      },
+      "clean_message_store": {
+        "first": 120,
+        "count": 2,
+        "interval": 120
+      },
+      "rotate_peers": {
+        "first": 336,
+        "count": 1,
+        "interval": 336
+      }
+    },
+    "history": {
+      "0000000000000000000000000000000000000000000000000000000000000000": 1684448399.0,
+      "0101010101010101010101010101010101010101010101010101010101010101": 1684448400.0,
+      "0202020202020202020202020202020202020202020202020202020202020202": 1684448401.0
+    },
+    "delivered": [
+      "0101010101010101010101010101010101010101010101010101010101010101",
+      "0202020202020202020202020202020202020202020202020202020202020202"
+    ],
+    "processed": [
+      "0101010101010101010101010101010101010101010101010101010101010101",
+      "0202020202020202020202020202020202020202020202020202020202020202"
+    ],
+    "throttle_at_boundary": 1,
+    "throttle_after_boundary": 0
+  },
+  "message_file": {
+    "filename": "b0f18e103e99417cbf243c8faa69e36c94bf0edb5248fb42b955963467c436b7",
+    "container": "85a5737461746500aa6c786d665f6279746573c48b8202d9446618dd077ad595f50c6eebcc9833cdc1a89e174c537a5d0ff10f17e27635eec8a25354f3aa762e6278de2527a95dff33a7abb82c5a08ecf6d485c244b987726646206bcd168e4db3cc9fbb251f2990414ceb173ca661dc0e65f5bf0c94cb41d954fca4000000c4097265666572656e6365c41366696c6573797374656d20636f6e747261637480b37472616e73706f72745f656e63727970746564c2b47472616e73706f72745f656e6372797074696f6ec0a66d6574686f6402",
+    "source_public_key": "385e7db786b48480ae0692d80f6d9c5870039e5c2ab43fc8beaaecb508ac6e3b538d7e4d2d3d540904e1343468d26b5d02a0b589806f74dee76abfb0bcab8a32"
+  },
+  "cost_discovery": {
+    "cached": 16,
+    "missing": null,
+    "wait": 7.0,
+    "path_requests": 1,
+    "inbound_alias": true
+  },
+  "distribution": {
+    "origin_queued": 0,
+    "other_queued": 1
+  },
+  "ticket_reload": {
+    "replaces_memory": true,
+    "corrupt_preserved": true,
+    "missing_preserved": true
+  },
+  "duplicate_packets": {
+    "received": 2,
+    "stored": 1
+  }
+}

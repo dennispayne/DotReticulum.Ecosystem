@@ -547,6 +547,39 @@ public class LxmRouterTests
         Assert.Equal("continued", Assert.Single(pair.ServerInbox).Message.Content);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task InboundResourceCancellation_ReleasesTrackingAndContinuesService(bool cancelAll)
+    {
+        await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions
+        { DeliveryPerTransferLimit = 4_000_000, ProcessingInterval = TimeSpan.FromMilliseconds(50) });
+        var content = new byte[2_200_000];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(content);
+        var message = LxMessage.CreateBinary(pair.Server.DeliveryHash, pair.ClientIdentity, content);
+        await pair.Client.SendAsync(message);
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        DotReticulum.Transport.Resource? incoming = null;
+        while (incoming is null)
+        {
+            incoming = pair.Server.InboundResources.FirstOrDefault(resource => resource.Status < DotReticulum.Transport.ResourceStatus.Complete);
+            if (incoming is null) await Task.Delay(5, limit.Token);
+        }
+        Assert.False(pair.Server.CancelInbound(new byte[32]));
+        if (cancelAll) Assert.Equal(1, pair.Server.CancelAllInbound());
+        else Assert.True(pair.Server.CancelInbound(incoming.Hash));
+        pair.Client.Cancel(message);
+        Assert.Contains(await message.Completion.WaitAsync(TimeSpan.FromSeconds(10)),
+            new[] { LxmState.Cancelled, LxmState.Rejected });
+        await pair.WaitAsync(() => pair.Server.InboundResources.Count == 0);
+        Assert.Empty(pair.ServerInbox);
+        var next = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "service after inbound cancellation");
+        await pair.Client.SendAsync(next);
+        Assert.Equal(LxmState.Delivered, await next.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+        await pair.WaitAsync(() => pair.ServerInbox.Count == 1);
+        Assert.Equal(next.Content, Assert.Single(pair.ServerInbox).Message.Content);
+    }
+
     [Fact]
     public async Task ReceiveObservers_AreIsolated_AndCoreProcessingRunsWithoutSubscribers()
     {

@@ -71,6 +71,11 @@ public sealed partial class LxmPropagationNode
 
     internal void SetEnabled(bool enabled)
     {
-        lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); _enabled = enabled; }
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            ScheduleAnnounce();
+            _enabled = enabled;
+        }
     }
 }

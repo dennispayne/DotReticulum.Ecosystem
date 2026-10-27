@@ -16,6 +16,14 @@ public sealed class LiveFactAttribute : FactAttribute
     }
 }
 
+public sealed class LiveTheoryAttribute : TheoryAttribute
+{
+    public LiveTheoryAttribute()
+    {
+        Skip = new LiveFactAttribute().Skip;
+    }
+}
+
 // LIVE: messages packed by DotReticulum are opened by upstream LXMF (tests/Interop/verify_dotnet_lxmf.py): unpack, signature, hash, fields, stamp, app_data.
 //   dotnet test tests/DotLXMF.Tests -c Release --filter "FullyQualifiedName~LxmfDotNetToPython"
 [Trait("Category", "Integration")]

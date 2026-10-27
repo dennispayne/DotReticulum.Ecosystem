@@ -67,7 +67,7 @@ public static class LxmField
 /// An LXMF message (upstream <c>LXMessage</c>). Wire form: <c>destination(16) || source(16) || signature(64) || msgpack([timestamp, title, content, fields(, stamp)])</c>.
 /// The hash covers destination, source and the payload without the stamp; the signature covers the hashed part followed by the hash.
 /// </summary>
-public sealed class LxMessage
+public sealed partial class LxMessage
 {
     private static readonly System.Text.UTF8Encoding StrictUtf8 = new(false, true);
     public const int DestinationLength = 16;

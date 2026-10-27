@@ -66,7 +66,10 @@ jobs:
           "package=$($targets[$application].Package)" >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
           $platforms = if ($application -eq 'rnphone') {
-            @(@{ os = 'ubuntu-latest'; rid = 'linux-x64' })
+            @(
+              @{ os = 'ubuntu-latest'; rid = 'linux-x64' }
+              @{ os = 'windows-latest'; rid = 'win-x64' }
+            )
           } else {
             @(
               @{ os = 'ubuntu-latest'; rid = 'linux-x64' }
@@ -123,9 +126,21 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Install Linux phone runtime dependencies
-        if: needs.select.outputs.application == 'rnphone'
+        if: needs.select.outputs.application == 'rnphone' && runner.os == 'Linux'
         run: |
           sudo apt-get install -y libopus0 libcodec2-1.2 libopusfile0 libopusenc0 pulseaudio pulseaudio-utils
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build Windows phone acceptance Opus dependency
+        if: needs.select.outputs.application == 'rnphone' && runner.os == 'Windows'
+        run: |
+          git clone --quiet --filter=blob:none --no-checkout https://github.com/xiph/opus.git artifacts/opus-source
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git -C artifacts/opus-source checkout --quiet 22244de5a79bd1d6d623c32e72bf1954b56235be
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake -S artifacts/opus-source -B artifacts/opus-build -A x64 -DBUILD_SHARED_LIBS=ON -DOPUS_BUILD_TESTING=OFF -DOPUS_BUILD_PROGRAMS=OFF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build artifacts/opus-build --config Release --parallel 2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run tests
@@ -199,9 +214,17 @@ jobs:
       - name: Verify native phone audio flow
         if: needs.select.outputs.application == 'rnphone'
         run: |
-          $env:DOTLXST_RNPHONE_BINARY = Join-Path $PWD 'artifacts/native/rnphone'
-          $env:DOTLXST_VIRTUAL_AUDIO = '1'
-          & ./tests/run-pester.ps1 -Path ./tests/Pester/Rnphone.Tests.ps1 -Tag NativeStandalone
+          $exe = if ($IsWindows) { 'rnphone.exe' } else { 'rnphone' }
+          $env:DOTLXST_RNPHONE_BINARY = Join-Path $PWD "artifacts/native/$exe"
+          if ($IsWindows) {
+            # Acceptance-only dependency; packages require separately installed native libraries.
+            Copy-Item artifacts/opus-build/Release/opus.dll artifacts/native/
+            $env:DOTLXST_WINDOWS_AUDIO = '1'
+            & ./tests/run-pester.ps1 -Path ./tests/Pester/Rnphone.Tests.ps1 -Tag NativeWindows
+          } else {
+            $env:DOTLXST_VIRTUAL_AUDIO = '1'
+            & ./tests/run-pester.ps1 -Path ./tests/Pester/Rnphone.Tests.ps1 -Tag NativeStandalone
+          }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Stage package and create zip

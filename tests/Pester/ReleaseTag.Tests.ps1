@@ -124,8 +124,8 @@ Describe 'Release platform selection' -Tag Integration {
     It 'selects <Application> platforms for <RefType> without publishing' -TestCases @(
         @{ Application = 'telemetry'; RefType = 'branch'; RefName = 'main'; PlatformCount = 3 }
         @{ Application = 'lxmd'; RefType = 'branch'; RefName = 'main'; PlatformCount = 3 }
-        @{ Application = 'rnphone'; RefType = 'branch'; RefName = 'main'; PlatformCount = 1 }
-        @{ Application = 'rnphone'; RefType = 'tag'; RefName = 'rnphone-v0.4.5.12'; PlatformCount = 1 }
+        @{ Application = 'rnphone'; RefType = 'branch'; RefName = 'main'; PlatformCount = 2 }
+        @{ Application = 'rnphone'; RefType = 'tag'; RefName = 'rnphone-v0.4.5.12'; PlatformCount = 2 }
     ) {
         param($Application, $RefType, $RefName, $PlatformCount)
         $outputPath = Join-Path $TestDrive ([Guid]::NewGuid().ToString('N'))
@@ -153,6 +153,7 @@ Describe 'Release platform selection' -Tag Integration {
         @($matrix.include).Count | Should -Be $PlatformCount
         if ($Application -eq 'rnphone') {
             $matrix.include[0].rid | Should -Be 'linux-x64'
+            $matrix.include[1].rid | Should -Be 'win-x64'
             $selected.project | Should -Be 'src/rnphone/rnphone.csproj'
         }
         if ($RefType -eq 'tag') { $selected.version | Should -Be '0.4.5.12' }

@@ -17,7 +17,7 @@ Native C# / .NET 10 implementations of the applications and protocols layered on
 | --- | --- | --- |
 | [`DotLXMF`](src/DotLXMF) | [LXMF](https://github.com/markqvist/LXMF) 1.2.1 | Partial: messages, stamps, direct/opportunistic delivery, ratchets, tickets, propagation synchronization and NativeAOT `lxmd`, including mixed-node peering and restart acceptance. Full public-contract compatibility is not established. See [docs/lxmf.md](docs/lxmf.md) |
 | [`DotTelemetry`](src/DotTelemetry) | None: a DotReticulum-specific format, not part of upstream Reticulum or LXMF | Implemented: `telemetry` daemon and viewer. No Python interoperability target. See [docs/telemetry.md](docs/telemetry.md) |
-| [`DotLXST`](src/DotLXST) | [LXST](https://github.com/markqvist/LXST) 0.4.5 | Partial: framing, native Opus/Codec2, audio processing, stream sessions, telephony and Linux `rnphone`. Full API/utility/platform parity is not complete. See [docs/lxst.md](docs/lxst.md) |
+| [`DotLXST`](src/DotLXST) | [LXST](https://github.com/markqvist/LXST) 0.4.5 | Partial: framing, native Opus/Codec2, audio processing, stream sessions, telephony and Linux/Windows `rnphone`. Full API/utility/platform parity is not complete. See [docs/lxst.md](docs/lxst.md) |
 | DotSideband | [Sideband](https://github.com/markqvist/Sideband) | Not started. Sideband depends on RNS, LXMF and LXST, so it would need DotLXST for voice calls |
 | DotNomad | [NomadNet](https://github.com/markqvist/NomadNet) | Not started |
 
@@ -62,7 +62,7 @@ Live interoperability tests are opt-in and need the pinned Python reference: set
 | LXST stream sessions and telephone calls | Live Python in both call directions, direct and through Python/.NET transport hops; all eight initial telephone profiles, policy rejection and timeout/recovery cases use virtual audio. Remaining gaps are in [docs/lxst.md](docs/lxst.md) |
 | LXST headless audio processing | Reference-executed resampling, filters/AGC, mutable tones, bounded mixing/playback, encoded pipelines and file controls; no physical audio-quality claim |
 | Windows LXST device adapter | Original PCM16 waveform backend: endpoint enumeration and native synthetic-silence playback/cancellation/reuse verified, including NativeAOT; physical capture, quality and reference WASAPI/loopback behavior are not verified |
-| `rnphone` | Linux NativeAOT calls with Python and another native process, virtual audio, configuration reload, persisted identity and service shutdown; hardware integration and other-platform backends remain incomplete |
+| `rnphone` | Linux NativeAOT calls with Python, virtual audio and supplied ringtone; Windows source-free two-native-process Opus calls, profile changes and identity restart. Physical hardware and remaining platform boundaries are unverified |
 | Telemetry (`telemetry`) | .NET-only: nodes publish and view reports through direct links and a .NET `rnsd` hop; no upstream counterpart |
 
 The Reticulum stack's own compatibility status and platform support are documented in the [DotReticulum README](https://github.com/dennispayne/DotReticulum#compatibility). Ecosystem managed and native checks have run on Windows and WSL/Linux; these do not establish macOS, physical-audio or RF compatibility. COM8 RAK4631/RNode identification was read-only; one radio does not establish an RF topology.
@@ -75,7 +75,7 @@ Each project carries the **upstream release it targets, plus a build number**, l
 
 Releases are tag-driven NativeAOT executable packages with SHA-256 checksums. Use `pwsh tools/new-release-tag.ps1 -Application lxmd`, choosing `telemetry`, `lxmd` or `rnphone`. Tags are `telemetry-v0.1.<height>`, `lxmd-v1.2.1.<height>` or `rnphone-v0.4.5.<height>` on `main`; pushing one invokes the [Release workflow](.github/workflows/release.yml). A manual run packages without publishing. No release is implied by local validation.
 
-`telemetry` and `lxmd` package `linux-x64`, `win-x64` and `osx-arm64`; macOS ecosystem feature acceptance remains unverified. `rnphone` packages only `linux-x64` because its audio backend requires PulseAudio; install the native libraries described in [docs/lxst.md](docs/lxst.md). The libraries have no separate release artifact.
+`telemetry` and `lxmd` package `linux-x64`, `win-x64` and `osx-arm64`; macOS ecosystem feature acceptance remains unverified. `rnphone` packages `linux-x64` and `win-x64`; install its separately distributed native libraries as described in [docs/lxst.md](docs/lxst.md). Windows acceptance covers headless Opus calls, not every codec/file backend. Native dependencies are not bundled. The libraries have no separate release artifact.
 
 ## Contributing
 

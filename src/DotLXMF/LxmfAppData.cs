@@ -22,7 +22,7 @@ public static class LxmfAppData
         if (IsList(appData))
         {
             return MsgPack.TryUnpack(appData, out var value) && value is object?[] { Length: > 0 } list && list[0] is byte[] name
-                ? System.Text.Encoding.UTF8.GetString(name)
+                ? System.Text.Encoding.UTF8.GetString(name).Replace("\0", "").Trim()
                 : null;
         }
 
@@ -34,6 +34,15 @@ public static class LxmfAppData
         if (appData is not { Length: > 0 } || !IsList(appData)) return null;
         if (MsgPack.TryUnpack(appData, out var value) && value is object?[] { Length: > 1 } list && list[1] is long cost && cost is > 0 and < 255) return (int)cost;
         return null;
+    }
+
+    /// <summary>Absent capability lists mean compression is supported; an explicit list must contain <c>SF_COMPRESSION</c>.</summary>
+    public static bool? CompressionSupported(byte[]? appData)
+    {
+        if (appData is not { Length: > 0 }) return null;
+        if (!IsList(appData)) return true;
+        if (!MsgPack.TryUnpack(appData, out var value) || value is not object?[] list) return null;
+        return list.Length < 3 || list[2] is not object?[] features || features.Contains(SupportsCompression);
     }
 
     private static bool IsList(byte[] data) => (data[0] >= 0x90 && data[0] <= 0x9f) || data[0] == 0xdc;

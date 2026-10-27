@@ -1,5 +1,7 @@
 using DotReticulum.Core;
 using DotReticulum.Transport;
+using System.Threading.Channels;
+using System.Security.Cryptography;
 
 namespace DotLXMF;
 
@@ -26,6 +28,18 @@ public sealed class LxmRouterOptions
 
     /// <summary>Optional override of the opportunistic proof wait.</summary>
     public TimeSpan? ReceiptTimeout { get; init; }
+
+    /// <summary>Enable upstream delivery ratchets. Memory-only unless <see cref="StoragePath"/> is configured.</summary>
+    public bool EnableRatchets { get; init; } = true;
+
+    public bool EnforceRatchets { get; init; }
+
+    /// <summary>Application storage root; signed ratchets are saved under lxmf/ratchets.</summary>
+    public string? StoragePath { get; init; }
+
+    public int InboundQueueCapacity { get; init; } = 256;
+
+    public int OutboundQueueCapacity { get; init; } = 256;
 }
 
 /// <summary>A received message together with delivery metadata.</summary>
@@ -33,9 +47,9 @@ public sealed record ReceivedMessage(LxMessage Message, bool? StampValid);
 
 /// <summary>
 /// A lightweight LXMF router (upstream <c>LXMRouter</c>): one <c>lxmf.delivery</c> destination, opportunistic and link-based outbound delivery with
-/// retries and an outbound queue, and a receive callback. Propagation nodes are not used.
+/// retries, bounded queues, tickets, ratchets and optional propagation storage.
 /// </summary>
-public sealed class LxmRouter : IAsyncDisposable
+public sealed partial class LxmRouter : IAsyncDisposable
 {
     public const string AppName = "lxmf";
     public const string DeliveryAspect = "delivery";
@@ -47,22 +61,57 @@ public sealed class LxmRouter : IAsyncDisposable
     private readonly object _gate = new();
     private readonly List<LxMessage> _outbound = [];
     private readonly Dictionary<string, Link> _links = [];
+    private readonly HashSet<Link> _incomingLinks = [];
+    private readonly HashSet<string> _ignored = [];
     private readonly HashSet<string> _identified = [];
     private readonly Dictionary<string, double> _seen = [];
+    private readonly Dictionary<string, Resource> _incomingResources = [];
     private readonly SemaphoreSlim _wake = new(0);
     private readonly CancellationTokenSource _cts = new();
     private Task _loop = Task.CompletedTask;
+    private Task _inboundLoop = Task.CompletedTask;
+    private readonly Channel<(byte[] Data, LxmMethod Method)> _inbound;
+    private readonly DestinationRatchets? _ratchets;
+    private readonly LxmTicketStore _tickets;
     private int _started;
+    private int _disposed;
 
     public LxmRouter(TransportRouter router, Identity identity, string? displayName = null, LxmRouterOptions? options = null)
     {
         _router = router ?? throw new ArgumentNullException(nameof(router));
         _identity = identity ?? throw new ArgumentNullException(nameof(identity));
         _options = options ?? new LxmRouterOptions();
+        ArgumentOutOfRangeException.ThrowIfLessThan(_options.InboundQueueCapacity, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(_options.OutboundQueueCapacity, 1);
+        _inbound = System.Threading.Channels.Channel.CreateBounded<(byte[], LxmMethod)>(new BoundedChannelOptions(_options.InboundQueueCapacity)
+        {
+            SingleReader = true,
+            FullMode = BoundedChannelFullMode.Wait,
+        });
         DisplayName = displayName;
         var destination = Destination.Create(DestinationType.Single, AppName, [DeliveryAspect], identity);
+        if (_options.EnableRatchets)
+        {
+            _ratchets = _options.StoragePath is { } storage
+                ? SignedDestinationRatchetFile.Open(Path.Combine(storage, "lxmf", "ratchets", Convert.ToHexStringLower(destination.Hash) + ".ratchets"), identity)
+                : new DestinationRatchets();
+            _ratchets.Enforce = _options.EnforceRatchets;
+        }
+        else if (_options.EnforceRatchets) throw new ArgumentException("Ratchet enforcement requires ratchets.", nameof(options));
+        try
+        {
+            _tickets = new LxmTicketStore(_options.StoragePath is { } storage ? Path.Combine(storage, "lxmf", "available_tickets") : null);
+            try { LoadDeliveryHistory(); }
+            catch { _tickets.Dispose(); throw; }
+        }
+        catch
+        {
+            _ratchets?.Dispose();
+            throw;
+        }
         _local = new LocalDestination(identity, destination)
         {
+            Ratchets = _ratchets,
             AppData = displayName is null ? null : LxmfAppData.Build(displayName, _options.InboundStampCost),
             AcceptLinks = true,
             ProofStrategy = ProofStrategy.All,
@@ -78,6 +127,9 @@ public sealed class LxmRouter : IAsyncDisposable
 
     public string DeliveryHashHex => Convert.ToHexStringLower(DeliveryHash);
 
+    /// <summary>Ticket lifecycle and persistence; lifetime is owned by this router.</summary>
+    public LxmTicketStore Tickets => _tickets;
+
     /// <summary>Called (off the router thread) for every new valid incoming message. Duplicates are suppressed.</summary>
     public Action<ReceivedMessage>? MessageReceived { get; set; }
 
@@ -91,8 +143,10 @@ public sealed class LxmRouter : IAsyncDisposable
     /// <summary>Starts the outbound processing loop.</summary>
     public void Start()
     {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         if (Interlocked.Exchange(ref _started, 1) != 0) return;
         _loop = Task.Run(() => LoopAsync(_cts.Token), CancellationToken.None);
+        _inboundLoop = Task.Run(() => ReceiveLoopAsync(_cts.Token), CancellationToken.None);
     }
 
     public ValueTask AnnounceAsync(CancellationToken cancellationToken = default) => _router.AnnounceAsync(_local, cancellationToken: cancellationToken);
@@ -104,29 +158,116 @@ public sealed class LxmRouter : IAsyncDisposable
     public async Task SendAsync(LxMessage message, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(message);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        using var preparation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
+        cancellationToken = preparation.Token;
+        cancellationToken.ThrowIfCancellationRequested();
         message.Log ??= Log;
         Start();
         if (message.Packed is null)
         {
+            if (message.IncludeTicket && _tickets.Generate(message.DestinationHash) is { } issued)
+            {
+                try { message.Fields[LxmField.Ticket] = issued.ToField(); }
+                finally { CryptographicOperations.ZeroMemory(issued.Token); }
+            }
+
             byte[]? stamp = null;
-            if (LxmfAppData.StampCost(_router.Engine.Known.RecallAppData(message.DestinationHash)) is { } cost)
+            if (_tickets.GetOutbound(message.DestinationHash) is { } ticket)
+            {
+                try { stamp = message.CreateTicketStamp(ticket.Token); }
+                finally { CryptographicOperations.ZeroMemory(ticket.Token); }
+            }
+            else if (LxmfAppData.StampCost(_router.Engine.Known.RecallAppData(message.DestinationHash)) is { } cost)
             {
                 var id = message.ComputeHash();
                 stamp = await Task.Run(() => LxStamper.Generate(id, cost, cancellationToken), cancellationToken).ConfigureAwait(false);
             }
 
-            message.Pack(stamp);
+            if (message.DesiredMethod == LxmMethod.Propagated)
+            {
+                var node = OutboundPropagationNode ?? throw new InvalidOperationException("No outbound propagation node configured.");
+                var identity = message.DestinationHash.AsSpan().SequenceEqual(DeliveryHash) ? _identity : _router.Engine.Known.Recall(message.DestinationHash)
+                    ?? throw new InvalidOperationException("The propagated recipient identity is unknown.");
+                if (!LxmfPropagationAnnounce.TryParse(_router.Engine.Known.RecallAppData(node), out var announced))
+                    throw new InvalidOperationException("Propagation node has not announced valid limits and stamp costs.");
+                message.Pack(stamp, identity, _router.Engine.Known.GetRatchet(message.DestinationHash));
+                var propagationStamp = await Task.Run(() => LxStamper.Generate(message.TransientId!, announced!.StampCost,
+                    cancellationToken, LxStamper.WorkblockExpandRoundsPn), cancellationToken).ConfigureAwait(false);
+                message.SetPropagationStamp(propagationStamp);
+                if (message.PropagationPacked!.LongLength > announced!.TransferLimitKilobytes * 1000)
+                    throw new ArgumentException("Message exceeds the propagation node transfer limit.", nameof(message));
+                message.PropagationNodeHash = node;
+            }
+            else message.Pack(stamp);
         }
 
+        if (message.IncludeTicket && message.Fields.ContainsKey(LxmField.Ticket))
+            message.StateChanged += MarkTicketDelivered;
+        message.TransportEncrypted = true;
+        message.TransportEncryption = "Curve25519";
         message.State = LxmState.Outbound;
-        lock (_gate) _outbound.Add(message);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            if (_outbound.Count >= _options.OutboundQueueCapacity) throw new InvalidOperationException("LXMF outbound queue is full.");
+            if (_outbound.Contains(message)) throw new InvalidOperationException("Message is already queued.");
+            _outbound.Add(message);
+        }
         _wake.Release();
+    }
+
+    private void MarkTicketDelivered(LxMessage message)
+    {
+        if (message.State != LxmState.Delivered) return;
+        message.StateChanged -= MarkTicketDelivered;
+        try { _tickets.MarkDelivered(message.DestinationHash); }
+        catch (Exception ex) { Log?.Invoke("Could not save LXMF ticket delivery: " + ex.Message); }
     }
 
     public void Cancel(LxMessage message)
     {
+        ArgumentNullException.ThrowIfNull(message);
         message.State = LxmState.Cancelled;
         lock (_gate) _outbound.Remove(message);
+        message.ActiveResource?.Cancel();
+    }
+
+    public bool HasMessage(ReadOnlySpan<byte> messageHash)
+    {
+        lock (_gate) return _seen.ContainsKey(Convert.ToHexStringLower(messageHash));
+    }
+
+    public void IgnoreDestination(ReadOnlySpan<byte> destinationHash)
+    {
+        if (destinationHash.Length != 16) throw new ArgumentException("Destination hash must be 16 bytes.", nameof(destinationHash));
+        lock (_gate) _ignored.Add(Convert.ToHexStringLower(destinationHash));
+    }
+
+    public void UnignoreDestination(ReadOnlySpan<byte> destinationHash)
+    {
+        lock (_gate) _ignored.Remove(Convert.ToHexStringLower(destinationHash));
+    }
+
+    public IReadOnlyList<Resource> InboundResources
+    {
+        get { lock (_gate) return _incomingResources.Values.ToArray(); }
+    }
+
+    public bool CancelInbound(ReadOnlySpan<byte> resourceHash)
+    {
+        Resource? resource;
+        lock (_gate) _incomingResources.TryGetValue(Convert.ToHexStringLower(resourceHash), out resource);
+        if (resource is null || resource.Status >= ResourceStatus.Complete) return false;
+        resource.Cancel();
+        return true;
+    }
+
+    public int CancelAllInbound()
+    {
+        var resources = InboundResources;
+        foreach (var resource in resources) resource.Cancel();
+        return resources.Count;
     }
 
     private async Task LoopAsync(CancellationToken ct)
@@ -187,18 +328,19 @@ public sealed class LxmRouter : IAsyncDisposable
         }
     }
 
-    private async Task<bool> EnsurePathAsync(LxMessage message, CancellationToken ct, bool allowPathless)
+    private async Task<bool> EnsurePathAsync(LxMessage message, CancellationToken ct, bool allowPathless, byte[]? routeHash = null)
     {
-        var known = _router.Engine.Known.Recall(message.DestinationHash) is not null;
-        if (known && _router.HasPath(message.DestinationHash)) return true;
+        var destination = routeHash ?? message.DestinationHash;
+        var known = _router.Engine.Known.Recall(destination) is not null;
+        if (known && _router.HasPath(destination)) return true;
         if (allowPathless && known && message.PathlessTries < _options.MaxPathlessTries)
         {
             message.PathlessTries++;
             return true;
         }
 
-        Log?.Invoke($"{message}: requesting path to {Convert.ToHexStringLower(message.DestinationHash)}");
-        await _router.RequestPathAsync(message.DestinationHash, cancellationToken: ct).ConfigureAwait(false);
+        Log?.Invoke($"{message}: requesting path to {Convert.ToHexStringLower(destination)}");
+        await _router.RequestPathAsync(destination, cancellationToken: ct).ConfigureAwait(false);
         message.DeliveryAttempts++;
         message.NextAttempt = Now + _options.PathRequestWait.TotalSeconds;
         return false;
@@ -222,7 +364,10 @@ public sealed class LxmRouter : IAsyncDisposable
 
     private async Task SendDirectAsync(LxMessage message, CancellationToken ct)
     {
-        var key = Convert.ToHexStringLower(message.DestinationHash);
+        var propagated = message.Method == LxmMethod.Propagated;
+        var destination = propagated ? message.PropagationNodeHash ?? throw new InvalidOperationException("No propagation route selected.") : message.DestinationHash;
+        var packed = propagated ? message.PropagationPacked! : message.Packed!;
+        var key = Convert.ToHexStringLower(destination);
         Link? link;
         lock (_gate)
         {
@@ -237,25 +382,28 @@ public sealed class LxmRouter : IAsyncDisposable
 
         if (link is null)
         {
-            if (!await EnsurePathAsync(message, ct, allowPathless: true).ConfigureAwait(false)) return;
-            var identity = _router.Engine.Known.Recall(message.DestinationHash)!;
+            if (!await EnsurePathAsync(message, ct, allowPathless: true, destination).ConfigureAwait(false)) return;
+            var identity = _router.Engine.Known.Recall(destination)!;
             message.DeliveryAttempts++;
             message.NextAttempt = Now + _options.DeliveryRetryWait.TotalSeconds;
-            var created = _router.Links.Connect(identity, message.DestinationHash, _ => _wake.Release(), _ => _wake.Release());
+            var created = _router.Links.Connect(identity, destination, _ => _wake.Release(), _ => _wake.Release());
             lock (_gate) _links[key] = created;
             return;
         }
 
         if (link.Status != LinkStatus.Active) return;
-        IdentifyOnce(key, link);
+        if (!propagated) IdentifyOnce(key, link);
         if (message.IsResource)
         {
             message.State = LxmState.Sending;
-            link.SendResource(message.Packed!, null, autoCompress: true, concluded: resource =>
+            if (message.State == LxmState.Cancelled) return;
+            message.ActiveResource = link.SendResource(packed, null,
+                autoCompress: propagated || LxmfAppData.CompressionSupported(_router.Engine.Known.RecallAppData(message.DestinationHash)) != false, concluded: resource =>
             {
+                message.ActiveResource = null;
                 if (resource.Status == ResourceStatus.Complete)
                 {
-                    message.State = LxmState.Delivered;
+                    message.State = propagated ? LxmState.Sent : LxmState.Delivered;
                 }
                 else if (resource.Status == ResourceStatus.Rejected)
                 {
@@ -266,19 +414,20 @@ public sealed class LxmRouter : IAsyncDisposable
                     FailAttempt(message, link);
                 }
             });
+            if (message.State == LxmState.Cancelled) message.ActiveResource?.Cancel();
         }
         else
         {
             message.DeliveryAttempts++;
-            var receipt = link.Send(message.Packed!, createReceipt: true);
+            var receipt = link.Send(packed, createReceipt: true);
             if (receipt is null)
             {
                 FailAttempt(message, link);
                 return;
             }
 
-            message.State = LxmState.Sent;
-            receipt.Delivered = _ => message.State = LxmState.Delivered;
+            message.State = propagated ? LxmState.Sending : LxmState.Sent;
+            receipt.Delivered = _ => message.State = propagated ? LxmState.Sent : LxmState.Delivered;
             receipt.TimedOut = _ => FailAttempt(message, link);
         }
     }
@@ -310,27 +459,71 @@ public sealed class LxmRouter : IAsyncDisposable
 
     private void OnLinkEstablished(Link link)
     {
+        lock (_gate)
+        {
+            if (_disposed == 0) _incomingLinks.Add(link);
+        }
+        if (Volatile.Read(ref _disposed) != 0) { link.Teardown(); return; }
+        link.Closed += closed =>
+        {
+            lock (_gate) _incomingLinks.Remove(closed);
+        };
         link.ResourceStrategy = ResourceStrategy.AcceptApp;
         link.PacketReceived = (data, _) => Deliver(data, LxmMethod.Direct);
         link.ResourceAdvertised = advertisement => advertisement.DataSize <= _options.DeliveryPerTransferLimit;
+        link.ResourceStarted = resource =>
+        {
+            lock (_gate) _incomingResources[Convert.ToHexStringLower(resource.Hash)] = resource;
+        };
         link.ResourceReceived = resource =>
         {
+            lock (_gate) _incomingResources.Remove(Convert.ToHexStringLower(resource.Hash));
             if (resource.Status == ResourceStatus.Complete && resource.Data is { } data) Deliver(data, LxmMethod.Direct);
         };
     }
 
-    private void Deliver(byte[] lxmfData, LxmMethod method)
+    private bool Deliver(byte[] lxmfData, LxmMethod method)
     {
-        _ = Task.Run(() =>
+        var accepted = _inbound.Writer.TryWrite((lxmfData, method));
+        if (!accepted && Volatile.Read(ref _disposed) == 0)
+            Log?.Invoke("LXMF inbound queue is full; dropping incoming message.");
+        return accepted;
+    }
+
+    private async Task ReceiveLoopAsync(CancellationToken ct)
+    {
+        try
         {
-            try
-            {
-                var message = LxMessage.Unpack(lxmfData, hash => _router.Engine.Known.Recall(hash), method);
+            await foreach (var (lxmfData, method) in _inbound.Reader.ReadAllAsync(ct).ConfigureAwait(false))
+                ProcessIncoming(lxmfData, method);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+    }
+
+    private void ProcessIncoming(byte[] lxmfData, LxmMethod method)
+    {
+        try
+        {
+                var message = LxMessage.Unpack(lxmfData, hash => hash.AsSpan().SequenceEqual(DeliveryHash) ? _identity : _router.Engine.Known.Recall(hash), method);
                 if (!message.DestinationHash.AsSpan().SequenceEqual(DeliveryHash)) return;
+                lock (_gate)
+                    if (_ignored.Contains(Convert.ToHexStringLower(message.SourceHash))) return;
+                message.TransportEncrypted = true;
+                message.TransportEncryption = "Curve25519";
+                if (message.SignatureValidated && message.Fields.TryGetValue(LxmField.Ticket, out var value) &&
+                    value is object?[] { Length: >= 2 } entry && entry[1] is byte[] { Length: LxMessage.TicketLength } token &&
+                    entry[0] is double or float or long or ulong)
+                {
+                    var expires = MsgPack.ToDouble(entry[0]);
+                    if (double.IsFinite(expires)) _tickets.Remember(message.SourceHash, new LxmTicket(expires, token));
+                }
+
                 bool? stampValid = null;
                 if (_options.InboundStampCost is { } cost)
                 {
-                    stampValid = message.Stamp is not null && LxStamper.Validate(message.Hash!, message.Stamp, cost);
+                    var tickets = _tickets.GetInbound(message.SourceHash);
+                    try { stampValid = message.ValidateStamp(cost, tickets); }
+                    finally { foreach (var ticket in tickets) CryptographicOperations.ZeroMemory(ticket); }
                     if (stampValid == false && _options.EnforceStamps)
                     {
                         Log?.Invoke($"Dropping {message} with invalid stamp");
@@ -342,35 +535,55 @@ public sealed class LxmRouter : IAsyncDisposable
                 lock (_gate)
                 {
                     var now = Now;
-                    foreach (var stale in _seen.Where(e => now - e.Value > 3600).Select(e => e.Key).ToList()) _seen.Remove(stale);
+                    foreach (var stale in _seen.Where(e => now - e.Value > DeliveryHistoryRetention.TotalSeconds).Select(e => e.Key).ToList()) _seen.Remove(stale);
+                    if (_seen.ContainsKey(key)) return;
+                    if (_seen.Count >= 65_536) throw new InvalidOperationException("LXMF duplicate cache capacity reached.");
                     if (!_seen.TryAdd(key, now)) return;
+                    try { SaveDeliveryHistory(); }
+                    catch { _seen.Remove(key); throw; }
                 }
 
-                MessageReceived?.Invoke(new ReceivedMessage(message, stampValid));
-            }
-            catch (Exception ex)
+                if (MessageReceived is { } callbacks)
+                foreach (Action<ReceivedMessage> callback in callbacks.GetInvocationList())
+                {
+                    try { callback(new ReceivedMessage(message, stampValid)); }
+                    catch (Exception ex) { Log?.Invoke($"LXMF receive observer failed for {message}: {ex}"); }
+                }
+        }
+        catch (Exception ex)
             {
                 Log?.Invoke("Could not process incoming LXMF data: " + ex.Message);
             }
-        });
     }
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _inbound.Writer.TryComplete();
         await _cts.CancelAsync().ConfigureAwait(false);
-        try { await _loop.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false); }
+        await _retrieval.WaitAsync().ConfigureAwait(false);
+        _retrieval.Release();
+        try { await Task.WhenAll(_loop, _inboundLoop).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false); }
         catch (Exception ex) when (ex is TimeoutException or OperationCanceledException) { }
+        Link[] links;
         lock (_gate)
         {
-            foreach (var link in _links.Values)
-            {
-                try { link.Teardown(); }
-                catch (Exception) { /* already closed */ }
-            }
-
+            links = _links.Values.Concat(_incomingLinks).Distinct().ToArray();
             _links.Clear();
+            _incomingLinks.Clear();
+            foreach (var message in _outbound) message.State = LxmState.Cancelled;
+            _outbound.Clear();
+        }
+        foreach (var link in links)
+        {
+            try { link.Teardown(); }
+            catch (Exception ex) { Log?.Invoke("Could not close LXMF link: " + ex.Message); }
         }
 
+        _router.DeregisterLocalDestination(_local);
+        _ratchets?.Dispose();
+        _tickets.Dispose();
+        if (PropagationNode is { } propagation) await propagation.DisposeAsync().ConfigureAwait(false);
         _cts.Dispose();
     }
 }

@@ -5,6 +5,7 @@ namespace DotLXMF.Tests;
 
 // Vectors produced by executing upstream LXMF 1.2.1 (see GenerateLxmfVectors.py): our pack must reproduce upstream's bytes exactly (Ed25519 is deterministic)
 // and our unpack must agree with upstream on every field, hash and signature.
+[Trait("Category", "Unit")]
 public class LxmfVectorTests
 {
     private static readonly JsonElement Root =

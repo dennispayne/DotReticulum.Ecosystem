@@ -4,6 +4,7 @@ Usage: python verify_dotnet_lxmf.py dotnet-lxmf.json   (written by LxmfDotNetToP
 Exits non-zero on the first mismatch.
 """
 import json
+import base64
 import sys
 
 import RNS
@@ -45,8 +46,28 @@ for m in data["messages"]:
     assert msgpack.packb(parsed.fields).hex() == m["fields_packed"], f"{label}: fields mismatch"
     if m.get("stamp"):
         assert parsed.stamp.hex() == m["stamp"], f"{label}: stamp mismatch"
-        assert LXStamper.stamp_valid(parsed.stamp, m["stamp_cost"], LXStamper.stamp_workblock(parsed.hash)), f"{label}: stamp rejected by upstream"
+        if m.get("ticket"):
+            assert parsed.validate_stamp(254, tickets=[bytes.fromhex(m["ticket"])]), f"{label}: ticket stamp rejected by upstream"
+        else:
+            assert LXStamper.stamp_valid(parsed.stamp, m["stamp_cost"], LXStamper.stamp_workblock(parsed.hash)), f"{label}: stamp rejected by upstream"
     sys.stderr.write(f"ok {label}\n")
+
+if "paper" in data:
+    paper = data["paper"]
+    destination = RNS.Identity(create_keys=False)
+    destination.load_private_key(bytes.fromhex(paper["destination_private_key"]))
+    uri = paper["uri"]
+    assert uri.startswith("lxm://")
+    raw = base64.urlsafe_b64decode(uri[6:] + "==")
+    packed = raw[:16] + destination.decrypt(raw[16:])
+    assert packed.hex() == paper["packed"], "paper encryption mismatch"
+    parsed = LXMessage.unpack_from_bytes(packed, original_method=LXMessage.PAPER)
+    assert parsed.signature_validated, "paper signature rejected"
+    from io import BytesIO
+    restored = LXMessage.unpack_from_file(BytesIO(bytes.fromhex(paper["container"])))
+    assert restored.signature_validated and restored.packed == packed, "paper container rejected"
+    assert restored.method == LXMessage.PAPER and restored.transport_encrypted is True
+    sys.stderr.write("ok paper encryption, URI and container\n")
 
 for a in data["app_data"]:
     raw = bytes.fromhex(a["data"])

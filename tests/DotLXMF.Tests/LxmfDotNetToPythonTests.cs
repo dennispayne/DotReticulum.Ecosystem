@@ -18,9 +18,11 @@ public sealed class LiveFactAttribute : FactAttribute
 
 // LIVE: messages packed by DotReticulum are opened by upstream LXMF (tests/Interop/verify_dotnet_lxmf.py): unpack, signature, hash, fields, stamp, app_data.
 //   dotnet test tests/DotLXMF.Tests -c Release --filter "FullyQualifiedName~LxmfDotNetToPython"
+[Trait("Category", "Integration")]
 public class LxmfDotNetToPythonTests
 {
     [LiveFact]
+    [Trait("Category", "Live")]
     public async Task UpstreamLxmf_AcceptsDotNetMessagesStampsAndAppData()
     {
         var source = Identity.Generate();
@@ -40,6 +42,12 @@ public class LxmfDotNetToPythonTests
         Make("fields", "Fields \u2603", "F", new() { [1L] = new object?[] { new byte[] { 1, 2, 3 } }, [5L] = new object?[] { new object?[] { "a.txt", new byte[] { 9, 8 } } }, [0x0CL] = new object?[] { 1900000000.0, new byte[16] } }, LxmMethod.Direct, 1700000101.0);
         Make("big", new string('z', 5000), "", null, LxmMethod.Direct, 1700000102.0);
         Make("stamped", "Stamped from .NET", "S", null, LxmMethod.Direct, 1700000103.0, cost: 6);
+        var ticket = Enumerable.Range(0, 16).Select(value => (byte)value).ToArray();
+        var ticketed = LxMessage.Create(destinationHash, source, "Ticket from .NET", "T", timestamp: 1700000104.0);
+        ticketed.Pack(ticketed.CreateTicketStamp(ticket));
+        messages.Add(("ticket", ticketed, null));
+        var paper = LxMessage.Create(destinationHash, source, "Paper from .NET", "P", method: LxmMethod.Paper, timestamp: 1700000105.0);
+        paper.Pack(destinationIdentity: destination);
 
         var path = Path.Combine(AppContext.BaseDirectory, "dotnet-lxmf-" + Guid.NewGuid().ToString("N") + ".json");
         try
@@ -72,13 +80,22 @@ public class LxmfDotNetToPythonTests
                     if (m.Stamp is not null)
                     {
                         json.WriteString("stamp", Convert.ToHexStringLower(m.Stamp));
-                        json.WriteNumber("stamp_cost", cost!.Value);
+                        if (cost is { } stampCost) json.WriteNumber("stamp_cost", stampCost);
+                        else json.WriteString("ticket", Convert.ToHexStringLower(ticket));
                     }
 
                     json.WriteEndObject();
                 }
 
                 json.WriteEndArray();
+                json.WriteStartObject("paper");
+                var testPrivateKey = destination.ExportPrivateKey();
+                try { json.WriteString("destination_private_key", Convert.ToHexStringLower(testPrivateKey)); }
+                finally { System.Security.Cryptography.CryptographicOperations.ZeroMemory(testPrivateKey); }
+                json.WriteString("uri", paper.AsUri(finalise: false));
+                json.WriteString("packed", Convert.ToHexStringLower(paper.Packed!));
+                json.WriteString("container", Convert.ToHexStringLower(paper.PackedContainer()));
+                json.WriteEndObject();
                 json.WriteStartArray("app_data");
                 foreach (var (name, cost) in new (string?, int?)[] { ("Alice", null), ("Bob \u00e9", 12), (null, null) })
                 {
@@ -104,6 +121,8 @@ public class LxmfDotNetToPythonTests
             psi.ArgumentList.Add(path);
             psi.Environment["PYTHONPATH"] = Environment.GetEnvironmentVariable("DOTRETICULUM_UPSTREAM")
                 ?? throw new InvalidOperationException("DOTRETICULUM_UPSTREAM must point at the pinned upstream checkout.");
+            if (Environment.GetEnvironmentVariable("DOTRETICULUM_LXMF_UPSTREAM") is { Length: > 0 } lxmfRoot)
+                psi.Environment["PYTHONPATH"] += Path.PathSeparator + lxmfRoot;
             using var process = Process.Start(psi)!;
             var stderr = await process.StandardError.ReadToEndAsync();
             await process.WaitForExitAsync();
@@ -118,6 +137,8 @@ public class LxmfDotNetToPythonTests
 
     private static string FindScript()
     {
+        var deployed = Path.Combine(AppContext.BaseDirectory, "Interop", "verify_dotnet_lxmf.py");
+        if (File.Exists(deployed)) return deployed;
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
         {
             var candidate = Path.Combine(dir.FullName, "tests", "Interop", "verify_dotnet_lxmf.py");

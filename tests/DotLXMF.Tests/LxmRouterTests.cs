@@ -81,8 +81,126 @@ internal sealed class LxmfPair : IAsyncDisposable
     }
 }
 
+[Trait("Category", "Integration")]
 public class LxmRouterTests
 {
+    [Fact]
+    public async Task PersistentDeliveryHistory_SuppressesDuplicatesAfterRouterRestart()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "delivery-history-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = path });
+            var first = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "before restart", method: LxmMethod.Opportunistic);
+            await pair.Client.SendAsync(first);
+            await pair.WaitAsync(() => pair.Server.HasMessage(first.Hash!));
+            await pair.Server.DisposeAsync();
+            await using var restarted = new LxmRouter(pair.ServerRouter, pair.ServerIdentity, options: new LxmRouterOptions { StoragePath = path });
+            Assert.True(restarted.HasMessage(first.Hash!));
+            var inbox = new System.Collections.Concurrent.ConcurrentQueue<ReceivedMessage>();
+            restarted.MessageReceived = inbox.Enqueue;
+            restarted.Start();
+            var duplicate = LxMessage.Unpack(first.Packed!, _ => pair.ClientIdentity, LxmMethod.Opportunistic);
+            await pair.Client.SendAsync(duplicate);
+            var next = LxMessage.Create(restarted.DeliveryHash, pair.ClientIdentity, "after restart", method: LxmMethod.Opportunistic);
+            await pair.Client.SendAsync(next);
+            await pair.WaitAsync(() => restarted.HasMessage(next.Hash!));
+            await pair.WaitAsync(() => !inbox.IsEmpty);
+            Assert.Equal("after restart", Assert.Single(inbox).Message.Content);
+        }
+        finally { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); }
+    }
+
+    [Fact]
+    public async Task CancelAtResourceStart_PreventsTransferAndAllowsContinuedDelivery()
+    {
+        await using var pair = await LxmfPair.CreateAsync();
+        var cancelled = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, new string('x', 8192));
+        cancelled.StateChanged += message =>
+        {
+            if (message.State == LxmState.Sending) pair.Client.Cancel(message);
+        };
+        await pair.Client.SendAsync(cancelled);
+        Assert.Equal(LxmState.Cancelled, await cancelled.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+        var next = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "continued");
+        await pair.Client.SendAsync(next);
+        Assert.Equal(LxmState.Delivered, await next.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+        await pair.WaitAsync(() => pair.ServerInbox.Count == 1);
+        Assert.Equal("continued", Assert.Single(pair.ServerInbox).Message.Content);
+    }
+
+    [Fact]
+    public async Task ReceiveObservers_AreIsolated_AndCoreProcessingRunsWithoutSubscribers()
+    {
+        await using var pair = await LxmfPair.CreateAsync();
+        pair.Server.MessageReceived = null;
+        var first = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "no subscriber", method: LxmMethod.Opportunistic);
+        await pair.Client.SendAsync(first);
+        Assert.Equal(LxmState.Delivered, await first.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+        await Task.Delay(200);
+        var errors = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var delivered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var observed = 0;
+        pair.Server.Log = errors.Enqueue;
+        pair.Server.MessageReceived = _ => throw new InvalidOperationException("receive observer failed");
+        pair.Server.MessageReceived += _ =>
+        {
+            Interlocked.Increment(ref observed);
+            delivered.TrySetResult();
+        };
+        var duplicate = LxMessage.Unpack(first.Packed!, _ => pair.ClientIdentity, LxmMethod.Opportunistic);
+        await pair.Client.SendAsync(duplicate);
+        Assert.Equal(LxmState.Delivered, await duplicate.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+        var next = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "observers", method: LxmMethod.Opportunistic);
+        await pair.Client.SendAsync(next);
+        await delivered.Task.WaitAsync(TimeSpan.FromSeconds(20));
+        Assert.Equal(1, observed);
+        Assert.Contains(errors, error => error.Contains("receive observer failed", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Dispose_CancelsPendingMessagesAndRejectsFurtherSends()
+    {
+        await using var pair = await LxmfPair.CreateAsync();
+        var pending = LxMessage.Create(new byte[16], pair.ClientIdentity, "no path");
+        await pair.Client.SendAsync(pending);
+        await pair.Client.DisposeAsync();
+        Assert.Equal(LxmState.Cancelled, await pending.Completion.WaitAsync(TimeSpan.FromSeconds(5)));
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => pair.Client.SendAsync(
+            LxMessage.Create(new byte[16], pair.ClientIdentity, "disposed")));
+    }
+
+    [Fact]
+    public async Task DeliveryRatchets_AreAdvertisedAndEnforced()
+    {
+        await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { EnforceRatchets = true });
+        Assert.NotNull(pair.ClientRouter.Engine.Known.GetRatchet(pair.Server.DeliveryHash));
+        var message = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "ratcheted", method: LxmMethod.Opportunistic);
+        await pair.Client.SendAsync(message);
+        Assert.Equal(LxmState.Delivered, await message.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+        await pair.WaitAsync(() => pair.ServerInbox.Count == 1);
+        Assert.True(pair.ServerInbox[0].Message.SignatureValidated);
+    }
+
+    [Fact]
+    public async Task ReplyTicket_IsRememberedAndBypassesAdvertisedStampCost()
+    {
+        await using var pair = await LxmfPair.CreateAsync(clientOptions: new LxmRouterOptions { InboundStampCost = 8 });
+        var first = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "with reply ticket", method: LxmMethod.Opportunistic);
+        first.IncludeTicket = true;
+        await pair.Client.SendAsync(first);
+        Assert.Equal(LxmState.Delivered, await first.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+        await pair.WaitAsync(() => pair.ServerInbox.Count == 1);
+        Assert.NotNull(pair.Server.Tickets.GetOutbound(pair.Client.DeliveryHash));
+        var reply = LxMessage.Create(pair.Client.DeliveryHash, pair.ServerIdentity, "ticket reply", method: LxmMethod.Opportunistic);
+        await pair.Server.SendAsync(reply);
+        Assert.Equal(16, reply.Stamp!.Length);
+        Assert.Equal(LxmState.Delivered, await reply.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+        await pair.WaitAsync(() => pair.ClientInbox.Count == 1);
+        Assert.True(pair.ClientInbox[0].StampValid);
+        Assert.Null(pair.Client.Tickets.Generate(pair.Server.DeliveryHash));
+    }
+
     [Fact]
     public async Task FaultingStateObserver_IsLogged_AndOtherObserversAndDeliveryContinue()
     {

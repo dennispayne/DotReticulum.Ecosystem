@@ -11,10 +11,12 @@ public static class LxStamper
     public const int StampSize = 32;
     public const int WorkblockExpandRounds = 3000;
     public const int WorkblockExpandRoundsPn = 1000;
+    public const int WorkblockExpandRoundsPeering = 25;
 
     public static byte[] Workblock(ReadOnlySpan<byte> material, int expandRounds = WorkblockExpandRounds)
     {
-        var block = new byte[expandRounds * 256];
+        ArgumentOutOfRangeException.ThrowIfNegative(expandRounds);
+        var block = new byte[checked(expandRounds * 256)];
         for (var n = 0; n < expandRounds; n++)
         {
             var packedN = MsgPack.Pack((long)n);
@@ -42,9 +44,13 @@ public static class LxStamper
         stamp.Length == StampSize && IsValid(stamp, targetCost, Workblock(messageId));
 
     /// <summary>Searches for a stamp of at least <paramref name="cost"/> bits for <paramref name="messageId"/> using all cores.</summary>
-    public static byte[] Generate(byte[] messageId, int cost, CancellationToken cancellationToken = default)
+    public static byte[] Generate(byte[] messageId, int cost, CancellationToken cancellationToken = default, int expandRounds = WorkblockExpandRounds)
     {
-        var workblock = Workblock(messageId);
+        ArgumentNullException.ThrowIfNull(messageId);
+        ArgumentOutOfRangeException.ThrowIfNegative(cost);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(cost, 256);
+        cancellationToken.ThrowIfCancellationRequested();
+        var workblock = Workblock(messageId, expandRounds);
         byte[]? found = null;
         var workers = Math.Max(1, Environment.ProcessorCount);
         var tasks = Enumerable.Range(0, workers).Select(_ => Task.Run(() =>

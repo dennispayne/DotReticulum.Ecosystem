@@ -27,6 +27,7 @@ import time
 
 import RNS
 import LXMF
+import RNS.vendor.umsgpack as msgpack
 from reference_environment import verify_reference
 
 LOCK = threading.Lock()
@@ -78,27 +79,41 @@ class Handler:
               "display_name": LXMF.display_name_from_app_data(app_data), "hops": RNS.Transport.hops_to(destination_hash)})
 
 
+class PropagationHandler:
+    aspect_filter = "lxmf.propagation"
+
+    def received_announce(self, destination_hash, announced_identity, app_data):
+        emit({"event": "pn-announce", "dest": destination_hash.hex(), "app_data": app_data.hex() if app_data else "",
+              "hops": RNS.Transport.hops_to(destination_hash)})
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     parser.add_argument("--tcp-server-port", type=int, default=0)
     parser.add_argument("--rnsd-port", type=int, default=0)
+    parser.add_argument("--stamp-cost", type=int, default=None)
     args = parser.parse_args()
 
     verify_reference(require_lxmf=True)
     write_config(args.config, args.tcp_server_port, args.rnsd_port)
     RNS.Reticulum(configdir=args.config, loglevel=RNS.LOG_WARNING)
     RNS.Transport.register_announce_handler(Handler())
+    RNS.Transport.register_announce_handler(PropagationHandler())
 
     identity = RNS.Identity()
-    router = LXMF.LXMRouter(identity=identity, storagepath=os.path.join(args.config, "lxmf"), autopeer=False)
-    local = router.register_delivery_identity(identity, display_name="PyLxmf")
+    router = LXMF.LXMRouter(identity=identity, storagepath=os.path.join(args.config, "lxmf"), autopeer=False, enforce_stamps=True,
+                            propagation_cost=13)
+    local = router.register_delivery_identity(identity, display_name="PyLxmf", stamp_cost=args.stamp_cost)
 
     def on_message(message):
         emit({"event": "received", "hash": message.hash.hex(), "source": message.source_hash.hex(), "title": message.title_as_string(),
               "size": len(message.content), "sha256": hashlib.sha256(message.content).hexdigest(), "method": message.method,
               "signature_validated": message.signature_validated,
-              "fields": {str(k): (v.hex() if isinstance(v, bytes) else repr(v)) for k, v in (message.fields or {}).items()}})
+              "stamp_valid": message.stamp_valid, "stamp_size": len(message.stamp) if message.stamp else 0,
+              "has_ticket": LXMF.FIELD_TICKET in message.fields,
+              "fields": {str(k): ("<ticket-redacted>" if k == LXMF.FIELD_TICKET else v.hex() if isinstance(v, bytes) else repr(v))
+                         for k, v in (message.fields or {}).items()}})
 
     router.register_delivery_callback(on_message)
     emit({"event": "ready", "dest": local.hash.hex(), "identity_hash": identity.hash.hex()})
@@ -113,11 +128,45 @@ def main():
         if cmd == "announce":
             router.announce(local.hash)
             emit({"event": "announced", "dest": local.hash.hex()})
+        elif cmd == "enable-pn":
+            router.enable_propagation()
+            router.propagation_destination.announce(app_data=router.get_propagation_node_app_data())
+            emit({"event": "pn-ready", "dest": router.propagation_destination.hash.hex()})
+        elif cmd == "use-pn":
+            router.set_outbound_propagation_node(bytes.fromhex(parts[1]))
+            emit({"event": "pn-selected"})
+        elif cmd == "pn-count":
+            emit({"event": "pn-count", "count": len(router.propagation_entries)})
+        elif cmd == "retrieve":
+            before = len(router.locally_delivered_transient_ids)
+            router.request_messages_from_propagation_node(identity)
+            deadline = time.time() + 60
+            while router.propagation_transfer_state < LXMF.LXMRouter.PR_COMPLETE and time.time() < deadline:
+                time.sleep(0.05)
+            emit({"event": "retrieved", "state": router.propagation_transfer_state,
+                  "count": router.propagation_transfer_last_result})
+        elif cmd == "cancel-retrieval":
+            router.cancel_propagation_node_requests()
+            emit({"event": "retrieval-cancelled"})
+        elif cmd == "peer-sync":
+            peer_hash = bytes.fromhex(parts[1])
+            config = msgpack.unpackb(RNS.Identity.recall_app_data(peer_hash))
+            router.peer(peer_hash, config[1], config[3], config[4], config[5][0], config[5][1], config[5][2], config[6])
+            peer = router.peers[peer_hash]
+            for transient_id in router.propagation_entries:
+                peer.add_unhandled_message(transient_id)
+            peer.generate_peering_key()
+            peer.sync()
+            deadline = time.time() + 60
+            while peer.state != peer.IDLE and time.time() < deadline:
+                time.sleep(0.05)
+            emit({"event": "peer-synced", "outgoing": peer.outgoing, "state": peer.state})
         elif cmd == "send":
             dest_hash = bytes.fromhex(parts[1])
-            method = LXMF.LXMessage.OPPORTUNISTIC if parts[2] == "opportunistic" else LXMF.LXMessage.DIRECT
+            method = {"opportunistic": LXMF.LXMessage.OPPORTUNISTIC, "direct": LXMF.LXMessage.DIRECT,
+                      "propagated": LXMF.LXMessage.PROPAGATED}[parts[2]]
             size, seed, title = int(parts[3]), parts[4], parts[5] if len(parts) > 5 else ""
-            remote_identity = RNS.Identity.recall(dest_hash)
+            remote_identity = identity if dest_hash == local.hash else RNS.Identity.recall(dest_hash)
             if remote_identity is None:
                 RNS.Transport.request_path(dest_hash)
                 deadline = time.time() + 20
@@ -126,11 +175,13 @@ def main():
                     remote_identity = RNS.Identity.recall(dest_hash)
             destination = RNS.Destination(remote_identity, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")
             content = random.Random(seed).randbytes(size)
-            message = LXMF.LXMessage(destination, local, content, title, fields={1: [b"py-field"]}, desired_method=method)
-            message.register_delivery_callback(lambda m: emit({"event": "delivered", "hash": m.hash.hex()}))
+            message = LXMF.LXMessage(destination, local, content, title, fields={1: [b"py-field"]}, desired_method=method,
+                                    include_ticket=len(parts) > 6 and parts[6] == "ticket")
+            message.register_delivery_callback(lambda m: emit({"event": "delivered", "hash": m.hash.hex(), "state": m.state}))
             message.register_failed_callback(lambda m: emit({"event": "failed", "hash": m.hash.hex(), "state": m.state}))
             router.handle_outbound(message)
             emit({"event": "sent_queued", "hash": message.hash.hex(), "method": message.method, "representation": message.representation,
+                  "stamp_size": len(message.stamp) if message.stamp else 0,
                   "size": len(content), "sha256": hashlib.sha256(content).hexdigest()})
 
     os._exit(0)

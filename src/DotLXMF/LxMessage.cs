@@ -1,5 +1,6 @@
 using DotReticulum.Core;
 using DotReticulum.Transport;
+using System.Security.Cryptography;
 
 namespace DotLXMF;
 
@@ -9,6 +10,7 @@ public enum LxmState : byte
     Outbound = 0x01,
     Sending = 0x02,
     Sent = 0x04,
+    Paper = 0x05,
     Delivered = 0x08,
     Rejected = 0xFD,
     Cancelled = 0xFE,
@@ -47,9 +49,18 @@ public static class LxmField
     public const long Group = 0x0B;
     public const long Ticket = 0x0C;
     public const long Event = 0x0D;
+    public const long RnrReferences = 0x0E;
+    public const long Renderer = 0x0F;
+    public const long ReplyTo = 0x30;
+    public const long ReplyQuote = 0x31;
+    public const long Reaction = 0x40;
+    public const long Comment = 0x41;
+    public const long Continuation = 0x42;
     public const long CustomType = 0xFB;
     public const long CustomData = 0xFC;
     public const long CustomMeta = 0xFD;
+    public const long NonSpecific = 0xFE;
+    public const long Debug = 0xFF;
 }
 
 /// <summary>
@@ -63,6 +74,9 @@ public sealed class LxMessage
     public const int TimestampSize = 8;
     public const int StructOverhead = 8;
     public const int Overhead = (2 * DestinationLength) + SignatureLength + TimestampSize + StructOverhead;
+    public const int TicketLength = 16;
+    public const int TicketStampValue = 0x100;
+    public const int PaperMdu = ((2953 - 6) * 6) / 8;
 
     /// <summary>Upstream <c>Packet.ENCRYPTED_MDU</c> for the default 500 byte MTU.</summary>
     public const int EncryptedPacketMdu = 383;
@@ -113,7 +127,24 @@ public sealed class LxMessage
 
     public byte[]? Packed { get; private set; }
 
+    public byte[]? PaperPacked { get; private set; }
+
+    public byte[]? PropagationData { get; private set; }
+
+    public byte[]? PropagationPacked { get; private set; }
+
+    public byte[]? TransientId { get; private set; }
+
+    internal byte[]? PropagationNodeHash { get; set; }
+
+    public bool? TransportEncrypted { get; internal set; }
+
+    public string? TransportEncryption { get; internal set; }
+
     public bool Incoming { get; private init; }
+
+    /// <summary>Ask the router to include a reply ticket in the signed fields.</summary>
+    public bool IncludeTicket { get; set; }
 
     public LxmMethod DesiredMethod { get; set; } = LxmMethod.Direct;
 
@@ -124,6 +155,10 @@ public sealed class LxMessage
     public bool IsResource { get; private set; }
 
     public int DeliveryAttempts { get; internal set; }
+
+    internal Resource? ActiveResource { get; set; }
+
+    public double Progress => State == LxmState.Delivered ? 1 : ActiveResource?.Progress ?? 0;
 
     internal int PathlessTries { get; set; }
 
@@ -141,7 +176,7 @@ public sealed class LxMessage
             lock (_gate)
             {
                 if (_state == value) return;
-                if (_state is LxmState.Delivered or LxmState.Failed or LxmState.Rejected or LxmState.Cancelled) return;
+                if (_state is LxmState.Delivered or LxmState.Paper or LxmState.Failed or LxmState.Rejected or LxmState.Cancelled) return;
                 _state = value;
             }
 
@@ -158,7 +193,8 @@ public sealed class LxMessage
                     }
                 }
             }
-            if (value is LxmState.Delivered or LxmState.Failed or LxmState.Rejected or LxmState.Cancelled) _done.TrySetResult(value);
+            if (value is LxmState.Delivered or LxmState.Paper or LxmState.Failed or LxmState.Rejected or LxmState.Cancelled ||
+                value == LxmState.Sent && Method == LxmMethod.Propagated) _done.TrySetResult(value);
         }
     }
 
@@ -189,6 +225,16 @@ public sealed class LxMessage
         return message;
     }
 
+    /// <summary>Creates a message without UTF-8 conversion of the title or content.</summary>
+    public static LxMessage CreateBinary(byte[] destinationHash, Identity source, ReadOnlySpan<byte> content, ReadOnlySpan<byte> title = default,
+        Dictionary<object, object?>? fields = null, LxmMethod method = LxmMethod.Direct, double? timestamp = null)
+    {
+        var message = Create(destinationHash, source, "", fields: fields, method: method, timestamp: timestamp);
+        message.ContentBytes = content.ToArray();
+        message.TitleBytes = title.ToArray();
+        return message;
+    }
+
     private Identity? _source;
 
     public static byte[] DeliveryDestinationHash(Identity identity) =>
@@ -198,9 +244,12 @@ public sealed class LxMessage
     /// Signs and packs the message (upstream <c>pack</c>). <paramref name="stamp"/>, when given, is appended to the payload after hashing and does not
     /// change the hash; <see cref="LxStamper"/> can generate one.
     /// </summary>
-    public byte[] Pack(byte[]? stamp = null)
+    public byte[] Pack(byte[]? stamp = null, Identity? destinationIdentity = null, byte[]? ratchet = null)
     {
         if (Packed is not null) throw new InvalidOperationException("The message was already packed.");
+        if (DesiredMethod is LxmMethod.Paper or LxmMethod.Propagated &&
+            (destinationIdentity is null || !DeliveryDestinationHash(destinationIdentity).AsSpan().SequenceEqual(DestinationHash)))
+            throw new ArgumentException("Paper and propagated messages require the matching destination identity.", nameof(destinationIdentity));
         var source = _source ?? throw new InvalidOperationException("Only locally created messages can be packed.");
         if (Timestamp == 0) Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
 
@@ -222,8 +271,130 @@ public sealed class LxMessage
         Method = DesiredMethod;
         if (DesiredMethod == LxmMethod.Opportunistic && contentSize > EncryptedPacketMaxContent) Method = LxmMethod.Direct;
         if (Method == LxmMethod.Direct) IsResource = contentSize > LinkPacketMaxContent;
-        if (Method is LxmMethod.Propagated or LxmMethod.Paper) throw new NotSupportedException("Propagated and paper delivery are not supported by Pack.");
+        if (Method == LxmMethod.Paper)
+        {
+            var paper = Concat(DestinationHash, destinationIdentity!.Encrypt(Packed.AsSpan(DestinationLength), ratchet));
+            if (paper.Length > PaperMdu)
+            {
+                Packed = null;
+                throw new ArgumentException("Message exceeds the paper message maximum size.");
+            }
+
+            PaperPacked = paper;
+            TransportEncrypted = true;
+            TransportEncryption = "Curve25519";
+        }
+        else if (Method == LxmMethod.Propagated)
+        {
+            PropagationData = Concat(DestinationHash, destinationIdentity!.Encrypt(Packed.AsSpan(DestinationLength), ratchet));
+            TransientId = Identity.FullHash(PropagationData);
+            PropagationPacked = MsgPack.Pack(new object?[] { DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0, new object?[] { PropagationData } });
+            IsResource = PropagationPacked.Length > LinkPacketMaxContent;
+        }
         return Packed;
+    }
+
+    public void SetPropagationStamp(ReadOnlySpan<byte> stamp, double? timestamp = null)
+    {
+        if (PropagationData is null) throw new InvalidOperationException("Message is not packed for propagation.");
+        if (stamp.Length != LxStamper.StampSize) throw new ArgumentException("Propagation stamp must be 32 bytes.", nameof(stamp));
+        PropagationPacked = MsgPack.Pack(new object?[]
+        {
+            timestamp ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0,
+            new object?[] { Concat(PropagationData, stamp.ToArray()) },
+        });
+        IsResource = PropagationPacked.Length > LinkPacketMaxContent;
+    }
+
+    /// <summary>Encodes an already packed paper message as upstream's unpadded URL-safe <c>lxm://</c> URI.</summary>
+    public string AsUri(bool finalise = true)
+    {
+        if (Method != LxmMethod.Paper || PaperPacked is null) throw new InvalidOperationException("Only packed paper messages have a URI.");
+        var uri = "lxm://" + Convert.ToBase64String(PaperPacked).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        if (finalise) State = LxmState.Paper;
+        return uri;
+    }
+
+    /// <summary>Decrypts a paper URI for this identity. Ratcheted messages require the caller's ratchet-aware decryptor.</summary>
+    public static LxMessage FromPaperUri(string uri, Identity destination, Func<byte[], Identity?> recallSource,
+        Func<byte[], byte[]?>? decrypt = null)
+    {
+        ArgumentNullException.ThrowIfNull(uri);
+        ArgumentNullException.ThrowIfNull(destination);
+        if (!uri.StartsWith("lxm://", StringComparison.OrdinalIgnoreCase)) throw new FormatException("Invalid LXMF URI scheme.");
+        var encoded = uri[6..].Replace('-', '+').Replace('_', '/');
+        if (encoded.Length > ((PaperMdu + 2) / 3) * 4) throw new FormatException("Paper message exceeds the maximum size.");
+        byte[] paper;
+        try { paper = Convert.FromBase64String(encoded.PadRight((encoded.Length + 3) / 4 * 4, '=')); }
+        catch (FormatException) { throw new FormatException("Invalid LXMF URI encoding."); }
+        if (paper.Length <= DestinationLength || paper.Length > PaperMdu ||
+            !paper.AsSpan(0, DestinationLength).SequenceEqual(DeliveryDestinationHash(destination)))
+            throw new FormatException("Paper message is not addressed to this destination.");
+        var encrypted = paper[DestinationLength..];
+        var plain = decrypt is null ? destination.Decrypt(encrypted) : decrypt(encrypted);
+        if (plain is null) throw new FormatException("Paper message could not be decrypted.");
+        var message = Unpack(Concat(paper[..DestinationLength], plain), recallSource, LxmMethod.Paper);
+        message.PaperPacked = paper;
+        return message;
+    }
+
+    /// <summary>Upstream ticket stamp: truncated SHA-256(ticket || message-id).</summary>
+    public byte[] CreateTicketStamp(ReadOnlySpan<byte> ticket)
+    {
+        if (ticket.Length != TicketLength) throw new ArgumentException("Ticket must be 16 bytes.", nameof(ticket));
+        return Identity.FullHash(Concat(ticket.ToArray(), ComputeHash()))[..TicketLength];
+    }
+
+    /// <summary>Validates an inbound ticket before falling back to proof of work, as upstream <c>validate_stamp</c>.</summary>
+    public bool ValidateStamp(int targetCost, IEnumerable<byte[]>? tickets = null)
+    {
+        if (Stamp is null || Hash is null) return false;
+        if (tickets is not null)
+        {
+            foreach (var ticket in tickets)
+            {
+                if (ticket.Length == TicketLength && CryptographicOperations.FixedTimeEquals(Stamp, CreateTicketStamp(ticket))) return true;
+            }
+        }
+
+        return LxStamper.Validate(Hash, Stamp, targetCost);
+    }
+
+    /// <summary>Upstream message file container, distinct from the signed wire message.</summary>
+    public byte[] PackedContainer()
+    {
+        if (Packed is null) Pack();
+        return MsgPack.Pack(new Dictionary<object, object?>
+        {
+            ["state"] = (long)State,
+            ["lxmf_bytes"] = Packed,
+            ["transport_encrypted"] = TransportEncrypted,
+            ["transport_encryption"] = TransportEncryption,
+            ["method"] = (long)Method,
+        });
+    }
+
+    public static LxMessage UnpackContainer(ReadOnlySpan<byte> container, Func<byte[], Identity?> recallSource)
+    {
+        if (MsgPack.UnpackApplicationValue(container) is not Dictionary<object, object?> map ||
+            !map.TryGetValue("lxmf_bytes", out var value) || value is not byte[] wire)
+            throw new FormatException("Invalid LXMF message container.");
+        var method = map.TryGetValue("method", out var methodValue) ? (LxmMethod)checked((byte)MsgPack.ToInt64(methodValue)) : LxmMethod.Unknown;
+        var message = Unpack(wire, recallSource, method);
+        if (map.TryGetValue("transport_encrypted", out var encrypted))
+        {
+            if (encrypted is not null and not bool) throw new FormatException("Invalid transport encryption flag.");
+            message.TransportEncrypted = (bool?)encrypted;
+        }
+
+        if (map.TryGetValue("transport_encryption", out var encryption))
+        {
+            if (encryption is not null and not string) throw new FormatException("Invalid transport encryption description.");
+            message.TransportEncryption = (string?)encryption;
+        }
+
+        if (map.TryGetValue("state", out var state)) message.State = (LxmState)checked((byte)MsgPack.ToInt64(state));
+        return message;
     }
 
     /// <summary>Hash the message gets (and its stamp must be generated against); available after <see cref="Pack"/> or computable early via <see cref="ComputeHash"/>.</summary>
@@ -244,7 +415,7 @@ public sealed class LxMessage
         var sourceHash = lxmfBytes[DestinationLength..(2 * DestinationLength)].ToArray();
         var signature = lxmfBytes[(2 * DestinationLength)..((2 * DestinationLength) + SignatureLength)].ToArray();
         var packedPayload = lxmfBytes[((2 * DestinationLength) + SignatureLength)..].ToArray();
-        if (MsgPack.Unpack(packedPayload) is not object?[] payload || payload.Length < 4) throw new FormatException("LXMF payload is not a list of at least 4 elements.");
+        if (MsgPack.UnpackApplicationValue(packedPayload) is not object?[] payload || payload.Length < 4) throw new FormatException("LXMF payload is not a list of at least 4 elements.");
 
         byte[]? stamp = null;
         if (payload.Length > 4)
@@ -292,7 +463,7 @@ public sealed class LxMessage
     {
         if (Hash is null || Signature is null || Packed is null) return false;
         var packedPayload = Packed[((2 * DestinationLength) + SignatureLength)..];
-        if (Stamp is not null && MsgPack.Unpack(packedPayload) is object?[] payload && payload.Length > 4) packedPayload = MsgPack.Pack(payload[..4]);
+        if (Stamp is not null && MsgPack.UnpackApplicationValue(packedPayload) is object?[] payload && payload.Length > 4) packedPayload = MsgPack.Pack(payload[..4]);
         var hashedPart = Concat(DestinationHash, SourceHash, packedPayload);
         SignatureValidated = sourceIdentity.Verify(Signature, Concat(hashedPart, Hash));
         UnverifiedReason = SignatureValidated ? LxmUnverifiedReason.None : LxmUnverifiedReason.SignatureInvalid;

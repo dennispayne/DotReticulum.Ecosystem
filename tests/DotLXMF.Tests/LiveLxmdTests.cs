@@ -9,9 +9,11 @@ using DotReticulum.Transport;
 namespace DotLXMF.Tests;
 
 /// <summary>.NET LxmRouter delivering to a real upstream <c>lxmd</c> (LXMF 1.2.1, LXMF.Utilities.lxmd) delivery destination. DOTRETICULUM_LIVE=1.</summary>
+[Trait("Category", "Integration")]
 public class LiveLxmdTests
 {
     [LiveFact]
+    [Trait("Category", "Live")]
     public async Task DotNet_DeliversToLxmd_Opportunistic_Direct_And_LargeResource()
     {
         int port;
@@ -39,6 +41,8 @@ public class LiveLxmdTests
         };
         foreach (var a in new[] { "-m", "LXMF.Utilities.lxmd", "--config", lxmdDir, "--rnsconfig", rnsDir, "-v" }) psi.ArgumentList.Add(a);
         psi.Environment["PYTHONPATH"] = Environment.GetEnvironmentVariable("DOTRETICULUM_UPSTREAM")!;
+        if (Environment.GetEnvironmentVariable("DOTRETICULUM_LXMF_UPSTREAM") is { Length: > 0 } lxmfRoot)
+            psi.Environment["PYTHONPATH"] += Path.PathSeparator + lxmfRoot;
         psi.Environment["PYTHONIOENCODING"] = "utf-8";
         var log = new StringBuilder();
         using var lxmd = Process.Start(psi)!;

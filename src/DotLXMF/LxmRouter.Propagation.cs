@@ -15,6 +15,7 @@ public sealed partial class LxmRouter
     private readonly SemaphoreSlim _retrieval = new(1, 1);
     public LxmPropagationNode? PropagationNode { get; private set; }
     public LxmPropagationTransferState PropagationTransferState { get; private set; }
+    public bool RetainNodeMessages { get; set; }
 
     public byte[]? OutboundPropagationNode
     {
@@ -32,11 +33,23 @@ public sealed partial class LxmRouter
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         lock (_gate)
         {
-            if (PropagationNode is not null) return PropagationNode;
+            if (PropagationNode is not null) { PropagationNode.SetEnabled(true); return PropagationNode; }
             if (_options.StoragePath is not { } storage) throw new InvalidOperationException("Propagation nodes require StoragePath.");
             PropagationNode = new LxmPropagationNode(_router, _identity, storage, options, ReceivePropagatedData,
-                _options.DeliveryPerTransferLimit) { Log = Log };
+                _options.DeliveryPerTransferLimit)
+            { Log = Log };
             return PropagationNode;
+        }
+    }
+
+    public ValueTask DisablePropagationNodeAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed != 0, this);
+        lock (_gate)
+        {
+            if (PropagationNode is not { } node) return ValueTask.CompletedTask;
+            node.SetEnabled(false);
+            return node.AnnounceAsync(cancellationToken);
         }
     }
 
@@ -56,11 +69,12 @@ public sealed partial class LxmRouter
     }
 
     /// <summary>Downloads this identity's messages and acknowledges successful decryption to the node unless retain is true.</summary>
-    public async Task<int> RequestMessagesFromPropagationNodeAsync(byte[]? destinationHash = null, int maxMessages = 0, bool retain = false,
+    public async Task<int> RequestMessagesFromPropagationNodeAsync(byte[]? destinationHash = null, int maxMessages = 0, bool? retain = null,
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         ArgumentOutOfRangeException.ThrowIfNegative(maxMessages);
+        var keepOnNode = retain ?? RetainNodeMessages;
         var node = destinationHash?.ToArray() ?? OutboundPropagationNode ?? throw new InvalidOperationException("No propagation node configured.");
         using var owned = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
         await _retrieval.WaitAsync(owned.Token).ConfigureAwait(false);
@@ -80,7 +94,7 @@ public sealed partial class LxmRouter
             var wants = new List<object?>();
             lock (_gate)
                 foreach (var id in ids.Cast<byte[]>())
-                    if (_seen.ContainsKey(Convert.ToHexStringLower(id))) { if (!retain) haves.Add(id); }
+                    if (_seen.ContainsKey(Convert.ToHexStringLower(id))) { if (!keepOnNode) haves.Add(id); }
                     else if (maxMessages == 0 || wants.Count < maxMessages) wants.Add(id);
             if (wants.Count == 0 && haves.Count == 0)
             {
@@ -105,7 +119,7 @@ public sealed partial class LxmRouter
                 lock (_gate) known = _seen.ContainsKey(key);
                 if (known || ReceivePropagatedData(data))
                 {
-                    if (!retain) haves.Add(id);
+                    if (!keepOnNode) haves.Add(id);
                     if (!known)
                     {
                         lock (_gate) _seen[key] = Now;

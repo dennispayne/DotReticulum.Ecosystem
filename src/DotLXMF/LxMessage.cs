@@ -140,6 +140,11 @@ public sealed class LxMessage
     public Dictionary<object, object?> Fields { get; private set; } = [];
 
     public byte[]? Stamp { get; private set; }
+    public int? StampCost { get; internal set; }
+    public int? StampValue { get; internal set; }
+    public bool StampChecked { get; internal set; }
+    public bool StampValid { get; internal set; }
+    public int? PropagationTargetCost { get; internal set; }
 
     public byte[]? Hash { get; private set; }
 
@@ -465,7 +470,17 @@ public sealed class LxMessage
     public byte[] CreateTicketStamp(ReadOnlySpan<byte> ticket)
     {
         if (ticket.Length != TicketLength) throw new ArgumentException("Ticket must be 16 bytes.", nameof(ticket));
-        return Identity.FullHash(Concat(ticket.ToArray(), ComputeHash()))[..TicketLength];
+        StampValue = TicketStampValue;
+        return TicketStamp(ticket, ComputeHash());
+    }
+
+    private static byte[] TicketStamp(ReadOnlySpan<byte> ticket, ReadOnlySpan<byte> hash)
+    {
+        Span<byte> input = stackalloc byte[TicketLength + 32];
+        ticket.CopyTo(input);
+        hash.CopyTo(input[TicketLength..]);
+        try { return Identity.FullHash(input)[..TicketLength]; }
+        finally { CryptographicOperations.ZeroMemory(input); }
     }
 
     /// <summary>Validates an inbound ticket before falling back to proof of work, as upstream <c>validate_stamp</c>.</summary>
@@ -476,11 +491,18 @@ public sealed class LxMessage
         {
             foreach (var ticket in tickets)
             {
-                if (ticket.Length == TicketLength && CryptographicOperations.FixedTimeEquals(Stamp, CreateTicketStamp(ticket))) return true;
+                if (ticket.Length == TicketLength && CryptographicOperations.FixedTimeEquals(Stamp, TicketStamp(ticket, Hash)))
+                {
+                    StampValue = TicketStampValue;
+                    return true;
+                }
             }
         }
 
-        return LxStamper.Validate(Hash, Stamp, targetCost);
+        var workblock = LxStamper.Workblock(Hash);
+        if (!LxStamper.IsValid(Stamp, targetCost, workblock)) return false;
+        StampValue = LxStamper.Value(workblock, Stamp);
+        return true;
     }
 
     /// <summary>Upstream message file container, distinct from the signed wire message.</summary>

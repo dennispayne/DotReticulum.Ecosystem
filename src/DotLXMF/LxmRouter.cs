@@ -24,7 +24,7 @@ public sealed class LxmRouterOptions
     public int? InboundStampCost { get; init; }
 
     /// <summary>Drop incoming messages whose stamp does not meet <see cref="InboundStampCost"/> (otherwise they are delivered with <see cref="ReceivedMessage.StampValid"/> false).</summary>
-    public bool EnforceStamps { get; init; } = true;
+    public bool EnforceStamps { get; init; }
 
     /// <summary>Optional override of the opportunistic proof wait.</summary>
     public TimeSpan? ReceiptTimeout { get; init; }
@@ -87,6 +87,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         ArgumentOutOfRangeException.ThrowIfLessThan(_options.OutboundQueueCapacity, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(_options.InboundStampCost ?? 0, 255);
         _inboundStampCost = Math.Max(0, _options.InboundStampCost ?? 0);
+        _enforceStamps = _options.EnforceStamps ? 1 : 0;
         _inbound = System.Threading.Channels.Channel.CreateBounded<InboundWork>(new BoundedChannelOptions(_options.InboundQueueCapacity)
         {
             SingleReader = true,
@@ -204,8 +205,11 @@ public sealed partial class LxmRouter : IAsyncDisposable
             }
             else if (GetOutboundStampCost(message.DestinationHash) is { } cost)
             {
+                message.StampCost = cost;
                 var id = message.ComputeHash();
                 stamp = await LxStamper.GenerateAsync(id, cost, cancellationToken).ConfigureAwait(false);
+                message.StampValue = LxStamper.Value(LxStamper.Workblock(id), stamp);
+                message.StampValid = true;
             }
 
             if (message.DesiredMethod == LxmMethod.Propagated)
@@ -216,6 +220,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 if (!LxmfPropagationAnnounce.TryParse(_router.Engine.Known.RecallAppData(node), out var announced))
                     throw new InvalidOperationException("Propagation node has not announced valid limits and stamp costs.");
                 message.Pack(stamp, identity, _router.Engine.Known.GetRatchet(message.DestinationHash));
+                message.PropagationTargetCost = announced!.StampCost;
                 var propagationStamp = await LxStamper.GenerateAsync(message.TransientId!, announced!.StampCost,
                     cancellationToken, LxStamper.WorkblockExpandRoundsPn).ConfigureAwait(false);
                 message.SetPropagationStamp(propagationStamp);
@@ -585,7 +590,9 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 var tickets = _tickets.GetInbound(message.SourceHash);
                 try { stampValid = message.ValidateStamp(cost, tickets); }
                 finally { foreach (var ticket in tickets) CryptographicOperations.ZeroMemory(ticket); }
-                if (stampValid == false && _options.EnforceStamps && !work.IgnoreStamps)
+                message.StampChecked = true;
+                message.StampValid = stampValid == true;
+                if (stampValid == false && StampsEnforced && !work.IgnoreStamps)
                 {
                     Report($"Dropping {message} with invalid stamp");
                     return LxmPaperIngestResult.Rejected;

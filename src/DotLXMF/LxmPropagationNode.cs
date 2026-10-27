@@ -66,16 +66,17 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         _options = options ?? new LxmPropagationOptions();
         _started = Now;
         _deliveryLimit = deliveryLimit;
-        if (_options.StampCost is < 13 or > 256 || _options.StampFlexibility < 0 || _options.PeeringCost is < 0 or > 256 ||
+        if (_options.StampCost > 256 || _options.StampFlexibility < 0 || _options.PeeringCost is < 0 or > 256 ||
             _options.TransferLimit <= 0 || _options.StorageLimit <= 0 ||
-            _options.RequestTimeout <= TimeSpan.Zero || _options.MaxPeers < 1 || _options.AutoPeerMaxDepth < 0 ||
-            _options.MaxPeeringCost is < 0 or > 256 || _options.MaxInboundSyncs < 1 || deliveryLimit <= 0 ||
+            _options.RequestTimeout <= TimeSpan.Zero || _options.MaxPeers < 0 || _options.AutoPeerMaxDepth < 0 ||
+            _options.MaxPeeringCost is < 0 or > 256 || _options.MaxInboundSyncs < 0 || deliveryLimit <= 0 ||
             _options.SyncStrategy is not (LxmPeerSyncStrategy.Lazy or LxmPeerSyncStrategy.Persistent) ||
             _options.StaticPeers.Select(Convert.ToHexStringLower).Distinct().Count() > _options.MaxPeers)
             throw new ArgumentException("Invalid propagation limits or costs.", nameof(options));
         if (_options.AllowedIdentities.Concat(_options.StaticPeers).Concat(_options.ControlAllowedIdentities)
             .Concat(_options.PrioritisedDestinations).Any(hash => hash.Length != 16))
             throw new ArgumentException("Identity and destination hashes must be 16 bytes.", nameof(options));
+        InitializePolicy();
         foreach (var destination in _options.PrioritisedDestinations) _prioritised.Add(Convert.ToHexStringLower(destination));
         _localDelivery = localDelivery;
         _directory = Path.Combine(storagePath, "lxmf", "messagestore");
@@ -148,8 +149,8 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         var metadata = new Dictionary<object, object?> { [0L] = "1.2.1", [0xfeL] = "DotLXMF" };
         if (_options.Name is { } name) metadata[1L] = System.Text.Encoding.UTF8.GetBytes(name);
-        var announce = new LxmfPropagationAnnounce((long)Now, !_options.FromStaticOnly,
-            _options.TransferLimit / 1000.0, SyncLimit / 1000.0, _options.StampCost, _options.StampFlexibility,
+        var announce = new LxmfPropagationAnnounce((long)Now, Enabled && !_options.FromStaticOnly,
+            _options.TransferLimit / 1000.0, SyncLimit / 1000.0, StampCost, _options.StampFlexibility,
             _options.PeeringCost, metadata);
         return announce.Pack();
     }
@@ -188,7 +189,8 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             lock (_gate)
             {
                 if (_disposed || advertisement.DataSize > SyncLimit || !StaticPeerAllowed(link.RemoteIdentity) ||
-                    !BypassSequential(link.RemoteIdentity) && _transferringLinks.Count >= _options.MaxInboundSyncs) return false;
+                    !BypassSequential(link.RemoteIdentity) && _options.MaxInboundSyncs > 0 &&
+                    _transferringLinks.Count >= _options.MaxInboundSyncs) return false;
                 _transferringLinks.Add(link.LinkIdHex);
                 return true;
             }
@@ -296,7 +298,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         var id = Identity.FullHash(data);
         var block = LxStamper.Workblock(id, LxStamper.WorkblockExpandRoundsPn);
         var stamp = stamped.AsSpan(stamped.Length - LxStamper.StampSize);
-        if (!LxStamper.IsValid(stamp, Math.Max(0, _options.StampCost - _options.StampFlexibility), block)) return false;
+        if (!LxStamper.IsValid(stamp, Math.Max(0, StampCost - _options.StampFlexibility), block)) return false;
         value = LxStamper.Value(block, stamp);
         return true;
     }
@@ -309,12 +311,13 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_enabled) return;
             CleanStore();
             if (_entries.ContainsKey(key)) return;
-            if (stamped.LongLength > _options.StorageLimit) return;
+            if (stamped.LongLength > StorageLimit) return;
             var received = Now;
             var pending = new Entry(id, data[..16].ToArray(), "", stamped.LongLength, received, stampValue);
-            var excess = _storedBytes + stamped.LongLength - _options.StorageLimit;
+            var excess = _storedBytes + stamped.LongLength - StorageLimit;
             var countExcess = _entries.Count + 1 - 65_536;
             if (excess > 0 || countExcess > 0)
             {
@@ -352,7 +355,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
     private object GetMessages(RequestContext request)
     {
         if (request.RemoteIdentity is not { } identity) return 0xf0L;
-        if (_options.RequireAuthentication && !_options.AllowedIdentities.Any(hash => hash.AsSpan().SequenceEqual(identity.Hash))) return 0xf1L;
+        if (!IdentityAllowed(identity)) return 0xf1L;
         if (request.Data is not object?[] { Length: >= 2 } data) return 0xf4L;
         var destination = LxMessage.DeliveryDestinationHash(identity);
         lock (_gate)
@@ -392,7 +395,8 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         lock (_gate)
         {
             if (!BypassSequential(identity) &&
-                (_options.SequentialValidation && _validatingLinks.Count > 0 || _transferringLinks.Count >= _options.MaxInboundSyncs)) return 0xf6L;
+                (_options.SequentialValidation && _validatingLinks.Count > 0 ||
+                 _options.MaxInboundSyncs > 0 && _transferringLinks.Count >= _options.MaxInboundSyncs)) return 0xf6L;
             var remote = Convert.ToHexStringLower(PropagationHash(identity));
             if (_throttledPeers.TryGetValue(remote, out var expires))
             {
@@ -613,7 +617,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         foreach (var entry in _entries.Values.OrderByDescending(entry =>
             CalculateStorageWeight(entry.Size, entry.Received, now, _prioritised.Contains(Convert.ToHexStringLower(entry.Destination)))).ToArray())
         {
-            if (_storedBytes <= _options.StorageLimit) break;
+            if (_storedBytes <= StorageLimit) break;
             Remove(entry);
         }
     }

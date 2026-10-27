@@ -1,0 +1,53 @@
+{
+  "lxmf_sha": "e8ba02483217af43be284a72f1c059c730b7d047",
+  "source_sha256": "2fe8a1cb610e70f3d1c0b4f5086f660a45607484ce8dd53bd925943e95398aea",
+  "rns_sha": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "cases": [
+    {
+      "label": "nil-key",
+      "packed": "15d85003e9228eb136460fea1d6d71ee8202d9446618dd077ad595f50c6eebcc11d2be0d8ddfa80d866443a2afe2937927482a219191aaf79f6e97ffb23ced0989102b20c5cb4f563d1d754337f011f1a65554b12c677f2ce06776165fa37c0694cb41d954fc5b000000c40146c4064669656c647381c0a36e696c",
+      "hash": "29256c4a6c96705863ad5af44afd0813aface0220e1cf46def492a96ab4a2371",
+      "key_types": [
+        "NoneType"
+      ],
+      "error": null
+    },
+    {
+      "label": "tuple-key",
+      "packed": "15d85003e9228eb136460fea1d6d71ee8202d9446618dd077ad595f50c6eebcc8a41d1a9c384ebbada56b0891fddb8f4d2189145c064e06ddc0742fddc77d234245050d72058a1b19b3bd5372b67510949200105df2e3e67ce275595fa0d330794cb41d954fc5b000000c40146c4064669656c6473819301c40374776fc0a57475706c65",
+      "hash": "0b2212f5a90ae73258d36bcaaaf63a5bcf629cc60df5e48256c26a5871a121bd",
+      "key_types": [
+        "tuple"
+      ],
+      "error": null
+    },
+    {
+      "label": "infinite-keys",
+      "packed": "15d85003e9228eb136460fea1d6d71ee8202d9446618dd077ad595f50c6eebccb68fda2ccc0670815d5e31f982b736f4eae0df407a51aed98b7e0dfe0d302f2321fa54fdaf34e719f8f5018ea4338b917d6e52eef2cb4c631d2ad59eab6ebe0394cb41d954fc5b000000c40146c4064669656c647382cb7ff0000000000000a8706f736974697665cbfff0000000000000a86e65676174697665",
+      "hash": "ddb2f9c3d69eb880550573c6f75cd1422be5869c75bcb1e959e139175fd9e4bb",
+      "key_types": [
+        "float",
+        "float"
+      ],
+      "error": null
+    },
+    {
+      "label": "nan-key",
+      "packed": "15d85003e9228eb136460fea1d6d71ee8202d9446618dd077ad595f50c6eebcc7d529af63339bbdbd12d19a0c636f28791021cc02e30b750d8b01c0b2631564f7cbc8f4145f632a28b6c5ad2c99aed3eb93752b361b3b513e11aa8e32f37bf0b94cb41d954fc5b000000c40146c4064669656c647381cb7ff8000000000000a36e616e",
+      "hash": "62edf7cb838531f6a59ec57972ca095c53e94d28357c07b4ed1b49945c57c816",
+      "key_types": [
+        "float"
+      ],
+      "error": null
+    },
+    {
+      "label": "nested-map",
+      "packed": "15d85003e9228eb136460fea1d6d71ee8202d9446618dd077ad595f50c6eebcc30e07ca0b3c8e2cb35c5d1c9a6dbd21ba22e938704c55064e0bf5dceec498f767d86e3ddf3431d6bbc2aeeaa2751273c0d76008a483ebc89143078f8256bef0694cb41d954fc5b000000c40146c4064669656c647381ccfc82c0a66e6573746564920102c40101",
+      "hash": "0a21b749ac2ea2ff66ebbfbaec7caa005f4445f7c79f220cd0acea02ab9fe5f2",
+      "key_types": [
+        "int"
+      ],
+      "error": null
+    }
+  ]
+}

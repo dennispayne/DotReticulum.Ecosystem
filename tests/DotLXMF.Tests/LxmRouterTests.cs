@@ -141,6 +141,9 @@ public class LxmRouterTests
         Assert.Equal(LxmState.Delivered, await stamped.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
         await pair.WaitAsync(() => pair.ServerInbox.Count == 1);
         Assert.True(pair.ServerInbox[0].StampValid);
+        Assert.True(pair.ServerInbox[0].Message.StampChecked);
+        Assert.True(pair.ServerInbox[0].Message.StampValid);
+        Assert.InRange(pair.ServerInbox[0].Message.StampValue!.Value, 5, 256);
         Assert.True(pair.Server.SetInboundStampCost(-1));
         emitted = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         await pair.WaitAsync(() => DateTimeOffset.UtcNow.ToUnixTimeSeconds() > emitted);
@@ -168,7 +171,7 @@ public class LxmRouterTests
             await using var interfaces = new PacketInterfaceManager([]);
             var transport = new TransportRouter(interfaces, new TransportRouterOptions());
             transport.Engine.Known.Remember(LxMessage.DeliveryDestinationHash(source), new byte[32], source.ExportPublicKey(), null);
-            var options = new LxmRouterOptions { StoragePath = path, InboundStampCost = 254 };
+            var options = new LxmRouterOptions { StoragePath = path, InboundStampCost = 254, EnforceStamps = true };
             await using var router = new LxmRouter(transport, destination, options: options);
             var received = new List<ReceivedMessage>();
             router.Log = _ => throw new InvalidOperationException("broken logger");
@@ -253,7 +256,7 @@ public class LxmRouterTests
     public async Task OutboundCapacity_IncludesCancellableStampPreparation()
     {
         await using var pair = await LxmfPair.CreateAsync(
-            serverOptions: new LxmRouterOptions { InboundStampCost = 254 },
+            serverOptions: new LxmRouterOptions { InboundStampCost = 254, EnforceStamps = true },
             clientOptions: new LxmRouterOptions { OutboundQueueCapacity = 1 });
         var first = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "cancel expensive preparation");
         var preparing = pair.Client.SendAsync(first);
@@ -415,7 +418,7 @@ public class LxmRouterTests
     [Fact]
     public async Task ReplyTicket_IsRememberedAndBypassesAdvertisedStampCost()
     {
-        await using var pair = await LxmfPair.CreateAsync(clientOptions: new LxmRouterOptions { InboundStampCost = 8 });
+        await using var pair = await LxmfPair.CreateAsync(clientOptions: new LxmRouterOptions { InboundStampCost = 8, EnforceStamps = true });
         var first = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "with reply ticket", method: LxmMethod.Opportunistic);
         first.IncludeTicket = true;
         await pair.Client.SendAsync(first);
@@ -533,7 +536,7 @@ public class LxmRouterTests
         {
             ProcessingInterval = TimeSpan.FromMilliseconds(200),
             DeliveryRetryWait = TimeSpan.FromSeconds(2),
-            InboundStampCost = 5,
+            InboundStampCost = 5, EnforceStamps = true,
         };
         await using var pair = await LxmfPair.CreateAsync(serverOptions: serverOptions);
         Assert.Equal(5, LxmfAppData.StampCost(pair.ClientRouter.Engine.Known.RecallAppData(pair.Server.DeliveryHash)));

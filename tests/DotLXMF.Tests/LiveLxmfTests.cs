@@ -41,6 +41,7 @@ public class LiveLxmfTests
             {
                 ProcessingInterval = TimeSpan.FromMilliseconds(500),
                 InboundStampCost = stampCost,
+                EnforceStamps = true,
                 StoragePath = storagePath,
                 DeliveryPerTransferLimit = largeMessages ? 4_000_000 : 1_000_000,
             });

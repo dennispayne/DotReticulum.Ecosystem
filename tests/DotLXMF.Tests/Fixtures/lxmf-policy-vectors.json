@@ -1,0 +1,64 @@
+{
+  "lxmf_sha": "e8ba02483217af43be284a72f1c059c730b7d047",
+  "rns_sha": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "source_sha256": "56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9",
+  "options": {
+    "stamp_cost": 13,
+    "sync_limit": 256,
+    "max_peers": 0,
+    "max_inbound_syncs": 0,
+    "enforce_stamps": false
+  },
+  "authorization": [
+    true,
+    false,
+    true
+  ],
+  "allowed_count": 1,
+  "remote_control_count": 1,
+  "priority_count": 1,
+  "defects": {
+    "disallow": "TypeError",
+    "disallow_control": "TypeError",
+    "unprioritise": "NameError"
+  },
+  "stamp_enforcement": [
+    true,
+    false
+  ],
+  "storage_limits": [
+    {
+      "arguments": {
+        "kilobytes": 1.5,
+        "megabytes": 0.001
+      },
+      "result": 2500
+    },
+    {
+      "arguments": {},
+      "result": "ValueError"
+    },
+    {
+      "arguments": {
+        "kilobytes": -1
+      },
+      "result": "ValueError"
+    }
+  ],
+  "retain": [
+    true,
+    false
+  ],
+  "disabled": {
+    "enabled": false,
+    "announced": [
+      false
+    ],
+    "announce_enabled": false,
+    "stats": null
+  },
+  "nonlocal_paper": [
+    true,
+    false
+  ]
+}

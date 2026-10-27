@@ -36,8 +36,8 @@ public class LxmPropagationTests
                 StampCost = 13,
                 StorageLimit = 800,
                 AutoPeer = false,
-                PrioritisedDestinations = [preferred],
             });
+            node.Prioritise(preferred);
             await node.AnnounceAsync();
             await pair.WaitAsync(() => pair.ClientRouter.HasPath(node.DestinationHash));
             pair.Client.OutboundPropagationNode = node.DestinationHash;
@@ -128,6 +128,12 @@ public class LxmPropagationTests
                 if (!allowControl)
                 {
                     Assert.Equal(0xf1L, result);
+                    node.AllowControl(pair.ClientIdentity.Hash);
+                    var permitted = link.Request("/pn/get/stats", null, useApplicationValues: true)!;
+                    Assert.IsType<Dictionary<object, object?>>(await permitted.ResponseTask.WaitAsync(TimeSpan.FromSeconds(10)));
+                    node.DisallowControl(pair.ClientIdentity.Hash);
+                    var revoked = link.Request("/pn/get/stats", null, useApplicationValues: true)!;
+                    Assert.Equal(0xf1L, await revoked.ResponseTask.WaitAsync(TimeSpan.FromSeconds(10)));
                 }
                 else
                 {
@@ -169,7 +175,7 @@ public class LxmPropagationTests
             Assert.Equal(0, await pair.Client.RequestMessagesFromPropagationNodeAsync());
             await node.DisposeAsync();
             await using var reopened = new LxmPropagationNode(pair.ServerRouter, pair.ServerIdentity, path);
-            var clients = Assert.IsType<Dictionary<object, object?>>(reopened.CompileStats()["clients"]);
+            var clients = Assert.IsType<Dictionary<object, object?>>(reopened.CompileStats()!["clients"]);
             Assert.Equal(1L, clients["client_propagation_messages_received"]);
             Assert.Equal(1L, clients["client_propagation_messages_served"]);
         }

@@ -33,7 +33,7 @@ public sealed partial class LxmPropagationNode
         _control.RegisterRequestHandler("/pn/peer/unpeer", request => ControlPeer(request, sync: false),
             RequestPolicy.All, useApplicationValues: true);
         _router.RegisterLocalDestination(_control);
-        _syncQueue = System.Threading.Channels.Channel.CreateBounded<byte[]>(new BoundedChannelOptions(_options.MaxPeers)
+        _syncQueue = System.Threading.Channels.Channel.CreateBounded<byte[]>(new BoundedChannelOptions(Math.Max(1, _options.MaxPeers))
         {
             SingleReader = true,
             FullMode = BoundedChannelFullMode.Wait,
@@ -56,9 +56,12 @@ public sealed partial class LxmPropagationNode
         _scheduledSync = RunScheduledSyncAsync(_cts.Token);
     }
 
-    private bool ControlAllowed(RequestContext request) => request.RemoteIdentity is { } identity &&
-        (identity.Hash.AsSpan().SequenceEqual(_identity.Hash) ||
-            _options.ControlAllowedIdentities.Any(hash => hash.AsSpan().SequenceEqual(identity.Hash)));
+    private bool ControlAllowed(RequestContext request)
+    {
+        if (request.RemoteIdentity is not { } identity) return false;
+        lock (_gate) return identity.Hash.AsSpan().SequenceEqual(_identity.Hash) ||
+            _controlIdentities.Contains(Convert.ToHexStringLower(identity.Hash));
+    }
 
     private static long ControlError(RequestContext request) => request.RemoteIdentity is null ? 0xf0L : 0xf1L;
 
@@ -92,7 +95,7 @@ public sealed partial class LxmPropagationNode
         if (!LxmfPropagationAnnounce.TryParse(received.AppData, out var config)) return;
         lock (_gate)
         {
-            if (_disposed || received.DestinationHash.AsSpan().SequenceEqual(DestinationHash)) return;
+            if (_disposed || !_enabled || received.DestinationHash.AsSpan().SequenceEqual(DestinationHash)) return;
             var key = Convert.ToHexStringLower(received.DestinationHash);
             var isStatic = _options.StaticPeers.Any(hash => hash.AsSpan().SequenceEqual(received.DestinationHash));
             _peers.TryGetValue(key, out var peer);
@@ -150,6 +153,7 @@ public sealed partial class LxmPropagationNode
                 lock (_gate)
                 {
                     if (_disposed) break;
+                    if (!_enabled) continue;
                     if (++_maintenanceTicks % 56 == 0) RotatePeers();
                     var now = Now;
                     foreach (var peer in _peers.Values.ToArray())
@@ -222,10 +226,11 @@ public sealed partial class LxmPropagationNode
         await Task.WhenAll(_maintenance, _scheduledSync).ConfigureAwait(false);
     }
 
-    public Dictionary<object, object?> CompileStats()
+    public Dictionary<object, object?>? CompileStats()
     {
         lock (_gate)
         {
+            if (!_enabled) return null;
             var peerStats = new Dictionary<object, object?>();
             foreach (var peer in _peers.Values)
             {
@@ -272,13 +277,13 @@ public sealed partial class LxmPropagationNode
                 ["delivery_limit"] = _deliveryLimit / 1000.0,
                 ["propagation_limit"] = _options.TransferLimit / 1000.0,
                 ["sync_limit"] = SyncLimit / 1000.0,
-                ["target_stamp_cost"] = (long)_options.StampCost,
+                ["target_stamp_cost"] = (long)StampCost,
                 ["stamp_cost_flexibility"] = (long)_options.StampFlexibility,
                 ["peering_cost"] = (long)_options.PeeringCost,
                 ["max_peering_cost"] = (long)_options.MaxPeeringCost,
                 ["autopeer_maxdepth"] = (long)_options.AutoPeerMaxDepth,
                 ["from_static_only"] = _options.FromStaticOnly,
-                ["messagestore"] = new Dictionary<object, object?> { ["count"] = (long)_entries.Count, ["bytes"] = _storedBytes, ["limit"] = _options.StorageLimit },
+                ["messagestore"] = new Dictionary<object, object?> { ["count"] = (long)_entries.Count, ["bytes"] = _storedBytes, ["limit"] = StorageLimit },
                 ["clients"] = new Dictionary<object, object?>
                 {
                     ["client_propagation_messages_received"] = _clientMessagesReceived,

@@ -180,6 +180,11 @@ def main():
                 if len(parts) > 1:
                     phone.switch_profile(int(parts[1]))
                 emit("profile", value=phone.active_profile)
+            elif parts[0] == "low-latency-observation":
+                player = phone.audio_output.backend.get_player(samples_per_frame=960, low_latency=True)
+                phone.audio_output.enable_low_latency()
+                emit("low-latency", backend=type(phone.audio_output.backend).__name__,
+                     runtime_supported=callable(getattr(player, "enable_low_latency", None)))
         except Exception as error:
             emit("error", message=str(error))
     if phone:

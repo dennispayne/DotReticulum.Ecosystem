@@ -71,6 +71,9 @@ public sealed class LiveTelephoneTests
             await LiveStreamTests.WaitForAsync(() => telephone.State == CallState.Established && !audio.IsEmpty);
             Assert.Contains(states, value => value == CallState.Ringing);
             Assert.Equal(TelephoneProfile.MediumQuality, telephone.ActiveProfile);
+            var latency = await python.CommandAsync("low-latency-observation", "low-latency");
+            Assert.Equal("LinuxBackend", latency.GetProperty("backend").GetString());
+            Assert.False(latency.GetProperty("runtime_supported").GetBoolean());
 
             // Let the upstream ringtone/dial-tone buffers drain before observing
             // the isolated output monitor for our distinctive generated tone.

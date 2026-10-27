@@ -98,7 +98,7 @@ they are not an exhaustive method-by-method acceptance checklist.
 | Ring/wait/connect timeouts, path requests, periodic announcements | partial | Incoming ring and outgoing wait timeout/recovery live-verified; silent active-link connect deadline and delayed auto-answer integration-tested; exhaustive timing/announce comparisons remain unverified |
 | Ringing/established/ended/busy/rejected callbacks | partial | Original .NET state event rather than five Python callbacks; isolated observer failures tested |
 | Profile negotiation (`255 + profile`), selection and mid-call switch | implemented | All eight initial profiles live-verified with either side originating direct calls; all eight mid-call profiles in both negotiation directions; medium-quality calls in both transport-hop topologies |
-| Receive/transmit gain, mute, AGC, low-latency output, ringer/device selection | partial | Endpoint gains/mute and transmit band-pass/optional AGC reuse executed-reference DSP; native codec mute/unmute and gain/reset tests; CLI supplied-ringtone and active-call device switching are verified; upstream low-latency toggling remains incomplete |
+| Receive/transmit gain, mute, AGC, low-latency output, ringer/device selection | partial | Endpoint gains/mute and transmit band-pass/optional AGC reuse executed-reference DSP; CLI supplied-ringtone and active-call device switching are verified; actual Linux player has no runtime low-latency operation; Android path remains unverified |
 | Mirror-only legacy `CallEndpoint` placeholder | not-applicable | `Call.py` is absent from the authoritative 0.4.5 release |
 | Pre-establishment outgoing-close callback | upstream-placeholder | `Primitives/Telephony.py`, `__outgoing_link_closed` is empty |
 | Explicit network quality/loss adaptation, retransmission and resource-transfer contract | upstream-placeholder | `Network.py` sends best-effort packets with no LXST retransmission/resource protocol; loss is not concealed by a made-up reliability layer |
@@ -140,7 +140,7 @@ effect. The .NET configurable interval is an explicit extension.
 | General mixer source resampling | upstream-placeholder | `Mixer.py`, TODO for all source types |
 | High-pass, low-pass, band-pass and automatic gain-control state | implemented | Original managed filters; vectors executed against actual primary Python/native filter path |
 | Tone frequency, gain, easing, frame duration and start/stop | implemented | `ToneAudioSource`; actual generator vectors and async source lifecycle tests |
-| Line capture/playback, preferred devices, buffers, gain, filters and low latency | partial | Linux CLI capture/playback and runtime replacement exist; actual LineSource skip/easing vectors drive `AudioCaptureEnvelope`; gain/filters reuse endpoint processing; complete backend buffering and low-latency-toggle contracts remain missing |
+| Line capture/playback, preferred devices, buffers, gain, filters and low latency | partial | Linux CLI capture/playback and runtime replacement exist; actual LineSource skip/easing vectors drive `AudioCaptureEnvelope`; gain/filters reuse endpoint processing; complete backend buffering remains missing; Linux low-latency toggle is an upstream unsupported branch, executed on real virtual-audio calls |
 | Loopback source/sink and buffering | implemented | `Audio.LoopbackAudioBridge`; executed relay/lifecycle observations; bounded queue/clock behavior is a .NET extension, not an upstream buffering claim |
 | Opus file playback, looping/timing and writing/finalizing | implemented | Original bounded file source/sink; actual Python files and .NET files cross-decode with identical samples; caller-owned source/sink `FilePlayer`/`FileRecorder` support stop/restart, live loop toggle, completion and safe concurrent disposal |
 
@@ -208,10 +208,10 @@ not implicitly covered by the network interfaces. This is not full API parity:
 | `Mixer.py`: start/stop, gain/mute, per-source frame limits, can-receive, source/sink/codec wiring | Implemented bounded timed `AudioMixer`; source/codec composition uses explicit C# interfaces |
 | `Pipeline.py`: codec/sink/running and start/stop | Implemented original source→codec→typed encoded sink composition, session adapter and lifecycle/replace/stop/disposal; source/codec ownership remains explicit; optional .NET processor execution is not attributed to the unused upstream parameter |
 | `Sources.py`: `get_backend`, backend device listing/recorder ownership; `Loopback`; `LineSource` gain/codec/start/stop; `OpusFileSource` | Partial Linux device I/O, headless loopback and streaming Opus file source; general backends and line-device gain controls remain missing |
-| `Sinks.py`: `get_backend`, backend device listing/player ownership; Sink/RemoteSink/LocalSink; LineSink low latency; OpusFileSink queue/finalization | Partial Linux I/O and Ogg Opus recording; explicit async backpressure instead of a Python frame deque; full hierarchy/low-latency parity missing |
+| `Sinks.py`: `get_backend`, backend device listing/player ownership; Sink/RemoteSink/LocalSink; LineSink low latency; OpusFileSink queue/finalization | Partial Linux I/O and Ogg Opus recording; explicit async backpressure instead of a Python frame deque; Linux Backend ignores constructor low_latency and its player lacks runtime enable_low_latency; other platform branches unverified |
 | `Primitives/Players.py`: FilePlayer state, completion callback, source, loop/start/stop/play | Implemented device-independent `FilePlayer`; callback timing is asynchronous, not Python's polling schedule; source replacement requires stopped playback |
 | `Primitives/Recorders.py`: FileRecorder state, source/output path, start/stop/record | Implemented device-independent `FileRecorder` with a caller-owned source and per-run finalization; effective output-path replacement is an explicit extension over the executed upstream shadow-attribute placeholder |
-| `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Partial: gains, mute/reset and transmit band-pass/AGC are implemented; device queries, ringtone, ringback/busy tones and runtime capture/sink selection are Linux CLI-only; low-latency toggle remains missing |
+| `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Partial: gains, mute/reset and transmit band-pass/AGC are implemented; device queries, ringtone, ringback/busy tones and runtime capture/sink selection are Linux CLI-only; no invented low-latency effect is supplied for the reference's unsupported Linux branch |
 | `Primitives/Telephony.py`: external busy override | Implemented; real incoming rejection followed by clearing busy and accepting the next call is integration-tested |
 | `Primitives/Telephony.py`: Profiles labels/abbreviations/index/next helpers | Implemented `TelephoneProfiles`; executed primary labels, abbreviations, frame durations and ordering; CLI profile cycle follows low latency then ultra-low latency |
 | `Utilities/rnphone.py`: ReticulumTelephone reload/apply config, keypad/hook/display enablement and hardware state; complete terminal menu/redial/status/signal behavior | Partial; supported CLI subset and persisted identity are tested, full utility behavior remains deferred |
@@ -406,6 +406,10 @@ monitor, Python-to-.NET decoded frames and teardown. All six exercise targeted
 without invented retransmission and a distinct 880 Hz tone is observed after
 the impairment is removed. Direct cases also switch
 through all eight profiles in both negotiation directions and exchange frames.
+Each topology also calls the actual Linux backend/player and LineSink low-latency
+setter, observing that the player provides no runtime operation. This is a
+verified unsupported-upstream branch, not evidence that .NET is missing a
+working Linux low-latency API.
 This is virtual device
 evidence, not a listening test or proof of physical microphone/speaker quality.
 All eight initial profiles also establish calls in both originating directions

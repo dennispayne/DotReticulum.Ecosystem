@@ -248,8 +248,9 @@ prefix = daemon's identity # unquoted apostrophe does not quote the comment
 suffix = """multiline
 with comma, apostrophe's and #hash"""
 [lxmf] # delivery settings
-display_name = """%(prefix)s :: %(base)s :: %(suffix)s :: 100%%"""
+display_name = """literal %(not)a :: %(prefix)s :: %(base)s :: %(suffix)s :: 100%%"""
 announce_at_start = yes
+announce_interval = -1
 delivery_transfer_max_accepted_size = 1000
 stamp_cost = %(cost)s
 [[DEFAULT]]
@@ -303,6 +304,9 @@ target_port = $port
             $announce.dest | Should -Be $deliveryDestination
             $announce.dest | Should -Not -BeNullOrEmpty
             $announce.display_name | Should -Be $referenceConfiguration.display_name
+            $referenceConfiguration.peer_announce_interval | Should -Be -60
+            $nextAnnounce = Wait-Event $python 'announce' 15 -Destination $deliveryDestination -Other @($daemon) -StartIndex $python.Output.Count
+            $nextAnnounce.display_name | Should -Be $referenceConfiguration.display_name
             $identityFingerprint = (Get-FileHash -LiteralPath (Join-Path $daemonConfig 'identity') -Algorithm SHA256).Hash
 
             $title = 'lxmd-persisted-message'
@@ -534,8 +538,10 @@ announce_at_start = yes
 enable_node = yes
 autopeer = no
 announce_at_start = yes
-control_allowed = $($ready.identity_hash)
+control_allowed = $($ready.identity_hash), invalid-identity, deadbeef
+prioritise_destinations = invalid-destination, deadbeef
 propagation_transfer_max_accepted_size = 0.38
+propagation_sync_max_accepted_size = 1
 [logging]
 loglevel = 6
 "@ | Set-Content -LiteralPath (Join-Path $daemonConfig 'config') -Encoding utf8
@@ -547,12 +553,24 @@ loglevel = 6
                 $configuration.Process.ExitCode | Should -Be 0
                 $referenceConfiguration = $referenceLine | ConvertFrom-Json
             } finally { Stop-CapturedProcess $configuration }
+            $effectiveLimits = Invoke-AdapterCommand $python ("effective-limits " + (Join-Path $daemonConfig 'config')) 'effective-limits' 30
             $daemon = Start-CapturedProcess $script:binary @('--config', $daemonConfig, '--rnsconfig', $rnsConfig)
             $line = Wait-OutputMatch $daemon 'lxmd: propagation destination ([0-9a-f]{32})'
             $null = $line -match 'lxmd: propagation destination ([0-9a-f]{32})'
             $nativeDestination = $Matches[1]
             $announce = Wait-Event $python 'pn-announce' 30 -Destination $nativeDestination -Other @($daemon)
             $announce.transfer_limit | Should -Be $referenceConfiguration.propagation_transfer_max_accepted_size
+            $announce.sync_limit | Should -Be $effectiveLimits.sync_limit
+            $deliveryLine = Wait-OutputMatch $daemon '^lxmd: delivery destination '
+            $deliveryDestination = $deliveryLine.Split(' ')[-1]
+            $unstamped = Invoke-AdapterCommand $python "unstamped $deliveryDestination" 'unstamped-delivered' 40 -Other @($daemon)
+            $inbox = Join-Path (Join-Path (Join-Path $daemonConfig 'storage') 'messages') $unstamped.hash
+            $deadline = [DateTime]::UtcNow.AddSeconds(15)
+            while (!(Test-Path -LiteralPath $inbox) -and [DateTime]::UtcNow -lt $deadline) {
+                Read-ProcessOutput $daemon
+                Start-Sleep -Milliseconds 50
+            }
+            Test-Path -LiteralPath $inbox | Should -BeTrue
             $python.Process.StandardInput.WriteLine("status $nativeDestination")
             $python.Process.StandardInput.Flush()
             $status = Wait-Event $python 'status' 30 -Other @($daemon)

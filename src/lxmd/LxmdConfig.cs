@@ -165,9 +165,14 @@ internal sealed class LxmdConfig
             while (position < value.Length)
             {
                 var start = value.IndexOf("%(", position, StringComparison.Ordinal);
+                var end = -1;
+                while (start >= 0)
+                {
+                    end = value.IndexOf(')', start + 2);
+                    if (end >= 0 && end + 1 < value.Length && value[end + 1] == 's') break;
+                    start = value.IndexOf("%(", start + 2, StringComparison.Ordinal);
+                }
                 if (start < 0) { output.Append(value.AsSpan(position)); break; }
-                var end = value.IndexOf(")s", start + 2, StringComparison.Ordinal);
-                if (end < 0) { output.Append(value.AsSpan(position)); break; }
                 var name = value[(start + 2)..end];
                 Section? owner = section;
                 string[]? replacement = null;

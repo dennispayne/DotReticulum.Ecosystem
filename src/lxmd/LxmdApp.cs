@@ -95,15 +95,14 @@ internal static class LxmdApp
             var acceptedKilobytes = Math.Max(0.38, config.GetNumber("lxmf", "delivery_transfer_max_accepted_size", 1));
             if (!double.IsFinite(acceptedKilobytes)) throw new FormatException("delivery_transfer_max_accepted_size must be finite.");
             var announceInterval = config.GetInteger("lxmf", "announce_interval", null);
-            if (announceInterval is < 0) throw new FormatException("announce_interval cannot be negative.");
             var announceAtStart = config.GetBoolean("lxmf", "announce_at_start", false);
             var propagationAnnounceInterval = config.GetInteger("propagation", "announce_interval", null);
-            if (propagationAnnounceInterval is < 0) throw new FormatException("propagation announce_interval cannot be negative.");
             var propagationAnnounceAtStart = config.GetBoolean("propagation", "announce_at_start", false);
             var logLevel = (int)Math.Clamp((long)config.GetInteger("logging", "loglevel", 3)!.Value + options.Verbosity, 0, 8);
             var onInbound = options.OnInbound ?? config.Get("lxmf", "on_inbound");
             var ignored = LoadHashes(Path.Combine(configDirectory, "ignored"));
-            var propagationOptions = propagationEnabled ? CreatePropagationOptions(config, configDirectory) : null;
+            var configurationWarnings = new List<string>();
+            var propagationOptions = propagationEnabled ? CreatePropagationOptions(config, configDirectory, configurationWarnings) : null;
             var storageDirectory = Path.Combine(configDirectory, "storage");
             var messagesDirectory = Path.Combine(storageDirectory, "messages");
             Directory.CreateDirectory(messagesDirectory);
@@ -112,12 +111,14 @@ internal static class LxmdApp
                 var logger = new RnsdLogger(logLevel, timestamps: true, output, error,
                     options.Service ? Path.Combine(configDirectory, "logfile") : null).Log;
                 logger(3, $"Configuration loaded from {configPath}");
+                foreach (var warning in configurationWarnings) logger(1, warning);
                 await using var node = ReticulumNode.Open(options.ReticulumDirectory, logger);
                 using var identity = LoadOrCreateIdentity(Path.Combine(configDirectory, "identity"), logger);
                 var routerOptions = new LxmRouterOptions
                 {
                     DeliveryPerTransferLimit = checked((long)(acceptedKilobytes * 1000)),
                     InboundStampCost = stampCost,
+                    EnforceStamps = false,
                     StoragePath = storageDirectory,
                 };
                 await using var router = new LxmRouter(node.Router, identity, displayName, routerOptions)
@@ -285,7 +286,7 @@ internal static class LxmdApp
         return hashes;
     }
 
-    private static LxmPropagationOptions CreatePropagationOptions(LxmdConfig config, string configDirectory)
+    private static LxmPropagationOptions CreatePropagationOptions(LxmdConfig config, string configDirectory, List<string> warnings)
     {
         // Upstream parses the legacy key, then overwrites it even when the new key is absent.
         _ = config.GetNumber("propagation", "propagation_transfer_max_accepted_size", 256);
@@ -313,12 +314,23 @@ internal static class LxmdApp
             AutoPeer = config.GetBoolean("propagation", "autopeer", true),
             AutoPeerMaxDepth = Math.Max(0, config.GetInteger("propagation", "autopeer_maxdepth", 4)!.Value),
             MaxPeeringCost = Math.Max(0, config.GetInteger("propagation", "remote_peering_cost_max", 26)!.Value),
-            ControlAllowedIdentities = config.GetList("propagation", "control_allowed").Select(ParseHash).ToArray(),
-            PrioritisedDestinations = config.GetList("propagation", "prioritise_destinations").Select(ParseHash).ToArray(),
+            ControlAllowedIdentities = ReadOptionalHashes(config, "control_allowed", warnings),
+            PrioritisedDestinations = ReadOptionalHashes(config, "prioritise_destinations", warnings),
             MaxInboundSyncs = Math.Max(1, config.GetInteger("propagation", "max_inbound_syncs", 3)!.Value),
             SequentialValidation = config.GetBoolean("propagation", "sequential_pn_stamp_validation", true),
             StaticPeerSequential = !config.GetBoolean("propagation", "static_peers_bypass_sequential", true),
         };
+    }
+
+    private static byte[][] ReadOptionalHashes(LxmdConfig config, string key, List<string> warnings)
+    {
+        var hashes = new List<byte[]>();
+        foreach (var value in config.GetList("propagation", key))
+        {
+            try { hashes.Add(ParseHash(value)); }
+            catch (FormatException) { warnings.Add($"Ignoring invalid 16-byte hash in propagation {key}: {value}"); }
+        }
+        return hashes.ToArray();
     }
 
     private static byte[] ParseHash(string value)

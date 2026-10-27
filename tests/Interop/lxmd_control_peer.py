@@ -25,7 +25,8 @@ def main():
         def received_announce(self, destination_hash, announced_identity, app_data):
             import RNS.vendor.umsgpack as msgpack
             config = msgpack.unpackb(app_data)
-            emit({"event": "pn-announce", "dest": destination_hash.hex(), "transfer_limit": config[3]})
+            emit({"event": "pn-announce", "dest": destination_hash.hex(), "transfer_limit": config[3],
+                  "sync_limit": config[4]})
 
     RNS.Transport.register_announce_handler(PropagationHandler())
     identity = RNS.Identity()
@@ -41,7 +42,7 @@ def main():
     emit({"event": "ready", "dest": router.propagation_destination.hash.hex(), "identity_hash": identity.hash.hex(),
           "delivery": local.hash.hex()})
 
-    def connect(target, sender=None):
+    def connect(target, sender=None, aspect="propagation"):
         deadline = time.time() + 20
         if not RNS.Transport.has_path(target):
             RNS.Transport.request_path(target)
@@ -50,7 +51,7 @@ def main():
         remote = RNS.Identity.recall(target)
         if remote is None:
             raise TimeoutError("Propagation identity was not resolved")
-        destination = RNS.Destination(remote, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "propagation")
+        destination = RNS.Destination(remote, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", aspect)
         link = RNS.Link(destination)
         while link.status != RNS.Link.ACTIVE and time.time() < deadline:
             time.sleep(0.05)
@@ -95,6 +96,38 @@ def main():
                   "peer_details": [{"dest": key.hex(), **{name: value for name, value in peer.items()
                                                         if name in ("alive", "last_sync_attempt", "sync_backoff", "messages", "type")}}
                                    for key, peer in response["peers"].items()]})
+        elif command[0] == "unstamped":
+            target = bytes.fromhex(command[1])
+            link, remote = connect(target, aspect="delivery")
+            try:
+                destination = RNS.Destination(remote, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")
+                message = LXMF.LXMessage(destination, local, b"unstamped delivery", "unstamped", desired_method=LXMF.LXMessage.DIRECT)
+                message.pack()
+                if message.stamp is not None:
+                    raise AssertionError("Reference unexpectedly stamped the raw direct message")
+                receipt = RNS.Packet(link, message.packed).send()
+                deadline = time.monotonic() + 20
+                while receipt.status == RNS.PacketReceipt.SENT and time.monotonic() < deadline:
+                    time.sleep(0.05)
+                if receipt.status != RNS.PacketReceipt.DELIVERED:
+                    raise AssertionError(f"Default daemon rejected unstamped delivery: {receipt.status}")
+                emit({"event": "unstamped-delivered", "hash": message.hash.hex()})
+            finally:
+                link.teardown()
+        elif command[0] == "effective-limits":
+            from LXMF.Utilities import lxmd
+            from RNS.vendor.configobj import ConfigObj
+            lxmd.lxmd_config = ConfigObj(" ".join(command[1:]))
+            lxmd.ignoredpath = os.path.join(storage, "missing-ignored")
+            lxmd.allowedpath = os.path.join(storage, "missing-allowed")
+            lxmd.active_configuration = {}
+            lxmd.apply_config()
+            options = lxmd.active_configuration
+            reference = LXMF.LXMRouter(identity=RNS.Identity(), storagepath=os.path.join(storage, "config-oracle"),
+                                       autopeer=False, propagation_limit=options["propagation_transfer_max_accepted_size"],
+                                       sync_limit=options["propagation_sync_max_accepted_size"])
+            emit({"event": "effective-limits", "transfer_limit": reference.propagation_per_transfer_limit,
+                  "sync_limit": reference.propagation_per_sync_limit})
         elif command[0] == "local-status":
             emit({"event": "local-status", "messages": len(router.propagation_entries),
                   "ids": [key.hex() for key in router.propagation_entries],

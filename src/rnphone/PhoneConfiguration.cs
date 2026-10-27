@@ -11,6 +11,9 @@ internal sealed class PhoneConfiguration
     public HashSet<string> Blocked { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, (string Hash, string? Alias)> Phonebook { get; } = new(StringComparer.OrdinalIgnoreCase);
     public List<string> Warnings { get; } = [];
+    public string? Keypad { get; private set; }
+    public int? HookPin { get; private set; }
+    public string? Display { get; private set; }
 
     public static PhoneConfiguration Load(string path)
     {
@@ -56,7 +59,25 @@ internal sealed class PhoneConfiguration
                     try { result.Phonebook.Add(key, (ValidateHash(parts[0]), string.IsNullOrEmpty(alias) ? null : alias)); }
                     catch (FormatException) { result.Warnings.Add($"Ignoring malformed phonebook entry {key}."); }
                     break;
-                case "hardware": throw new NotSupportedException($"Hardware setting {key} is not implemented by this build.");
+                case "hardware":
+                    switch (key.ToLowerInvariant())
+                    {
+                        case "keypad":
+                            result.Keypad = value.ToLowerInvariant() == "gpio_4x4" ? "gpio_4x4" :
+                                throw new NotSupportedException("Unknown keypad driver specified.");
+                            break;
+                        case "keypad_hook_pin":
+                            result.HookPin = int.TryParse(value, System.Globalization.NumberStyles.None,
+                                System.Globalization.CultureInfo.InvariantCulture, out var pin) ? pin :
+                                throw new FormatException("Invalid keypad hook pin.");
+                            break;
+                        case "display":
+                            result.Display = value.ToLowerInvariant() == "i2c_lcd1602" ? "i2c_lcd1602" :
+                                throw new NotSupportedException("Unknown display driver specified.");
+                            break;
+                        default: throw new NotSupportedException($"Unknown hardware setting {key}.");
+                    }
+                    break;
                 default: throw new FormatException("rnphone settings must be inside a section.");
             }
         }

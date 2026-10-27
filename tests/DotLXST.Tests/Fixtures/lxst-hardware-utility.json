@@ -1,0 +1,276 @@
+{
+  "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+  "source_sha256": "a0ea3cb846ec6d1b876462a0d9dd646cdceb2d84ac3c6f4028a354144b6d8664",
+  "substitutes": "Constructor bypass; fake telephone/display/clock and dial boundary. Actual _keypad_event, became_available and _update_display execute.",
+  "events": [
+    {
+      "elapsed": 0.1,
+      "state": "available",
+      "key": "A",
+      "transition": "down",
+      "input": "",
+      "dialing": true,
+      "actions": [],
+      "lines": [
+        "",
+        "Enter number"
+      ]
+    },
+    {
+      "elapsed": 0.2,
+      "state": "available",
+      "key": "1",
+      "transition": "down",
+      "input": "1",
+      "dialing": true,
+      "actions": [],
+      "lines": [
+        "1",
+        "Unknown"
+      ]
+    },
+    {
+      "elapsed": 0.3,
+      "state": "available",
+      "key": "2",
+      "transition": "down",
+      "input": "12",
+      "dialing": true,
+      "actions": [],
+      "lines": [
+        "12",
+        "Alice"
+      ]
+    },
+    {
+      "elapsed": 0.4,
+      "state": "available",
+      "key": "B",
+      "transition": "down",
+      "input": "1",
+      "dialing": true,
+      "actions": [],
+      "lines": [
+        "1",
+        "Unknown"
+      ]
+    },
+    {
+      "elapsed": 0.5,
+      "state": "available",
+      "key": "3",
+      "transition": "down",
+      "input": "13",
+      "dialing": true,
+      "actions": [],
+      "lines": [
+        "13",
+        "Unknown"
+      ]
+    },
+    {
+      "elapsed": 0.6,
+      "state": "available",
+      "key": "C",
+      "transition": "down",
+      "input": "",
+      "dialing": true,
+      "actions": [],
+      "lines": [
+        "",
+        "Enter number"
+      ]
+    },
+    {
+      "elapsed": 0.7,
+      "state": "available",
+      "key": "9",
+      "transition": "down",
+      "input": "9",
+      "dialing": true,
+      "actions": [],
+      "lines": [
+        "9",
+        "Unknown"
+      ]
+    },
+    {
+      "elapsed": 0.8,
+      "state": "available",
+      "key": "D",
+      "transition": "down",
+      "input": "9",
+      "dialing": true,
+      "actions": [],
+      "lines": [
+        "9",
+        "Unknown"
+      ]
+    },
+    {
+      "elapsed": 0.9,
+      "state": "available",
+      "key": "C",
+      "transition": "down",
+      "input": "",
+      "dialing": true,
+      "actions": [],
+      "lines": [
+        "",
+        "Enter number"
+      ]
+    },
+    {
+      "elapsed": 1.0,
+      "state": "available",
+      "key": "1",
+      "transition": "down",
+      "input": "1",
+      "dialing": true,
+      "actions": [],
+      "lines": [
+        "1",
+        "Unknown"
+      ]
+    },
+    {
+      "elapsed": 1.1,
+      "state": "available",
+      "key": "2",
+      "transition": "down",
+      "input": "12",
+      "dialing": true,
+      "actions": [],
+      "lines": [
+        "12",
+        "Alice"
+      ]
+    },
+    {
+      "elapsed": 1.2,
+      "state": "available",
+      "key": "D",
+      "transition": "down",
+      "input": "",
+      "dialing": false,
+      "actions": [
+        {
+          "kind": "dial",
+          "identity": "0123456789abcdef0123456789abcdef"
+        }
+      ],
+      "lines": [
+        "12",
+        "Alice"
+      ]
+    },
+    {
+      "elapsed": 1.3,
+      "state": "ringing",
+      "key": "D",
+      "transition": "down",
+      "input": "",
+      "dialing": false,
+      "actions": [
+        {
+          "kind": "answer"
+        }
+      ],
+      "lines": [
+        "12",
+        "Alice"
+      ]
+    },
+    {
+      "elapsed": 1.4,
+      "state": "ringing",
+      "key": "hook",
+      "transition": "up",
+      "input": "",
+      "dialing": false,
+      "actions": [
+        {
+          "kind": "answer"
+        }
+      ],
+      "lines": [
+        "12",
+        "Alice"
+      ]
+    },
+    {
+      "elapsed": 1.5,
+      "state": "ringing",
+      "key": "C",
+      "transition": "down",
+      "input": "",
+      "dialing": false,
+      "actions": [
+        {
+          "kind": "hangup"
+        }
+      ],
+      "lines": [
+        "12",
+        "Alice"
+      ]
+    },
+    {
+      "elapsed": 1.6,
+      "state": "in-call",
+      "key": "hook",
+      "transition": "up",
+      "input": "",
+      "dialing": false,
+      "actions": [],
+      "lines": [
+        "12",
+        "Alice"
+      ]
+    },
+    {
+      "elapsed": 1.7,
+      "state": "in-call",
+      "key": "hook",
+      "transition": "down",
+      "input": "",
+      "dialing": false,
+      "actions": [
+        {
+          "kind": "hangup"
+        }
+      ],
+      "lines": [
+        "12",
+        "Alice"
+      ]
+    },
+    {
+      "elapsed": 1.8,
+      "state": "connecting",
+      "key": "D",
+      "transition": "down",
+      "input": "",
+      "dialing": false,
+      "actions": [
+        {
+          "kind": "hangup"
+        }
+      ],
+      "lines": [
+        "12",
+        "Alice"
+      ]
+    }
+  ],
+  "sleep": [
+    {
+      "elapsed": 14.0,
+      "sleeping": false
+    },
+    {
+      "elapsed": 15.0,
+      "sleeping": true
+    }
+  ]
+}

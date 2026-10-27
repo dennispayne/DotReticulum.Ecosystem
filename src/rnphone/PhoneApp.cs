@@ -11,7 +11,7 @@ public static class PhoneApp
         rnphone - experimental .NET Reticulum telephone
 
         Usage: rnphone [--config PATH] [--rnsconfig PATH] [-s] [-v ...]
-          -l, --list-devices   List Linux PulseAudio sinks and sources
+          -l, --list-devices   List available audio outputs and inputs
           -s, --service        Run without an interactive command loop
           --systemd            Print a service-unit example
           --version            Print the targeted upstream release
@@ -22,7 +22,8 @@ public static class PhoneApp
         Enter a caller identity hash/name/alias to dial; Enter answers a ringing
         call or ends an active call. Requires separately installed libopus,
         libcodec2 and Linux pactl/pacat/parec for audio.
-        Hardware controls and non-Linux device I/O are not implemented.
+        Linux gpio_4x4 and i2c_lcd1602 controls require accessible kernel devices.
+        Windows audio uses the original WinMM PCM16 backend, not WASAPI parity.
         """;
 
     public static async Task<int> RunAsync(string[] args, TextReader input, TextWriter output, TextWriter error, CancellationToken stop)
@@ -60,15 +61,9 @@ public static class PhoneApp
         {
             if (list)
             {
-                foreach (var kind in new[] { "sinks", "sources" })
-                {
-                    using var process = PulseAudio.Start("pactl", ["list", "short", kind], input: false, output: true);
-                    var diagnostic = PulseAudio.DrainErrorsAsync(process);
-                    var devices = process.StandardOutput.ReadToEndAsync(stop);
-                    await process.WaitForExitAsync(stop);
-                    if (process.ExitCode != 0) throw new IOException(await diagnostic);
-                    await output.WriteLineAsync(await devices);
-                }
+                var backend = CreateDeviceBackend();
+                foreach (var device in await backend.ListOutputsAsync(stop)) await output.WriteLineAsync($"Output : {device.Name} [{device.Id}]");
+                foreach (var device in await backend.ListInputsAsync(stop)) await output.WriteLineAsync($"Input : {device.Name} [{device.Id}]");
                 return 0;
             }
             var directory = ConfigurationDirectory(config);
@@ -78,13 +73,15 @@ public static class PhoneApp
             if (!File.Exists(path)) await File.WriteAllTextAsync(path, PhoneConfiguration.Default, stop);
             var settings = PhoneConfiguration.Load(path);
             foreach (var warning in settings.Warnings) await error.WriteLineAsync("rnphone: " + warning);
+            await using var hardware = new PhoneHardware(settings, message => error.WriteLine("rnphone: " + message));
             using var identity = LoadIdentity(Path.Combine(directory, "identity"));
             settings.ExcludeLocalIdentity(identity.HexHash);
             await using var node = ReticulumNode.Open(rnsConfig,
                 (level, message) => { if (level <= 3 + verbosity) error.WriteLine($"Reticulum[{level}]: {message}"); });
-            await using var sink = new PulseAudioSink(settings.Speaker, () => output.WriteLine("Audio receive ready"));
-            await using var toneSink = new PulseAudioSink(settings.Speaker);
-            await using var ringerSink = new PulseAudioSink(settings.Ringer);
+            IAudioDeviceBackend devices = CreateDeviceBackend();
+            await using var sink = new DeviceAudioSink(devices, settings.Speaker, () => output.WriteLine("Audio receive ready"));
+            await using var toneSink = new DeviceAudioSink(devices, settings.Speaker);
+            await using var ringerSink = new DeviceAudioSink(devices, settings.Ringer);
             await using var playback = new DotLXST.Audio.BufferedAudioSink(sink, 48000, 2)
             {
                 Error = (context, exception) => error.WriteLine($"{context} {exception?.Message}"),
@@ -173,7 +170,7 @@ public static class PhoneApp
                                 await previous;
                                 previousStop?.Dispose();
                                 token.ThrowIfCancellationRequested();
-                                await PulseAudio.CaptureAsync(telephone, () => Volatile.Read(ref settings).Microphone, token, () => output.WriteLine("Audio transmit ready"));
+                                await TelephoneAudioCapture.CaptureAsync(devices, telephone, () => Volatile.Read(ref settings).Microphone, token, () => output.WriteLine("Audio transmit ready"));
                             }
                             catch (Exception ex) when (token.IsCancellationRequested &&
                                 ex is OperationCanceledException or ObjectDisposedException or InvalidOperationException or IOException) { }
@@ -190,6 +187,28 @@ public static class PhoneApp
             await output.WriteLineAsync("Reticulum Telephone ready");
             await output.FlushAsync();
             string? last = null;
+            using var dialGate = new SemaphoreSlim(1, 1);
+            async Task DialAsync(string hash, CancellationToken cancellationToken)
+            {
+                await dialGate.WaitAsync(cancellationToken);
+                try
+                {
+                    if (telephone.State != CallState.Available) throw new InvalidOperationException("Telephone is busy.");
+                    last = PhoneConfiguration.ValidateHash(hash);
+                    var destination = Destination.ComputeHash(Convert.FromHexString(last), "lxst", ["telephony"]);
+                    telephone.SetBusy();
+                    try
+                    {
+                        if (!await node.WaitForPathAsync(destination, TimeSpan.FromSeconds(10), cancellationToken)) throw new TimeoutException("No path to caller.");
+                    }
+                    finally { telephone.SetBusy(false); }
+                    dialledIdentity?.Dispose();
+                    dialledIdentity = node.Router.Engine.Known.Recall(destination) ?? throw new InvalidOperationException("No announced remote identity.");
+                    await telephone.CallAsync(dialledIdentity, cancellationToken: cancellationToken);
+                }
+                finally { dialGate.Release(); }
+            }
+            hardware.Start(telephone, () => Volatile.Read(ref settings), DialAsync);
             var phonebookOpen = false;
             try
             {
@@ -212,6 +231,8 @@ public static class PhoneApp
                         if (line == "reload")
                         {
                             var replacement = PhoneConfiguration.Load(path);
+                            if ((replacement.Keypad, replacement.HookPin, replacement.Display) != (settings.Keypad, settings.HookPin, settings.Display))
+                                throw new NotSupportedException("Changing hardware configuration requires a process restart.");
                             foreach (var warning in replacement.Warnings) await error.WriteLineAsync("rnphone: " + warning);
                             replacement.ExcludeLocalIdentity(identity.HexHash);
                             sink.SetDevice(replacement.Speaker);
@@ -284,17 +305,7 @@ public static class PhoneApp
                             }
                             if (settings.Phonebook.TryGetValue(line, out var entry)) line = entry.Hash;
                             else line = settings.Phonebook.Values.FirstOrDefault(entry => entry.Alias == line).Hash ?? line;
-                            last = PhoneConfiguration.ValidateHash(line);
-                            var destination = Destination.ComputeHash(Convert.FromHexString(last), "lxst", ["telephony"]);
-                            telephone.SetBusy();
-                            try
-                            {
-                                if (!await node.WaitForPathAsync(destination, TimeSpan.FromSeconds(10), stop)) throw new TimeoutException("No path to caller.");
-                            }
-                            finally { telephone.SetBusy(false); }
-                            dialledIdentity?.Dispose();
-                            dialledIdentity = node.Router.Engine.Known.Recall(destination) ?? throw new InvalidOperationException("No announced remote identity.");
-                            await telephone.CallAsync(dialledIdentity, cancellationToken: stop);
+                            await DialAsync(line, stop);
                         }
                     }
                     catch (Exception ex) when (ex is ArgumentException or FormatException or InvalidOperationException or TimeoutException or NotSupportedException or IOException or UnauthorizedAccessException)
@@ -305,6 +316,7 @@ public static class PhoneApp
             finally
             {
                 lock (audioGate) { captureStop?.Cancel(); ringingStop?.Cancel(); toneStop?.Cancel(); }
+                await hardware.DisposeAsync();
                 await telephone.DisposeAsync();
                 await capture;
                 await ringing;
@@ -330,6 +342,11 @@ public static class PhoneApp
             new[] { "/etc/rnphone", Path.Combine(home, ".config", "rnphone") };
         return candidates.FirstOrDefault(path => File.Exists(Path.Combine(path, "config"))) ?? Path.Combine(home, ".rnphone");
     }
+
+    private static IAudioDeviceBackend CreateDeviceBackend() => OperatingSystem.IsWindows()
+        ? new DotLXST.Devices.WindowsWaveAudioBackend()
+        : OperatingSystem.IsLinux() ? new PulseAudioDeviceBackend()
+        : throw new PlatformNotSupportedException("Audio devices are implemented for Linux and Windows only.");
 
     private static Identity LoadIdentity(string path)
     {

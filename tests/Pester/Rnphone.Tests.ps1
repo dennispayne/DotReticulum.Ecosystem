@@ -120,7 +120,8 @@ Describe 'Published rnphone CLI' -Tag Integration, Native -Skip:(!$env:DOTLXST_R
         $help = Invoke-PhoneCommand $script:phoneBinary @('--help')
         $help.Code | Should -Be 0
         $help.Output | Should -Match '--list-devices'
-        $help.Output | Should -Match 'not implemented'
+        $help.Output | Should -Match 'require accessible kernel devices'
+        $help.Output | Should -Match 'not WASAPI parity'
         (Invoke-PhoneCommand $script:phoneBinary @('--version')).Output | Should -Match 'rnphone 0\.4\.5'
         (Invoke-PhoneCommand $script:phoneBinary @('--systemd')).Output | Should -Match 'ExecStart=.*rnphone --service'
         (Invoke-PhoneCommand $script:phoneBinary @('--invalid-option')).Code | Should -Be 2
@@ -130,12 +131,37 @@ Describe 'Published rnphone CLI' -Tag Integration, Native -Skip:(!$env:DOTLXST_R
         $directory = Join-Path $script:phoneArtifacts ('rnphone-bad-' + [Guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Force $directory | Out-Null
         try {
-            "[hardware]`nkeypad = gpio_4x4`n" | Set-Content (Join-Path $directory 'config')
+            "[hardware]`nkeypad = unknown_driver`n" | Set-Content (Join-Path $directory 'config')
             $result = Invoke-PhoneCommand $script:phoneBinary @('--config', $directory)
             $result.Code | Should -Be 1
-            $result.Error | Should -Match 'not implemented'
+            $result.Error | Should -Match 'Unknown keypad driver'
             Test-Path (Join-Path $directory 'identity') | Should -BeFalse
         } finally { Remove-Item -LiteralPath $directory -Recurse -Force }
+    }
+
+    It 'reports a configured Linux hardware provider failure before creating an identity' -Skip:(!$IsLinux) {
+        $directory = Join-Path $script:phoneArtifacts ('rnphone-no-gpio-' + [Guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Force $directory | Out-Null
+        $previous = $env:DOTLXST_GPIOCHIP
+        $previousI2c = $env:DOTLXST_I2C_DEVICE
+        try {
+            $env:DOTLXST_GPIOCHIP = '/dev/dotlxst-device-does-not-exist'
+            "[hardware]`nkeypad = gpio_4x4`nkeypad_hook_pin = 5`n" | Set-Content (Join-Path $directory 'config')
+            $result = Invoke-PhoneCommand $script:phoneBinary @('--config', $directory)
+            $result.Code | Should -Be 1
+            $result.Error | Should -Match 'Opening hardware device.*errno'
+            Test-Path (Join-Path $directory 'identity') | Should -BeFalse
+            $env:DOTLXST_I2C_DEVICE = '/dev/dotlxst-device-does-not-exist'
+            "[hardware]`ndisplay = i2c_lcd1602`n" | Set-Content (Join-Path $directory 'config')
+            $result = Invoke-PhoneCommand $script:phoneBinary @('--config', $directory)
+            $result.Code | Should -Be 1
+            $result.Error | Should -Match 'Opening hardware device.*errno'
+            Test-Path (Join-Path $directory 'identity') | Should -BeFalse
+        } finally {
+            $env:DOTLXST_GPIOCHIP = $previous
+            $env:DOTLXST_I2C_DEVICE = $previousI2c
+            Remove-Item -LiteralPath $directory -Recurse -Force
+        }
     }
 }
 
@@ -417,6 +443,10 @@ set-default-source lxst_input
                 $probe = Invoke-PhoneCommand 'pactl' @('-s', $pulseAddress, 'info')
             } while ($probe.Code -ne 0 -and [DateTime]::UtcNow -lt $deadline)
             $probe.Code | Should -Be 0
+            $listing = Invoke-PhoneCommand $script:phoneBinary @('--list-devices') @{ PULSE_SERVER = $pulseAddress }
+            $listing.Code | Should -Be 0
+            $listing.Output | Should -Match 'Output : .*\[lxst_output\]'
+            $listing.Output | Should -Match 'Input : .*\[lxst_input\]'
             foreach ($directory in @($firstConfig, $secondConfig)) {
                 "[telephone]`nspeaker = lxst_output`nmicrophone = lxst_input`nallowed_callers = all`nringer = lxst_ringer`nringtone = ringtone.opus`n" |
                     Set-Content (Join-Path $directory 'config')

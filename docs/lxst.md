@@ -5,7 +5,8 @@
 **Partial, independently authored interoperability implementation.** `DotLXST`
 implements bounded stream envelopes, portable raw audio, native Opus/Codec2 ABI
 adapters, asynchronous stream sessions and device-independent telephony.
-`rnphone` provides a partial executable with Linux PulseAudio capture/playback.
+`rnphone` provides a partial executable with Linux PulseAudio capture/playback,
+an original Windows WinMM backend and Linux GPIO/I2C hardware-provider wiring.
 Full upstream API, processing, utility and platform parity is **not complete**.
 
 The project is experimental, AI-assisted and not an official or endorsed LXST
@@ -172,7 +173,7 @@ capture/playback quality claim follows from these headless processing tests.
 | Contract | Status | Reference |
 |---|---|---|
 | Console entry point `rnphone` | partial | Native executable exists; no full CLI/daemon compatibility claim |
-| `--help`, `-l/--list-devices`, `--config`, `--rnsconfig`, `-s/--service`, `--systemd`, `--version`, repeated `-v/--verbose` | partial | Flags implemented; Linux-only device listing; original help/systemd text |
+| `--help`, `-l/--list-devices`, `--config`, `--rnsconfig`, `-s/--service`, `--systemd`, `--version`, repeated `-v/--verbose` | partial | Flags implemented; Linux/Windows device listing; original help/systemd text |
 | Interactive dial/redial, answer/hangup, identity/destination display, phonebook and profile controls | partial | Bidirectional native calls, profile cycle, phonebook numeric aliases and submenu back/quit executed; exact terminal formatting and complete key matrix unverified |
 | Service mode, signals, shutdown cleanup, systemd example | partial | Native service ignores stdin and exits cleanly on targeted SIGTERM; identity retained across service restart; long-duration operation remains unverified |
 | Configuration directory precedence, default config creation and first-run behavior | partial | Precedence implemented; minimal original default config, no bundled assets |
@@ -180,10 +181,10 @@ capture/playback quality claim follows from these headless processing tests.
 | Bundled ringtone copying and ringtone/ringer output | partial | No upstream sounds redistributed; user-supplied Opus ringtone loops on a separate selected sink and stops on answer; real native virtual-sink acceptance |
 | `[telephone]`: `speaker`, `microphone`, `ringer`, `ringtone`, `allowed_callers`, `blocked_callers` | partial | Implemented; runtime sink/capture reconfiguration tested; PulseAudio exact device identifiers instead of fuzzy matching |
 | `[phonebook]`: names, identity hashes, optional filtered numeric aliases, authorization integration | implemented | Actual primary ConfigObj/apply_config/load_phonebook/menu fixtures cover quoted comma values, inline comments, ASCII numeric filtering, self exclusion, trailing-comma allowed/blocked lists, ignored extra columns and skipped malformed phonebook rows; native menu/reload/restart acceptance |
-| `[hardware]`: `keypad`, `keypad_hook_pin`, `display` | missing | `Utilities/rnphone.py`, `apply_config` |
+| `[hardware]`: `keypad`, `keypad_hook_pin`, `display` | implemented software; physical execution unverified | `gpio_4x4`, integer hook pin and `i2c_lcd1602` select owned Linux providers; unknown drivers/platforms and unavailable devices fail explicitly before identity creation; changing hardware settings on reload requires restart |
 | Commented amplifier-mute options | upstream-placeholder | Default config mentions `amp_mute_pin`/`amp_mute_level`; `apply_config` does not consume them |
 | `ignored` and `allowed` paths | upstream-placeholder | `reload_config` assigns paths; no persistence implementation established |
-| GPIO 4x4 keypad events, hook and key maps; I2C LCD1602 text/sleep/wake | partial | Fakeable `Hardware.MatrixKeypad` and `Lcd1602` match actual primary driver GPIO/I2C operations and hook/rollover/text/backlight vectors; no physical backend/configuration or peripheral execution; 5x5 is a non-target mirror addition |
+| GPIO 4x4 keypad events, hook and key maps; I2C LCD1602 text/sleep/wake | implemented software; physical execution unverified | Fakeable `Hardware.MatrixKeypad` and `Lcd1602` match primary driver vectors; Linux GPIO-v2/i2c-dev providers and `rnphone` dialing/hook/display wiring exist; kernel ABI, error paths and fake-bus contracts are verified, not successful physical peripheral I/O; 5x5 is a non-target mirror addition |
 | Example programs: file player/recorder/source, filters, mixer, pipelines, tone generator | missing | `examples/*.py`; these are examples, not additional installed console entry points |
 
 ### Dependencies and platform evidence
@@ -214,16 +215,16 @@ not implicitly covered by the network interfaces. This is not full API parity:
 | `Generators.py`: `ToneSource` codec/running/start/stop | Implemented original `ToneAudioSource`, with gain/easing and cancellable enumeration |
 | `Mixer.py`: start/stop, gain/mute, per-source frame limits, can-receive, source/sink/codec wiring | Implemented bounded timed `AudioMixer`; source/codec composition uses explicit C# interfaces |
 | `Pipeline.py`: codec/sink/running and start/stop | Implemented original source→codec→typed encoded sink composition, session adapter and lifecycle/replace/stop/disposal; source/codec ownership remains explicit; optional .NET processor execution is not attributed to the unused upstream parameter |
-| `Sources.py`: `get_backend`, backend device listing/recorder ownership; `Loopback`; `LineSource` gain/codec/start/stop; `OpusFileSource` | Partial Linux device I/O, headless loopback and streaming Opus file source; general backends and line-device gain controls remain missing |
+| `Sources.py`: `get_backend`, backend device listing/recorder ownership; `Loopback`; `LineSource` gain/codec/start/stop; `OpusFileSource` | Typed device enumeration/defaults and owned capture leases, Linux/Windows backends, linear source gain, headless loopback and streaming Opus file source exist; arbitrary Python backend-object shapes and other OS providers are not reproduced |
 | `Sinks.py`: `get_backend`, backend device listing/player ownership; Sink/RemoteSink/LocalSink; LineSink low latency; OpusFileSink queue/finalization | Linux I/O, Ogg Opus recording and executed-reference `BufferedAudioSink` playback queue are implemented; explicit async file backpressure; Linux Backend ignores constructor low_latency and its player lacks runtime enable_low_latency; other platform branches unverified |
 | `Primitives/Players.py`: FilePlayer state, completion callback, source, loop/start/stop/play | Implemented device-independent `FilePlayer`; callback timing is asynchronous, not Python's polling schedule; source replacement requires stopped playback |
 | `Primitives/Recorders.py`: FileRecorder state, source/output path, start/stop/record | Implemented device-independent `FileRecorder` with a caller-owned source and per-run finalization; effective output-path replacement is an explicit extension over the executed upstream shadow-attribute placeholder |
 | `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Partial: gains, mute/reset and transmit band-pass/AGC are implemented; device queries, ringtone, ringback/busy tones and runtime capture/sink selection are Linux CLI-only; no invented low-latency effect is supplied for the reference's unsupported Linux branch |
 | `Primitives/Telephony.py`: external busy override | Implemented; real incoming rejection followed by clearing busy and accepting the next call is integration-tested |
 | `Primitives/Telephony.py`: Profiles labels/abbreviations/index/next helpers | Implemented `TelephoneProfiles`; executed primary labels, abbreviations, frame durations and ordering; CLI profile cycle follows low latency then ultra-low latency |
-| `Utilities/rnphone.py`: ReticulumTelephone reload/apply config, keypad/hook/display enablement and hardware state; complete terminal menu/redial/status/signal behavior | Partial; supported CLI subset and persisted identity are tested, full utility behavior remains deferred |
-| `Primitives/hardware`: LCD print/clear/sleep/wake/close; Keypad hook/key-map/key-state/start/stop | Partial: fakeable bus/pin interfaces, explicit display initialization, owned/non-owned bus disposal, matrix transitions, 150 ms hook debounce, four-key rollover guard and scanner restart/error isolation; physical GPIO/I2C backends and utility wiring remain missing |
-| `Platforms/{linux,windows,darwin,android}` | Original Linux subprocess backend only; no translation or redistribution of upstream platform bindings |
+| `Utilities/rnphone.py`: ReticulumTelephone reload/apply config, keypad/hook/display enablement and hardware state; complete terminal menu/redial/status/signal behavior | Partial; CLI/persisted identity and software hardware controls are implemented; literal terminal formatting/full key matrices and physical runtime hardware operation remain unverified |
+| `Primitives/hardware`: LCD print/clear/sleep/wake/close; Keypad hook/key-map/key-state/start/stop | Software implemented: fakeable bus/pin interfaces, Linux OS providers, explicit initialization/ownership, matrix transitions, 150 ms hook debounce, four-key rollover guard, utility controls and scanner restart/error isolation; physical GPIO/I2C remains unverified |
+| `Platforms/{linux,windows,darwin,android}` | Original Linux subprocess and Windows WinMM implementations; macOS/Android providers absent and environments unavailable; no translation or redistribution of upstream platform bindings |
 
 `Processing.py` contains no public function/class implementation in this release;
 `Common.nop` is a no-op helper, not a missing wire contract. Vendored Python
@@ -248,10 +249,10 @@ features to reproduce.
 | `Mixer.py`: `start`, `stop`, `set_gain`, `mute`, `unmute`, `set_source_max_frames`, `can_receive`, `handle_frame`, `codec`, `source`, `sink` | Original bounded mixer with explicit typed source/sink contracts; general source resampling is an upstream placeholder |
 | `Network.py`: `SignallingReceiver.handle_signalling_from/signalling_received/signal`; `Packetizer.handle_frame/start/stop`; `LinkSource.start/stop` | Typed stream sessions, event callbacks, packetizer and transport adapter implemented; deferred signalling is an upstream placeholder |
 | `Pipeline.py`: `PipelineError`, `Pipeline.codec/sink/running/start/stop` | Original pipeline/error contracts and encoded/audio sink variants implemented; unused reference processor argument is not attributed behavior |
-| `Sources.py`: `Source`, `LocalSource`, `RemoteSource`; `Loopback.start/stop/can_receive/handle_frame/source`; `LineSource.linear_gain/codec/start/stop`; `OpusFileSource.codec/start/stop` | Source interfaces, loopback and file streaming implemented; Linux CLI capture has skip/easing/processing; general reusable device-backed LineSource API remains partial |
+| `Sources.py`: `Source`, `LocalSource`, `RemoteSource`; `Loopback.start/stop/can_receive/handle_frame/source`; `LineSource.linear_gain/codec/start/stop`; `OpusFileSource.codec/start/stop` | Source interfaces, reusable `DeviceAudioSource`, loopback and file streaming implemented; CLI capture adds reference skip/easing/processing around the common backend |
 | `Sinks.py`: `Sink.handle_frame/can_receive`, `RemoteSink`, `LocalSink`; `LineSink.can_receive/handle_frame/start/stop/enable_low_latency`; `OpusFileSink.frames_waiting/can_receive/handle_frame/start/stop` | Original sink contracts, buffered playback and file recording implemented; runtime Linux low-latency operation is absent upstream; other device backends unverified |
-| `Sources.py` backends: `get_backend`, `all_microphones`, `default_microphone`, `flush`, `get_recorder`, `release_recorder`; `Sinks.py` backends: `get_backend`, `all_speakers`, `default_speaker`, `flush`, `get_player`, `release_player` | Partial original Linux subprocess device selection/ownership; Python backend-object and generic backend-factory API shape is not reproduced |
-| Platform soundcard public enumeration/default/lookup and `get_name/set_name`; Linux `channel_name_map`, Windows `tid`, Darwin `error_number_to_string` | Linux CLI device listing/selection only; generic platform queries, backend renaming and other OS backends are missing, not network contracts |
+| `Sources.py` backends: `get_backend`, `all_microphones`, `default_microphone`, `flush`, `get_recorder`, `release_recorder`; `Sinks.py` backends: `get_backend`, `all_speakers`, `default_speaker`, `flush`, `get_player`, `release_player` | Original generic device enumeration/defaults and owned capture/playback leases with Linux/Windows providers; Python object layout and generic runtime module loading are not emulated |
+| Platform soundcard public enumeration/default/lookup and `get_name/set_name`; Linux `channel_name_map`, Windows `tid`, Darwin `error_number_to_string` | Generic input/output enumeration/defaults and exact identifier selection implemented. Linux `get_name/set_name` changes the Pulse client application name, not a device name; that context-global helper and platform FFI internals are dependency APIs, not additional LXST wire contracts |
 | `Primitives/Players.py`: `FilePlayer.running/playing/finished_callback/set_source/loop/start/stop/play` | Device-independent player implemented; asynchronous callback timing and explicit caller-owned sink |
 | `Primitives/Recorders.py`: `FileRecorder.running/recording/set_source/set_output_path/start/stop/record` | Device-independent recorder implemented; effective stopped-only output-path replacement is an explicit extension |
 | `Primitives/Telephony.py`: `Profiles.available_profiles/profile_index/profile_name/profile_abbrevation/get_codec/get_frame_time/next_profile`, `Signalling` constants | Profile metadata/factory/cycle and telephone signal values implemented; executed primary values |
@@ -259,8 +260,8 @@ features to reproduce.
 | `Telephone`: `teardown/announce/set_allowed/set_blocked/set_connect_timeout/set_announce_interval`, `set_ringing_callback/set_established_callback/set_ended_callback/set_busy_callback/set_rejected_callback` | Endpoint lifecycle, authorization, mutable outgoing `ConnectTimeout` and isolated state events implemented; announce-interval setter is ineffective upstream |
 | `Telephone`: `set_busy_tone_time/enable_agc/disable_agc/set_busy/busy/active_profile/receive_muted/transmit_muted` | Configurable tone duration through source construction; AGC, busy override, profile and mute state implemented; CLI tone scheduling differs explicitly |
 | `Telephone`: `signal/answer/hangup/mute_receive/unmute_receive/mute_transmit/unmute_transmit/set_receive_gain/set_transmit_gain/switch_profile/call/signalling_received` | Endpoint/session behavior implemented, including actual profile negotiation, gains/mute and both-direction calls |
-| Hardware `LCD.print/clear/is_sleeping/sleep/wake/close`; `Event`; `Keypad.enable_hook/set_key_map/is_down/is_up/start/stop` | Fakeable software protocols implemented; OS providers and utility wiring missing |
-| `Utilities/rnphone.py`: `create_default_config/reload_config/load_phonebook/apply_config`, `enable_keypad/enable_hook/enable_display`, `is_available/is_in_call/is_ringing/call_is_connecting/hw_is_idle/hw_is_dialing` | Configuration and call status partial; hardware enable/state integration missing and explicitly rejected |
+| Hardware `LCD.print/clear/is_sleeping/sleep/wake/close`; `Event`; `Keypad.enable_hook/set_key_map/is_down/is_up/start/stop` | Fakeable software protocols, Linux OS providers and utility wiring implemented; physical operation unverified |
+| `Utilities/rnphone.py`: `create_default_config/reload_config/load_phonebook/apply_config`, `enable_keypad/enable_hook/enable_display`, `is_available/is_in_call/is_ringing/call_is_connecting/hw_is_idle/hw_is_dialing` | Configuration/call status and software hardware state implemented; actual utility keypad editing/dial/answer/reject/hook outputs executed as reference vectors; physical state delivery unverified |
 | Utility `start/stop/dial/redial/call/ringing/call_ended/call_established/display_call_status/became_available`, `print_identity/print_destination/phonebook_menu/main_menu/run/cleanup/quit/sigint_handler/sigterm_handler`, `main`, `Terminal` | Native CLI lifecycle, menus, dialing, states and signals partial; literal terminal formatting/full key matrix and hardware display states are not claimed |
 | `Common.nop`, `Processing.py`, package/version metadata | No-op and empty processing module are not missing functionality; target version recorded, no Python module-layout emulation |
 
@@ -290,14 +291,16 @@ enforces a single active reader, configurable linear gain, cancellation and
 lease cleanup; `DeviceAudioSink` serializes writes, reopens on format/device
 changes and recovers by releasing a failed output lease before the next write.
 Disposing either wrapper releases leases, not the caller-owned backend.
+Device formats are bounded to 384 kHz, 64 channels and one second per frame;
+providers may support a narrower set. These are explicit resource limits.
 These original interfaces replace Python backend-object shapes rather than
 claiming Python class-layout compatibility.
 
 `DotLXST.Audio` supplies a separately tested managed processor, mixer, generator
 and pipeline layer; the stream/session interfaces do not silently apply it.
-Endpoint AGC/band-pass processing is shared by the CLI. The CLI does not yet
-reproduce hardware peripherals
-or all persistence/configuration behavior. Configured ringtone playback is
+Endpoint AGC/band-pass processing is shared by the CLI. Hardware software is
+wired behind explicit providers; physical peripherals and all
+persistence/configuration behavior are not claimed verified. Configured ringtone playback is
 implemented without redistributing the upstream asset.
 
 `PhoneConfiguration` reads quote-aware comma values and inline comments. Reload
@@ -366,15 +369,60 @@ asynchronously after that outcome. That callback timing difference is explicit.
 
 | Environment | Evidence |
 |---|---|
-| Windows x64 | Managed build and deterministic/unit/lifecycle tests; native codec DLLs and device audio not verified |
+| Windows x64 | Managed contracts and actual endpoint enumeration; strict NativeAOT WinMM probe plays synthetic silence and tests cancellation/reuse; microphone capture, physical quality, native codec DLLs and telephone device interoperability unverified |
 | Ubuntu x64 under WSL | libopus 1.6.1 and libcodec2 1.2.0 vectors; real stream/telephone interop; NativeAOT executable and virtual PulseAudio process flow |
 | Physical audio hardware | Unverified; tests use isolated silent/generated virtual devices, never the desktop microphone |
 | macOS, Android, other architectures | Unverified; no device implementation or support claim |
 
-`rnphone` is therefore a Linux-audio executable, not a verified cross-platform
-audio product. Linux identity files are created with owner read/write only;
+`rnphone` selects Linux PulseAudio or the original Windows WinMM backend, not a
+verified cross-platform audio product. Linux identity files are created with owner read/write only;
 filesystems that cannot enforce this (for example default WSL DrvFS mounts)
 are rejected. On Windows, inherited ACLs require operator review.
+
+### Operating-system providers
+
+`Hardware.LinuxDigitalPins` uses the Linux GPIO character-device v2 API
+([kernel contract](https://docs.kernel.org/userspace-api/gpio/chardev.html),
+introduced in Linux 5.10). GPIO numbers are **chip line offsets**, not header
+pin numbers. The default `/dev/gpiochip0` must actually correspond to the
+intended board controller; `DOTLXST_GPIOCHIP` selects another path. The provider
+holds one owned `SafeHandle` per requested line, reconfigures rather than
+releasing/reacquiring lines during scans, applies explicit pull bias and
+serializes operations against disposal.
+
+`LinuxI2cByteBus` uses the documented
+[`i2c-dev` interface](https://docs.kernel.org/i2c/dev-interface.html):
+non-forcing `I2C_SLAVE` selection followed by a single-byte write. The default
+`/dev/i2c-1` can be replaced with `DOTLXST_I2C_DEVICE`. Bus numbering and GPIO
+chip identity are operator-selected, not discovered or assumed from a board
+name. Missing devices, permission errors, unsupported ioctl operations and
+short writes throw contextual errors; there is no simulation/fallback success.
+The native providers accept little-endian Linux x64/arm64; only x64 error paths
+and compiled ABI layouts have executed here, not arm64 or successful peripheral
+I/O. Cancellation/disposal waits for synchronous kernel I/O rather than claiming
+to forcibly interrupt a blocked kernel call.
+
+`rnphone` wires `gpio_4x4`, an optional `keypad_hook_pin`, and `i2c_lcd1602`
+before identity creation, then owns scanner, bus and display cleanup. Software
+controls reproduce primary numeric alias entry/editing, answer/reject/hangup,
+hook transitions and 15-second idle display sleep. A 64-event bounded queue
+reports overflow; input is capped at 256 digits as an explicit defensive
+extension. Hardware setting changes require process restart instead of silently
+opening duplicate primary driver instances during reload. Call-duration display
+formatting is original .NET text, not a byte-identical Python terminal claim.
+
+`DotLXST.Devices.WindowsWaveAudioBackend` is an independently authored WinMM
+PCM16 backend, **not** a translation of the reference SoundCard/WASAPI bindings.
+It accepts mono/stereo formats up to 192 kHz and default or enumerated numeric
+device identifiers. Capture has two native buffers and a four-frame bounded
+managed queue; cancellation resets devices and cleanup unprepares buffers before
+freeing memory. The parent-provided acceptance executed actual Windows endpoint
+enumeration and synthetic-silence default output cancellation/buffer reuse,
+including strict NativeAOT `--help`/`--silence` probes (six input/six output
+entries including defaults). `DOTLXST_WINDOWS_AUDIO=1` opts into silent output
+only; normal Windows enumeration requires no opt-in. No microphone was opened
+for this evidence. Physical input, audio quality, loopback and WASAPI-specific or
+low-latency behavior remain unverified/unimplemented, not inferred from WinMM.
 
 ## Evidence and reproduction
 
@@ -416,22 +464,27 @@ pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 
 
 Recorded results:
 
-- Windows deterministic/unit suite: **65 passed**.
+- Windows deterministic/unit suite: **82 passed**; with actual endpoint
+  enumeration and opted-in synthetic-silence output: **84 passed, zero skipped**.
 - WSL full LXST suite against the actual primary-release checkout:
-  **122 passed, zero skipped**, including six real telephone topology cases,
+  **141 passed, two Windows-only integration cases explicitly skipped**,
+  including six real telephone topology cases,
   sixteen initial-profile cases and seven policy/rejection/timeout recovery cases.
 - Telephone lifecycle cases include a blocked sink proving that a second
   disposer cannot finish early, continued service after authorization/observer
   exceptions, and cancellation of an abandoned path lookup without disrupting
   the next call.
-- Linux NativeAOT publish with both warning-as-error properties: **passed**;
-  published `--help`: **passed**.
-- Native rnphone Pester process acceptance: **6 passed, zero skipped**:
+- Linux and Windows NativeAOT publish with both warning-as-error properties:
+  **passed**; published `--help` on both and Windows `--list-devices`: **passed**.
+- Native Linux rnphone Pester process acceptance: **7 passed, zero skipped**:
   CLI/error behavior; explicit unsupported-hardware rejection; calls in both
   directions, encoder/decoder/device-process paths, teardown, protected identity
   and restart stability; executed-reference phonebook/config reload; supplied
   ringtone routing/stopping, ringback/busy output, active-call capture/playback
-  device replacement and service-mode SIGTERM/restart.
+  device replacement, service-mode SIGTERM/restart and configured missing GPIO
+  and I2C device failures before identity creation. The Python-free native pair also
+  plays a stored synthetic Opus ringtone, exercising `libopusfile` without
+  Python or upstream source.
 - Actual upstream Opus file fixture and reverse file-source acceptance:
   **5 passed, zero skipped**, including exact frame/sample decoding, looping,
   cancellation, malformed files and native handle disposal.
@@ -469,6 +522,22 @@ Recorded results:
   configurations, every I2C write/delay, key transitions, hook debounce and
   rollover rejection; scanner error/restart/disposal is separately exercised.
   This is software-contract evidence, not physical GPIO/I2C support.
+- `GenerateHardwareUtilityVectors.py` executes primary `_keypad_event`,
+  `_update_display`, `became_available` and one-iteration `_display_job` calls
+  with disclosed telephone/display/dial/clock substitutes. Stored outputs cover
+  digit entry, delete/clear, alias dialing, answer/reject/hangup/hook commands,
+  display text and the 15-second sleep threshold.
+- `Hardware/LinuxHardwareAbi.c` compiled against installed Linux UAPI headers
+  generates `Fixtures/linux-hardware-abi.json`: request/config/value sizes
+  592/272/16, field offsets and all used GPIO/I2C ioctl numbers. The observed
+  headers' SHA-256 values were `gpio.h`
+  `924463e624a546d83239e741c2eb921bd53e175e107fe59b56cc4936ba839d40`
+  and `i2c-dev.h`
+  `3a34606641697f3ec5935e9f1f2a01a12d98b6cfc84b229da0ba2716c097ee28`.
+  Fake-syscall tests verify serialization, lease reconfiguration, recovery and
+  disposal racing an active read. Integration tests execute actual Linux open
+  and ioctl failures on missing devices and `/dev/null`; these do not claim a
+  successful GPIO/I2C transaction.
 
 Live stream cases use actual unmodified Python Packetizer/LinkSource and real
 Reticulum TCP links in three topologies: direct; through a .NET transport; and
@@ -505,15 +574,13 @@ matrices, hardware I/O and long-duration recovery remain unverified.
 
 ### Remaining software versus environment limits
 
-- **Missing software:** Raspberry Pi/Linux GPIO and I2C OS providers and
-  `rnphone` hardware configuration wiring. The fakeable keypad/LCD algorithms
-  are implemented; their bus vectors do not supply a kernel/device provider.
-  Every configured `[hardware]` option fails explicitly before identity creation,
-  rather than silently enabling a peripheral that is not supported.
-- **Missing software:** Windows, macOS and Android audio-device backends and
-  literal upstream example programs. Device-independent library primitives are
-  present; examples/assets and Python API/menu formatting are not redistributed
-  or claimed identical.
+- **Unavailable target platforms:** macOS/Android audio providers remain absent;
+  no matching OS/runtime exists in the current environment to compile/run their
+  device paths. Windows now has an original, tested WinMM alternative, not a
+  reference WASAPI/loopback/low-latency implementation.
+- **Not redistributed:** literal upstream example programs, assets and Python
+  source/API/menu formatting. Device-independent equivalent primitives are
+  present; the examples are not extra installed executables.
 - **Intentional differences:** atomic configuration replacement, stricter
   unknown-setting/allow-list validation, prompt endpoint outcome callbacks with
   asynchronous CLI busy tones, bounded asynchronous queues and explicit

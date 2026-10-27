@@ -7,6 +7,7 @@ public sealed record AudioDeviceFormat(int SampleRate, int Channels, TimeSpan Fr
     public void Validate()
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(SampleRate, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(SampleRate, 384000);
         ArgumentOutOfRangeException.ThrowIfLessThan(Channels, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(Channels, 64);
         if (FrameDuration <= TimeSpan.Zero || FrameDuration > TimeSpan.FromSeconds(1))

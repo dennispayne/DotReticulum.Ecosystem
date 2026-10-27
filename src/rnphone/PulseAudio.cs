@@ -16,7 +16,7 @@ internal static class PulseAudio
 {
     public static Process Start(string program, IEnumerable<string> arguments, bool input, bool output)
     {
-        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("Audio device I/O currently requires Linux PulseAudio utilities; Windows/macOS devices are unimplemented.");
+        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("PulseAudio device I/O requires Linux utilities.");
         var start = new ProcessStartInfo(program)
         {
             UseShellExecute = false,
@@ -45,7 +45,11 @@ internal static class PulseAudio
         await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
-    public static async Task CaptureAsync(TelephoneEndpoint telephone, Func<string?> deviceProvider, CancellationToken stop, Action? firstFrame = null)
+}
+
+internal static class TelephoneAudioCapture
+{
+    public static async Task CaptureAsync(IAudioDeviceBackend backend, TelephoneEndpoint telephone, Func<string?> deviceProvider, CancellationToken stop, Action? firstFrame = null)
     {
         var firstRun = true;
         while (!stop.IsCancellationRequested && telephone.State == CallState.Established)
@@ -54,37 +58,20 @@ internal static class PulseAudio
             var profile = telephone.ActiveProfile ?? TelephoneProfile.MediumQuality;
             var device = deviceProvider();
             var (rate, channels, duration) = Format(profile);
-            var arguments = new List<string> { "--raw", "--format=float32le", "--rate=" + rate, "--channels=" + channels, "--latency-msec=20" };
-            if (device is not null) arguments.Add("--device=" + device);
-            using var process = Start("parec", arguments, input: false, output: true);
-            var errors = DrainErrorsAsync(process);
+            await using var capture = new DeviceAudioSource(backend,
+                new(rate, channels, TimeSpan.FromMilliseconds(duration)), device);
             var clock = Stopwatch.StartNew();
             var envelope = new AudioCaptureEnvelope(TimeSpan.FromSeconds(.075),
                 TimeSpan.FromSeconds(firstRun ? .225 : 0));
             firstRun = false;
-            try
+            await foreach (var input in capture.CaptureAsync(stop).ConfigureAwait(false))
             {
-                var bytes = new byte[rate * channels * duration / 1000 * sizeof(float)];
-                while (!stop.IsCancellationRequested && telephone.State == CallState.Established &&
-                    telephone.ActiveProfile == profile && deviceProvider() == device)
-                {
-                    await process.StandardOutput.BaseStream.ReadExactlyAsync(bytes, stop).ConfigureAwait(false);
-                    var samples = new float[bytes.Length / sizeof(float)];
-                    for (var i = 0; i < samples.Length; i++)
-                        samples[i] = BinaryPrimitives.ReadSingleLittleEndian(bytes.AsSpan(i * sizeof(float), sizeof(float)));
-                    var frame = envelope.Process(new(samples, rate, channels), clock.Elapsed);
-                    if (frame is null) continue;
-                    try { await telephone.SendAudioAsync(frame, stop).ConfigureAwait(false); }
-                    catch (ArgumentException) when (telephone.ActiveProfile != profile) { break; }
-                    if (!reported) { reported = true; firstFrame?.Invoke(); }
-                }
-            }
-            finally
-            {
-                await StopAsync(process).ConfigureAwait(false);
-                var diagnostic = await errors.ConfigureAwait(false);
-                if (!stop.IsCancellationRequested && process.ExitCode != 0 && diagnostic.Length != 0)
-                    Trace.TraceError($"rnphone capture: {diagnostic}");
+                if (telephone.State != CallState.Established || telephone.ActiveProfile != profile || deviceProvider() != device) break;
+                var frame = envelope.Process(input, clock.Elapsed);
+                if (frame is null) continue;
+                try { await telephone.SendAudioAsync(frame, stop).ConfigureAwait(false); }
+                catch (ArgumentException) when (telephone.ActiveProfile != profile) { break; }
+                if (!reported) { reported = true; firstFrame?.Invoke(); }
             }
         }
     }

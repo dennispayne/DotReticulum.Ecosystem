@@ -119,6 +119,9 @@ public class LxmRouterTests
         var first = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "open a backchannel");
         await pair.Client.SendAsync(first);
         Assert.Equal(LxmState.Delivered, await first.Completion.WaitAsync(TimeSpan.FromSeconds(10)));
+        using var schedules = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(
+            AppContext.BaseDirectory, "Fixtures", "lxmf-scheduling-vectors.json")));
+        Assert.Equal(schedules.RootElement.GetProperty("active_link_send_attempts").GetInt32(), first.DeliveryAttempts);
         await pair.WaitAsync(() => pair.ServerInbox.Count == 1);
         var incoming = Assert.Single(pair.ServerRouter.Links.Links, link => link.Status == LinkStatus.Active);
         await pair.WaitAsync(() => incoming.RemoteIdentity is not null);
@@ -143,6 +146,10 @@ public class LxmRouterTests
         {
             ProcessingInterval = TimeSpan.FromHours(1),
         }, transportTimeProvider: clock);
+        var logs = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        pair.Client.Log = logs.Enqueue;
+        pair.ClientRouter.Log = logs.Enqueue;
+        pair.ServerRouter.Log = logs.Enqueue;
         var message = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "before idle cleanup");
         await pair.Client.SendAsync(message);
         Assert.Equal(LxmState.Delivered, await message.Completion.WaitAsync(TimeSpan.FromSeconds(10)));
@@ -155,7 +162,17 @@ public class LxmRouterTests
         Assert.Equal(LinkStatus.Closed, original.Status);
         var next = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "after idle cleanup");
         await pair.Client.SendAsync(next);
-        Assert.Equal(LxmState.Delivered, await next.Completion.WaitAsync(TimeSpan.FromSeconds(10)));
+        LxmState result;
+        try { result = await next.Completion.WaitAsync(TimeSpan.FromSeconds(10)); }
+        catch (TimeoutException ex)
+        {
+            throw new TimeoutException($"Idle-link recovery stalled in {next.State}, attempts {next.DeliveryAttempts}, " +
+                $"awaiting path {next.AwaitingPath}, next attempt {next.NextDeliveryAttempt}, clock {pair.ClientRouter.Links.UnixNow}, " +
+                $"path {pair.ClientRouter.HasPath(pair.Server.DeliveryHash)}; " +
+                string.Join("; ", pair.ClientRouter.Links.Links.Select(link => $"{link.Status}/{link.TeardownReason}/RTT{link.Rtt}")) +
+                $"\n{string.Join("\n", logs)}", ex);
+        }
+        Assert.Equal(LxmState.Delivered, result);
         await pair.WaitAsync(() => pair.ServerInbox.Count == 2);
         Assert.NotEqual(original.LinkId, Assert.Single(pair.ClientRouter.Links.Links, link => link.Status == LinkStatus.Active).LinkId);
     }

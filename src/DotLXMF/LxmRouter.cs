@@ -235,6 +235,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
             message.StateChanged += MarkTicketDelivered;
         message.DetermineTransportEncryption();
         message.State = LxmState.Outbound;
+        message.StateChanged += OutboundConcluded;
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed != 0, this);
@@ -327,7 +328,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         }
     }
 
-    private static double Now => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+    private double Now => _router.Links.UnixNow;
 
     private async Task ProcessAsync(CancellationToken ct)
     {
@@ -339,6 +340,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 message.State == LxmState.Sent && message.Method == LxmMethod.Propagated)
             {
                 lock (_gate) _outbound.Remove(message);
+                message.StateChanged -= OutboundConcluded;
                 continue;
             }
 
@@ -351,9 +353,12 @@ public sealed partial class LxmRouter : IAsyncDisposable
                     available.Status == LinkStatus.Active;
                 if (!activeLink && message.Method == LxmMethod.Direct) activeLink = FindBackchannel(target) is not null;
             }
-            if (!activeLink && Now < message.NextAttempt) continue;
+            if (target is not null && message.State == LxmState.Outbound && SlowPath(target) &&
+                LxmDeliveryTiming.Held(message, target, pending, OutboundTarget)) continue;
+            if (!activeLink && target is not null && !LxmDeliveryTiming.AttemptDue(Now, message.NextAttempt,
+                message.AwaitingPath, _router.HasPath(target))) continue;
             if (message.State == LxmState.Sent && message.Method != LxmMethod.Opportunistic) continue;
-            if (message.DeliveryAttempts > _options.MaxDeliveryAttempts)
+            if (message.State != LxmState.Sending && message.DeliveryAttempts > (message.MaxDeliveryAttempts ?? _options.MaxDeliveryAttempts))
             {
                 Report($"{message} failed after {message.DeliveryAttempts} attempts");
                 message.State = LxmState.Failed;
@@ -369,7 +374,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 Report($"{message}: delivery attempt failed: {ex.Message}");
-                message.NextAttempt = Now + _options.DeliveryRetryWait.TotalSeconds;
+                ScheduleAttempt(message, OutboundTarget(message));
             }
         }
     }
@@ -378,7 +383,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
     {
         var destination = routeHash ?? message.DestinationHash;
         var known = _router.Engine.Known.Recall(destination) is not null;
-        if (known && _router.HasPath(destination)) return true;
+        if (known && _router.HasPath(destination)) { message.AwaitingPath = false; return true; }
         if (allowPathless && known && message.PathlessTries < _options.MaxPathlessTries)
         {
             message.PathlessTries++;
@@ -386,9 +391,9 @@ public sealed partial class LxmRouter : IAsyncDisposable
         }
 
         Report($"{message}: requesting path to {Convert.ToHexStringLower(destination)}");
-        await _router.RequestPathAsync(destination, cancellationToken: ct).ConfigureAwait(false);
+        await RequestPathAsync(destination, ct).ConfigureAwait(false);
         message.DeliveryAttempts++;
-        message.NextAttempt = Now + _options.PathRequestWait.TotalSeconds;
+        ScheduleAttempt(message, destination, pathRequest: true);
         return false;
     }
 
@@ -397,7 +402,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         if (message.DestinationType == DestinationType.Plain)
         {
             message.DeliveryAttempts++;
-            message.NextAttempt = Now + _options.DeliveryRetryWait.TotalSeconds;
+            ScheduleAttempt(message, message.DestinationHash);
             var plain = Packet.Create(PacketType.Data, DestinationType.Plain, message.DestinationHash,
                 message.Packed.AsMemory(LxMessage.DestinationLength));
             await _router.SendAsync(plain, ct).ConfigureAwait(false);
@@ -405,14 +410,36 @@ public sealed partial class LxmRouter : IAsyncDisposable
             Report("No receipt generated for sent plain opportunistic LXMF message.");
             return;
         }
-        if (!await EnsurePathAsync(message, ct, allowPathless: false).ConfigureAwait(false)) return;
+        if (!_router.HasPath(message.DestinationHash))
+            await RequestPathAsync(message.DestinationHash, ct).ConfigureAwait(false);
+        if (message.DeliveryAttempts == _options.MaxPathlessTries + 1 &&
+            _router.HasPath(message.DestinationHash) && message.SentOnPath)
+        {
+            message.DeliveryAttempts++;
+            message.SentOnPath = false;
+            message.AwaitingPath = true;
+            message.NextAttempt = Now + PathRequestWait;
+            if (!PathRequestPending(message.DestinationHash))
+            {
+                lock (_gate) _pathRequestTimes[Convert.ToHexStringLower(message.DestinationHash)] = Now;
+                _router.DropPath(message.DestinationHash);
+                await Task.Delay(TimeSpan.FromMilliseconds(500), ct).ConfigureAwait(false);
+                await _router.RequestPathAsync(message.DestinationHash, cancellationToken: ct).ConfigureAwait(false);
+            }
+            return;
+        }
+        if (!await EnsurePathAsync(message, ct, allowPathless: true).ConfigureAwait(false)) return;
         var identity = _router.Engine.Known.Recall(message.DestinationHash)!;
         var encrypted = _router.Engine.Known.Encrypt(message.DestinationHash, message.Packed.AsSpan(LxMessage.DestinationLength))
             ?? throw new InvalidOperationException("Destination identity is no longer known.");
         var packet = Packet.Create(PacketType.Data, DestinationType.Single, message.DestinationHash, encrypted);
         message.DeliveryAttempts++;
-        message.NextAttempt = Now + _options.DeliveryRetryWait.TotalSeconds;
-        var receipt = await _router.SendWithReceiptAsync(packet, identity, _options.ReceiptTimeout, ct).ConfigureAwait(false)
+        message.SentOnPath = _router.HasPath(message.DestinationHash);
+        message.SentOnSlowPath = SlowPath(message.DestinationHash);
+        ScheduleAttempt(message, message.DestinationHash);
+        var defaultTimeout = _router.FirstHopTimeout(message.DestinationHash) + 6 * (_router.HopsTo(message.DestinationHash) ?? Packet.HopLimit);
+        var timeout = Math.Max(_options.ReceiptTimeout?.TotalSeconds ?? defaultTimeout, message.ReceiptTimeout?.TotalSeconds ?? 0);
+        var receipt = await _router.SendWithReceiptAsync(packet, identity, TimeSpan.FromSeconds(timeout), ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException("An opportunistic LXMF data packet did not qualify for a delivery receipt.");
         message.State = LxmState.Sent;
         receipt.Delivered = _ => message.State = LxmState.Delivered;
@@ -441,10 +468,10 @@ public sealed partial class LxmRouter : IAsyncDisposable
         if (link is null && !propagated) link = FindBackchannel(destination);
         if (link is null)
         {
-            if (!await EnsurePathAsync(message, ct, allowPathless: true, destination).ConfigureAwait(false)) return;
+            if (!await EnsurePathAsync(message, ct, allowPathless: false, destination).ConfigureAwait(false)) return;
             var identity = _router.Engine.Known.Recall(destination)!;
             message.DeliveryAttempts++;
-            message.NextAttempt = Now + _options.DeliveryRetryWait.TotalSeconds;
+            ScheduleAttempt(message, destination);
             var created = _router.Links.Connect(identity, destination, _ => _wake.Release(), _ => _wake.Release());
             if (!propagated) OnLinkEstablished(created);
             lock (_gate)
@@ -457,6 +484,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
 
         if (link.Status != LinkStatus.Active) return;
         if (!propagated && link.IsInitiator) IdentifyOnce(key, link);
+        message.SentOnSlowPath = SlowPath(destination);
         if (message.IsResource)
         {
             message.State = LxmState.Sending;
@@ -482,7 +510,6 @@ public sealed partial class LxmRouter : IAsyncDisposable
         }
         else
         {
-            message.DeliveryAttempts++;
             message.State = LxmState.Sending;
             if (message.State == LxmState.Cancelled) return;
             var receipt = link.Send(packed, createReceipt: true);
@@ -512,7 +539,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         if (message.State is LxmState.Delivered or LxmState.Cancelled) return;
         try { link.Teardown(); }
         catch (Exception) { /* already closed */ }
-        message.NextAttempt = Now + _options.DeliveryRetryWait.TotalSeconds;
+        ScheduleAttempt(message, OutboundTarget(message));
         message.State = LxmState.Outbound;
         _wake.Release();
     }

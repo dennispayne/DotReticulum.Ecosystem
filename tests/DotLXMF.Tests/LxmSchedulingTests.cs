@@ -1,11 +1,68 @@
 using System.Text.Json;
+using System.Threading.Channels;
 using DotReticulum.Core;
+using DotReticulum.Interfaces;
+using DotReticulum.Transport;
 
 namespace DotLXMF.Tests;
 
 [Trait("Category", "Unit")]
 public class LxmSchedulingTests
 {
+    private sealed class Clock : TimeProvider
+    {
+        private double _seconds;
+        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UnixEpoch.AddSeconds(1_000_000 + _seconds);
+        public void Advance(double seconds) => _seconds += seconds;
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) => new InertTimer();
+        private sealed class InertTimer : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+            public void Dispose() { }
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class Medium(long bitrate) : IPacketInterface
+    {
+        private readonly Channel<ReadOnlyMemory<byte>> _inbound = System.Threading.Channels.Channel.CreateBounded<ReadOnlyMemory<byte>>(1);
+        public long Bitrate => bitrate;
+        public int Sent { get; private set; }
+        public ValueTask StartAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+        public ValueTask SendAsync(ReadOnlyMemory<byte> packet, CancellationToken cancellationToken) { Sent++; return ValueTask.CompletedTask; }
+        public IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveAsync(CancellationToken cancellationToken) => _inbound.Reader.ReadAllAsync(cancellationToken);
+        public ValueTask DisposeAsync() { _inbound.Writer.TryComplete(); return ValueTask.CompletedTask; }
+    }
+
+    [Theory]
+    [InlineData(1000, 14, 60)]
+    [InlineData(10000, 7, 7)]
+    public async Task RuntimePathRequests_UseOnlineMediumAndDebounceUntilStrictBoundary(long bitrate, double pathWait, double debounce)
+    {
+        var clock = new Clock();
+        var medium = new Medium(bitrate);
+        await using var interfaces = new PacketInterfaceManager([medium]);
+        await interfaces.StartAsync();
+        var transport = new TransportRouter(interfaces, new TransportRouterOptions { TimeProvider = clock });
+        using var identity = Identity.Generate();
+        await using var router = new LxmRouter(transport, identity);
+        var destination = new byte[16];
+        Assert.Equal(pathWait, router.PathRequestWait, 6);
+        Assert.Equal(bitrate < 2000, router.SlowInterfaceOnline);
+        Assert.True(await router.RequestPathAsync(destination));
+        Assert.True(router.PathRequestPending(destination));
+        Assert.False(await router.RequestPathAsync(destination));
+        clock.Advance(debounce - 0.001);
+        Assert.False(await router.RequestPathAsync(destination));
+        clock.Advance(0.001);
+        Assert.True(await router.RequestPathAsync(destination));
+        Assert.Equal(2, medium.Sent);
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => router.RequestPathAsync(destination, cancelled.Token));
+        Assert.Equal(2, medium.Sent);
+    }
+
     // GenerateLxmSchedulingVectors.py executes LXMRouter.py at e8ba02483217af43be284a72f1c059c730b7d047.
     [Fact]
     public void AttemptSchedules_MatchActualRouterMediumAndAirtimePolicies()

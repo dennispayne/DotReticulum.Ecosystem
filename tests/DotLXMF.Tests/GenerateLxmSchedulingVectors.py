@@ -141,4 +141,20 @@ for direct_idle, propagation_idle in ((600.0, 180.0), (600.001, 180.001)):
                      validated_links=len(router.validated_peer_links),
                      accepted_offers=len(router.accepted_offer_links)))
 output["idle"] = idle
+router.outbound_processing_lock = threading.Lock()
+router.direct_links = {destination: SimpleNamespace(status=RNS.Link.ACTIVE)}
+router.backchannel_links = {}
+router.slow_path_cache.clear()
+medium.first_hop, medium.timeout = 6.0, 0.0
+has_path = True
+message = SimpleNamespace(method=LXMF.LXMessage.DIRECT, state=LXMF.LXMessage.OUTBOUND,
+                          destination_hash=destination, delivery_attempts=1, max_delivery_attempts=None,
+                          progress=0.0)
+message.get_destination = lambda: SimpleNamespace(hash=destination)
+message.set_delivery_destination = lambda link: None
+message.send = lambda: setattr(message, "state", LXMF.LXMessage.SENDING)
+router.pending_outbound = [message]
+router.process_outbound()
+assert message.state == LXMF.LXMessage.SENDING
+output["active_link_send_attempts"] = message.delivery_attempts
 Path(sys.argv[1]).write_text(json.dumps(output, indent=2) + "\n", encoding="utf-8")

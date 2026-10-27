@@ -233,7 +233,7 @@ public class LiveLxmfTopologyTests
         var received = await topology.Python.NextAsync("received", 0, TimeSpan.FromSeconds(10));
         Assert.Equal(Convert.ToHexStringLower(message.Hash!), received.GetProperty("hash").GetString());
         Assert.Equal(1, topology.Interface.Dropped);
-        Assert.True(message.DeliveryAttempts >= (method == LxmMethod.Direct ? 3 : 2));
+        Assert.True(message.DeliveryAttempts >= 2);
         Assert.Equal(1, topology.Python.Count("received"));
     }
 

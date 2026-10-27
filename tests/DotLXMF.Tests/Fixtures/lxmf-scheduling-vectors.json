@@ -266,5 +266,6 @@
       "validated_links": 0,
       "accepted_offers": 0
     }
-  ]
+  ],
+  "active_link_send_attempts": 1
 }

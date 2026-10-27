@@ -59,7 +59,11 @@ pwsh -NoProfile -File tests\run-pester.ps1
 
 The Pester suite requires Pester 5.7.1 or later. Reference-dependent cases explicitly skip when the environment variables are absent; with them set, a missing or incorrect reference fails.
 
+LXST live session/telephone cases have their own opt-in, `DOTLXST_LIVE=1`, in addition to the Python/RNS/LXST source paths above. Enabling LXMF live mode alone does not enable them.
+
 Headless native codec cases require `DOTLXST_NATIVE=1` with compatible Opus and Codec2 libraries installed. Without that opt-in they skip explicitly; these are native bitstream tests, not live Reticulum call or audio-device evidence.
+
+Telephone audio cases additionally require `DOTLXST_VIRTUAL_AUDIO=1` on Linux with PulseAudio and its `pactl`, `pacat` and `parec` tools. They use virtual audio, not physical microphone/speaker or audio-quality acceptance.
 
 ## Language ownership
 

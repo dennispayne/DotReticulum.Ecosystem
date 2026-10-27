@@ -1,6 +1,6 @@
 # DotReticulum.Ecosystem
 
-Native C# / .NET 10 implementations of the applications and protocols layered on top of [Reticulum](https://reticulum.network): LXMF and a .NET-specific telemetry tool today, with LXST, Sideband, NomadNet and others as possible future projects. Everything here is built on [DotReticulum](https://github.com/dennispayne/DotReticulum), the .NET implementation of the Reticulum Network Stack itself.
+Native C# / .NET 10 implementations of the applications and protocols layered on top of [Reticulum](https://reticulum.network): partial LXMF and LXST implementations and a .NET-specific telemetry tool. Everything here is built on [DotReticulum](https://github.com/dennispayne/DotReticulum), the .NET implementation of the Reticulum Network Stack itself.
 
 > [!WARNING]
 > DotReticulum.Ecosystem is an **experiment in having an LLM build Reticulum-ecosystem software**, started in the spirit of doing odd things in .NET just to see whether they work. Almost all of its code, tests and documentation were written by AI coding agents under human direction. It is experimental, **not** audited, and **not** for production or security-critical use. Be careful with it.
@@ -15,9 +15,9 @@ Native C# / .NET 10 implementations of the applications and protocols layered on
 
 | Project | Upstream | Status |
 | --- | --- | --- |
-| [`DotLXMF`](src/DotLXMF) | [LXMF](https://github.com/markqvist/LXMF) 1.2.1 | Implemented in part: message format, signing, stamps, opportunistic and direct delivery. No propagation nodes, tickets or delivery-destination ratchets. See [docs/lxmf.md](docs/lxmf.md) |
+| [`DotLXMF`](src/DotLXMF) | [LXMF](https://github.com/markqvist/LXMF) 1.2.1 | Partial: messages, stamps, direct/opportunistic delivery, ratchets, tickets, propagation components and NativeAOT `lxmd`. Full propagation/daemon compatibility is not established. See [docs/lxmf.md](docs/lxmf.md) |
 | [`DotTelemetry`](src/DotTelemetry) | None: a DotReticulum-specific format, not part of upstream Reticulum or LXMF | Implemented: `telemetry` daemon and viewer. No Python interoperability target. See [docs/telemetry.md](docs/telemetry.md) |
-| DotLXST | [LXST](https://github.com/markqvist/LXST) | Not started |
+| [`DotLXST`](src/DotLXST) | [LXST](https://github.com/markqvist/LXST) 0.4.5 | Partial: framing, native Opus/Codec2, audio processing, stream sessions, telephony and Linux `rnphone`. Full API/utility/platform parity is not complete. See [docs/lxst.md](docs/lxst.md) |
 | DotSideband | [Sideband](https://github.com/markqvist/Sideband) | Not started. Sideband depends on RNS, LXMF and LXST, so it would need DotLXST for voice calls |
 | DotNomad | [NomadNet](https://github.com/markqvist/NomadNet) | Not started |
 
@@ -25,9 +25,11 @@ A project listed as not started is an idea, not a commitment.
 
 ## Upstream
 
-Reticulum, LXMF, LXST, Sideband and NomadNet are separate projects by Mark Qvist; the Python code of each is its reference implementation. The links above are the public GitHub repositories, the easiest place to browse the upstream code. The Reticulum stack's own primary home is hosted on the Reticulum network (`rns://7649a50d84610232d1416b41d2896aff/reticulum/reticulum`, see [DotReticulum](https://github.com/dennispayne/DotReticulum)); this repository has not verified where development of the other projects takes place, so check each repository's README.
+Reticulum, LXMF, LXST, Sideband and NomadNet are separate projects by Mark Qvist; the Python code of each is its reference implementation. The links above are public GitHub mirrors. RNS, LXMF and LXST source histories were also retrieved with native .NET `rngit` from Reticulum host `7649a50d84610232d1416b41d2896aff`, repositories `reticulum/reticulum`, `reticulum/lxmf` and `reticulum/lxst`. Source-object verification is not publisher authentication; see [CONTRIBUTING.md](CONTRIBUTING.md) for seed disclosure and provenance.
 
-Targeted: LXMF 1.2.1 on RNS 1.5.7 (upstream commit `a29bfb51c468945c96a1ee22cae0114e993e2391`), as pinned in `tests/Interop/reference_environment.py`.
+Targets pinned in `tests/Interop/reference_environment.py`: RNS 1.5.7 (`a29bfb51c468945c96a1ee22cae0114e993e2391`), LXMF 1.2.1 (`e8ba02483217af43be284a72f1c059c730b7d047`) and LXST 0.4.5 (`3b596f48ddd252ddc9c315ef8f3020cfd3688223`). Newer observed upstream releases do not change these targets.
+
+LXST's reference source is CC BY-NC-ND 4.0, not Reticulum-licensed. DotLXST is independently authored from factual protocol contracts and observed reference outputs; upstream source, sounds and native codec libraries are not bundled. Native dependencies require separate installation and retain their own licenses. See [docs/lxst.md](docs/lxst.md).
 
 ## Getting the code
 
@@ -53,18 +55,25 @@ Live interoperability tests are opt-in and need the pinned Python reference: set
 | LXMF message format, signing, hashing, stamps | Reference-generated vectors; messages opened by upstream LXMF both ways |
 | Opportunistic and direct delivery, large Resources | Live against Python `LXMRouter` in both directions |
 | Delivery to `lxmd` | Live delivery to a real `lxmd` destination; this does not establish propagation support |
-| Propagation, tickets, ratchets, an `lxmd` equivalent | Not implemented |
+| Tickets and delivery ratchets | Implemented components; exact persistence and live acceptance boundaries are in [docs/lxmf.md](docs/lxmf.md) |
+| Propagation and native `lxmd` | Partial; direct delivery does not prove propagation synchronization or complete daemon compatibility |
+| LXST framing and codecs | Executed upstream vectors; native Opus/Codec2 bitstream cases verified in WSL |
+| LXST stream sessions and telephone calls | Live Python in both call directions, direct and through Python/.NET transport hops, using virtual audio; remaining profile/failure/device gaps are in [docs/lxst.md](docs/lxst.md) |
+| LXST headless audio processing | Reference-executed resampling, filters/AGC, tone, bounded mixing and pipeline cases; no physical audio-quality claim |
+| `rnphone` | Partial; native utility coverage is not full upstream API/platform parity |
 | Telemetry (`telemetry`) | .NET-only: nodes publish and view reports through direct links and a .NET `rnsd` hop; no upstream counterpart |
 
-The Reticulum stack's own compatibility status and platform support are documented in the [DotReticulum README](https://github.com/dennispayne/DotReticulum#compatibility). Platform behavior here follows from it; nothing in this repository has been verified separately on other platforms.
+The Reticulum stack's own compatibility status and platform support are documented in the [DotReticulum README](https://github.com/dennispayne/DotReticulum#compatibility). Ecosystem managed and native checks have run on Windows and WSL/Linux; these do not establish macOS, physical-audio or RF compatibility. COM8 RAK4631/RNode identification was read-only; one radio does not establish an RF topology.
 
 ## Versioning
 
-Each project carries the **upstream release it targets, plus a build number**, like DotReticulum does. `DotLXMF` is `1.2.1.<height>`: the first three components are the LXMF release, entered by hand in [`src/DotLXMF/version.json`](src/DotLXMF/version.json); the last is the git height from [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning), which resets when the upstream number changes. A version names the target, not completed parity. Every project in this repository gets its own `version.json` for its own upstream. `DotTelemetry` has no upstream, so it uses its own `0.1.<height>` number.
+Each project carries the **upstream release it targets, plus a build number**, like DotReticulum does. `DotLXMF` and `lxmd` target `1.2.1.<height>`; `DotLXST` and `rnphone` target `0.4.5.<height>`. The first three components are the upstream release, entered by hand in each project's `version.json`; the last is the git height from [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning), which resets when the upstream number changes. A version names the target, not completed parity. `DotTelemetry` has no upstream, so it uses its own `0.1.<height>` number.
 
 ### Releases
 
-The only release artifact is the `telemetry` executable. A release is a `telemetry-v<version>` tag on `main` (for example `telemetry-v0.1.12`). Create it with `pwsh tools/new-release-tag.ps1` and push it; the [Release workflow](.github/workflows/release.yml) then builds NativeAOT zips for `linux-x64`, `win-x64` and `osx-arm64` with SHA-256 checksums and attaches them to a GitHub release. A manual run builds the zips as artifacts without publishing. DotLXMF is a library consumed through the submodule and has no release artifact. macOS is built but not verified.
+Releases are tag-driven NativeAOT executable packages with SHA-256 checksums. Use `pwsh tools/new-release-tag.ps1 -Application lxmd`, choosing `telemetry`, `lxmd` or `rnphone`. Tags are `telemetry-v0.1.<height>`, `lxmd-v1.2.1.<height>` or `rnphone-v0.4.5.<height>` on `main`; pushing one invokes the [Release workflow](.github/workflows/release.yml). A manual run packages without publishing. No release is implied by local validation.
+
+`telemetry` and `lxmd` package `linux-x64`, `win-x64` and `osx-arm64`; macOS ecosystem feature acceptance remains unverified. `rnphone` packages only `linux-x64` because its audio backend requires PulseAudio; install the native libraries described in [docs/lxst.md](docs/lxst.md). The libraries have no separate release artifact.
 
 ## Contributing
 

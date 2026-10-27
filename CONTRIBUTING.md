@@ -39,16 +39,23 @@ Live tests compare against the actual Python reference and are skipped unless en
 
 LXMF 1.2.1 is pinned to the PyPI wheel SHA-256 `4bd95325b00e5fae81241e28f26a5ed22b38fea941e128d1c63a33c99e931440` and every shipped Python source file is fingerprinted. A matching installed distribution version alone is insufficient. The inspected GitHub mirror has no 1.2.1 tag and reports 1.2.0 at its HEAD; do not claim that mirror revision as the release's source provenance.
 
+LXST targets mirror revision `721b2eee6dd37606e423914a4937a11a3c3a761f` (0.4.5). Set `DOTRETICULUM_LXST_UPSTREAM` to its clean checkout and install its declared dependencies into the isolated reference venv. `--require-lxst` verifies the actual imported checkout, revision and version. The verifier allows upstream's generated `filterlib` extension and CFFI cache C file, but no tracked modifications or additional source modules. These are native build outputs, not reference-side behavior shims. This mirror pin does not establish primary-host provenance.
+
+The LXST source has a different license (CC BY-NC-ND 4.0); do not copy, translate, redistribute or assume the root Reticulum License applies to it. DotLXST must remain independently authored from factual protocol contracts and observed reference behavior. Native codec dependencies have their own licenses; see `docs/lxst.md`.
+
 Obtain RNS updates with DotReticulum's `rngit fetch` and verify the objects; the GitHub mirror is only a secondary comparison source. Disclose reference-side shims and non-default peer limits (for example an `lxmd` transfer-size limit). Unsupported test modes must explicitly skip rather than return a false pass.
 
 Run provenance acceptance and rejection tests with the reference environment variables set:
 
 ```powershell
 & $env:DOTRETICULUM_PYTHON tests\Interop\reference_environment.py --require-lxmf
+& $env:DOTRETICULUM_PYTHON tests\Interop\reference_environment.py --require-lxmf --require-lxst
 pwsh -NoProfile -File tests\run-pester.ps1
 ```
 
 The Pester suite requires Pester 5.7.1 or later. Reference-dependent cases explicitly skip when the environment variables are absent; with them set, a missing or incorrect reference fails.
+
+Headless native codec cases require `DOTLXST_NATIVE=1` with compatible Opus and Codec2 libraries installed. Without that opt-in they skip explicitly; these are native bitstream tests, not live Reticulum call or audio-device evidence.
 
 ## Language ownership
 

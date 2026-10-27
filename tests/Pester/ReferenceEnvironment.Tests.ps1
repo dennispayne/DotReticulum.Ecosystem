@@ -8,11 +8,18 @@ BeforeAll {
     function Invoke-ReferenceCheck {
         param(
             [string] $Root = $script:upstream,
-            [string] $ModulePath = $Root
+            [string] $ModulePath = $Root,
+            [switch] $Lxst,
+            [string] $LxstRoot = $env:DOTRETICULUM_LXST_UPSTREAM
         )
         $start = [System.Diagnostics.ProcessStartInfo]::new($script:python)
         $start.ArgumentList.Add($script:verifier)
         $start.ArgumentList.Add('--require-lxmf')
+        if ($Lxst) {
+            $start.ArgumentList.Add('--require-lxst')
+            $start.Environment['DOTRETICULUM_LXST_UPSTREAM'] = $LxstRoot
+            $ModulePath += [IO.Path]::PathSeparator + $LxstRoot
+        }
         $start.Environment['DOTRETICULUM_UPSTREAM'] = $Root
         $start.Environment['PYTHONPATH'] = $ModulePath
         $start.Environment['PYTHONIOENCODING'] = 'utf-8'
@@ -28,6 +35,7 @@ BeforeAll {
                 $process.WaitForExit()
                 throw 'Reference verification exceeded 30 seconds.'
             }
+
             @{
                 ExitCode = $process.ExitCode
                 Output = $stdout.GetAwaiter().GetResult()
@@ -90,5 +98,23 @@ Describe 'Pinned reference provenance' -Tag Integration -Skip:(!$env:DOTRETICULU
         $result = Invoke-ReferenceCheck -ModulePath $path
         $result.ExitCode | Should -Not -Be 0
         $result.Error | Should -Match 'LXMF source LXMF.py does not match the pinned wheel'
+    }
+}
+
+Describe 'Pinned LXST provenance' -Tag Integration -Skip:(!$env:DOTRETICULUM_PYTHON -or !$env:DOTRETICULUM_UPSTREAM -or !$env:DOTRETICULUM_LXST_UPSTREAM) {
+    It 'accepts the exact imported checkout including upstream-generated native filter outputs' {
+        $result = Invoke-ReferenceCheck -Lxst
+        $result.ExitCode | Should -Be 0 -Because $result.Error
+        ($result.Output | ConvertFrom-Json).lxst_revision | Should -Be '721b2eee6dd37606e423914a4937a11a3c3a761f'
+    }
+
+    It 'rejects untracked LXST source despite allowing native filter build outputs' {
+        $checkout = Join-Path $TestDrive 'lxst-extra'
+        git clone --quiet --no-hardlinks $env:DOTRETICULUM_LXST_UPSTREAM $checkout 2>&1 | Out-Null
+        $LASTEXITCODE | Should -Be 0
+        Set-Content -LiteralPath (Join-Path $checkout 'LXST\unexpected_reference_module.py') -Value ''
+        $result = Invoke-ReferenceCheck -Lxst -LxstRoot $checkout
+        $result.ExitCode | Should -Not -Be 0
+        $result.Error | Should -Match 'Reference LXST source contains modifications or untracked files'
     }
 }

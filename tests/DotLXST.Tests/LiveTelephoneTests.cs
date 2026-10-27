@@ -41,7 +41,8 @@ public sealed class LiveTelephoneTests
         var relayDispatch = relayRouter?.RunAsync(stop.Token) ?? Task.CompletedTask;
         await using var relayPython = topology == "python-hop" ? await LxstPythonNode.StartAsync(relayPort, transport: true) : null;
         await using var python = await LxstPythonNode.StartAsync(port, telephone: true, pulseServer: pulse.Address, connectPort: relayPort);
-        await using var manager = new PacketInterfaceManager([new TcpClientPacketInterface("127.0.0.1", relayPort == 0 ? port : relayPort)]);
+        var impaired = new ImpairedPacketInterface(new TcpClientPacketInterface("127.0.0.1", relayPort == 0 ? port : relayPort));
+        await using var manager = new PacketInterfaceManager([impaired]);
         await using var router = new TransportRouter(manager, new TransportRouterOptions());
         using var identity = Identity.Generate();
         await using var telephone = new TelephoneEndpoint(router, identity,
@@ -74,6 +75,7 @@ public sealed class LiveTelephoneTests
             // Let the upstream ringtone/dial-tone buffers drain before observing
             // the isolated output monitor for our distinctive generated tone.
             await Task.Delay(1500, stop.Token);
+            impaired.Enabled = true;
             var recorded = pulse.RecordOutputAsync(48000 * 2 * 2, stop.Token);
             for (var i = 0; i < 80; i++)
             {
@@ -88,6 +90,20 @@ public sealed class LiveTelephoneTests
             Assert.True(frequencyEnergy > .00001,
                 $"The virtual output lacked the generated tone (energy {frequencyEnergy}, peak {observed.Max(Math.Abs)}).");
             Assert.Contains(audio, frame => frame.SampleRate == 48000 && frame.Channels == 2);
+            Assert.True(impaired.OutboundDrops > 0);
+            Assert.True(impaired.InboundDrops > 0);
+            Assert.Equal(CallState.Established, telephone.State);
+            impaired.Enabled = false;
+            var beforeRecovery = audio.Count;
+            var recoveredRecording = pulse.RecordOutputAsync(48000 * 2, stop.Token);
+            for (var index = 0; index < 60; index++)
+            {
+                var samples = Enumerable.Range(index * 480, 480).Select(sample => (float)(.2 * Math.Sin(2 * Math.PI * 880 * sample / 24000))).ToArray();
+                await telephone.SendAudioAsync(new(samples, 24000, 1), stop.Token);
+                await Task.Delay(20, stop.Token);
+            }
+            Assert.True(ToneEnergy(await recoveredRecording, 880) > .00001, "Python playback did not recover after loss was removed.");
+            await LiveStreamTests.WaitForAsync(() => audio.Count > beforeRecovery + 2);
             if (relayPort == 0)
                 await VerifyProfileSwitchesAsync(telephone, python, audio, pythonOriginates, stop.Token);
             await python.CommandAsync("hangup", "hungup");

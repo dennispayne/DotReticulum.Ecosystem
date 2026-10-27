@@ -83,7 +83,7 @@ they are not an exhaustive method-by-method acceptance checklist.
 | Application namespace `lxst` | implemented | `LXST/__init__.py`; `TelephoneEndpoint` |
 | MessagePack map envelope; signalling key `0`, frame key `1` | implemented | `Network.py`; `StreamPacketTests` reference bytes |
 | Signalling scalar/list reception, immediate arbitrary MessagePack send, receiver callbacks | implemented | `Network.py`; reference-executed nil, bool, text, bytes, integer/uint64, float, nested list/map and extension vectors; bidirectional live direct/.NET-hop/Python-hop tests |
-| Arbitrary non-telephone signal values, subclass/proxy API shape | partial | `StreamPacket.Signals` and `StreamSession.SignalValueReceived` expose tested values without reflection; compatible integer-only `SignalReceived` filters telephone values; event composition replaces Python subclass/proxy wiring; nil/composite/nonfinite map keys remain unsupported by the stack serializer |
+| Arbitrary non-telephone signal values, subclass/proxy API shape | implemented | `StreamPacket.Signals` and `StreamSession.SignalValueReceived` expose values without reflection; compatible integer-only `SignalReceived` filters telephone values; event composition replaces Python subclass/proxy wiring; eight nil/NaN/infinity/tuple-key maps execute the actual receiver and both live directions on all three topologies |
 | Deferred/in-band signalling scheduling | upstream-placeholder | `Network.py`, `signal(immediate=False)` and TODOs |
 | Codec discriminator before each encoded frame; raw `0`, Opus `1`, Codec2 `2` | implemented | `Codecs/__init__.py`; all-codec live stream tests |
 | Null codec identity operation; no packetizer mapping for Null | implemented | `Audio.NullAudioCodec` preserves object identity against actual reference observations; deliberately has no wire discriminator |
@@ -127,20 +127,20 @@ effect. The .NET configurable interval is an explicit extension.
 | Codec2 modes 700C, 1200, 1300, 1400, 1600, 2400 and 3200; default 2400 | implemented | Exact bitstreams and decoded sample vectors for all seven modes |
 | Codec2 mode header, whole-frame aggregation/truncation, mode changes, unknown-header fallback | implemented | Actual primary stateful decode→encode sequence changes 2400→700→700→3200→1200→2400 and tests unknown-header fallback after every step |
 | Codec2 signed-16-bit scaling and 8 kHz input | implemented | `NativeCodec2`; actual upstream encode/decode vectors |
-| Codec2 arbitrary-rate resampling | missing | Supply explicit 8 kHz samples; no hidden resampler |
+| Codec2 arbitrary-rate resampling | implemented | Explicit `Audio.ResamplingAudioCodec` composes raw PCM rate conversion with the native adapter; primary non-native-rate vectors |
 | Nine Opus voice/audio profiles; channel/rate/application/byte-ceiling selection | implemented | Exact bitstream/decode vectors for all nine profiles at all six durations |
 | Opus 2.5/5/10/20/40/60 ms frames | implemented | All 54 profile/duration combinations executed upstream and strictly compared |
 | Opus channel conversion | implemented | All nine profiles with distinct mono, stereo and three-channel input execute the primary truncation/last-channel expansion path and compare exact encoded bytes |
-| Opus arbitrary-rate resampling | missing | Supply audio at the selected codec sample rate |
+| Opus arbitrary-rate resampling | implemented | Explicit `Audio.ResamplingAudioCodec` uses primary-equivalent signed-16-bit byte resampling; non-native-rate Opus exact-bitstream comparison |
 | Opus decoder output configuration and encoder/decoder lifetime | implemented | Explicit rate/channels and disposal; malformed/disposed-native-handle tests |
 | Partial Opus input-frame padding | upstream-placeholder | `Codecs/Opus.py`, TODO in `encode` |
 | Resample functions, normalize option and supported channel handling | partial | `AudioResampler`; actual reference vectors cover rate conversion, normalization and mono/stereo; no portable float128 claim |
-| Pipeline source/codec/sink wiring, processor slot, codec replacement and start/stop | partial | Original headless `AudioPipeline` has synchronized codec replacement and async lifecycle; its audio-frame sink boundary performs a codec round trip, not the complete Python encoded-sink/proxy surface |
+| Pipeline source/codec/sink wiring, processor slot, codec replacement and start/stop | implemented | `AudioPipeline.CreateEncoded` sends typed encoded frames without decoding; non-owning `StreamSessionAudioSink` adapts actual sessions; existing audio-roundtrip constructor preserved; the reference processor parameter is unused, while optional .NET processor composition is an extension |
 | Mixer buffering, per-source limits, gain, mute, channel conversion and timed output | implemented | Original bounded `AudioMixer`; reference output and lifecycle tests |
 | General mixer source resampling | upstream-placeholder | `Mixer.py`, TODO for all source types |
 | High-pass, low-pass, band-pass and automatic gain-control state | implemented | Original managed filters; vectors executed against actual primary Python/native filter path |
 | Tone frequency, gain, easing, frame duration and start/stop | implemented | `ToneAudioSource`; actual generator vectors and async source lifecycle tests |
-| Line capture/playback, preferred devices, buffers, gain, filters and low latency | partial | Linux CLI capture/playback exists; upstream buffering/gain/filter/low-latency contracts remain missing |
+| Line capture/playback, preferred devices, buffers, gain, filters and low latency | partial | Linux CLI capture/playback and runtime replacement exist; actual LineSource skip/easing vectors drive `AudioCaptureEnvelope`; gain/filters reuse endpoint processing; complete backend buffering and low-latency-toggle contracts remain missing |
 | Loopback source/sink and buffering | implemented | `Audio.LoopbackAudioBridge`; executed relay/lifecycle observations; bounded queue/clock behavior is a .NET extension, not an upstream buffering claim |
 | Opus file playback, looping/timing and writing/finalizing | implemented | Original bounded file source/sink; actual Python files and .NET files cross-decode with identical samples; caller-owned source/sink `FilePlayer`/`FileRecorder` support stop/restart, live loop toggle, completion and safe concurrent disposal |
 
@@ -176,7 +176,7 @@ capture/playback quality claim follows from these headless processing tests.
 | `[hardware]`: `keypad`, `keypad_hook_pin`, `display` | missing | `Utilities/rnphone.py`, `apply_config` |
 | Commented amplifier-mute options | upstream-placeholder | Default config mentions `amp_mute_pin`/`amp_mute_level`; `apply_config` does not consume them |
 | `ignored` and `allowed` paths | upstream-placeholder | `reload_config` assigns paths; no persistence implementation established |
-| GPIO 4x4 keypad events, hook and key maps; I2C LCD1602 text/sleep/wake | missing | `Primitives/hardware/*.py`; 5x5 is a non-target mirror addition |
+| GPIO 4x4 keypad events, hook and key maps; I2C LCD1602 text/sleep/wake | partial | Fakeable `Hardware.MatrixKeypad` and `Lcd1602` match actual primary driver GPIO/I2C operations and hook/rollover/text/backlight vectors; no physical backend/configuration or peripheral execution; 5x5 is a non-target mirror addition |
 | Example programs: file player/recorder/source, filters, mixer, pipelines, tone generator | missing | `examples/*.py`; these are examples, not additional installed console entry points |
 
 ### Dependencies and platform evidence
@@ -200,13 +200,13 @@ not implicitly covered by the network interfaces. This is not full API parity:
 
 | Reference surface | Status and boundary |
 |---|---|
-| `Codecs/Codec.py`: `Null.encode/decode`, `resample`, `resample_bytes` | Partial: `NullAudioCodec` preserves identity; `AudioResampler` covers tested normalized audio frames; raw-byte overload remains missing; codec adapters still require an explicit supported input rate |
+| `Codecs/Codec.py`: `Null.encode/decode`, `resample`, `resample_bytes` | Implemented: identity codec, tested normalized audio resampling, raw signed-PCM byte overload and explicit rate-converting codec composition; no float128 platform claim |
 | `Codecs/Opus.py`: `set_profile`, `update_bitrate`, output counters | Implemented pre-encode `SetProfile`, byte-budget `UpdateBitrate` and output statistics; actual primary rejects every post-encode `set_profile` call, including an unchanged profile; .NET does likewise. Decoder output configuration remains independent of encoder profile changes |
 | `Network.py`: `handle_signalling_from`, Packetizer/LinkSource `start/stop` | Implemented through original event composition and explicit `StreamSession` lifetime, including arbitrary MessagePack signals; no Python inheritance/API-shape claim |
 | `Filters.py`: `Filter`, `HighPass`, `LowPass`, `BandPass`, `AGC.handle_frame` | Implemented original managed `AudioFilter` processors with actual-reference vectors |
 | `Generators.py`: `ToneSource` codec/running/start/stop | Implemented original `ToneAudioSource`, with gain/easing and cancellable enumeration |
 | `Mixer.py`: start/stop, gain/mute, per-source frame limits, can-receive, source/sink/codec wiring | Implemented bounded timed `AudioMixer`; source/codec composition uses explicit C# interfaces |
-| `Pipeline.py`: codec/sink/running and start/stop | Partial original headless source→processor→codec→audio-sink pipeline; lifecycle/replace/stop/disposal are tested, broader encoded-sink/proxy behavior remains incomplete |
+| `Pipeline.py`: codec/sink/running and start/stop | Implemented original source→codec→typed encoded sink composition, session adapter and lifecycle/replace/stop/disposal; source/codec ownership remains explicit; optional .NET processor execution is not attributed to the unused upstream parameter |
 | `Sources.py`: `get_backend`, backend device listing/recorder ownership; `Loopback`; `LineSource` gain/codec/start/stop; `OpusFileSource` | Partial Linux device I/O, headless loopback and streaming Opus file source; general backends and line-device gain controls remain missing |
 | `Sinks.py`: `get_backend`, backend device listing/player ownership; Sink/RemoteSink/LocalSink; LineSink low latency; OpusFileSink queue/finalization | Partial Linux I/O and Ogg Opus recording; explicit async backpressure instead of a Python frame deque; full hierarchy/low-latency parity missing |
 | `Primitives/Players.py`: FilePlayer state, completion callback, source, loop/start/stop/play | Implemented device-independent `FilePlayer`; callback timing is asynchronous, not Python's polling schedule; source replacement requires stopped playback |
@@ -215,7 +215,7 @@ not implicitly covered by the network interfaces. This is not full API parity:
 | `Primitives/Telephony.py`: external busy override | Implemented; real incoming rejection followed by clearing busy and accepting the next call is integration-tested |
 | `Primitives/Telephony.py`: Profiles labels/abbreviations/index/next helpers | Implemented `TelephoneProfiles`; executed primary labels, abbreviations, frame durations and ordering; CLI profile cycle follows low latency then ultra-low latency |
 | `Utilities/rnphone.py`: ReticulumTelephone reload/apply config, keypad/hook/display enablement and hardware state; complete terminal menu/redial/status/signal behavior | Partial; supported CLI subset and persisted identity are tested, full utility behavior remains deferred |
-| `Primitives/hardware`: LCD print/clear/sleep/wake/close; Keypad hook/key-map/key-state/start/stop | Missing; no corresponding physical peripherals are verified |
+| `Primitives/hardware`: LCD print/clear/sleep/wake/close; Keypad hook/key-map/key-state/start/stop | Partial: fakeable bus/pin interfaces, explicit display initialization, owned/non-owned bus disposal, matrix transitions, 150 ms hook debounce, four-key rollover guard and scanner restart/error isolation; physical GPIO/I2C backends and utility wiring remain missing |
 | `Platforms/{linux,windows,darwin,android}` | Original Linux subprocess backend only; no translation or redistribution of upstream platform bindings |
 
 `Processing.py` contains no public function/class implementation in this release;
@@ -245,7 +245,7 @@ audio for help, version or configuration errors.
 `DotLXST.Audio` supplies a separately tested managed processor, mixer, generator
 and pipeline layer; the stream/session interfaces do not silently apply it.
 Endpoint AGC/band-pass processing is shared by the CLI. The CLI does not yet
-reproduce line-source initial skip/easing, dial/busy tones, hardware peripherals
+reproduce dial/busy tones, hardware peripherals
 or all persistence/configuration behavior. Configured ringtone playback is
 implemented without redistributing the upstream asset.
 
@@ -255,6 +255,11 @@ failed reload leaves the running process and prior settings intact. This atomic
 replacement is a deliberate .NET behavior: primary `reload_config` retains and
 merges existing phonebook/allow/block dictionaries and lists. Unknown settings
 and malformed hashes are rejected rather than silently ignored/skipped.
+`AudioCaptureEnvelope` reproduces the actual LineSource frame-delayed gain ramp
+and discarded threshold-crossing skip frame. Its vectors execute the unmodified
+ingest job using a disclosed synthetic recorder and deterministic clock, not a
+hardware capture claim. CLI capture applies the observed 75 ms skip and initial
+225 ms easing; subsequent profile/device restarts use zero easing.
 The native acceptance checks self-entry exclusion and identity/config persistence
 across process restart. No history/ignored/allowed file implementation is invented.
 
@@ -339,9 +344,9 @@ pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 
 
 Recorded results:
 
-- Windows deterministic/unit suite: **51 passed**.
+- Windows deterministic/unit suite: **55 passed**.
 - WSL full LXST suite against the actual primary-release checkout:
-  **101 passed, zero skipped**, including six real telephone topology cases,
+  **110 passed, zero skipped**, including six real telephone topology cases,
   sixteen initial-profile cases and six policy/rejection/timeout recovery cases.
 - Telephone lifecycle cases include a blocked sink proving that a second
   disposer cannot finish early, continued service after authorization/observer
@@ -367,6 +372,11 @@ Recorded results:
   reference fixture. The upstream loopback `buffer_time=70 ms` argument is unused:
   no matching latency is claimed. The .NET 128-frame drop-oldest bound, paced
   reads, cancellation and restart/disposal behavior are explicit extensions.
+- `GenerateHardwareVectors.py` executes actual primary keypad and LCD drivers
+  with disclosed fake GPIO/SMBus/clock boundaries. `HardwareTests` compares pin
+  configurations, every I2C write/delay, key transitions, hook debounce and
+  rollover rejection; scanner error/restart/disposal is separately exercised.
+  This is software-contract evidence, not physical GPIO/I2C support.
 
 Live stream cases use actual unmodified Python Packetizer/LinkSource and real
 Reticulum TCP links in three topologies: direct; through a .NET transport; and
@@ -379,7 +389,10 @@ Live telephony cases use actual unmodified Python `Telephone`, with both Python
 and .NET initiating in direct, .NET transport-hop and Python transport-hop
 topologies. They verify setup states, medium-quality Opus audio in both
 directions, a generated 440 Hz signal observed at Python's isolated output
-monitor, Python-to-.NET decoded frames and teardown. Direct cases also switch
+monitor, Python-to-.NET decoded frames and teardown. All six exercise targeted
+20% packet loss plus 5 ms delay in both directions after setup; audio continues
+without invented retransmission and a distinct 880 Hz tone is observed after
+the impairment is removed. Direct cases also switch
 through all eight profiles in both negotiation directions and exchange frames.
 This is virtual device
 evidence, not a listening test or proof of physical microphone/speaker quality.
@@ -394,7 +407,7 @@ matrices, hardware I/O and long-duration recovery remain unverified.
 ### Reticulum adapter guarantees and ownership
 
 The adapter uses public `Link.TrySend` and the exclusive
-`Link.RegisterPacketReceiver` lease at tested stack pin `158af8f`.
+`Link.RegisterPacketReceiver` lease at tested stack pin `985930d`.
 `TrySend` distinguishes a rejected local enqueue from successful receiptless
 enqueue; it does not invent delivery receipts or network reliability.
 The short core ingress receiver copies into a bounded queue and updates counters

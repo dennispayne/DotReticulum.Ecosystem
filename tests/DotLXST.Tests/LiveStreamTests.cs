@@ -86,7 +86,7 @@ public sealed class LiveStreamTests
                 {
                     var valueBytes = Convert.FromHexString(vector.GetProperty("signals")[0].GetString()!);
                     var beforeSignals = python.Count("signals");
-                    await session.SendSignalAsync(MsgPack.UnpackApplicationValue(valueBytes));
+                    await session.SendSignalAsync(MsgPack.UnpackApplicationValue(valueBytes, allowExtendedMapKeys: true));
                     var observedValue = await python.WaitAsync("signals", beforeSignals);
                     Assert.Equal(Convert.ToHexStringLower(valueBytes), observedValue.GetProperty("packed")[0].GetString());
                     var beforeValues = signalValues.Count;

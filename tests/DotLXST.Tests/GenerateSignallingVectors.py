@@ -47,7 +47,25 @@ def main():
         "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
         "network_sha256": hashlib.sha256((root / "LXST" / "Network.py").read_bytes()).hexdigest(),
         "vectors": vectors,
+        "key_boundaries": [],
     }
+    for label, key in [
+        ("nil", None), ("nan", float("nan")), ("positive-infinity", float("inf")),
+        ("negative-infinity", -float("inf")), ("empty-tuple", ()), ("tuple", (1, 2)),
+        ("nested-tuple", ((1, None), (b"key", True))), ("extension-tuple", (mp.Ext(42, b"key"),)),
+    ]:
+        data = mp.packb({0: [{key: "key-value"}]})
+        observed.clear()
+        receiver._packet(data, SimpleNamespace(link=destination))
+        output["key_boundaries"].append({
+            "kind": label, "encoded": data.hex(), "received": bool(observed),
+            "reencoded": mp.packb(observed[0][0]).hex() if observed else None,
+        })
+        if observed:
+            output["vectors"].append({
+                "kind": "map-key-" + label, "encoded": data.hex(),
+                "signals": [mp.packb(observed[0][0]).hex()],
+            })
     Path(args.output).write_text(json.dumps(output, indent=2) + "\n")
 
 

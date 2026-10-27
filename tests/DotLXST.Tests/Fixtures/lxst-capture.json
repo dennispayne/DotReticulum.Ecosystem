@@ -1,0 +1,195 @@
+{
+  "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+  "source_sha256": "cc7f2b9e44a63853b16c6ec2d0623302cee2549fc2bdf0a7636be7cea9ee4cf7",
+  "substitutes": "Synthetic recorder and deterministic clock only; actual LineSource ingestion and Null codec execute unchanged.",
+  "vectors": [
+    {
+      "gain": 0,
+      "ease": 0.225,
+      "skip": 0.075,
+      "frames": [
+        {
+          "elapsed": 0.06,
+          "sample": null
+        },
+        {
+          "elapsed": 0.12,
+          "sample": null
+        },
+        {
+          "elapsed": 0.18,
+          "sample": 0.0
+        },
+        {
+          "elapsed": 0.24,
+          "sample": 0.06666667014360428
+        },
+        {
+          "elapsed": 0.3,
+          "sample": 0.13333334028720856
+        },
+        {
+          "elapsed": 0.36,
+          "sample": 0.20000000298023224
+        },
+        {
+          "elapsed": 0.42,
+          "sample": 0.25
+        },
+        {
+          "elapsed": 0.48,
+          "sample": 0.25
+        },
+        {
+          "elapsed": 0.54,
+          "sample": 0.25
+        },
+        {
+          "elapsed": 0.6,
+          "sample": 0.25
+        }
+      ]
+    },
+    {
+      "gain": -6,
+      "ease": 0.125,
+      "skip": 0,
+      "frames": [
+        {
+          "elapsed": 0.06,
+          "sample": 0.0
+        },
+        {
+          "elapsed": 0.12,
+          "sample": 0.030142636969685555
+        },
+        {
+          "elapsed": 0.18,
+          "sample": 0.06028527393937111
+        },
+        {
+          "elapsed": 0.24,
+          "sample": 0.06279715895652771
+        },
+        {
+          "elapsed": 0.3,
+          "sample": 0.06279715895652771
+        },
+        {
+          "elapsed": 0.36,
+          "sample": 0.06279715895652771
+        },
+        {
+          "elapsed": 0.42,
+          "sample": 0.06279715895652771
+        },
+        {
+          "elapsed": 0.48,
+          "sample": 0.06279715895652771
+        },
+        {
+          "elapsed": 0.54,
+          "sample": 0.06279715895652771
+        },
+        {
+          "elapsed": 0.6,
+          "sample": 0.06279715895652771
+        }
+      ]
+    },
+    {
+      "gain": 3,
+      "ease": 0,
+      "skip": 0.075,
+      "frames": [
+        {
+          "elapsed": 0.06,
+          "sample": null
+        },
+        {
+          "elapsed": 0.12,
+          "sample": null
+        },
+        {
+          "elapsed": 0.18,
+          "sample": 0.4988155663013458
+        },
+        {
+          "elapsed": 0.24,
+          "sample": 0.4988155663013458
+        },
+        {
+          "elapsed": 0.3,
+          "sample": 0.4988155663013458
+        },
+        {
+          "elapsed": 0.36,
+          "sample": 0.4988155663013458
+        },
+        {
+          "elapsed": 0.42,
+          "sample": 0.4988155663013458
+        },
+        {
+          "elapsed": 0.48,
+          "sample": 0.4988155663013458
+        },
+        {
+          "elapsed": 0.54,
+          "sample": 0.4988155663013458
+        },
+        {
+          "elapsed": 0.6,
+          "sample": 0.4988155663013458
+        }
+      ]
+    },
+    {
+      "gain": 0,
+      "ease": 0,
+      "skip": 0,
+      "frames": [
+        {
+          "elapsed": 0.06,
+          "sample": 0.25
+        },
+        {
+          "elapsed": 0.12,
+          "sample": 0.25
+        },
+        {
+          "elapsed": 0.18,
+          "sample": 0.25
+        },
+        {
+          "elapsed": 0.24,
+          "sample": 0.25
+        },
+        {
+          "elapsed": 0.3,
+          "sample": 0.25
+        },
+        {
+          "elapsed": 0.36,
+          "sample": 0.25
+        },
+        {
+          "elapsed": 0.42,
+          "sample": 0.25
+        },
+        {
+          "elapsed": 0.48,
+          "sample": 0.25
+        },
+        {
+          "elapsed": 0.54,
+          "sample": 0.25
+        },
+        {
+          "elapsed": 0.6,
+          "sample": 0.25
+        }
+      ]
+    }
+  ]
+}

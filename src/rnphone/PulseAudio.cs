@@ -40,6 +40,7 @@ internal static class PulseAudio
 
     public static async Task CaptureAsync(TelephoneEndpoint telephone, Func<string?> deviceProvider, CancellationToken stop, Action? firstFrame = null)
     {
+        var firstRun = true;
         while (!stop.IsCancellationRequested && telephone.State == CallState.Established)
         {
             var reported = false;
@@ -50,6 +51,10 @@ internal static class PulseAudio
             if (device is not null) arguments.Add("--device=" + device);
             using var process = Start("parec", arguments, input: false, output: true);
             var errors = DrainErrorsAsync(process);
+            var clock = Stopwatch.StartNew();
+            var envelope = new AudioCaptureEnvelope(TimeSpan.FromSeconds(.075),
+                TimeSpan.FromSeconds(firstRun ? .225 : 0));
+            firstRun = false;
             try
             {
                 var bytes = new byte[rate * channels * duration / 1000 * sizeof(float)];
@@ -60,7 +65,9 @@ internal static class PulseAudio
                     var samples = new float[bytes.Length / sizeof(float)];
                     for (var i = 0; i < samples.Length; i++)
                         samples[i] = BinaryPrimitives.ReadSingleLittleEndian(bytes.AsSpan(i * sizeof(float), sizeof(float)));
-                    try { await telephone.SendAudioAsync(new(samples, rate, channels), stop).ConfigureAwait(false); }
+                    var frame = envelope.Process(new(samples, rate, channels), clock.Elapsed);
+                    if (frame is null) continue;
+                    try { await telephone.SendAudioAsync(frame, stop).ConfigureAwait(false); }
                     catch (ArgumentException) when (telephone.ActiveProfile != profile) { break; }
                     if (!reported) { reported = true; firstFrame?.Invoke(); }
                 }

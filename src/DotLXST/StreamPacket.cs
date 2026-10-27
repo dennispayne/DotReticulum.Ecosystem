@@ -51,7 +51,7 @@ public sealed class StreamPacket
 
     public static StreamPacket Decode(ReadOnlySpan<byte> data)
     {
-        if (MsgPack.UnpackApplicationValue(data, Limits) is not Dictionary<object, object?> fields)
+        if (MsgPack.UnpackApplicationValue(data, Limits, allowExtendedMapKeys: true) is not Dictionary<object, object?> fields)
             throw new FormatException("LXST envelope must be a map.");
         var frames = new List<EncodedFrame>();
         var signals = new List<object?>();

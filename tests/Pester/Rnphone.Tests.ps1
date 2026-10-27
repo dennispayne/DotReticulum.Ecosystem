@@ -141,6 +141,38 @@ Describe 'Published rnphone CLI' -Tag Integration, Native -Skip:(!$env:DOTLXST_R
 
 Describe 'Native rnphone configuration and phonebook persistence' -Tag Integration, Native, NativeUtility -Skip:(
     !$IsLinux -or (!$env:DOTLXST_RNPHONE_BINARY -and !$env:DOTRETICULUM_RNPHONE_BINARY)) {
+    It 'runs service mode without reading commands and handles SIGTERM cleanly before restart' {
+        $root = Join-Path $script:phoneArtifacts ('rnphone-service-' + [Guid]::NewGuid().ToString('N'))
+        $phoneConfig = Join-Path $root 'phone'
+        $rnsConfig = Join-Path $root 'rns'
+        New-Item -ItemType Directory -Force $phoneConfig, $rnsConfig | Out-Null
+        $phone = $null
+        try {
+            "[reticulum]`nshare_instance = no`n[logging]`nloglevel = 4`n[interfaces]`n" |
+                Set-Content (Join-Path $rnsConfig 'config')
+            $arguments = @('--service', '--config', $phoneConfig, '--rnsconfig', $rnsConfig)
+            $phone = Start-PhoneProcess $script:phoneBinary $arguments
+            Wait-PhoneLine $phone 'Reticulum Telephone ready' | Out-Null
+            $identity = Wait-PhoneLine $phone '^Identity hash:'
+            Send-PhoneLine $phone 'quit'
+            $phone.Process.StandardInput.Close()
+            $phone.Process.WaitForExit(200) | Should -BeFalse
+            (Invoke-PhoneCommand '/usr/bin/kill' @('-TERM', "$($phone.Process.Id)")).Code | Should -Be 0
+            $phone.Process.WaitForExit(10000) | Should -BeTrue
+            $phone.Process.ExitCode | Should -Be 0
+            Stop-PhoneProcess $phone
+            $phone = Start-PhoneProcess $script:phoneBinary $arguments
+            Wait-PhoneLine $phone 'Reticulum Telephone ready' | Out-Null
+            (Wait-PhoneLine $phone '^Identity hash:') | Should -BeExactly $identity
+            (Invoke-PhoneCommand '/usr/bin/kill' @('-TERM', "$($phone.Process.Id)")).Code | Should -Be 0
+            $phone.Process.WaitForExit(10000) | Should -BeTrue
+            $phone.Process.ExitCode | Should -Be 0
+        } finally {
+            Stop-PhoneProcess $phone
+            if (Test-Path $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+        }
+    }
+
     It 'matches executed primary phonebook aliases, reloads atomically and persists identity/config across restart' {
         $root = Join-Path $script:phoneArtifacts ('rnphone-config-' + [Guid]::NewGuid().ToString('N'))
         $phoneConfig = Join-Path $root 'phone'
@@ -336,7 +368,7 @@ target_port = $port
 
 Describe 'Two native rnphone processes with isolated virtual audio' -Tag Integration, Native, NativeLocal, NativeStandalone -Skip:(
     !$IsLinux -or (!$env:DOTLXST_RNPHONE_BINARY -and !$env:DOTRETICULUM_RNPHONE_BINARY) -or $env:DOTLXST_VIRTUAL_AUDIO -ne '1') {
-    It 'calls in both directions, captures and plays audio, switches profile, and shuts down without Python' {
+    It 'calls in both directions, routes ringback/ringtone/busy audio, switches devices/profile, and shuts down without Python' {
         $root = Join-Path $script:phoneArtifacts ('rnphone-local-' + [Guid]::NewGuid().ToString('N'))
         $firstConfig = Join-Path $root 'first'
         $secondConfig = Join-Path $root 'second'
@@ -356,6 +388,7 @@ load-module module-null-sink sink_name=lxst_output rate=48000 channels=2
 load-module module-null-source source_name=lxst_input rate=48000 channels=2
 load-module module-null-sink sink_name=lxst_ringer rate=48000 channels=2
 load-module module-null-sink sink_name=lxst_alternate rate=48000 channels=2
+load-module module-null-sink sink_name=lxst_busy rate=48000 channels=2
 load-module module-null-source source_name=lxst_alternate_input rate=48000 channels=2
 set-default-sink lxst_output
 set-default-source lxst_input
@@ -413,6 +446,7 @@ target_port = $port
             Send-PhoneLine $second $firstIdentity
             Wait-PhoneLine $first '^State: Ringing' | Out-Null
             Wait-PhoneSinkUsage $pulseAddress 'lxst_ringer'
+            Wait-PhoneSinkUsage $pulseAddress 'lxst_output'
             Send-PhoneLine $first ''
             foreach ($phone in @($first, $second)) {
                 Wait-PhoneLine $phone '^State: Established' | Out-Null
@@ -439,8 +473,19 @@ target_port = $port
             Send-PhoneLine $second ''
             foreach ($phone in @($first, $second)) { Wait-PhoneLine $phone '^State: Established' -Occurrence 2 | Out-Null }
             Send-PhoneLine $first ''
+            foreach ($phone in @($first, $second)) { Wait-PhoneLine $phone '^State: Available' -Occurrence 2 | Out-Null }
+            (Get-Content -Raw $firstPath).Replace('allowed_callers = all', 'allowed_callers = none') | Set-Content $firstPath
+            $secondPath = Join-Path $secondConfig 'config'
+            (Get-Content -Raw $secondPath).Replace('speaker = lxst_output', 'speaker = lxst_busy') | Set-Content $secondPath
+            Send-PhoneLine $first 'reload'
+            Send-PhoneLine $second 'reload'
+            Wait-PhoneLine $first '^Configuration reloaded' -Occurrence 2 | Out-Null
+            Wait-PhoneLine $second '^Configuration reloaded' | Out-Null
+            Send-PhoneLine $second $firstIdentity
+            Wait-PhoneLine $second '^State: Busy' | Out-Null
+            Wait-PhoneLine $second '^State: Available' -Occurrence 3 | Out-Null
+            Wait-PhoneSinkUsage $pulseAddress 'lxst_busy'
             foreach ($phone in @($first, $second)) {
-                Wait-PhoneLine $phone '^State: Available' -Occurrence 2 | Out-Null
                 Send-PhoneLine $phone 'quit'
                 $phone.Process.WaitForExit(10000) | Should -BeTrue
                 $phone.Process.ExitCode | Should -Be 0

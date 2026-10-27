@@ -167,7 +167,7 @@ capture/playback quality claim follows from these headless processing tests.
 | Console entry point `rnphone` | partial | Native executable exists; no full CLI/daemon compatibility claim |
 | `--help`, `-l/--list-devices`, `--config`, `--rnsconfig`, `-s/--service`, `--systemd`, `--version`, repeated `-v/--verbose` | partial | Flags implemented; Linux-only device listing; original help/systemd text |
 | Interactive dial/redial, answer/hangup, identity/destination display, phonebook and profile controls | partial | Bidirectional native calls, profile cycle, phonebook numeric aliases and submenu back/quit executed; exact terminal formatting and complete key matrix unverified |
-| Service mode, signals, shutdown cleanup, systemd example | partial | Native signal/startup path exists; full long-running service/reload acceptance missing |
+| Service mode, signals, shutdown cleanup, systemd example | partial | Native service ignores stdin and exits cleanly on targeted SIGTERM; identity retained across service restart; long-duration operation remains unverified |
 | Configuration directory precedence, default config creation and first-run behavior | partial | Precedence implemented; minimal original default config, no bundled assets |
 | Identity generation/load/failure and `storage` directory | implemented | Native Pester restart test; owner-only Unix creation; buffers zeroed |
 | Bundled ringtone copying and ringtone/ringer output | partial | No upstream sounds redistributed; user-supplied Opus ringtone loops on a separate selected sink and stops on answer; real native virtual-sink acceptance |
@@ -211,7 +211,7 @@ not implicitly covered by the network interfaces. This is not full API parity:
 | `Sinks.py`: `get_backend`, backend device listing/player ownership; Sink/RemoteSink/LocalSink; LineSink low latency; OpusFileSink queue/finalization | Partial Linux I/O and Ogg Opus recording; explicit async backpressure instead of a Python frame deque; full hierarchy/low-latency parity missing |
 | `Primitives/Players.py`: FilePlayer state, completion callback, source, loop/start/stop/play | Implemented device-independent `FilePlayer`; callback timing is asynchronous, not Python's polling schedule; source replacement requires stopped playback |
 | `Primitives/Recorders.py`: FileRecorder state, source/output path, start/stop/record | Implemented device-independent `FileRecorder` with a caller-owned source and per-run finalization; effective output-path replacement is an explicit extension over the executed upstream shadow-attribute placeholder |
-| `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Partial: gains, mute/reset and transmit band-pass/AGC are implemented; device queries, supplied ringtone and runtime capture/sink selection are Linux CLI-only; busy/dial tones and low-latency toggle remain missing |
+| `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Partial: gains, mute/reset and transmit band-pass/AGC are implemented; device queries, ringtone, ringback/busy tones and runtime capture/sink selection are Linux CLI-only; low-latency toggle remains missing |
 | `Primitives/Telephony.py`: external busy override | Implemented; real incoming rejection followed by clearing busy and accepting the next call is integration-tested |
 | `Primitives/Telephony.py`: Profiles labels/abbreviations/index/next helpers | Implemented `TelephoneProfiles`; executed primary labels, abbreviations, frame durations and ordering; CLI profile cycle follows low latency then ultra-low latency |
 | `Utilities/rnphone.py`: ReticulumTelephone reload/apply config, keypad/hook/display enablement and hardware state; complete terminal menu/redial/status/signal behavior | Partial; supported CLI subset and persisted identity are tested, full utility behavior remains deferred |
@@ -245,7 +245,7 @@ audio for help, version or configuration errors.
 `DotLXST.Audio` supplies a separately tested managed processor, mixer, generator
 and pipeline layer; the stream/session interfaces do not silently apply it.
 Endpoint AGC/band-pass processing is shared by the CLI. The CLI does not yet
-reproduce dial/busy tones, hardware peripherals
+reproduce hardware peripherals
 or all persistence/configuration behavior. Configured ringtone playback is
 implemented without redistributing the upstream asset.
 
@@ -291,6 +291,17 @@ unchanged and creates a separate name-mangled shadow attribute; the effective
 are source configuration, not silently imposed on caller-provided frames.
 Cancellation is observed between bounded native file operations; a blocking
 filesystem/native call itself is not forcibly interrupted.
+
+`TelephoneToneSource` composes the independently verified managed tone generator
+with primary's 382 Hz frequency, 3.14159 ms easing, 0.04 linear gain and observed
+ringback/busy cadence. `GenerateTelephoneToneVectors.py` executes the actual
+cadence jobs with disclosed synthetic audio/clock/thread boundaries; mutable
+generator gain transitions separately execute actual `ToneSource.__generate`.
+The CLI routes ringback/busy audio to its own selected-speaker process, applies
+receive gain/mute and cancels stale playback on another call or shutdown.
+Unlike Python's blocking busy job before its final callback, the device-independent
+endpoint reports Busy/Rejected promptly and the CLI plays the bounded tone
+asynchronously after that outcome. That callback timing difference is explicit.
 
 | Environment | Evidence |
 |---|---|
@@ -344,9 +355,9 @@ pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 
 
 Recorded results:
 
-- Windows deterministic/unit suite: **55 passed**.
+- Windows deterministic/unit suite: **58 passed**.
 - WSL full LXST suite against the actual primary-release checkout:
-  **110 passed, zero skipped**, including six real telephone topology cases,
+  **114 passed, zero skipped**, including six real telephone topology cases,
   sixteen initial-profile cases and six policy/rejection/timeout recovery cases.
 - Telephone lifecycle cases include a blocked sink proving that a second
   disposer cannot finish early, continued service after authorization/observer
@@ -354,11 +365,12 @@ Recorded results:
   the next call.
 - Linux NativeAOT publish with both warning-as-error properties: **passed**;
   published `--help`: **passed**.
-- Native rnphone Pester process acceptance: **5 passed, zero skipped**:
+- Native rnphone Pester process acceptance: **6 passed, zero skipped**:
   CLI/error behavior; explicit unsupported-hardware rejection; calls in both
   directions, encoder/decoder/device-process paths, teardown, protected identity
   and restart stability; executed-reference phonebook/config reload; supplied
-  ringtone routing/stopping and active-call capture/playback device replacement.
+  ringtone routing/stopping, ringback/busy output, active-call capture/playback
+  device replacement and service-mode SIGTERM/restart.
 - Actual upstream Opus file fixture and reverse file-source acceptance:
   **5 passed, zero skipped**, including exact frame/sample decoding, looping,
   cancellation, malformed files and native handle disposal.

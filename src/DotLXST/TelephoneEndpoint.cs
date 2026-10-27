@@ -127,6 +127,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     public bool IsBusy { get { lock (_gate) return _externalBusy || _state != CallState.Available; } }
     public TelephoneProfile? ActiveProfile { get { lock (_gate) return _call?.Profile; } }
     public Identity? RemoteIdentity { get { lock (_gate) return _call?.Link.RemoteIdentity; } }
+    public bool IsIncomingCall { get { lock (_gate) return _call is { Outgoing: false }; } }
     public float ReceiveGainDb
     {
         get { lock (_gate) return _receiveGainDb; }

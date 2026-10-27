@@ -82,6 +82,7 @@ public static class PhoneApp
             await using var node = ReticulumNode.Open(rnsConfig,
                 (level, message) => { if (level <= 3 + verbosity) error.WriteLine($"Reticulum[{level}]: {message}"); });
             await using var sink = new PulseAudioSink(settings.Speaker, () => output.WriteLine("Audio receive ready"));
+            await using var toneSink = new PulseAudioSink(settings.Speaker);
             await using var ringerSink = new PulseAudioSink(settings.Ringer);
             await using var telephone = new TelephoneEndpoint(node.Router, identity,
                 new TelephoneOptions { RingTimeout = TimeSpan.FromSeconds(30), WaitTimeout = TimeSpan.FromSeconds(60),
@@ -93,13 +94,42 @@ public static class PhoneApp
             Task capture = Task.CompletedTask;
             Task ringing = Task.CompletedTask;
             CancellationTokenSource? ringingStop = null;
+            Task tones = Task.CompletedTask;
+            CancellationTokenSource? toneStop = null;
+            var busyTone = false;
             telephone.StateChanged += state =>
             {
                 output.WriteLine("State: " + state);
                 output.Flush();
                 lock (audioGate)
                 {
-                    if (state == CallState.Ringing && telephone.RemoteIdentity is not null &&
+                    if ((state == CallState.Ringing && !telephone.IsIncomingCall) || state is CallState.Busy or CallState.Rejected)
+                    {
+                        busyTone = state is CallState.Busy or CallState.Rejected;
+                        var tone = busyTone ? TelephoneTone.Busy : TelephoneTone.Ringback;
+                        toneStop?.Cancel();
+                        var previousTone = tones;
+                        var previousStop = toneStop;
+                        toneStop = CancellationTokenSource.CreateLinkedTokenSource(stop);
+                        var toneToken = toneStop.Token;
+                        tones = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await previousTone;
+                                previousStop?.Dispose();
+                                toneToken.ThrowIfCancellationRequested();
+                                await foreach (var frame in new TelephoneToneSource(tone).CaptureAsync(toneToken))
+                                    await toneSink.WriteAsync(DotLXST.Audio.AudioMixer.ApplyGain(frame,
+                                        telephone.ReceiveGainDb, telephone.ReceiveMuted), toneToken);
+                            }
+                            catch (OperationCanceledException) when (toneToken.IsCancellationRequested) { }
+                            catch (Exception ex) { error.WriteLine("Telephone tone playback failed: " + ex.Message); }
+                            finally { await toneSink.StopAsync(); }
+                        });
+                    }
+                    else if (state != CallState.Available || !busyTone) toneStop?.Cancel();
+                    if (state == CallState.Ringing && telephone.IsIncomingCall &&
                         Volatile.Read(ref settings).Ringtone is { } ringtone && File.Exists(ringtone))
                     {
                         ringingStop?.Cancel();
@@ -179,13 +209,14 @@ public static class PhoneApp
                             var replacement = PhoneConfiguration.Load(path);
                             replacement.ExcludeLocalIdentity(identity.HexHash);
                             sink.SetDevice(replacement.Speaker);
+                            toneSink.SetDevice(replacement.Speaker);
                             ringerSink.SetDevice(replacement.Ringer);
                             Volatile.Write(ref settings, replacement);
                             last = null;
                             phonebookOpen = false;
                             await output.WriteLineAsync("Configuration reloaded");
                         }
-                        else if (telephone.State == CallState.Ringing && telephone.RemoteIdentity is not null)
+                        else if (telephone.State == CallState.Ringing && telephone.IsIncomingCall)
                         {
                             if (line.Length == 0) await telephone.AnswerAsync(stop);
                             else telephone.Hangup();
@@ -267,12 +298,14 @@ public static class PhoneApp
             }
             finally
             {
-                lock (audioGate) { captureStop?.Cancel(); ringingStop?.Cancel(); }
+                lock (audioGate) { captureStop?.Cancel(); ringingStop?.Cancel(); toneStop?.Cancel(); }
                 await telephone.DisposeAsync();
                 await capture;
                 await ringing;
+                await tones;
                 captureStop?.Dispose();
                 ringingStop?.Dispose();
+                toneStop?.Dispose();
                 dialledIdentity?.Dispose();
             }
             return 0;

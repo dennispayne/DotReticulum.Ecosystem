@@ -1,0 +1,3563 @@
+{
+  "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+  "source_sha256": "35b2a4093368223145a548ac671504b43a4dcdac62368db754b082fe40138825",
+  "frequency": 382,
+  "ease_ms": 3.14159,
+  "substitutes": "Fake tone/mixer, synchronous thread boundary and deterministic time only; actual cadence jobs and gain methods execute unchanged.",
+  "ringback": [
+    {
+      "elapsed": 0.0,
+      "audible": false
+    },
+    {
+      "elapsed": 0.2,
+      "audible": true
+    },
+    {
+      "elapsed": 0.4,
+      "audible": true
+    },
+    {
+      "elapsed": 0.6,
+      "audible": true
+    },
+    {
+      "elapsed": 0.8,
+      "audible": true
+    },
+    {
+      "elapsed": 1.0,
+      "audible": true
+    },
+    {
+      "elapsed": 1.2,
+      "audible": true
+    },
+    {
+      "elapsed": 1.4,
+      "audible": true
+    },
+    {
+      "elapsed": 1.6,
+      "audible": true
+    },
+    {
+      "elapsed": 1.8,
+      "audible": true
+    },
+    {
+      "elapsed": 2.0,
+      "audible": true
+    },
+    {
+      "elapsed": 2.2,
+      "audible": false
+    },
+    {
+      "elapsed": 2.4,
+      "audible": false
+    },
+    {
+      "elapsed": 2.6,
+      "audible": false
+    },
+    {
+      "elapsed": 2.8,
+      "audible": false
+    },
+    {
+      "elapsed": 3.0,
+      "audible": false
+    },
+    {
+      "elapsed": 3.2,
+      "audible": false
+    },
+    {
+      "elapsed": 3.4,
+      "audible": false
+    },
+    {
+      "elapsed": 3.6,
+      "audible": false
+    },
+    {
+      "elapsed": 3.8,
+      "audible": false
+    },
+    {
+      "elapsed": 4.0,
+      "audible": false
+    },
+    {
+      "elapsed": 4.2,
+      "audible": false
+    },
+    {
+      "elapsed": 4.4,
+      "audible": false
+    },
+    {
+      "elapsed": 4.6,
+      "audible": false
+    },
+    {
+      "elapsed": 4.8,
+      "audible": false
+    },
+    {
+      "elapsed": 5.0,
+      "audible": false
+    },
+    {
+      "elapsed": 5.2,
+      "audible": false
+    },
+    {
+      "elapsed": 5.4,
+      "audible": false
+    },
+    {
+      "elapsed": 5.6,
+      "audible": false
+    },
+    {
+      "elapsed": 5.8,
+      "audible": false
+    },
+    {
+      "elapsed": 6.0,
+      "audible": false
+    },
+    {
+      "elapsed": 6.2,
+      "audible": false
+    },
+    {
+      "elapsed": 6.4,
+      "audible": false
+    },
+    {
+      "elapsed": 6.6,
+      "audible": false
+    },
+    {
+      "elapsed": 6.8,
+      "audible": false
+    },
+    {
+      "elapsed": 7.0,
+      "audible": false
+    },
+    {
+      "elapsed": 7.2,
+      "audible": true
+    },
+    {
+      "elapsed": 7.4,
+      "audible": true
+    }
+  ],
+  "busy": [
+    {
+      "elapsed": 0.0,
+      "audible": false
+    },
+    {
+      "elapsed": 0.005,
+      "audible": false
+    },
+    {
+      "elapsed": 0.01,
+      "audible": false
+    },
+    {
+      "elapsed": 0.015,
+      "audible": false
+    },
+    {
+      "elapsed": 0.02,
+      "audible": false
+    },
+    {
+      "elapsed": 0.025,
+      "audible": false
+    },
+    {
+      "elapsed": 0.03,
+      "audible": false
+    },
+    {
+      "elapsed": 0.035,
+      "audible": false
+    },
+    {
+      "elapsed": 0.04,
+      "audible": false
+    },
+    {
+      "elapsed": 0.045,
+      "audible": false
+    },
+    {
+      "elapsed": 0.05,
+      "audible": false
+    },
+    {
+      "elapsed": 0.055,
+      "audible": false
+    },
+    {
+      "elapsed": 0.06,
+      "audible": false
+    },
+    {
+      "elapsed": 0.065,
+      "audible": false
+    },
+    {
+      "elapsed": 0.07,
+      "audible": false
+    },
+    {
+      "elapsed": 0.075,
+      "audible": false
+    },
+    {
+      "elapsed": 0.08,
+      "audible": false
+    },
+    {
+      "elapsed": 0.085,
+      "audible": false
+    },
+    {
+      "elapsed": 0.09,
+      "audible": false
+    },
+    {
+      "elapsed": 0.095,
+      "audible": false
+    },
+    {
+      "elapsed": 0.1,
+      "audible": false
+    },
+    {
+      "elapsed": 0.105,
+      "audible": false
+    },
+    {
+      "elapsed": 0.11,
+      "audible": false
+    },
+    {
+      "elapsed": 0.115,
+      "audible": false
+    },
+    {
+      "elapsed": 0.12,
+      "audible": false
+    },
+    {
+      "elapsed": 0.125,
+      "audible": false
+    },
+    {
+      "elapsed": 0.13,
+      "audible": false
+    },
+    {
+      "elapsed": 0.135,
+      "audible": false
+    },
+    {
+      "elapsed": 0.14,
+      "audible": false
+    },
+    {
+      "elapsed": 0.145,
+      "audible": false
+    },
+    {
+      "elapsed": 0.15,
+      "audible": false
+    },
+    {
+      "elapsed": 0.155,
+      "audible": false
+    },
+    {
+      "elapsed": 0.16,
+      "audible": false
+    },
+    {
+      "elapsed": 0.165,
+      "audible": false
+    },
+    {
+      "elapsed": 0.17,
+      "audible": false
+    },
+    {
+      "elapsed": 0.175,
+      "audible": false
+    },
+    {
+      "elapsed": 0.18,
+      "audible": false
+    },
+    {
+      "elapsed": 0.185,
+      "audible": false
+    },
+    {
+      "elapsed": 0.19,
+      "audible": false
+    },
+    {
+      "elapsed": 0.195,
+      "audible": false
+    },
+    {
+      "elapsed": 0.2,
+      "audible": false
+    },
+    {
+      "elapsed": 0.205,
+      "audible": false
+    },
+    {
+      "elapsed": 0.21,
+      "audible": false
+    },
+    {
+      "elapsed": 0.215,
+      "audible": false
+    },
+    {
+      "elapsed": 0.22,
+      "audible": false
+    },
+    {
+      "elapsed": 0.225,
+      "audible": false
+    },
+    {
+      "elapsed": 0.23,
+      "audible": false
+    },
+    {
+      "elapsed": 0.235,
+      "audible": false
+    },
+    {
+      "elapsed": 0.24,
+      "audible": false
+    },
+    {
+      "elapsed": 0.245,
+      "audible": false
+    },
+    {
+      "elapsed": 0.25,
+      "audible": false
+    },
+    {
+      "elapsed": 0.255,
+      "audible": true
+    },
+    {
+      "elapsed": 0.26,
+      "audible": true
+    },
+    {
+      "elapsed": 0.265,
+      "audible": true
+    },
+    {
+      "elapsed": 0.27,
+      "audible": true
+    },
+    {
+      "elapsed": 0.275,
+      "audible": true
+    },
+    {
+      "elapsed": 0.28,
+      "audible": true
+    },
+    {
+      "elapsed": 0.285,
+      "audible": true
+    },
+    {
+      "elapsed": 0.29,
+      "audible": true
+    },
+    {
+      "elapsed": 0.295,
+      "audible": true
+    },
+    {
+      "elapsed": 0.3,
+      "audible": true
+    },
+    {
+      "elapsed": 0.305,
+      "audible": true
+    },
+    {
+      "elapsed": 0.31,
+      "audible": true
+    },
+    {
+      "elapsed": 0.315,
+      "audible": true
+    },
+    {
+      "elapsed": 0.32,
+      "audible": true
+    },
+    {
+      "elapsed": 0.325,
+      "audible": true
+    },
+    {
+      "elapsed": 0.33,
+      "audible": true
+    },
+    {
+      "elapsed": 0.335,
+      "audible": true
+    },
+    {
+      "elapsed": 0.34,
+      "audible": true
+    },
+    {
+      "elapsed": 0.345,
+      "audible": true
+    },
+    {
+      "elapsed": 0.35,
+      "audible": true
+    },
+    {
+      "elapsed": 0.355,
+      "audible": true
+    },
+    {
+      "elapsed": 0.36,
+      "audible": true
+    },
+    {
+      "elapsed": 0.365,
+      "audible": true
+    },
+    {
+      "elapsed": 0.37,
+      "audible": true
+    },
+    {
+      "elapsed": 0.375,
+      "audible": true
+    },
+    {
+      "elapsed": 0.38,
+      "audible": true
+    },
+    {
+      "elapsed": 0.385,
+      "audible": true
+    },
+    {
+      "elapsed": 0.39,
+      "audible": true
+    },
+    {
+      "elapsed": 0.395,
+      "audible": true
+    },
+    {
+      "elapsed": 0.4,
+      "audible": true
+    },
+    {
+      "elapsed": 0.405,
+      "audible": true
+    },
+    {
+      "elapsed": 0.41,
+      "audible": true
+    },
+    {
+      "elapsed": 0.415,
+      "audible": true
+    },
+    {
+      "elapsed": 0.42,
+      "audible": true
+    },
+    {
+      "elapsed": 0.425,
+      "audible": true
+    },
+    {
+      "elapsed": 0.43,
+      "audible": true
+    },
+    {
+      "elapsed": 0.435,
+      "audible": true
+    },
+    {
+      "elapsed": 0.44,
+      "audible": true
+    },
+    {
+      "elapsed": 0.445,
+      "audible": true
+    },
+    {
+      "elapsed": 0.45,
+      "audible": true
+    },
+    {
+      "elapsed": 0.455,
+      "audible": true
+    },
+    {
+      "elapsed": 0.46,
+      "audible": true
+    },
+    {
+      "elapsed": 0.465,
+      "audible": true
+    },
+    {
+      "elapsed": 0.47,
+      "audible": true
+    },
+    {
+      "elapsed": 0.475,
+      "audible": true
+    },
+    {
+      "elapsed": 0.48,
+      "audible": true
+    },
+    {
+      "elapsed": 0.485,
+      "audible": true
+    },
+    {
+      "elapsed": 0.49,
+      "audible": true
+    },
+    {
+      "elapsed": 0.495,
+      "audible": true
+    },
+    {
+      "elapsed": 0.5,
+      "audible": false
+    },
+    {
+      "elapsed": 0.505,
+      "audible": false
+    },
+    {
+      "elapsed": 0.51,
+      "audible": false
+    },
+    {
+      "elapsed": 0.515,
+      "audible": false
+    },
+    {
+      "elapsed": 0.52,
+      "audible": false
+    },
+    {
+      "elapsed": 0.525,
+      "audible": false
+    },
+    {
+      "elapsed": 0.53,
+      "audible": false
+    },
+    {
+      "elapsed": 0.535,
+      "audible": false
+    },
+    {
+      "elapsed": 0.54,
+      "audible": false
+    },
+    {
+      "elapsed": 0.545,
+      "audible": false
+    },
+    {
+      "elapsed": 0.55,
+      "audible": false
+    },
+    {
+      "elapsed": 0.555,
+      "audible": false
+    },
+    {
+      "elapsed": 0.56,
+      "audible": false
+    },
+    {
+      "elapsed": 0.565,
+      "audible": false
+    },
+    {
+      "elapsed": 0.57,
+      "audible": false
+    },
+    {
+      "elapsed": 0.575,
+      "audible": false
+    },
+    {
+      "elapsed": 0.58,
+      "audible": false
+    },
+    {
+      "elapsed": 0.585,
+      "audible": false
+    },
+    {
+      "elapsed": 0.59,
+      "audible": false
+    },
+    {
+      "elapsed": 0.595,
+      "audible": false
+    },
+    {
+      "elapsed": 0.6,
+      "audible": false
+    },
+    {
+      "elapsed": 0.605,
+      "audible": false
+    },
+    {
+      "elapsed": 0.61,
+      "audible": false
+    },
+    {
+      "elapsed": 0.615,
+      "audible": false
+    },
+    {
+      "elapsed": 0.62,
+      "audible": false
+    },
+    {
+      "elapsed": 0.625,
+      "audible": false
+    },
+    {
+      "elapsed": 0.63,
+      "audible": false
+    },
+    {
+      "elapsed": 0.635,
+      "audible": false
+    },
+    {
+      "elapsed": 0.64,
+      "audible": false
+    },
+    {
+      "elapsed": 0.645,
+      "audible": false
+    },
+    {
+      "elapsed": 0.65,
+      "audible": false
+    },
+    {
+      "elapsed": 0.655,
+      "audible": false
+    },
+    {
+      "elapsed": 0.66,
+      "audible": false
+    },
+    {
+      "elapsed": 0.665,
+      "audible": false
+    },
+    {
+      "elapsed": 0.67,
+      "audible": false
+    },
+    {
+      "elapsed": 0.675,
+      "audible": false
+    },
+    {
+      "elapsed": 0.68,
+      "audible": false
+    },
+    {
+      "elapsed": 0.685,
+      "audible": false
+    },
+    {
+      "elapsed": 0.69,
+      "audible": false
+    },
+    {
+      "elapsed": 0.695,
+      "audible": false
+    },
+    {
+      "elapsed": 0.7,
+      "audible": false
+    },
+    {
+      "elapsed": 0.705,
+      "audible": false
+    },
+    {
+      "elapsed": 0.71,
+      "audible": false
+    },
+    {
+      "elapsed": 0.715,
+      "audible": false
+    },
+    {
+      "elapsed": 0.72,
+      "audible": false
+    },
+    {
+      "elapsed": 0.725,
+      "audible": false
+    },
+    {
+      "elapsed": 0.73,
+      "audible": false
+    },
+    {
+      "elapsed": 0.735,
+      "audible": false
+    },
+    {
+      "elapsed": 0.74,
+      "audible": false
+    },
+    {
+      "elapsed": 0.745,
+      "audible": false
+    },
+    {
+      "elapsed": 0.75,
+      "audible": false
+    },
+    {
+      "elapsed": 0.755,
+      "audible": true
+    },
+    {
+      "elapsed": 0.76,
+      "audible": true
+    },
+    {
+      "elapsed": 0.765,
+      "audible": true
+    },
+    {
+      "elapsed": 0.77,
+      "audible": true
+    },
+    {
+      "elapsed": 0.775,
+      "audible": true
+    },
+    {
+      "elapsed": 0.78,
+      "audible": true
+    },
+    {
+      "elapsed": 0.785,
+      "audible": true
+    },
+    {
+      "elapsed": 0.79,
+      "audible": true
+    },
+    {
+      "elapsed": 0.795,
+      "audible": true
+    },
+    {
+      "elapsed": 0.8,
+      "audible": true
+    },
+    {
+      "elapsed": 0.805,
+      "audible": true
+    },
+    {
+      "elapsed": 0.81,
+      "audible": true
+    },
+    {
+      "elapsed": 0.815,
+      "audible": true
+    },
+    {
+      "elapsed": 0.82,
+      "audible": true
+    },
+    {
+      "elapsed": 0.825,
+      "audible": true
+    },
+    {
+      "elapsed": 0.83,
+      "audible": true
+    },
+    {
+      "elapsed": 0.835,
+      "audible": true
+    },
+    {
+      "elapsed": 0.84,
+      "audible": true
+    },
+    {
+      "elapsed": 0.845,
+      "audible": true
+    },
+    {
+      "elapsed": 0.85,
+      "audible": true
+    },
+    {
+      "elapsed": 0.855,
+      "audible": true
+    },
+    {
+      "elapsed": 0.86,
+      "audible": true
+    },
+    {
+      "elapsed": 0.865,
+      "audible": true
+    },
+    {
+      "elapsed": 0.87,
+      "audible": true
+    },
+    {
+      "elapsed": 0.875,
+      "audible": true
+    },
+    {
+      "elapsed": 0.88,
+      "audible": true
+    },
+    {
+      "elapsed": 0.885,
+      "audible": true
+    },
+    {
+      "elapsed": 0.89,
+      "audible": true
+    },
+    {
+      "elapsed": 0.895,
+      "audible": true
+    },
+    {
+      "elapsed": 0.9,
+      "audible": true
+    },
+    {
+      "elapsed": 0.905,
+      "audible": true
+    },
+    {
+      "elapsed": 0.91,
+      "audible": true
+    },
+    {
+      "elapsed": 0.915,
+      "audible": true
+    },
+    {
+      "elapsed": 0.92,
+      "audible": true
+    },
+    {
+      "elapsed": 0.925,
+      "audible": true
+    },
+    {
+      "elapsed": 0.93,
+      "audible": true
+    },
+    {
+      "elapsed": 0.935,
+      "audible": true
+    },
+    {
+      "elapsed": 0.94,
+      "audible": true
+    },
+    {
+      "elapsed": 0.945,
+      "audible": true
+    },
+    {
+      "elapsed": 0.95,
+      "audible": true
+    },
+    {
+      "elapsed": 0.955,
+      "audible": true
+    },
+    {
+      "elapsed": 0.96,
+      "audible": true
+    },
+    {
+      "elapsed": 0.965,
+      "audible": true
+    },
+    {
+      "elapsed": 0.97,
+      "audible": true
+    },
+    {
+      "elapsed": 0.975,
+      "audible": true
+    },
+    {
+      "elapsed": 0.98,
+      "audible": true
+    },
+    {
+      "elapsed": 0.985,
+      "audible": true
+    },
+    {
+      "elapsed": 0.99,
+      "audible": true
+    },
+    {
+      "elapsed": 0.995,
+      "audible": true
+    },
+    {
+      "elapsed": 1.0,
+      "audible": false
+    },
+    {
+      "elapsed": 1.005,
+      "audible": false
+    },
+    {
+      "elapsed": 1.01,
+      "audible": false
+    },
+    {
+      "elapsed": 1.015,
+      "audible": false
+    },
+    {
+      "elapsed": 1.02,
+      "audible": false
+    },
+    {
+      "elapsed": 1.025,
+      "audible": false
+    },
+    {
+      "elapsed": 1.03,
+      "audible": false
+    },
+    {
+      "elapsed": 1.035,
+      "audible": false
+    },
+    {
+      "elapsed": 1.04,
+      "audible": false
+    },
+    {
+      "elapsed": 1.045,
+      "audible": false
+    },
+    {
+      "elapsed": 1.05,
+      "audible": false
+    },
+    {
+      "elapsed": 1.055,
+      "audible": false
+    },
+    {
+      "elapsed": 1.06,
+      "audible": false
+    },
+    {
+      "elapsed": 1.065,
+      "audible": false
+    },
+    {
+      "elapsed": 1.07,
+      "audible": false
+    },
+    {
+      "elapsed": 1.075,
+      "audible": false
+    },
+    {
+      "elapsed": 1.08,
+      "audible": false
+    },
+    {
+      "elapsed": 1.085,
+      "audible": false
+    },
+    {
+      "elapsed": 1.09,
+      "audible": false
+    },
+    {
+      "elapsed": 1.095,
+      "audible": false
+    },
+    {
+      "elapsed": 1.1,
+      "audible": false
+    },
+    {
+      "elapsed": 1.105,
+      "audible": false
+    },
+    {
+      "elapsed": 1.11,
+      "audible": false
+    },
+    {
+      "elapsed": 1.115,
+      "audible": false
+    },
+    {
+      "elapsed": 1.12,
+      "audible": false
+    },
+    {
+      "elapsed": 1.125,
+      "audible": false
+    },
+    {
+      "elapsed": 1.13,
+      "audible": false
+    },
+    {
+      "elapsed": 1.135,
+      "audible": false
+    },
+    {
+      "elapsed": 1.14,
+      "audible": false
+    },
+    {
+      "elapsed": 1.145,
+      "audible": false
+    },
+    {
+      "elapsed": 1.15,
+      "audible": false
+    },
+    {
+      "elapsed": 1.155,
+      "audible": false
+    },
+    {
+      "elapsed": 1.16,
+      "audible": false
+    },
+    {
+      "elapsed": 1.165,
+      "audible": false
+    },
+    {
+      "elapsed": 1.17,
+      "audible": false
+    },
+    {
+      "elapsed": 1.175,
+      "audible": false
+    },
+    {
+      "elapsed": 1.18,
+      "audible": false
+    },
+    {
+      "elapsed": 1.185,
+      "audible": false
+    },
+    {
+      "elapsed": 1.19,
+      "audible": false
+    },
+    {
+      "elapsed": 1.195,
+      "audible": false
+    },
+    {
+      "elapsed": 1.2,
+      "audible": false
+    },
+    {
+      "elapsed": 1.205,
+      "audible": false
+    },
+    {
+      "elapsed": 1.21,
+      "audible": false
+    },
+    {
+      "elapsed": 1.215,
+      "audible": false
+    },
+    {
+      "elapsed": 1.22,
+      "audible": false
+    },
+    {
+      "elapsed": 1.225,
+      "audible": false
+    },
+    {
+      "elapsed": 1.23,
+      "audible": false
+    },
+    {
+      "elapsed": 1.235,
+      "audible": false
+    },
+    {
+      "elapsed": 1.24,
+      "audible": false
+    },
+    {
+      "elapsed": 1.245,
+      "audible": false
+    },
+    {
+      "elapsed": 1.25,
+      "audible": false
+    },
+    {
+      "elapsed": 1.255,
+      "audible": true
+    },
+    {
+      "elapsed": 1.26,
+      "audible": true
+    },
+    {
+      "elapsed": 1.265,
+      "audible": true
+    },
+    {
+      "elapsed": 1.27,
+      "audible": true
+    },
+    {
+      "elapsed": 1.275,
+      "audible": true
+    },
+    {
+      "elapsed": 1.28,
+      "audible": true
+    },
+    {
+      "elapsed": 1.285,
+      "audible": true
+    },
+    {
+      "elapsed": 1.29,
+      "audible": true
+    },
+    {
+      "elapsed": 1.295,
+      "audible": true
+    },
+    {
+      "elapsed": 1.3,
+      "audible": true
+    },
+    {
+      "elapsed": 1.305,
+      "audible": true
+    },
+    {
+      "elapsed": 1.31,
+      "audible": true
+    },
+    {
+      "elapsed": 1.315,
+      "audible": true
+    },
+    {
+      "elapsed": 1.32,
+      "audible": true
+    },
+    {
+      "elapsed": 1.325,
+      "audible": true
+    },
+    {
+      "elapsed": 1.33,
+      "audible": true
+    },
+    {
+      "elapsed": 1.335,
+      "audible": true
+    },
+    {
+      "elapsed": 1.34,
+      "audible": true
+    },
+    {
+      "elapsed": 1.345,
+      "audible": true
+    },
+    {
+      "elapsed": 1.35,
+      "audible": true
+    },
+    {
+      "elapsed": 1.355,
+      "audible": true
+    },
+    {
+      "elapsed": 1.36,
+      "audible": true
+    },
+    {
+      "elapsed": 1.365,
+      "audible": true
+    },
+    {
+      "elapsed": 1.37,
+      "audible": true
+    },
+    {
+      "elapsed": 1.375,
+      "audible": true
+    },
+    {
+      "elapsed": 1.38,
+      "audible": true
+    },
+    {
+      "elapsed": 1.385,
+      "audible": true
+    },
+    {
+      "elapsed": 1.39,
+      "audible": true
+    },
+    {
+      "elapsed": 1.395,
+      "audible": true
+    },
+    {
+      "elapsed": 1.4,
+      "audible": true
+    },
+    {
+      "elapsed": 1.405,
+      "audible": true
+    },
+    {
+      "elapsed": 1.41,
+      "audible": true
+    },
+    {
+      "elapsed": 1.415,
+      "audible": true
+    },
+    {
+      "elapsed": 1.42,
+      "audible": true
+    },
+    {
+      "elapsed": 1.425,
+      "audible": true
+    },
+    {
+      "elapsed": 1.43,
+      "audible": true
+    },
+    {
+      "elapsed": 1.435,
+      "audible": true
+    },
+    {
+      "elapsed": 1.44,
+      "audible": true
+    },
+    {
+      "elapsed": 1.445,
+      "audible": true
+    },
+    {
+      "elapsed": 1.45,
+      "audible": true
+    },
+    {
+      "elapsed": 1.455,
+      "audible": true
+    },
+    {
+      "elapsed": 1.46,
+      "audible": true
+    },
+    {
+      "elapsed": 1.465,
+      "audible": true
+    },
+    {
+      "elapsed": 1.47,
+      "audible": true
+    },
+    {
+      "elapsed": 1.475,
+      "audible": true
+    },
+    {
+      "elapsed": 1.48,
+      "audible": true
+    },
+    {
+      "elapsed": 1.485,
+      "audible": true
+    },
+    {
+      "elapsed": 1.49,
+      "audible": true
+    },
+    {
+      "elapsed": 1.495,
+      "audible": true
+    },
+    {
+      "elapsed": 1.5,
+      "audible": false
+    },
+    {
+      "elapsed": 1.505,
+      "audible": false
+    },
+    {
+      "elapsed": 1.51,
+      "audible": false
+    },
+    {
+      "elapsed": 1.515,
+      "audible": false
+    },
+    {
+      "elapsed": 1.52,
+      "audible": false
+    },
+    {
+      "elapsed": 1.525,
+      "audible": false
+    },
+    {
+      "elapsed": 1.53,
+      "audible": false
+    },
+    {
+      "elapsed": 1.535,
+      "audible": false
+    },
+    {
+      "elapsed": 1.54,
+      "audible": false
+    },
+    {
+      "elapsed": 1.545,
+      "audible": false
+    },
+    {
+      "elapsed": 1.55,
+      "audible": false
+    },
+    {
+      "elapsed": 1.555,
+      "audible": false
+    },
+    {
+      "elapsed": 1.56,
+      "audible": false
+    },
+    {
+      "elapsed": 1.565,
+      "audible": false
+    },
+    {
+      "elapsed": 1.57,
+      "audible": false
+    },
+    {
+      "elapsed": 1.575,
+      "audible": false
+    },
+    {
+      "elapsed": 1.58,
+      "audible": false
+    },
+    {
+      "elapsed": 1.585,
+      "audible": false
+    },
+    {
+      "elapsed": 1.59,
+      "audible": false
+    },
+    {
+      "elapsed": 1.595,
+      "audible": false
+    },
+    {
+      "elapsed": 1.6,
+      "audible": false
+    },
+    {
+      "elapsed": 1.605,
+      "audible": false
+    },
+    {
+      "elapsed": 1.61,
+      "audible": false
+    },
+    {
+      "elapsed": 1.615,
+      "audible": false
+    },
+    {
+      "elapsed": 1.62,
+      "audible": false
+    },
+    {
+      "elapsed": 1.625,
+      "audible": false
+    },
+    {
+      "elapsed": 1.63,
+      "audible": false
+    },
+    {
+      "elapsed": 1.635,
+      "audible": false
+    },
+    {
+      "elapsed": 1.64,
+      "audible": false
+    },
+    {
+      "elapsed": 1.645,
+      "audible": false
+    },
+    {
+      "elapsed": 1.65,
+      "audible": false
+    },
+    {
+      "elapsed": 1.655,
+      "audible": false
+    },
+    {
+      "elapsed": 1.66,
+      "audible": false
+    },
+    {
+      "elapsed": 1.665,
+      "audible": false
+    },
+    {
+      "elapsed": 1.67,
+      "audible": false
+    },
+    {
+      "elapsed": 1.675,
+      "audible": false
+    },
+    {
+      "elapsed": 1.68,
+      "audible": false
+    },
+    {
+      "elapsed": 1.685,
+      "audible": false
+    },
+    {
+      "elapsed": 1.69,
+      "audible": false
+    },
+    {
+      "elapsed": 1.695,
+      "audible": false
+    },
+    {
+      "elapsed": 1.7,
+      "audible": false
+    },
+    {
+      "elapsed": 1.705,
+      "audible": false
+    },
+    {
+      "elapsed": 1.71,
+      "audible": false
+    },
+    {
+      "elapsed": 1.715,
+      "audible": false
+    },
+    {
+      "elapsed": 1.72,
+      "audible": false
+    },
+    {
+      "elapsed": 1.725,
+      "audible": false
+    },
+    {
+      "elapsed": 1.73,
+      "audible": false
+    },
+    {
+      "elapsed": 1.735,
+      "audible": false
+    },
+    {
+      "elapsed": 1.74,
+      "audible": false
+    },
+    {
+      "elapsed": 1.745,
+      "audible": false
+    },
+    {
+      "elapsed": 1.75,
+      "audible": false
+    },
+    {
+      "elapsed": 1.755,
+      "audible": true
+    },
+    {
+      "elapsed": 1.76,
+      "audible": true
+    },
+    {
+      "elapsed": 1.765,
+      "audible": true
+    },
+    {
+      "elapsed": 1.77,
+      "audible": true
+    },
+    {
+      "elapsed": 1.775,
+      "audible": true
+    },
+    {
+      "elapsed": 1.78,
+      "audible": true
+    },
+    {
+      "elapsed": 1.785,
+      "audible": true
+    },
+    {
+      "elapsed": 1.79,
+      "audible": true
+    },
+    {
+      "elapsed": 1.795,
+      "audible": true
+    },
+    {
+      "elapsed": 1.8,
+      "audible": true
+    },
+    {
+      "elapsed": 1.805,
+      "audible": true
+    },
+    {
+      "elapsed": 1.81,
+      "audible": true
+    },
+    {
+      "elapsed": 1.815,
+      "audible": true
+    },
+    {
+      "elapsed": 1.82,
+      "audible": true
+    },
+    {
+      "elapsed": 1.825,
+      "audible": true
+    },
+    {
+      "elapsed": 1.83,
+      "audible": true
+    },
+    {
+      "elapsed": 1.835,
+      "audible": true
+    },
+    {
+      "elapsed": 1.84,
+      "audible": true
+    },
+    {
+      "elapsed": 1.845,
+      "audible": true
+    },
+    {
+      "elapsed": 1.85,
+      "audible": true
+    },
+    {
+      "elapsed": 1.855,
+      "audible": true
+    },
+    {
+      "elapsed": 1.86,
+      "audible": true
+    },
+    {
+      "elapsed": 1.865,
+      "audible": true
+    },
+    {
+      "elapsed": 1.87,
+      "audible": true
+    },
+    {
+      "elapsed": 1.875,
+      "audible": true
+    },
+    {
+      "elapsed": 1.88,
+      "audible": true
+    },
+    {
+      "elapsed": 1.885,
+      "audible": true
+    },
+    {
+      "elapsed": 1.89,
+      "audible": true
+    },
+    {
+      "elapsed": 1.895,
+      "audible": true
+    },
+    {
+      "elapsed": 1.9,
+      "audible": true
+    },
+    {
+      "elapsed": 1.905,
+      "audible": true
+    },
+    {
+      "elapsed": 1.91,
+      "audible": true
+    },
+    {
+      "elapsed": 1.915,
+      "audible": true
+    },
+    {
+      "elapsed": 1.92,
+      "audible": true
+    },
+    {
+      "elapsed": 1.925,
+      "audible": true
+    },
+    {
+      "elapsed": 1.93,
+      "audible": true
+    },
+    {
+      "elapsed": 1.935,
+      "audible": true
+    },
+    {
+      "elapsed": 1.94,
+      "audible": true
+    },
+    {
+      "elapsed": 1.945,
+      "audible": true
+    },
+    {
+      "elapsed": 1.95,
+      "audible": true
+    },
+    {
+      "elapsed": 1.955,
+      "audible": true
+    },
+    {
+      "elapsed": 1.96,
+      "audible": true
+    },
+    {
+      "elapsed": 1.965,
+      "audible": true
+    },
+    {
+      "elapsed": 1.97,
+      "audible": true
+    },
+    {
+      "elapsed": 1.975,
+      "audible": true
+    },
+    {
+      "elapsed": 1.98,
+      "audible": true
+    },
+    {
+      "elapsed": 1.985,
+      "audible": true
+    },
+    {
+      "elapsed": 1.99,
+      "audible": true
+    },
+    {
+      "elapsed": 1.995,
+      "audible": true
+    },
+    {
+      "elapsed": 2.0,
+      "audible": false
+    },
+    {
+      "elapsed": 2.005,
+      "audible": false
+    },
+    {
+      "elapsed": 2.01,
+      "audible": false
+    },
+    {
+      "elapsed": 2.015,
+      "audible": false
+    },
+    {
+      "elapsed": 2.02,
+      "audible": false
+    },
+    {
+      "elapsed": 2.025,
+      "audible": false
+    },
+    {
+      "elapsed": 2.03,
+      "audible": false
+    },
+    {
+      "elapsed": 2.035,
+      "audible": false
+    },
+    {
+      "elapsed": 2.04,
+      "audible": false
+    },
+    {
+      "elapsed": 2.045,
+      "audible": false
+    },
+    {
+      "elapsed": 2.05,
+      "audible": false
+    },
+    {
+      "elapsed": 2.055,
+      "audible": false
+    },
+    {
+      "elapsed": 2.06,
+      "audible": false
+    },
+    {
+      "elapsed": 2.065,
+      "audible": false
+    },
+    {
+      "elapsed": 2.07,
+      "audible": false
+    },
+    {
+      "elapsed": 2.075,
+      "audible": false
+    },
+    {
+      "elapsed": 2.08,
+      "audible": false
+    },
+    {
+      "elapsed": 2.085,
+      "audible": false
+    },
+    {
+      "elapsed": 2.09,
+      "audible": false
+    },
+    {
+      "elapsed": 2.095,
+      "audible": false
+    },
+    {
+      "elapsed": 2.1,
+      "audible": false
+    },
+    {
+      "elapsed": 2.105,
+      "audible": false
+    },
+    {
+      "elapsed": 2.11,
+      "audible": false
+    },
+    {
+      "elapsed": 2.115,
+      "audible": false
+    },
+    {
+      "elapsed": 2.12,
+      "audible": false
+    },
+    {
+      "elapsed": 2.125,
+      "audible": false
+    },
+    {
+      "elapsed": 2.13,
+      "audible": false
+    },
+    {
+      "elapsed": 2.135,
+      "audible": false
+    },
+    {
+      "elapsed": 2.14,
+      "audible": false
+    },
+    {
+      "elapsed": 2.145,
+      "audible": false
+    },
+    {
+      "elapsed": 2.15,
+      "audible": false
+    },
+    {
+      "elapsed": 2.155,
+      "audible": false
+    },
+    {
+      "elapsed": 2.16,
+      "audible": false
+    },
+    {
+      "elapsed": 2.165,
+      "audible": false
+    },
+    {
+      "elapsed": 2.17,
+      "audible": false
+    },
+    {
+      "elapsed": 2.175,
+      "audible": false
+    },
+    {
+      "elapsed": 2.18,
+      "audible": false
+    },
+    {
+      "elapsed": 2.185,
+      "audible": false
+    },
+    {
+      "elapsed": 2.19,
+      "audible": false
+    },
+    {
+      "elapsed": 2.195,
+      "audible": false
+    },
+    {
+      "elapsed": 2.2,
+      "audible": false
+    },
+    {
+      "elapsed": 2.205,
+      "audible": false
+    },
+    {
+      "elapsed": 2.21,
+      "audible": false
+    },
+    {
+      "elapsed": 2.215,
+      "audible": false
+    },
+    {
+      "elapsed": 2.22,
+      "audible": false
+    },
+    {
+      "elapsed": 2.225,
+      "audible": false
+    },
+    {
+      "elapsed": 2.23,
+      "audible": false
+    },
+    {
+      "elapsed": 2.235,
+      "audible": false
+    },
+    {
+      "elapsed": 2.24,
+      "audible": false
+    },
+    {
+      "elapsed": 2.245,
+      "audible": false
+    },
+    {
+      "elapsed": 2.25,
+      "audible": false
+    },
+    {
+      "elapsed": 2.255,
+      "audible": true
+    },
+    {
+      "elapsed": 2.26,
+      "audible": true
+    },
+    {
+      "elapsed": 2.265,
+      "audible": true
+    },
+    {
+      "elapsed": 2.27,
+      "audible": true
+    },
+    {
+      "elapsed": 2.275,
+      "audible": true
+    },
+    {
+      "elapsed": 2.28,
+      "audible": true
+    },
+    {
+      "elapsed": 2.285,
+      "audible": true
+    },
+    {
+      "elapsed": 2.29,
+      "audible": true
+    },
+    {
+      "elapsed": 2.295,
+      "audible": true
+    },
+    {
+      "elapsed": 2.3,
+      "audible": true
+    },
+    {
+      "elapsed": 2.305,
+      "audible": true
+    },
+    {
+      "elapsed": 2.31,
+      "audible": true
+    },
+    {
+      "elapsed": 2.315,
+      "audible": true
+    },
+    {
+      "elapsed": 2.32,
+      "audible": true
+    },
+    {
+      "elapsed": 2.325,
+      "audible": true
+    },
+    {
+      "elapsed": 2.33,
+      "audible": true
+    },
+    {
+      "elapsed": 2.335,
+      "audible": true
+    },
+    {
+      "elapsed": 2.34,
+      "audible": true
+    },
+    {
+      "elapsed": 2.345,
+      "audible": true
+    },
+    {
+      "elapsed": 2.35,
+      "audible": true
+    },
+    {
+      "elapsed": 2.355,
+      "audible": true
+    },
+    {
+      "elapsed": 2.36,
+      "audible": true
+    },
+    {
+      "elapsed": 2.365,
+      "audible": true
+    },
+    {
+      "elapsed": 2.37,
+      "audible": true
+    },
+    {
+      "elapsed": 2.375,
+      "audible": true
+    },
+    {
+      "elapsed": 2.38,
+      "audible": true
+    },
+    {
+      "elapsed": 2.385,
+      "audible": true
+    },
+    {
+      "elapsed": 2.39,
+      "audible": true
+    },
+    {
+      "elapsed": 2.395,
+      "audible": true
+    },
+    {
+      "elapsed": 2.4,
+      "audible": true
+    },
+    {
+      "elapsed": 2.405,
+      "audible": true
+    },
+    {
+      "elapsed": 2.41,
+      "audible": true
+    },
+    {
+      "elapsed": 2.415,
+      "audible": true
+    },
+    {
+      "elapsed": 2.42,
+      "audible": true
+    },
+    {
+      "elapsed": 2.425,
+      "audible": true
+    },
+    {
+      "elapsed": 2.43,
+      "audible": true
+    },
+    {
+      "elapsed": 2.435,
+      "audible": true
+    },
+    {
+      "elapsed": 2.44,
+      "audible": true
+    },
+    {
+      "elapsed": 2.445,
+      "audible": true
+    },
+    {
+      "elapsed": 2.45,
+      "audible": true
+    },
+    {
+      "elapsed": 2.455,
+      "audible": true
+    },
+    {
+      "elapsed": 2.46,
+      "audible": true
+    },
+    {
+      "elapsed": 2.465,
+      "audible": true
+    },
+    {
+      "elapsed": 2.47,
+      "audible": true
+    },
+    {
+      "elapsed": 2.475,
+      "audible": true
+    },
+    {
+      "elapsed": 2.48,
+      "audible": true
+    },
+    {
+      "elapsed": 2.485,
+      "audible": true
+    },
+    {
+      "elapsed": 2.49,
+      "audible": true
+    },
+    {
+      "elapsed": 2.495,
+      "audible": true
+    },
+    {
+      "elapsed": 2.5,
+      "audible": false
+    },
+    {
+      "elapsed": 2.505,
+      "audible": false
+    },
+    {
+      "elapsed": 2.51,
+      "audible": false
+    },
+    {
+      "elapsed": 2.515,
+      "audible": false
+    },
+    {
+      "elapsed": 2.52,
+      "audible": false
+    },
+    {
+      "elapsed": 2.525,
+      "audible": false
+    },
+    {
+      "elapsed": 2.53,
+      "audible": false
+    },
+    {
+      "elapsed": 2.535,
+      "audible": false
+    },
+    {
+      "elapsed": 2.54,
+      "audible": false
+    },
+    {
+      "elapsed": 2.545,
+      "audible": false
+    },
+    {
+      "elapsed": 2.55,
+      "audible": false
+    },
+    {
+      "elapsed": 2.555,
+      "audible": false
+    },
+    {
+      "elapsed": 2.56,
+      "audible": false
+    },
+    {
+      "elapsed": 2.565,
+      "audible": false
+    },
+    {
+      "elapsed": 2.57,
+      "audible": false
+    },
+    {
+      "elapsed": 2.575,
+      "audible": false
+    },
+    {
+      "elapsed": 2.58,
+      "audible": false
+    },
+    {
+      "elapsed": 2.585,
+      "audible": false
+    },
+    {
+      "elapsed": 2.59,
+      "audible": false
+    },
+    {
+      "elapsed": 2.595,
+      "audible": false
+    },
+    {
+      "elapsed": 2.6,
+      "audible": false
+    },
+    {
+      "elapsed": 2.605,
+      "audible": false
+    },
+    {
+      "elapsed": 2.61,
+      "audible": false
+    },
+    {
+      "elapsed": 2.615,
+      "audible": false
+    },
+    {
+      "elapsed": 2.62,
+      "audible": false
+    },
+    {
+      "elapsed": 2.625,
+      "audible": false
+    },
+    {
+      "elapsed": 2.63,
+      "audible": false
+    },
+    {
+      "elapsed": 2.635,
+      "audible": false
+    },
+    {
+      "elapsed": 2.64,
+      "audible": false
+    },
+    {
+      "elapsed": 2.645,
+      "audible": false
+    },
+    {
+      "elapsed": 2.65,
+      "audible": false
+    },
+    {
+      "elapsed": 2.655,
+      "audible": false
+    },
+    {
+      "elapsed": 2.66,
+      "audible": false
+    },
+    {
+      "elapsed": 2.665,
+      "audible": false
+    },
+    {
+      "elapsed": 2.67,
+      "audible": false
+    },
+    {
+      "elapsed": 2.675,
+      "audible": false
+    },
+    {
+      "elapsed": 2.68,
+      "audible": false
+    },
+    {
+      "elapsed": 2.685,
+      "audible": false
+    },
+    {
+      "elapsed": 2.69,
+      "audible": false
+    },
+    {
+      "elapsed": 2.695,
+      "audible": false
+    },
+    {
+      "elapsed": 2.7,
+      "audible": false
+    },
+    {
+      "elapsed": 2.705,
+      "audible": false
+    },
+    {
+      "elapsed": 2.71,
+      "audible": false
+    },
+    {
+      "elapsed": 2.715,
+      "audible": false
+    },
+    {
+      "elapsed": 2.72,
+      "audible": false
+    },
+    {
+      "elapsed": 2.725,
+      "audible": false
+    },
+    {
+      "elapsed": 2.73,
+      "audible": false
+    },
+    {
+      "elapsed": 2.735,
+      "audible": false
+    },
+    {
+      "elapsed": 2.74,
+      "audible": false
+    },
+    {
+      "elapsed": 2.745,
+      "audible": false
+    },
+    {
+      "elapsed": 2.75,
+      "audible": false
+    },
+    {
+      "elapsed": 2.755,
+      "audible": true
+    },
+    {
+      "elapsed": 2.76,
+      "audible": true
+    },
+    {
+      "elapsed": 2.765,
+      "audible": true
+    },
+    {
+      "elapsed": 2.77,
+      "audible": true
+    },
+    {
+      "elapsed": 2.775,
+      "audible": true
+    },
+    {
+      "elapsed": 2.78,
+      "audible": true
+    },
+    {
+      "elapsed": 2.785,
+      "audible": true
+    },
+    {
+      "elapsed": 2.79,
+      "audible": true
+    },
+    {
+      "elapsed": 2.795,
+      "audible": true
+    },
+    {
+      "elapsed": 2.8,
+      "audible": true
+    },
+    {
+      "elapsed": 2.805,
+      "audible": true
+    },
+    {
+      "elapsed": 2.81,
+      "audible": true
+    },
+    {
+      "elapsed": 2.815,
+      "audible": true
+    },
+    {
+      "elapsed": 2.82,
+      "audible": true
+    },
+    {
+      "elapsed": 2.825,
+      "audible": true
+    },
+    {
+      "elapsed": 2.83,
+      "audible": true
+    },
+    {
+      "elapsed": 2.835,
+      "audible": true
+    },
+    {
+      "elapsed": 2.84,
+      "audible": true
+    },
+    {
+      "elapsed": 2.845,
+      "audible": true
+    },
+    {
+      "elapsed": 2.85,
+      "audible": true
+    },
+    {
+      "elapsed": 2.855,
+      "audible": true
+    },
+    {
+      "elapsed": 2.86,
+      "audible": true
+    },
+    {
+      "elapsed": 2.865,
+      "audible": true
+    },
+    {
+      "elapsed": 2.87,
+      "audible": true
+    },
+    {
+      "elapsed": 2.875,
+      "audible": true
+    },
+    {
+      "elapsed": 2.88,
+      "audible": true
+    },
+    {
+      "elapsed": 2.885,
+      "audible": true
+    },
+    {
+      "elapsed": 2.89,
+      "audible": true
+    },
+    {
+      "elapsed": 2.895,
+      "audible": true
+    },
+    {
+      "elapsed": 2.9,
+      "audible": true
+    },
+    {
+      "elapsed": 2.905,
+      "audible": true
+    },
+    {
+      "elapsed": 2.91,
+      "audible": true
+    },
+    {
+      "elapsed": 2.915,
+      "audible": true
+    },
+    {
+      "elapsed": 2.92,
+      "audible": true
+    },
+    {
+      "elapsed": 2.925,
+      "audible": true
+    },
+    {
+      "elapsed": 2.93,
+      "audible": true
+    },
+    {
+      "elapsed": 2.935,
+      "audible": true
+    },
+    {
+      "elapsed": 2.94,
+      "audible": true
+    },
+    {
+      "elapsed": 2.945,
+      "audible": true
+    },
+    {
+      "elapsed": 2.95,
+      "audible": true
+    },
+    {
+      "elapsed": 2.955,
+      "audible": true
+    },
+    {
+      "elapsed": 2.96,
+      "audible": true
+    },
+    {
+      "elapsed": 2.965,
+      "audible": true
+    },
+    {
+      "elapsed": 2.97,
+      "audible": true
+    },
+    {
+      "elapsed": 2.975,
+      "audible": true
+    },
+    {
+      "elapsed": 2.98,
+      "audible": true
+    },
+    {
+      "elapsed": 2.985,
+      "audible": true
+    },
+    {
+      "elapsed": 2.99,
+      "audible": true
+    },
+    {
+      "elapsed": 2.995,
+      "audible": true
+    },
+    {
+      "elapsed": 3.0,
+      "audible": false
+    },
+    {
+      "elapsed": 3.005,
+      "audible": false
+    },
+    {
+      "elapsed": 3.01,
+      "audible": false
+    },
+    {
+      "elapsed": 3.015,
+      "audible": false
+    },
+    {
+      "elapsed": 3.02,
+      "audible": false
+    },
+    {
+      "elapsed": 3.025,
+      "audible": false
+    },
+    {
+      "elapsed": 3.03,
+      "audible": false
+    },
+    {
+      "elapsed": 3.035,
+      "audible": false
+    },
+    {
+      "elapsed": 3.04,
+      "audible": false
+    },
+    {
+      "elapsed": 3.045,
+      "audible": false
+    },
+    {
+      "elapsed": 3.05,
+      "audible": false
+    },
+    {
+      "elapsed": 3.055,
+      "audible": false
+    },
+    {
+      "elapsed": 3.06,
+      "audible": false
+    },
+    {
+      "elapsed": 3.065,
+      "audible": false
+    },
+    {
+      "elapsed": 3.07,
+      "audible": false
+    },
+    {
+      "elapsed": 3.075,
+      "audible": false
+    },
+    {
+      "elapsed": 3.08,
+      "audible": false
+    },
+    {
+      "elapsed": 3.085,
+      "audible": false
+    },
+    {
+      "elapsed": 3.09,
+      "audible": false
+    },
+    {
+      "elapsed": 3.095,
+      "audible": false
+    },
+    {
+      "elapsed": 3.1,
+      "audible": false
+    },
+    {
+      "elapsed": 3.105,
+      "audible": false
+    },
+    {
+      "elapsed": 3.11,
+      "audible": false
+    },
+    {
+      "elapsed": 3.115,
+      "audible": false
+    },
+    {
+      "elapsed": 3.12,
+      "audible": false
+    },
+    {
+      "elapsed": 3.125,
+      "audible": false
+    },
+    {
+      "elapsed": 3.13,
+      "audible": false
+    },
+    {
+      "elapsed": 3.135,
+      "audible": false
+    },
+    {
+      "elapsed": 3.14,
+      "audible": false
+    },
+    {
+      "elapsed": 3.145,
+      "audible": false
+    },
+    {
+      "elapsed": 3.15,
+      "audible": false
+    },
+    {
+      "elapsed": 3.155,
+      "audible": false
+    },
+    {
+      "elapsed": 3.16,
+      "audible": false
+    },
+    {
+      "elapsed": 3.165,
+      "audible": false
+    },
+    {
+      "elapsed": 3.17,
+      "audible": false
+    },
+    {
+      "elapsed": 3.175,
+      "audible": false
+    },
+    {
+      "elapsed": 3.18,
+      "audible": false
+    },
+    {
+      "elapsed": 3.185,
+      "audible": false
+    },
+    {
+      "elapsed": 3.19,
+      "audible": false
+    },
+    {
+      "elapsed": 3.195,
+      "audible": false
+    },
+    {
+      "elapsed": 3.2,
+      "audible": false
+    },
+    {
+      "elapsed": 3.205,
+      "audible": false
+    },
+    {
+      "elapsed": 3.21,
+      "audible": false
+    },
+    {
+      "elapsed": 3.215,
+      "audible": false
+    },
+    {
+      "elapsed": 3.22,
+      "audible": false
+    },
+    {
+      "elapsed": 3.225,
+      "audible": false
+    },
+    {
+      "elapsed": 3.23,
+      "audible": false
+    },
+    {
+      "elapsed": 3.235,
+      "audible": false
+    },
+    {
+      "elapsed": 3.24,
+      "audible": false
+    },
+    {
+      "elapsed": 3.245,
+      "audible": false
+    },
+    {
+      "elapsed": 3.25,
+      "audible": false
+    },
+    {
+      "elapsed": 3.255,
+      "audible": true
+    },
+    {
+      "elapsed": 3.26,
+      "audible": true
+    },
+    {
+      "elapsed": 3.265,
+      "audible": true
+    },
+    {
+      "elapsed": 3.27,
+      "audible": true
+    },
+    {
+      "elapsed": 3.275,
+      "audible": true
+    },
+    {
+      "elapsed": 3.28,
+      "audible": true
+    },
+    {
+      "elapsed": 3.285,
+      "audible": true
+    },
+    {
+      "elapsed": 3.29,
+      "audible": true
+    },
+    {
+      "elapsed": 3.295,
+      "audible": true
+    },
+    {
+      "elapsed": 3.3,
+      "audible": true
+    },
+    {
+      "elapsed": 3.305,
+      "audible": true
+    },
+    {
+      "elapsed": 3.31,
+      "audible": true
+    },
+    {
+      "elapsed": 3.315,
+      "audible": true
+    },
+    {
+      "elapsed": 3.32,
+      "audible": true
+    },
+    {
+      "elapsed": 3.325,
+      "audible": true
+    },
+    {
+      "elapsed": 3.33,
+      "audible": true
+    },
+    {
+      "elapsed": 3.335,
+      "audible": true
+    },
+    {
+      "elapsed": 3.34,
+      "audible": true
+    },
+    {
+      "elapsed": 3.345,
+      "audible": true
+    },
+    {
+      "elapsed": 3.35,
+      "audible": true
+    },
+    {
+      "elapsed": 3.355,
+      "audible": true
+    },
+    {
+      "elapsed": 3.36,
+      "audible": true
+    },
+    {
+      "elapsed": 3.365,
+      "audible": true
+    },
+    {
+      "elapsed": 3.37,
+      "audible": true
+    },
+    {
+      "elapsed": 3.375,
+      "audible": true
+    },
+    {
+      "elapsed": 3.38,
+      "audible": true
+    },
+    {
+      "elapsed": 3.385,
+      "audible": true
+    },
+    {
+      "elapsed": 3.39,
+      "audible": true
+    },
+    {
+      "elapsed": 3.395,
+      "audible": true
+    },
+    {
+      "elapsed": 3.4,
+      "audible": true
+    },
+    {
+      "elapsed": 3.405,
+      "audible": true
+    },
+    {
+      "elapsed": 3.41,
+      "audible": true
+    },
+    {
+      "elapsed": 3.415,
+      "audible": true
+    },
+    {
+      "elapsed": 3.42,
+      "audible": true
+    },
+    {
+      "elapsed": 3.425,
+      "audible": true
+    },
+    {
+      "elapsed": 3.43,
+      "audible": true
+    },
+    {
+      "elapsed": 3.435,
+      "audible": true
+    },
+    {
+      "elapsed": 3.44,
+      "audible": true
+    },
+    {
+      "elapsed": 3.445,
+      "audible": true
+    },
+    {
+      "elapsed": 3.45,
+      "audible": true
+    },
+    {
+      "elapsed": 3.455,
+      "audible": true
+    },
+    {
+      "elapsed": 3.46,
+      "audible": true
+    },
+    {
+      "elapsed": 3.465,
+      "audible": true
+    },
+    {
+      "elapsed": 3.47,
+      "audible": true
+    },
+    {
+      "elapsed": 3.475,
+      "audible": true
+    },
+    {
+      "elapsed": 3.48,
+      "audible": true
+    },
+    {
+      "elapsed": 3.485,
+      "audible": true
+    },
+    {
+      "elapsed": 3.49,
+      "audible": true
+    },
+    {
+      "elapsed": 3.495,
+      "audible": true
+    },
+    {
+      "elapsed": 3.5,
+      "audible": false
+    },
+    {
+      "elapsed": 3.505,
+      "audible": false
+    },
+    {
+      "elapsed": 3.51,
+      "audible": false
+    },
+    {
+      "elapsed": 3.515,
+      "audible": false
+    },
+    {
+      "elapsed": 3.52,
+      "audible": false
+    },
+    {
+      "elapsed": 3.525,
+      "audible": false
+    },
+    {
+      "elapsed": 3.53,
+      "audible": false
+    },
+    {
+      "elapsed": 3.535,
+      "audible": false
+    },
+    {
+      "elapsed": 3.54,
+      "audible": false
+    },
+    {
+      "elapsed": 3.545,
+      "audible": false
+    },
+    {
+      "elapsed": 3.55,
+      "audible": false
+    },
+    {
+      "elapsed": 3.555,
+      "audible": false
+    },
+    {
+      "elapsed": 3.56,
+      "audible": false
+    },
+    {
+      "elapsed": 3.565,
+      "audible": false
+    },
+    {
+      "elapsed": 3.57,
+      "audible": false
+    },
+    {
+      "elapsed": 3.575,
+      "audible": false
+    },
+    {
+      "elapsed": 3.58,
+      "audible": false
+    },
+    {
+      "elapsed": 3.585,
+      "audible": false
+    },
+    {
+      "elapsed": 3.59,
+      "audible": false
+    },
+    {
+      "elapsed": 3.595,
+      "audible": false
+    },
+    {
+      "elapsed": 3.6,
+      "audible": false
+    },
+    {
+      "elapsed": 3.605,
+      "audible": false
+    },
+    {
+      "elapsed": 3.61,
+      "audible": false
+    },
+    {
+      "elapsed": 3.615,
+      "audible": false
+    },
+    {
+      "elapsed": 3.62,
+      "audible": false
+    },
+    {
+      "elapsed": 3.625,
+      "audible": false
+    },
+    {
+      "elapsed": 3.63,
+      "audible": false
+    },
+    {
+      "elapsed": 3.635,
+      "audible": false
+    },
+    {
+      "elapsed": 3.64,
+      "audible": false
+    },
+    {
+      "elapsed": 3.645,
+      "audible": false
+    },
+    {
+      "elapsed": 3.65,
+      "audible": false
+    },
+    {
+      "elapsed": 3.655,
+      "audible": false
+    },
+    {
+      "elapsed": 3.66,
+      "audible": false
+    },
+    {
+      "elapsed": 3.665,
+      "audible": false
+    },
+    {
+      "elapsed": 3.67,
+      "audible": false
+    },
+    {
+      "elapsed": 3.675,
+      "audible": false
+    },
+    {
+      "elapsed": 3.68,
+      "audible": false
+    },
+    {
+      "elapsed": 3.685,
+      "audible": false
+    },
+    {
+      "elapsed": 3.69,
+      "audible": false
+    },
+    {
+      "elapsed": 3.695,
+      "audible": false
+    },
+    {
+      "elapsed": 3.7,
+      "audible": false
+    },
+    {
+      "elapsed": 3.705,
+      "audible": false
+    },
+    {
+      "elapsed": 3.71,
+      "audible": false
+    },
+    {
+      "elapsed": 3.715,
+      "audible": false
+    },
+    {
+      "elapsed": 3.72,
+      "audible": false
+    },
+    {
+      "elapsed": 3.725,
+      "audible": false
+    },
+    {
+      "elapsed": 3.73,
+      "audible": false
+    },
+    {
+      "elapsed": 3.735,
+      "audible": false
+    },
+    {
+      "elapsed": 3.74,
+      "audible": false
+    },
+    {
+      "elapsed": 3.745,
+      "audible": false
+    },
+    {
+      "elapsed": 3.75,
+      "audible": false
+    },
+    {
+      "elapsed": 3.755,
+      "audible": true
+    },
+    {
+      "elapsed": 3.76,
+      "audible": true
+    },
+    {
+      "elapsed": 3.765,
+      "audible": true
+    },
+    {
+      "elapsed": 3.77,
+      "audible": true
+    },
+    {
+      "elapsed": 3.775,
+      "audible": true
+    },
+    {
+      "elapsed": 3.78,
+      "audible": true
+    },
+    {
+      "elapsed": 3.785,
+      "audible": true
+    },
+    {
+      "elapsed": 3.79,
+      "audible": true
+    },
+    {
+      "elapsed": 3.795,
+      "audible": true
+    },
+    {
+      "elapsed": 3.8,
+      "audible": true
+    },
+    {
+      "elapsed": 3.805,
+      "audible": true
+    },
+    {
+      "elapsed": 3.81,
+      "audible": true
+    },
+    {
+      "elapsed": 3.815,
+      "audible": true
+    },
+    {
+      "elapsed": 3.82,
+      "audible": true
+    },
+    {
+      "elapsed": 3.825,
+      "audible": true
+    },
+    {
+      "elapsed": 3.83,
+      "audible": true
+    },
+    {
+      "elapsed": 3.835,
+      "audible": true
+    },
+    {
+      "elapsed": 3.84,
+      "audible": true
+    },
+    {
+      "elapsed": 3.845,
+      "audible": true
+    },
+    {
+      "elapsed": 3.85,
+      "audible": true
+    },
+    {
+      "elapsed": 3.855,
+      "audible": true
+    },
+    {
+      "elapsed": 3.86,
+      "audible": true
+    },
+    {
+      "elapsed": 3.865,
+      "audible": true
+    },
+    {
+      "elapsed": 3.87,
+      "audible": true
+    },
+    {
+      "elapsed": 3.875,
+      "audible": true
+    },
+    {
+      "elapsed": 3.88,
+      "audible": true
+    },
+    {
+      "elapsed": 3.885,
+      "audible": true
+    },
+    {
+      "elapsed": 3.89,
+      "audible": true
+    },
+    {
+      "elapsed": 3.895,
+      "audible": true
+    },
+    {
+      "elapsed": 3.9,
+      "audible": true
+    },
+    {
+      "elapsed": 3.905,
+      "audible": true
+    },
+    {
+      "elapsed": 3.91,
+      "audible": true
+    },
+    {
+      "elapsed": 3.915,
+      "audible": true
+    },
+    {
+      "elapsed": 3.92,
+      "audible": true
+    },
+    {
+      "elapsed": 3.925,
+      "audible": true
+    },
+    {
+      "elapsed": 3.93,
+      "audible": true
+    },
+    {
+      "elapsed": 3.935,
+      "audible": true
+    },
+    {
+      "elapsed": 3.94,
+      "audible": true
+    },
+    {
+      "elapsed": 3.945,
+      "audible": true
+    },
+    {
+      "elapsed": 3.95,
+      "audible": true
+    },
+    {
+      "elapsed": 3.955,
+      "audible": true
+    },
+    {
+      "elapsed": 3.96,
+      "audible": true
+    },
+    {
+      "elapsed": 3.965,
+      "audible": true
+    },
+    {
+      "elapsed": 3.97,
+      "audible": true
+    },
+    {
+      "elapsed": 3.975,
+      "audible": true
+    },
+    {
+      "elapsed": 3.98,
+      "audible": true
+    },
+    {
+      "elapsed": 3.985,
+      "audible": true
+    },
+    {
+      "elapsed": 3.99,
+      "audible": true
+    },
+    {
+      "elapsed": 3.995,
+      "audible": true
+    },
+    {
+      "elapsed": 4.0,
+      "audible": false
+    },
+    {
+      "elapsed": 4.005,
+      "audible": false
+    },
+    {
+      "elapsed": 4.01,
+      "audible": false
+    },
+    {
+      "elapsed": 4.015,
+      "audible": false
+    },
+    {
+      "elapsed": 4.02,
+      "audible": false
+    },
+    {
+      "elapsed": 4.025,
+      "audible": false
+    },
+    {
+      "elapsed": 4.03,
+      "audible": false
+    },
+    {
+      "elapsed": 4.035,
+      "audible": false
+    },
+    {
+      "elapsed": 4.04,
+      "audible": false
+    },
+    {
+      "elapsed": 4.045,
+      "audible": false
+    },
+    {
+      "elapsed": 4.05,
+      "audible": false
+    },
+    {
+      "elapsed": 4.055,
+      "audible": false
+    },
+    {
+      "elapsed": 4.06,
+      "audible": false
+    },
+    {
+      "elapsed": 4.065,
+      "audible": false
+    },
+    {
+      "elapsed": 4.07,
+      "audible": false
+    },
+    {
+      "elapsed": 4.075,
+      "audible": false
+    },
+    {
+      "elapsed": 4.08,
+      "audible": false
+    },
+    {
+      "elapsed": 4.085,
+      "audible": false
+    },
+    {
+      "elapsed": 4.09,
+      "audible": false
+    },
+    {
+      "elapsed": 4.095,
+      "audible": false
+    },
+    {
+      "elapsed": 4.1,
+      "audible": false
+    },
+    {
+      "elapsed": 4.105,
+      "audible": false
+    },
+    {
+      "elapsed": 4.11,
+      "audible": false
+    },
+    {
+      "elapsed": 4.115,
+      "audible": false
+    },
+    {
+      "elapsed": 4.12,
+      "audible": false
+    },
+    {
+      "elapsed": 4.125,
+      "audible": false
+    },
+    {
+      "elapsed": 4.13,
+      "audible": false
+    },
+    {
+      "elapsed": 4.135,
+      "audible": false
+    },
+    {
+      "elapsed": 4.14,
+      "audible": false
+    },
+    {
+      "elapsed": 4.145,
+      "audible": false
+    },
+    {
+      "elapsed": 4.15,
+      "audible": false
+    },
+    {
+      "elapsed": 4.155,
+      "audible": false
+    },
+    {
+      "elapsed": 4.16,
+      "audible": false
+    },
+    {
+      "elapsed": 4.165,
+      "audible": false
+    },
+    {
+      "elapsed": 4.17,
+      "audible": false
+    },
+    {
+      "elapsed": 4.175,
+      "audible": false
+    },
+    {
+      "elapsed": 4.18,
+      "audible": false
+    },
+    {
+      "elapsed": 4.185,
+      "audible": false
+    },
+    {
+      "elapsed": 4.19,
+      "audible": false
+    },
+    {
+      "elapsed": 4.195,
+      "audible": false
+    },
+    {
+      "elapsed": 4.2,
+      "audible": false
+    },
+    {
+      "elapsed": 4.205,
+      "audible": false
+    },
+    {
+      "elapsed": 4.21,
+      "audible": false
+    },
+    {
+      "elapsed": 4.215,
+      "audible": false
+    },
+    {
+      "elapsed": 4.22,
+      "audible": false
+    },
+    {
+      "elapsed": 4.225,
+      "audible": false
+    },
+    {
+      "elapsed": 4.23,
+      "audible": false
+    },
+    {
+      "elapsed": 4.235,
+      "audible": false
+    },
+    {
+      "elapsed": 4.24,
+      "audible": false
+    },
+    {
+      "elapsed": 4.245,
+      "audible": false
+    }
+  ]
+}

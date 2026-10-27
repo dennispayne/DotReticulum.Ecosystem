@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 
 namespace DotLXST;
 
-/// <summary>Portable little-endian raw floating-point samples. Float128 is deliberately unsupported.</summary>
+/// <summary>Little-endian raw samples; depth 128 explicitly targets pinned Linux x86 NumPy long double.</summary>
 public sealed class RawAudioCodec : IAudioCodec
 {
     private readonly int _bitDepth;
@@ -11,7 +11,7 @@ public sealed class RawAudioCodec : IAudioCodec
 
     public RawAudioCodec(int bitDepth = 16, int? channels = null, int sampleRate = 48_000)
     {
-        if (bitDepth is not (16 or 32 or 64)) throw new ArgumentOutOfRangeException(nameof(bitDepth));
+        if (bitDepth is not (16 or 32 or 64 or 128)) throw new ArgumentOutOfRangeException(nameof(bitDepth));
         if (channels is < 1 or > 32) throw new ArgumentOutOfRangeException(nameof(channels));
         ArgumentOutOfRangeException.ThrowIfLessThan(sampleRate, 1);
         _bitDepth = bitDepth;
@@ -30,7 +30,7 @@ public sealed class RawAudioCodec : IAudioCodec
         var length = checked(frame.SamplesPerChannel * channels * width + 1);
         if (length > StreamPacket.MaximumEncodedBytes) throw new ArgumentException("Raw frame is too large.");
         var result = new byte[length];
-        result[0] = (byte)((_bitDepth switch { 16 => 0, 32 => 1, _ => 2 }) << 6 | (channels - 1));
+        result[0] = (byte)((_bitDepth switch { 16 => 0, 32 => 1, 64 => 2, _ => 3 }) << 6 | (channels - 1));
         var input = frame.Samples.Span;
         for (var i = 0; i < frame.SamplesPerChannel; i++)
         {
@@ -43,6 +43,7 @@ public sealed class RawAudioCodec : IAudioCodec
                     case 16: BinaryPrimitives.WriteHalfLittleEndian(target, (Half)sample); break;
                     case 32: BinaryPrimitives.WriteSingleLittleEndian(target, sample); break;
                     case 64: BinaryPrimitives.WriteDoubleLittleEndian(target, sample); break;
+                    case 128: RawExtendedFloat.Write(target, sample); break;
                 }
             }
         }
@@ -55,7 +56,6 @@ public sealed class RawAudioCodec : IAudioCodec
         var channels = (data[0] & 63) + 1;
         var depth = data[0] >> 6;
         if (channels > 32) throw new FormatException("Raw frame exceeds supported channel count.");
-        if (depth == 3) throw new NotSupportedException("Native NumPy float128 is not a portable IEEE interchange format.");
         var width = 2 << depth;
         if ((data.Length - 1) % (width * channels) != 0) throw new FormatException("Truncated raw samples.");
         var output = new float[(data.Length - 1) / width];
@@ -66,7 +66,8 @@ public sealed class RawAudioCodec : IAudioCodec
             {
                 0 => (float)BinaryPrimitives.ReadHalfLittleEndian(value),
                 1 => BinaryPrimitives.ReadSingleLittleEndian(value),
-                _ => (float)BinaryPrimitives.ReadDoubleLittleEndian(value),
+                2 => (float)BinaryPrimitives.ReadDoubleLittleEndian(value),
+                _ => RawExtendedFloat.Read(value),
             };
         }
         return new(output, _sampleRate, channels);

@@ -108,10 +108,15 @@ public sealed class LiveStreamTests
             using var codec2 = new NativeCodec2();
             await session.SendFrameAsync(new(CodecKind.Codec2, codec2.Encode(new(new float[320], 8000, 1))));
             await python.WaitAsync("frame", 2);
+            using var extended = new RawAudioCodec(128, 2);
+            await session.SendFrameAsync(new(CodecKind.Raw, extended.Encode(new(samples, 48000, 2))));
+            var extendedObserved = await python.WaitAsync("frame", 3);
+            Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(MemoryMarshal.AsBytes(samples.AsSpan()))),
+                extendedObserved.GetProperty("sha256").GetString());
 
-            foreach (var kind in new[] { "raw", "opus", "codec2", "raw" })
+            foreach (var kind in new[] { "raw", "raw128", "opus", "codec2", "raw" })
                 await python.CommandAsync($"send {kind} 3", "sent");
-            await WaitForAsync(() => inbox.Count == 12);
+            await WaitForAsync(() => inbox.Count == 15);
             Assert.Contains(inbox, frame => frame.SampleRate == 8000);
             Assert.Contains(inbox, frame => frame.SampleRate == 48000);
             Assert.Empty(errors);

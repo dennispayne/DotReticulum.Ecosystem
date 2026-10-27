@@ -131,7 +131,7 @@ def main():
                 emit("sent")
             elif parts[0] == "send":
                 kind = parts[1]
-                codec = {"raw": Raw(channels=2, bitdepth=32),
+                codec = {"raw": Raw(channels=2, bitdepth=32), "raw128": Raw(channels=2, bitdepth=128),
                          "opus": Opus(profile=Opus.PROFILE_VOICE_LOW),
                          "codec2": Codec2(mode=2400)}[kind]
                 rate = 8000 if kind in ["opus", "codec2"] else 48000

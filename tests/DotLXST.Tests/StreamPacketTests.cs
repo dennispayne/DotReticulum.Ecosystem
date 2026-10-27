@@ -93,8 +93,35 @@ public sealed class StreamPacketTests
         Assert.Throws<FormatException>(() => new RawAudioCodec().Decode(Convert.FromHexString(bytes)));
 
     [Fact]
-    public void Float128IsExplicitlyUnsupported() =>
-        Assert.Throws<NotSupportedException>(() => new RawAudioCodec().Decode([0xc0]));
+    public void PinnedLinuxExtendedPrecisionMatchesActualMeaningfulBytesAndZeroPaddingAcceptance()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-raw-extended.json")));
+        var samples = fixture.RootElement.GetProperty("input_bits").EnumerateArray().Select(value => BitConverter.UInt32BitsToSingle(value.GetUInt32())).ToArray();
+        using var codec = new RawAudioCodec(128);
+        var bytes = codec.Encode(new(samples, 48000, 1));
+        Assert.Equal(0xc0, bytes[0]);
+        var index = 0;
+        foreach (var payload in fixture.RootElement.GetProperty("meaningful_payloads").EnumerateArray())
+        {
+            Assert.Equal(Convert.FromHexString(payload.GetString()!), bytes.AsSpan(1 + index * 16, 10).ToArray());
+            Assert.All(bytes.AsSpan(11 + index * 16, 6).ToArray(), value => Assert.Equal(0, value));
+            index++;
+        }
+        Assert.Equal(fixture.RootElement.GetProperty("decoded_bits").EnumerateArray().Select(value => value.GetUInt32()),
+            codec.Decode(bytes).Samples.ToArray().Select(BitConverter.SingleToUInt32Bits));
+        var boundaries = fixture.RootElement.GetProperty("decode_payloads").EnumerateArray().ToArray();
+        var boundaryBytes = new byte[1 + boundaries.Length * 16];
+        boundaryBytes[0] = 0xc0;
+        for (var item = 0; item < boundaries.Length; item++)
+            Convert.FromHexString(boundaries[item].GetString()!).CopyTo(boundaryBytes, 1 + item * 16);
+        Assert.Equal(fixture.RootElement.GetProperty("decode_bits").EnumerateArray().Select(value => value.GetUInt32()),
+            codec.Decode(boundaryBytes).Samples.ToArray().Select(BitConverter.SingleToUInt32Bits));
+        Assert.Throws<FormatException>(() => codec.Decode([0xc0, 0]));
+        var invalid = new byte[17];
+        invalid[0] = 0xc0;
+        invalid[9] = 1;
+        Assert.Throws<FormatException>(() => codec.Decode(invalid));
+    }
 
     internal static JsonDocument LoadVectors() =>
         JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-vectors.json")));

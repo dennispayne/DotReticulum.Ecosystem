@@ -1,0 +1,118 @@
+using System.Runtime.InteropServices;
+
+namespace DotLXST;
+
+/// <summary>Original libopus ABI adapter. The caller supplies and licenses the native library separately.</summary>
+public sealed unsafe class NativeOpusCodec : IAudioCodec
+{
+    private readonly object _gate = new();
+    private readonly nint _library;
+    private readonly delegate* unmanaged[Cdecl]<int, int, int, int*, nint> _createEncoder;
+    private readonly delegate* unmanaged[Cdecl]<int, int, int*, nint> _createDecoder;
+    private readonly delegate* unmanaged[Cdecl]<nint, short*, int, byte*, int, int> _encode;
+    private readonly delegate* unmanaged[Cdecl]<nint, byte*, int, short*, int, int, int> _decode;
+    private readonly delegate* unmanaged[Cdecl]<nint, void> _destroyEncoder;
+    private readonly delegate* unmanaged[Cdecl]<nint, void> _destroyDecoder;
+    private nint _encoder;
+    private nint _decoder;
+    private bool _disposed;
+    private readonly int _decodeRate;
+    private readonly int _decodeChannels;
+
+    public NativeOpusCodec(OpusProfile profile = OpusProfile.VoiceLow, string? libraryPath = null,
+        int? decodeSampleRate = null, int? decodeChannels = null)
+    {
+        Parameters = OpusParameters.For(profile);
+        _decodeRate = decodeSampleRate ?? Parameters.SampleRate;
+        _decodeChannels = decodeChannels ?? Parameters.Channels;
+        if (_decodeRate is not (8000 or 12000 or 16000 or 24000 or 48000)) throw new ArgumentOutOfRangeException(nameof(decodeSampleRate));
+        if (_decodeChannels is not (1 or 2)) throw new ArgumentOutOfRangeException(nameof(decodeChannels));
+        _library = NativeLibrary.Load(libraryPath ?? (OperatingSystem.IsWindows() ? "opus.dll" :
+            OperatingSystem.IsMacOS() ? "libopus.0.dylib" : "libopus.so.0"));
+        try
+        {
+            _createEncoder = (delegate* unmanaged[Cdecl]<int, int, int, int*, nint>)NativeLibrary.GetExport(_library, "opus_encoder_create");
+            _createDecoder = (delegate* unmanaged[Cdecl]<int, int, int*, nint>)NativeLibrary.GetExport(_library, "opus_decoder_create");
+            _encode = (delegate* unmanaged[Cdecl]<nint, short*, int, byte*, int, int>)NativeLibrary.GetExport(_library, "opus_encode");
+            _decode = (delegate* unmanaged[Cdecl]<nint, byte*, int, short*, int, int, int>)NativeLibrary.GetExport(_library, "opus_decode");
+            _destroyEncoder = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(_library, "opus_encoder_destroy");
+            _destroyDecoder = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(_library, "opus_decoder_destroy");
+            var error = 0;
+            _encoder = _createEncoder(Parameters.SampleRate, Parameters.Channels, Parameters.Voice ? 2048 : 2049, &error);
+            if (error != 0 || _encoder == 0) throw new InvalidOperationException($"libopus encoder creation failed: {error}.");
+            _decoder = _createDecoder(_decodeRate, _decodeChannels, &error);
+            if (error != 0 || _decoder == 0) throw new InvalidOperationException($"libopus decoder creation failed: {error}.");
+        }
+        catch
+        {
+            if (_encoder != 0) _destroyEncoder(_encoder);
+            NativeLibrary.Free(_library);
+            throw;
+        }
+    }
+
+    public CodecKind Kind => CodecKind.Opus;
+    public OpusParameters Parameters { get; }
+
+    public byte[] Encode(AudioFrame frame)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        if (frame.SampleRate != Parameters.SampleRate) throw new ArgumentException("Supply audio at the codec sample rate.");
+        var duration = frame.SamplesPerChannel * 1000.0 / frame.SampleRate;
+        if (duration is not (2.5 or 5 or 10 or 20 or 40 or 60)) throw new ArgumentException("Unsupported Opus frame duration.");
+        var pcm = new short[frame.SamplesPerChannel * Parameters.Channels];
+        var input = frame.Samples.Span;
+        for (var i = 0; i < frame.SamplesPerChannel; i++)
+            for (var channel = 0; channel < Parameters.Channels; channel++)
+                pcm[i * Parameters.Channels + channel] = ToPcm(input[i * frame.Channels + Math.Min(channel, frame.Channels - 1)]);
+        var output = new byte[(int)Math.Ceiling(Parameters.BitrateCeiling * duration / 8000)];
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            fixed (short* samples = pcm)
+            fixed (byte* bytes = output)
+            {
+                var count = _encode(_encoder, samples, frame.SamplesPerChannel, bytes, output.Length);
+                if (count < 0) throw new InvalidOperationException($"libopus encode failed: {count}.");
+                return output.AsSpan(0, count).ToArray();
+            }
+        }
+    }
+
+    public AudioFrame Decode(ReadOnlySpan<byte> data)
+    {
+        if (data.IsEmpty || data.Length > StreamPacket.MaximumEncodedBytes) throw new FormatException("Invalid Opus packet length.");
+        var pcm = new short[_decodeRate * 120 / 1000 * _decodeChannels];
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            fixed (byte* packet = data)
+            fixed (short* samples = pcm)
+            {
+                var count = _decode(_decoder, packet, data.Length, samples, pcm.Length / _decodeChannels, 0);
+                if (count < 0) throw new FormatException($"libopus decode failed: {count}.");
+                return new(pcm.AsSpan(0, count * _decodeChannels).ToArray().Select(value => value / 32767f).ToArray(),
+                    _decodeRate, _decodeChannels);
+            }
+        }
+    }
+
+    internal static short ToPcm(float value)
+    {
+        if (!float.IsFinite(value)) throw new ArgumentException("Audio samples must be finite.");
+        return unchecked((short)(int)(value * 32767f));
+    }
+
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _destroyEncoder(_encoder);
+            _destroyDecoder(_decoder);
+            _encoder = _decoder = 0;
+            NativeLibrary.Free(_library);
+        }
+    }
+}

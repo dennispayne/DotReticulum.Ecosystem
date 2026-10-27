@@ -53,6 +53,7 @@ public sealed class StreamSession : IAsyncDisposable
     }
 
     public event Action<long>? SignalReceived;
+    public event Action<object?>? SignalValueReceived;
     public event Action<AudioFrame>? FrameReceived;
     public Action<string, Exception?>? Error { get; set; }
     public long DecodedFrames => Interlocked.Read(ref _decodedFrames);
@@ -70,6 +71,9 @@ public sealed class StreamSession : IAsyncDisposable
     }
 
     public ValueTask SendSignalAsync(long signal, CancellationToken cancellationToken = default) =>
+        SendPacketAsync(new() { Signals = [signal] }, cancellationToken);
+
+    public ValueTask SendSignalAsync(object? signal, CancellationToken cancellationToken = default) =>
         SendPacketAsync(new() { Signals = [signal] }, cancellationToken);
 
     public ValueTask SendFrameAsync(EncodedFrame frame, CancellationToken cancellationToken = default) =>
@@ -121,7 +125,13 @@ public sealed class StreamSession : IAsyncDisposable
                         }
                         Notify(FrameReceived, decoded, "frame observer");
                     }
-                    foreach (var signal in packet.Signals) Notify(SignalReceived, signal, "signalling observer");
+                    foreach (var signal in packet.Signals)
+                    {
+                        Notify(SignalValueReceived, signal, "signalling value observer");
+                        if (signal is long number) Notify(SignalReceived, number, "signalling observer");
+                        else if (signal is ulong unsigned && unsigned <= long.MaxValue)
+                            Notify(SignalReceived, (long)unsigned, "signalling observer");
+                    }
                 }
                 catch (OperationCanceledException) when (_stop.IsCancellationRequested) { break; }
                 catch (Exception ex) { Report("LXST packet processing failed.", ex); }
@@ -182,12 +192,11 @@ public sealed class StreamSession : IAsyncDisposable
     }
 }
 
-/// <summary>A bounded, non-owning adapter over a dedicated Reticulum link with no other core receiver.</summary>
+/// <summary>A bounded, non-owning adapter with an exclusive core receiver registration.</summary>
 public sealed class ReticulumStreamTransport : IStreamTransport, IDisposable
 {
-    private static readonly object OwnershipGate = new();
-    private static readonly ConditionalWeakTable<Link, ReticulumStreamTransport> Owners = new();
     private readonly Link _link;
+    private readonly IDisposable _receiver;
     private readonly Channel<ReadOnlyMemory<byte>> _incoming;
     private readonly Action<byte[], DotReticulum.Core.Packet> _handler;
     private readonly Action<Link> _closedHandler;
@@ -213,19 +222,8 @@ public sealed class ReticulumStreamTransport : IStreamTransport, IDisposable
             }
         };
         _closedHandler = _ => _incoming.Writer.TryComplete();
-        lock (OwnershipGate)
-        {
-            if (Owners.TryGetValue(_link, out _))
-                throw new InvalidOperationException("The link already has an LXST stream adapter.");
-            Owners.Add(_link, this);
-            try { _link.SetPacketReceiver(_handler); }
-            catch
-            {
-                Owners.Remove(_link);
-                throw;
-            }
-            _link.Closed += _closedHandler;
-        }
+        _receiver = _link.RegisterPacketReceiver(_handler);
+        _link.Closed += _closedHandler;
     }
 
     public Action<string>? Error { get; set; }
@@ -272,12 +270,8 @@ public sealed class ReticulumStreamTransport : IStreamTransport, IDisposable
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        lock (OwnershipGate)
-        {
-            _link.SetPacketReceiver(null);
-            _link.Closed -= _closedHandler;
-            Owners.Remove(_link);
-        }
+        _receiver.Dispose();
+        _link.Closed -= _closedHandler;
         _incoming.Writer.TryComplete();
         ReportDroppedPackets();
     }

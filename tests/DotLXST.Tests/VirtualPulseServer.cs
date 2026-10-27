@@ -39,6 +39,9 @@ internal sealed class VirtualPulseServer : IAsyncDisposable
         foreach (var argument in new[] { "-n", "--file=" + config, "--daemonize=no", "--use-pid-file=no",
             "--exit-idle-time=-1", "--disable-shm=yes", "--log-target=stderr" }) start.ArgumentList.Add(argument);
         start.Environment["PULSE_RUNTIME_PATH"] = directory;
+        start.Environment["PULSE_STATE_PATH"] = directory;
+        start.Environment["XDG_RUNTIME_DIR"] = directory;
+        start.Environment["DBUS_SESSION_BUS_ADDRESS"] = "unix:abstract=dotlxst-no-bus-" + Guid.NewGuid().ToString("N");
         start.Environment.Remove("PULSE_SERVER");
         var server = new VirtualPulseServer(Process.Start(start) ?? throw new InvalidOperationException("PulseAudio startup failed."),
             directory, $"tcp:127.0.0.1:{port}");

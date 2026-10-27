@@ -1,0 +1,78 @@
+{
+  "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+  "network_sha256": "3da8422a5c2c73f6e9c7d8e784b1e9cb307d079ebb5bf99183fc5daadfbd9701",
+  "vectors": [
+    {
+      "encoded": "810091c0",
+      "signals": [
+        "c0"
+      ]
+    },
+    {
+      "encoded": "810091c2",
+      "signals": [
+        "c2"
+      ]
+    },
+    {
+      "encoded": "810091c3",
+      "signals": [
+        "c3"
+      ]
+    },
+    {
+      "encoded": "810091a568656c6c6f",
+      "signals": [
+        "a568656c6c6f"
+      ]
+    },
+    {
+      "encoded": "810091c40200ff",
+      "signals": [
+        "c40200ff"
+      ]
+    },
+    {
+      "encoded": "810091fe",
+      "signals": [
+        "fe"
+      ]
+    },
+    {
+      "encoded": "810091cfffffffffffffffff",
+      "signals": [
+        "cfffffffffffffffff"
+      ]
+    },
+    {
+      "encoded": "810091cb3ff4000000000000",
+      "signals": [
+        "cb3ff4000000000000"
+      ]
+    },
+    {
+      "encoded": "8100919301a374776fc0",
+      "signals": [
+        "9301a374776fc0"
+      ]
+    },
+    {
+      "encoded": "81009181a66e657374656492c3c4056279746573",
+      "signals": [
+        "81a66e657374656492c3c4056279746573"
+      ]
+    },
+    {
+      "encoded": "81009181c402ff01aa62696e6172792d6b6579",
+      "signals": [
+        "81c402ff01aa62696e6172792d6b6579"
+      ]
+    },
+    {
+      "encoded": "810091c7092a657874656e73696f6e",
+      "signals": [
+        "c7092a657874656e73696f6e"
+      ]
+    }
+  ]
+}

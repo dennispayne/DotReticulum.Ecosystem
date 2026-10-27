@@ -16,7 +16,7 @@ public sealed class StreamPacketTests
             var bytes = Convert.FromHexString(vector.GetProperty("encoded").GetString()!);
             var packet = StreamPacket.Decode(bytes);
             if (vector.GetProperty("kind").GetString() == "signal")
-                Assert.Equal(vector.GetProperty("signal").GetInt64(), Assert.Single(packet.Signals));
+                Assert.Equal(vector.GetProperty("signal").GetInt64(), Assert.IsType<long>(Assert.Single(packet.Signals)));
             else Assert.Equal(CodecKind.Raw, Assert.Single(packet.Frames).Codec);
             Assert.Equal(bytes, packet.Encode());
         }
@@ -32,16 +32,32 @@ public sealed class StreamPacketTests
             [2L] = "extension",
         });
         var packet = StreamPacket.Decode(bytes);
-        Assert.Equal(4, Assert.Single(packet.Signals));
+        Assert.Equal(4, Assert.IsType<long>(Assert.Single(packet.Signals)));
         Assert.Equal(2, packet.Frames.Count);
         Assert.Equal(CodecKind.Opus, packet.Frames[1].Codec);
+    }
+
+    [Fact]
+    public void ArbitrarySignalsMatchExecutedUpstreamValuesAndWireBytes()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-signalling.json")));
+        foreach (var vector in fixture.RootElement.GetProperty("vectors").EnumerateArray())
+        {
+            var bytes = Convert.FromHexString(vector.GetProperty("encoded").GetString()!);
+            var packet = StreamPacket.Decode(bytes);
+            Assert.Equal(vector.GetProperty("signals").EnumerateArray().Select(value => value.GetString()),
+                packet.Signals.Select(value => Convert.ToHexString(MsgPack.Pack(value)).ToLowerInvariant()));
+            Assert.Equal(bytes, packet.Encode());
+        }
+        Assert.Equal("scalar", Assert.Single(StreamPacket.Decode(
+            MsgPack.Pack(new Dictionary<object, object?> { [0L] = "scalar" })).Signals));
     }
 
     [Theory]
     [InlineData("90")]
     [InlineData("8101c400")]
     [InlineData("8101c40103")]
-    [InlineData("8100a178")]
     [InlineData("8101c4020000ff")]
     public void RejectsMalformedEnvelope(string encoded) =>
         Assert.Throws<FormatException>(() => StreamPacket.Decode(Convert.FromHexString(encoded)));

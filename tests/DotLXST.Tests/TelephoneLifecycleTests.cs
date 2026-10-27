@@ -65,7 +65,7 @@ public sealed class TelephoneLifecycleTests
         public StreamSession Connect(out Task established)
         {
             var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            LastLink = _client.Links.Connect(_serverIdentity, Phone.DestinationHash);
+            LastLink = CreateLink();
             var transport = new ReticulumStreamTransport(LastLink);
             var session = new StreamSession(transport, new RawFactory());
             var link = LastLink;
@@ -79,6 +79,9 @@ public sealed class TelephoneLifecycleTests
             established = completion.Task;
             return session;
         }
+
+        public Link CreateLink() =>
+            LastLink = _client.Links.Connect(_serverIdentity, Phone.DestinationHash);
 
         public async ValueTask DisposeAsync()
         {
@@ -95,6 +98,22 @@ public sealed class TelephoneLifecycleTests
             _clientIdentity.Dispose();
             _stop.Dispose();
         }
+    }
+
+    [Fact]
+    public async Task ForeignReceiverOwnershipAndRepeatedConcurrentDisposalCannotClobberTheNextOwner()
+    {
+        await using var rig = new Rig(new());
+        await rig.StartAsync();
+        var link = rig.CreateLink();
+        using (link.RegisterPacketReceiver((_, _) => { }))
+            Assert.Throws<InvalidOperationException>(() => new ReticulumStreamTransport(link));
+        var transport = new ReticulumStreamTransport(link, receiveCapacity: 1);
+        Assert.Throws<InvalidOperationException>(() => link.SetPacketReceiver(null));
+        await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(transport.Dispose)));
+        using var nextOwner = link.RegisterPacketReceiver((_, _) => { });
+        transport.Dispose();
+        Assert.Throws<InvalidOperationException>(() => new ReticulumStreamTransport(link));
     }
 
     [Fact]

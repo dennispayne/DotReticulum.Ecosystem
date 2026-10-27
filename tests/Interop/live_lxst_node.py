@@ -19,6 +19,7 @@ import RNS
 import LXST
 from LXST.Codecs import Raw, Opus, Codec2
 from LXST.Network import LinkSource, Packetizer, SignallingReceiver
+from RNS.vendor import umsgpack as mp
 from reference_environment import verify_reference
 
 LOCK = threading.Lock()
@@ -44,7 +45,12 @@ class ObservationSink:
 
 class Signals(SignallingReceiver):
     def signalling_received(self, signals, source):
-        emit("signals", values=signals)
+        try:
+            json.dumps(signals)
+            values = signals
+        except TypeError:
+            values = None
+        emit("signals", values=values, packed=[mp.packb(value).hex() for value in signals])
 
 
 def main():
@@ -119,6 +125,9 @@ def main():
                 emit("announced")
             elif parts[0] == "signal":
                 signals.signal(int(parts[1]), connections[-1][0])
+                emit("sent")
+            elif parts[0] == "signal-packed":
+                signals.signal(mp.unpackb(bytes.fromhex(parts[1])), connections[-1][0])
                 emit("sent")
             elif parts[0] == "send":
                 kind = parts[1]

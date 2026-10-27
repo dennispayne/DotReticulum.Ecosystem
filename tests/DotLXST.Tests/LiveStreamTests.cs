@@ -65,9 +65,11 @@ public sealed class LiveStreamTests
             await using var session = new StreamSession(transport, new NativeAudioCodecFactory());
             var inbox = new ConcurrentQueue<AudioFrame>();
             var signals = new ConcurrentQueue<long>();
+            var signalValues = new ConcurrentQueue<object?>();
             var errors = new ConcurrentQueue<string>();
             session.FrameReceived += inbox.Enqueue;
             session.SignalReceived += signals.Enqueue;
+            session.SignalValueReceived += signalValues.Enqueue;
             session.Error = (context, error) => errors.Enqueue(context + " " + error?.Message);
             session.Start();
             await active.Task.WaitAsync(TimeSpan.FromSeconds(20));
@@ -77,6 +79,22 @@ public sealed class LiveStreamTests
             Assert.Equal(383, observed.GetProperty("values")[0].GetInt32());
             await python.CommandAsync("signal 319", "sent");
             await WaitForAsync(() => signals.Contains(319));
+            using (var vectors = System.Text.Json.JsonDocument.Parse(File.ReadAllText(
+                Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-signalling.json"))))
+            {
+                foreach (var vector in vectors.RootElement.GetProperty("vectors").EnumerateArray())
+                {
+                    var valueBytes = Convert.FromHexString(vector.GetProperty("signals")[0].GetString()!);
+                    var beforeSignals = python.Count("signals");
+                    await session.SendSignalAsync(MsgPack.UnpackApplicationValue(valueBytes));
+                    var observedValue = await python.WaitAsync("signals", beforeSignals);
+                    Assert.Equal(Convert.ToHexStringLower(valueBytes), observedValue.GetProperty("packed")[0].GetString());
+                    var beforeValues = signalValues.Count;
+                    await python.CommandAsync("signal-packed " + Convert.ToHexStringLower(valueBytes), "sent");
+                    await WaitForAsync(() => signalValues.Count == beforeValues + 1);
+                    Assert.Equal(valueBytes, MsgPack.Pack(signalValues.Last()));
+                }
+            }
 
             var samples = Enumerable.Range(0, 32).SelectMany(i => new[] { i / 128f, -i / 128f }).ToArray();
             using var raw = new RawAudioCodec(32, 2);

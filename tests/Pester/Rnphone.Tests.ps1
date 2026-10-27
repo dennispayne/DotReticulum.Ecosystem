@@ -134,6 +134,7 @@ Describe 'Native rnphone against actual Python Telephone' -Tag Integration, Nati
         $pythonConfig = Join-Path $root 'python'
         $pulseConfig = Join-Path $root 'pulse.pa'
         New-Item -ItemType Directory -Force $phoneConfig, $rnsConfig, $pythonConfig | Out-Null
+        [IO.File]::SetUnixFileMode($root, [IO.UnixFileMode]448)
         $pulse = $null
         $python = $null
         $phone = $null
@@ -149,7 +150,8 @@ set-default-source lxst_input
             $pulseAddress = "tcp:127.0.0.1:$pulsePort"
             $pulse = Start-PhoneProcess 'pulseaudio' @('-n', "--file=$pulseConfig", '--daemonize=no',
                 '--use-pid-file=no', '--exit-idle-time=-1', '--disable-shm=yes', '--log-target=stderr') @{
-                    PULSE_RUNTIME_PATH = $root; PULSE_SERVER = ''
+                    PULSE_RUNTIME_PATH = $root; PULSE_STATE_PATH = $root; XDG_RUNTIME_DIR = $root; PULSE_SERVER = ''
+                    DBUS_SESSION_BUS_ADDRESS = 'unix:abstract=dotlxst-no-bus-' + [Guid]::NewGuid().ToString('N')
                 }
 
             $deadline = [DateTime]::UtcNow.AddSeconds(10)
@@ -251,6 +253,7 @@ Describe 'Two native rnphone processes with isolated virtual audio' -Tag Integra
         $serverConfig = Join-Path $root 'server'
         $clientConfig = Join-Path $root 'client'
         New-Item -ItemType Directory -Force $firstConfig, $secondConfig, $serverConfig, $clientConfig | Out-Null
+        [IO.File]::SetUnixFileMode($root, [IO.UnixFileMode]448)
         $pulse = $null
         $first = $null
         $second = $null
@@ -267,7 +270,8 @@ set-default-source lxst_input
             $pulseAddress = "tcp:127.0.0.1:$pulsePort"
             $pulse = Start-PhoneProcess 'pulseaudio' @('-n', "--file=$pulseConfig", '--daemonize=no',
                 '--use-pid-file=no', '--exit-idle-time=-1', '--disable-shm=yes', '--log-target=stderr') @{
-                    PULSE_RUNTIME_PATH = $root; PULSE_SERVER = ''
+                    PULSE_RUNTIME_PATH = $root; PULSE_STATE_PATH = $root; XDG_RUNTIME_DIR = $root; PULSE_SERVER = ''
+                    DBUS_SESSION_BUS_ADDRESS = 'unix:abstract=dotlxst-no-bus-' + [Guid]::NewGuid().ToString('N')
                 }
             $deadline = [DateTime]::UtcNow.AddSeconds(10)
             do {
@@ -338,7 +342,7 @@ target_port = $port
             }
         } catch {
             $failure = $_
-            foreach ($peer in @($first, $second)) {
+            foreach ($peer in @($first, $second, $pulse)) {
                 if ($peer) {
                     for ($i = 0; $i -lt 100; $i++) { Read-PhoneProcess $peer }
                     Write-Host ("Native peer stdout:`n" + ($peer.Output -join "`n") + "`nstderr:`n" + ($peer.Error -join "`n"))

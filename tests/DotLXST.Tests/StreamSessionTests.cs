@@ -52,6 +52,38 @@ public sealed class StreamSessionTests
     }
 
     [Fact]
+    public async Task ArbitrarySignalsSurviveObserverFailureAndPreserveTelephoneIntegerFiltering()
+    {
+        var transport = new MemoryTransport();
+        var values = new List<object?>();
+        var integers = new List<long>();
+        var errors = new List<string>();
+        await using var session = new StreamSession(transport, new RawFactory());
+        session.Error = (context, _) => errors.Add(context);
+        session.SignalValueReceived += _ => throw new InvalidOperationException("test observer");
+        session.SignalValueReceived += values.Add;
+        session.SignalReceived += integers.Add;
+        session.Start();
+        await session.SendSignalAsync(new Dictionary<object, object?> { ["mute"] = true });
+        await transport.Incoming.Writer.WriteAsync(new StreamPacket
+        {
+            Signals = [null, "remote", new object?[] { 1L, false }, ulong.MaxValue, 4L],
+        }.Encode());
+        transport.Incoming.Writer.Complete();
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(5, values.Count);
+        Assert.Null(values[0]);
+        Assert.Equal("remote", values[1]);
+        Assert.Equal(new object?[] { 1L, false }, Assert.IsType<object?[]>(values[2]));
+        Assert.Equal(ulong.MaxValue, Assert.IsType<ulong>(values[3]));
+        Assert.Equal(new long[] { 4 }, integers);
+        Assert.Equal(5, errors.Count);
+        var sent = Assert.IsType<Dictionary<object, object?>>(Assert.Single(
+            StreamPacket.Decode(Assert.Single(transport.Sent)).Signals));
+        Assert.Equal(true, sent["mute"]);
+    }
+
+    [Fact]
     public async Task CoreDecodingRunsWithoutObserversAndRecoversAfterMalformedPacket()
     {
         var transport = new MemoryTransport();
@@ -104,7 +136,7 @@ public sealed class StreamSessionTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => session.SendSignalAsync(3, cancelled.Token).AsTask());
         await Assert.ThrowsAsync<ArgumentException>(() => session.SendFrameAsync(new(CodecKind.Raw, new byte[400])).AsTask());
         await session.SendSignalAsync(3);
-        Assert.Equal(3, Assert.Single(StreamPacket.Decode(Assert.Single(transport.Sent)).Signals));
+        Assert.Equal(3, Assert.IsType<long>(Assert.Single(StreamPacket.Decode(Assert.Single(transport.Sent)).Signals)));
         await session.DisposeAsync();
         await Assert.ThrowsAsync<ObjectDisposedException>(() => session.SendSignalAsync(3).AsTask());
     }

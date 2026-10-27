@@ -25,14 +25,14 @@ public sealed class StreamPacket
     };
 
     public IReadOnlyList<EncodedFrame> Frames { get; init; } = [];
-    public IReadOnlyList<long> Signals { get; init; } = [];
+    public IReadOnlyList<object?> Signals { get; init; } = [];
 
     public byte[] Encode()
     {
         if (Frames.Count > 256 || Signals.Count > 256)
             throw new ArgumentException("Too many frames or signals.");
         var fields = new Dictionary<object, object?>();
-        if (Signals.Count != 0) fields[0L] = Signals.Cast<object?>().ToArray();
+        if (Signals.Count != 0) fields[0L] = Signals.ToArray();
         if (Frames.Count != 0)
         {
             var frames = Frames.Select(frame =>
@@ -51,10 +51,10 @@ public sealed class StreamPacket
 
     public static StreamPacket Decode(ReadOnlySpan<byte> data)
     {
-        if (MsgPack.Unpack(data, Limits) is not Dictionary<object, object?> fields)
+        if (MsgPack.UnpackApplicationValue(data, Limits) is not Dictionary<object, object?> fields)
             throw new FormatException("LXST envelope must be a map.");
         var frames = new List<EncodedFrame>();
-        var signals = new List<long>();
+        var signals = new List<object?>();
         if (fields.TryGetValue(1L, out var frameValue))
         {
             var values = frameValue is object?[] items ? items : [frameValue];
@@ -68,12 +68,7 @@ public sealed class StreamPacket
         if (fields.TryGetValue(0L, out var signalValue))
         {
             var values = signalValue is object?[] items ? items : [signalValue];
-            foreach (var value in values)
-            {
-                if (value is long number) signals.Add(number);
-                else if (value is ulong unsigned && unsigned <= long.MaxValue) signals.Add((long)unsigned);
-                else throw new FormatException("Telephone signals must be integers.");
-            }
+            signals.AddRange(values);
         }
         return new() { Frames = frames, Signals = signals };
     }

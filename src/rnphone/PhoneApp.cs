@@ -110,7 +110,8 @@ public static class PhoneApp
                                 token.ThrowIfCancellationRequested();
                                 await PulseAudio.CaptureAsync(telephone, settings.Microphone, token, () => output.WriteLine("Audio transmit ready"));
                             }
-                            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+                            catch (Exception ex) when (token.IsCancellationRequested &&
+                                ex is OperationCanceledException or ObjectDisposedException or InvalidOperationException or IOException) { }
                             catch (Exception ex) { error.WriteLine("Audio capture failed: " + ex.Message); telephone.Hangup(); }
                         }, CancellationToken.None);
                     }

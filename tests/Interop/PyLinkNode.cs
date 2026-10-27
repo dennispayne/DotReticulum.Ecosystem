@@ -41,8 +41,11 @@ public sealed class PyLinkNode : IAsyncDisposable
         }
         foreach (var argument in extraArguments ?? []) psi.ArgumentList.Add(argument);
 
-        psi.Environment["PYTHONPATH"] = Environment.GetEnvironmentVariable("DOTRETICULUM_UPSTREAM")
+        var upstream = Environment.GetEnvironmentVariable("DOTRETICULUM_UPSTREAM")
             ?? throw new InvalidOperationException("DOTRETICULUM_UPSTREAM must point at the pinned upstream checkout.");
+        var lxmf = Environment.GetEnvironmentVariable("DOTRETICULUM_LXMF_UPSTREAM");
+        psi.Environment["PYTHONPATH"] = string.IsNullOrEmpty(lxmf)
+            ? upstream : string.Join(Path.PathSeparator, upstream, lxmf);
         psi.Environment["PYTHONIOENCODING"] = "utf-8";
         node._process = Process.Start(psi) ?? throw new InvalidOperationException("Could not start python.");
         node._pumps.Add(Task.Run(node.PumpStdout));
@@ -121,6 +124,9 @@ public sealed class PyLinkNode : IAsyncDisposable
 
     private static string FindHarness(string harness)
     {
+        var deployed = Path.Combine(AppContext.BaseDirectory, "Interop", harness);
+        if (File.Exists(deployed)) return deployed;
+
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
         {
             var candidate = Path.Combine(dir.FullName, "tests", "Interop", harness);

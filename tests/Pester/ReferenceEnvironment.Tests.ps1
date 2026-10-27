@@ -9,12 +9,19 @@ BeforeAll {
         param(
             [string] $Root = $script:upstream,
             [string] $ModulePath = $Root,
+            [string] $LxmfRoot = $env:DOTRETICULUM_LXMF_UPSTREAM,
             [switch] $Lxst,
             [string] $LxstRoot = $env:DOTRETICULUM_LXST_UPSTREAM
         )
         $start = [System.Diagnostics.ProcessStartInfo]::new($script:python)
         $start.ArgumentList.Add($script:verifier)
         $start.ArgumentList.Add('--require-lxmf')
+        if ($LxmfRoot) {
+            $start.Environment['DOTRETICULUM_LXMF_UPSTREAM'] = $LxmfRoot
+            $ModulePath += [IO.Path]::PathSeparator + $LxmfRoot
+        } else {
+            $start.Environment.Remove('DOTRETICULUM_LXMF_UPSTREAM') | Out-Null
+        }
         if ($Lxst) {
             $start.ArgumentList.Add('--require-lxst')
             $start.Environment['DOTRETICULUM_LXST_UPSTREAM'] = $LxstRoot
@@ -95,9 +102,28 @@ Describe 'Pinned reference provenance' -Tag Integration -Skip:(!$env:DOTRETICULU
         Copy-Item -LiteralPath $metadata.FullName -Destination $shadow -Recurse
         Add-Content -LiteralPath (Join-Path $shadow 'LXMF\LXMF.py') -Value "`n# Provenance rejection test."
         $path = $shadow + [IO.Path]::PathSeparator + $script:upstream
-        $result = Invoke-ReferenceCheck -ModulePath $path
+        $result = Invoke-ReferenceCheck -ModulePath $path -LxmfRoot ''
         $result.ExitCode | Should -Not -Be 0
         $result.Error | Should -Match 'LXMF source LXMF.py does not match the pinned wheel'
+    }
+}
+
+Describe 'Primary-host LXMF provenance' -Tag Integration -Skip:(!$env:DOTRETICULUM_PYTHON -or !$env:DOTRETICULUM_UPSTREAM -or !$env:DOTRETICULUM_LXMF_UPSTREAM) {
+    It 'verifies the actual primary-fetched LXMF revision as well as its wheel-equivalent sources' {
+        $result = Invoke-ReferenceCheck
+        $result.ExitCode | Should -Be 0 -Because $result.Error
+        ($result.Output | ConvertFrom-Json).lxmf_revision | Should -Be 'e8ba02483217af43be284a72f1c059c730b7d047'
+    }
+
+    It 'rejects a different Git revision even with identical LXMF files and version' {
+        $checkout = Join-Path $TestDrive 'lxmf-revision'
+        git clone --quiet --no-hardlinks $env:DOTRETICULUM_LXMF_UPSTREAM $checkout 2>&1 | Out-Null
+        $LASTEXITCODE | Should -Be 0
+        git -C $checkout -c user.name=Fixture -c user.email=fixture@example.invalid commit --quiet --allow-empty -m fixture
+        $LASTEXITCODE | Should -Be 0
+        $result = Invoke-ReferenceCheck -LxmfRoot $checkout
+        $result.ExitCode | Should -Not -Be 0
+        $result.Error | Should -Match 'LXMF revision .* does not match'
     }
 }
 
@@ -105,7 +131,7 @@ Describe 'Pinned LXST provenance' -Tag Integration -Skip:(!$env:DOTRETICULUM_PYT
     It 'accepts the exact imported checkout including upstream-generated native filter outputs' {
         $result = Invoke-ReferenceCheck -Lxst
         $result.ExitCode | Should -Be 0 -Because $result.Error
-        ($result.Output | ConvertFrom-Json).lxst_revision | Should -Be '721b2eee6dd37606e423914a4937a11a3c3a761f'
+        ($result.Output | ConvertFrom-Json).lxst_revision | Should -Be '3b596f48ddd252ddc9c315ef8f3020cfd3688223'
     }
 
     It 'rejects untracked LXST source despite allowing native filter build outputs' {

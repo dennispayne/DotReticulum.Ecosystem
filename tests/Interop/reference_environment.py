@@ -11,10 +11,11 @@ import sysconfig
 
 PINNED_RNS_SHA = "a29bfb51c468945c96a1ee22cae0114e993e2391"
 PINNED_LXMF_VERSION = "1.2.1"
-PINNED_LXST_SHA = "721b2eee6dd37606e423914a4937a11a3c3a761f"
+PINNED_LXMF_SHA = "e8ba02483217af43be284a72f1c059c730b7d047"
+PINNED_LXST_SHA = "3b596f48ddd252ddc9c315ef8f3020cfd3688223"
 PINNED_LXST_VERSION = "0.4.5"
 # PyPI wheel SHA-256: 4bd95325b00e5fae81241e28f26a5ed22b38fea941e128d1c63a33c99e931440.
-# The GitHub mirror does not publish a 1.2.1 tag; do not relabel its 1.2.0 HEAD.
+# Every file matches the primary-host commit above; the GitHub mirror lacks it.
 PINNED_LXMF_SOURCES = {
     "__init__.py": "03d60f351b9c23f79d69c42463d98b5a4796d7840624cf2f71c02a6bf648eeb1",
     "_version.py": "3259b81af99bffac90c7051bbf62ac73e0491572cf83d1f556dda257bc17ac0e",
@@ -68,7 +69,12 @@ def verify_reference(require_lxmf=False, require_lxst=False):
 
         version = importlib.metadata.version("lxmf")
         distribution = importlib.metadata.distribution("lxmf")
-        expected = Path(distribution.locate_file("LXMF")).resolve(strict=True)
+        checkout = os.environ.get("DOTRETICULUM_LXMF_UPSTREAM")
+        if checkout:
+            _verify_checkout(LXMF, checkout, "LXMF", PINNED_LXMF_SHA)
+            expected = (Path(checkout) / "LXMF").resolve(strict=True)
+        else:
+            expected = Path(distribution.locate_file("LXMF")).resolve(strict=True)
         if not Path(LXMF.__file__).resolve(strict=True).is_relative_to(expected):
             raise RuntimeError(f"LXMF imported from an unexpected path: {LXMF.__file__}")
         if version != PINNED_LXMF_VERSION:
@@ -106,6 +112,8 @@ if __name__ == "__main__":
 
         result["lxmf"] = str(Path(LXMF.__file__).resolve())
         result["lxmf_version"] = PINNED_LXMF_VERSION
+        if os.environ.get("DOTRETICULUM_LXMF_UPSTREAM"):
+            result["lxmf_revision"] = PINNED_LXMF_SHA
         result["lxmf_distribution"] = str(
             Path(importlib.metadata.distribution("lxmf").locate_file("")).resolve()
         )

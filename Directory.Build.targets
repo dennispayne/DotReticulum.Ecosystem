@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- Also imported by submodule projects: keep the caller's configuration outside the solution. -->
+    <ShouldUnsetParentConfigurationAndPlatform>false</ShouldUnsetParentConfigurationAndPlatform>
+  </PropertyGroup>
+</Project>

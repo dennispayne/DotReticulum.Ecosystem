@@ -158,3 +158,37 @@ Describe 'Release platform selection' -Tag Integration {
         if ($RefType -eq 'tag') { $selected.version | Should -Be '0.4.5.12' }
     }
 }
+
+Describe 'Solution dependency build configuration' -Tag Integration {
+    It 'preserves <Configuration> through a dependency omitted from the solution' -TestCases @(
+        @{ Configuration = 'Release' }
+        @{ Configuration = 'Debug' }
+    ) {
+        param($Configuration)
+        $fixture = Join-Path $TestDrive ([Guid]::NewGuid().ToString('N'))
+        $owner = Join-Path $fixture 'src\Owner'
+        $dependency = Join-Path $fixture 'external\Dependency'
+        New-Item -ItemType Directory -Path $owner, $dependency | Out-Null
+        $project = '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>'
+        $project | Set-Content -LiteralPath (Join-Path $dependency 'Dependency.csproj')
+        '<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>' |
+            Set-Content -LiteralPath (Join-Path $dependency 'Directory.Build.props')
+        @(
+            '<Project Sdk="Microsoft.NET.Sdk">'
+            '  <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>'
+            '  <ItemGroup><ProjectReference Include="..\..\external\Dependency\Dependency.csproj" /></ItemGroup>'
+            '</Project>'
+        ) | Set-Content -LiteralPath (Join-Path $owner 'Owner.csproj')
+        '<Solution><Project Path="src\Owner\Owner.csproj" /></Solution>' |
+            Set-Content -LiteralPath (Join-Path $fixture 'Fixture.slnx')
+        $targets = [Security.SecurityElement]::Escape((Join-Path $script:repository 'Directory.Build.targets'))
+        "<Project><Import Project=`"$targets`" /></Project>" |
+            Set-Content -LiteralPath (Join-Path $fixture 'Directory.Build.targets')
+        $output = Join-Path $fixture 'output'
+        $log = & dotnet build (Join-Path $fixture 'Fixture.slnx') -c $Configuration --artifacts-path $output --nologo -v quiet 2>&1
+        $LASTEXITCODE | Should -Be 0 -Because ($log -join "`n")
+        $assemblies = @(Get-ChildItem (Join-Path $output 'bin\Dependency') -Recurse -Filter Dependency.dll)
+        $assemblies.Count | Should -Be 1
+        $assemblies[0].Directory.Name | Should -Be $Configuration.ToLowerInvariant()
+    }
+}

@@ -367,7 +367,7 @@ internal static class LxmdApp
                     if (propagationNode is not null && propagationAnnounceAtStart)
                     {
                         log(5, "Sending announce for LXMF propagation node.");
-                        await propagationNode.AnnounceAsync(stop).ConfigureAwait(false);
+                        propagationNode.ScheduleAnnounce();
                     }
 
                     lastAnnounce = DateTimeOffset.UtcNow;
@@ -386,7 +386,7 @@ internal static class LxmdApp
                     DateTimeOffset.UtcNow - lastPropagationAnnounce >= TimeSpan.FromMinutes(nodeInterval))
                 {
                     log(5, "Sending announce for LXMF propagation node.");
-                    await propagationNode.AnnounceAsync(stop).ConfigureAwait(false);
+                    propagationNode.ScheduleAnnounce();
                     lastPropagationAnnounce = DateTimeOffset.UtcNow;
                 }
             }

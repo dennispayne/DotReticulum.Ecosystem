@@ -26,7 +26,7 @@ def main():
             import RNS.vendor.umsgpack as msgpack
             config = msgpack.unpackb(app_data)
             emit({"event": "pn-announce", "dest": destination_hash.hex(), "transfer_limit": config[3],
-                  "sync_limit": config[4]})
+                  "sync_limit": config[4], "observed_at": time.time()})
 
     RNS.Transport.register_announce_handler(PropagationHandler())
     identity = RNS.Identity()

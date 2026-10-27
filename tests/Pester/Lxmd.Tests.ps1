@@ -541,6 +541,7 @@ announce_at_start = yes
 control_allowed = $($ready.identity_hash), invalid-identity, deadbeef
 prioritise_destinations = invalid-destination, deadbeef
 static_peers = $($ready.dest)
+max_peers = 0
 static_peers_bypass_sequential = yes
 propagation_transfer_max_accepted_size = 0.38
 propagation_sync_max_accepted_size = 1
@@ -556,11 +557,13 @@ loglevel = 6
                 $referenceConfiguration = $referenceLine | ConvertFrom-Json
             } finally { Stop-CapturedProcess $configuration }
             $effectiveLimits = Invoke-AdapterCommand $python ("effective-limits " + (Join-Path $daemonConfig 'config')) 'effective-limits' 30
+            $startedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000.0
             $daemon = Start-CapturedProcess $script:binary @('--config', $daemonConfig, '--rnsconfig', $rnsConfig)
             $line = Wait-OutputMatch $daemon 'lxmd: propagation destination ([0-9a-f]{32})'
             $null = $line -match 'lxmd: propagation destination ([0-9a-f]{32})'
             $nativeDestination = $Matches[1]
             $announce = Wait-Event $python 'pn-announce' 30 -Destination $nativeDestination -Other @($daemon)
+            ($announce.observed_at - $startedAt) | Should -BeGreaterOrEqual 19
             $announce.transfer_limit | Should -Be $referenceConfiguration.propagation_transfer_max_accepted_size
             $announce.sync_limit | Should -Be $effectiveLimits.sync_limit
             $deliveryLine = Wait-OutputMatch $daemon '^lxmd: delivery destination '
@@ -730,6 +733,12 @@ target_port = $port
             $null = Invoke-AdapterCommand $python 'seed after-peer-failure 1024' 'seeded' 60 -Other @($daemons[0])
             $surviving = Wait-NodeCount $python $destinations[0] 3 @($daemons[0])
             $surviving.messages | Should -Be 3
+            $announceTimes = @($python.Output | Where-Object { $_.StartsWith('@@', [StringComparison]::Ordinal) } |
+                ForEach-Object { $_.Substring(2) | ConvertFrom-Json } |
+                Where-Object { $_.event -eq 'pn-announce' -and $_.dest -eq $destinations[0] } |
+                Select-Object -ExpandProperty observed_at)
+            $announceTimes.Count | Should -BeGreaterOrEqual 3
+            ($announceTimes[-1] - $announceTimes[0]) | Should -BeGreaterOrEqual 60
 
             $configB = Join-Path $root 'native-1'
             $rnsB = Join-Path $root 'rns-1'

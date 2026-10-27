@@ -5,6 +5,10 @@ BeforeAll {
     $script:binary = $env:DOTRETICULUM_LXMD_BINARY
     $script:python = $env:DOTRETICULUM_PYTHON
     $script:upstream = $env:DOTRETICULUM_UPSTREAM
+    $script:referenceModulePath = $script:upstream
+    if ($env:DOTRETICULUM_LXMF_UPSTREAM) {
+        $script:referenceModulePath += [IO.Path]::PathSeparator + $env:DOTRETICULUM_LXMF_UPSTREAM
+    }
 
     function Start-CapturedProcess {
         param(
@@ -178,7 +182,7 @@ Describe 'Native lxmd delivery and restart' -Tag Integration, Native -Skip:(!$en
                 $harness, '--config', $pythonConfig, '--tcp-server-port', "$port"
             ) -Environment @{
                 DOTRETICULUM_UPSTREAM = $script:upstream
-                PYTHONPATH = $script:upstream
+                PYTHONPATH = $script:referenceModulePath
                 PYTHONIOENCODING = 'utf-8'
             }
             $ready = Wait-Event $python 'ready' 60
@@ -240,7 +244,7 @@ target_port = $port
             $validator = Join-Path (Join-Path (Join-Path $script:repository 'tests') 'Interop') 'verify_lxmd_message.py'
             $verify = Start-CapturedProcess -FileName $script:python -Arguments @($validator, $messagePath, $title, '128') -Environment @{
                 DOTRETICULUM_UPSTREAM = $script:upstream
-                PYTHONPATH = $script:upstream
+                PYTHONPATH = $script:referenceModulePath
                 PYTHONIOENCODING = 'utf-8'
             }
             $verify.Process.WaitForExit(15000) | Should -BeTrue
@@ -257,7 +261,7 @@ target_port = $port
 
             $verifyAgain = Start-CapturedProcess -FileName $script:python -Arguments @($validator, $messagePath, $title, '128') -Environment @{
                 DOTRETICULUM_UPSTREAM = $script:upstream
-                PYTHONPATH = $script:upstream
+                PYTHONPATH = $script:referenceModulePath
                 PYTHONIOENCODING = 'utf-8'
             }
             $verifyAgain.Process.WaitForExit(15000) | Should -BeTrue

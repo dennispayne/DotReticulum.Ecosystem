@@ -1,4 +1,9 @@
-"""Verify an lxmd message-store file using the pinned upstream LXMF 1.2.1 decoder."""
+"""Verify an lxmd message-store file using the pinned upstream LXMF 1.2.1 decoder.
+
+The reference verifier accepts the official wheel or the clean primary-host checkout
+at e8ba02483217af43be284a72f1c059c730b7d047 via DOTRETICULUM_LXMF_UPSTREAM.
+This adapter produces no stored vectors; it executes upstream against each live file.
+"""
 import json
 import os
 import sys

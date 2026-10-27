@@ -248,7 +248,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         if (message.State != LxmState.Delivered) return;
         message.StateChanged -= MarkTicketDelivered;
         try { _tickets.MarkDelivered(message.DestinationHash); }
-        catch (Exception ex) { Log?.Invoke("Could not save LXMF ticket delivery: " + ex.Message); }
+        catch (Exception ex) { Report("Could not save LXMF ticket delivery: " + ex.Message); }
     }
 
     public void Cancel(LxMessage message)
@@ -317,7 +317,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
             }
             catch (Exception ex)
             {
-                Log?.Invoke("LXMF outbound processing error: " + ex.Message);
+                Report("LXMF outbound processing error: " + ex.Message);
             }
         }
     }
@@ -341,7 +341,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
             if (message.State == LxmState.Sent && message.Method != LxmMethod.Opportunistic) continue;
             if (message.DeliveryAttempts > _options.MaxDeliveryAttempts)
             {
-                Log?.Invoke($"{message} failed after {message.DeliveryAttempts} attempts");
+                Report($"{message} failed after {message.DeliveryAttempts} attempts");
                 message.State = LxmState.Failed;
                 lock (_gate) _outbound.Remove(message);
                 continue;
@@ -354,7 +354,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                Log?.Invoke($"{message}: delivery attempt failed: {ex.Message}");
+                Report($"{message}: delivery attempt failed: {ex.Message}");
                 message.NextAttempt = Now + _options.DeliveryRetryWait.TotalSeconds;
             }
         }
@@ -371,7 +371,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
             return true;
         }
 
-        Log?.Invoke($"{message}: requesting path to {Convert.ToHexStringLower(destination)}");
+        Report($"{message}: requesting path to {Convert.ToHexStringLower(destination)}");
         await _router.RequestPathAsync(destination, cancellationToken: ct).ConfigureAwait(false);
         message.DeliveryAttempts++;
         message.NextAttempt = Now + _options.PathRequestWait.TotalSeconds;
@@ -468,7 +468,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
     {
         lock (_gate) if (!_identified.Add(key)) return;
         try { link.Identify(_identity); }
-        catch (Exception ex) { Log?.Invoke("Could not identify on delivery link: " + ex.Message); }
+        catch (Exception ex) { Report("Could not identify on delivery link: " + ex.Message); }
     }
 
     private void FailAttempt(LxMessage message, Link link)
@@ -518,7 +518,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
     {
         var accepted = _inbound.Writer.TryWrite(new InboundWork(lxmfData, method));
         if (!accepted && Volatile.Read(ref _disposed) == 0)
-            Log?.Invoke("LXMF inbound queue is full; dropping incoming message.");
+            Report("LXMF inbound queue is full; dropping incoming message.");
         return accepted;
     }
 
@@ -577,7 +577,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 finally { foreach (var ticket in tickets) CryptographicOperations.ZeroMemory(ticket); }
                 if (stampValid == false && _options.EnforceStamps && !work.IgnoreStamps)
                 {
-                    Log?.Invoke($"Dropping {message} with invalid stamp");
+                    Report($"Dropping {message} with invalid stamp");
                     return LxmPaperIngestResult.Rejected;
                 }
             }
@@ -644,7 +644,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         foreach (var link in links)
         {
             try { link.Teardown(); }
-            catch (Exception ex) { Log?.Invoke("Could not close LXMF link: " + ex.Message); }
+            catch (Exception ex) { Report("Could not close LXMF link: " + ex.Message); }
         }
 
         _router.Engine.DeregisterHandler(_deliveryAnnounceHandler);

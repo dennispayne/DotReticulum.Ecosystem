@@ -50,12 +50,15 @@ public class LiveLxmfTests
             _run = Task.Run(() => Router.RunAsync(_cts.Token));
         }
 
-        public static async Task<Rig> StartAsync(int? stampCost = null, string? storagePath = null, bool largeMessages = false)
+        public static async Task<Rig> StartAsync(int? stampCost = null, string? storagePath = null, bool largeMessages = false,
+            bool smallPropagationBatches = false)
         {
             var port = FreePort();
             var arguments = new List<string>();
             if (stampCost is { } cost) arguments.AddRange(["--stamp-cost", cost.ToString()]);
             if (largeMessages) arguments.AddRange(["--delivery-limit-kb", "4000", "--propagation-limit-kb", "4000"]);
+            if (smallPropagationBatches) arguments.AddRange(["--propagation-limit-kb", "1", "--propagation-sync-limit-kb", "1",
+                "--parallel-pn-validation"]);
             var py = await PyLinkNode.StartAsync("lxmf", tcpServerPort: port, harness: "live_lxmf_node.py",
                 extraArguments: [.. arguments]);
             var rig = new Rig(port, stampCost, storagePath, largeMessages) { Py = py };
@@ -291,6 +294,72 @@ public class LiveLxmfTests
             await WaitFor(() => node.MessageCount == 0, 20);
         }
         finally { if (Directory.Exists(storage)) Directory.Delete(storage, recursive: true); }
+    }
+
+    [LiveFact]
+    [Trait("Category", "Live")]
+    public Task PropagationPersistentPeer_DrainsSeparateBoundedBatches() => PeerBatches(LxmPeerSyncStrategy.Persistent);
+
+    [LiveFact]
+    [Trait("Category", "Live")]
+    public Task PropagationLazyPeer_StopsAfterEachSuccessfulBatch() => PeerBatches(LxmPeerSyncStrategy.Lazy);
+
+    private sealed class UnscheduledClock : TimeProvider
+    {
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
+            System.CreateTimer(callback, state, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+    }
+
+    private static async Task PeerBatches(LxmPeerSyncStrategy strategy)
+    {
+        var storage = Path.Combine(AppContext.BaseDirectory, "live-peer-batches-" + Guid.NewGuid().ToString("N"));
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+        try
+        {
+            await using var rig = await Rig.StartAsync(storagePath: storage, smallPropagationBatches: true);
+            var node = rig.Lxmf.EnablePropagationNode(new LxmPropagationOptions
+            {
+                StampCost = 13, TransferLimit = 1000, SyncLimit = 1000, AutoPeer = false,
+                TimeProvider = new UnscheduledClock(),
+            });
+            node.Log = _ => throw new InvalidOperationException("test propagation log observer failure");
+            node.Log += rig.Log.Enqueue;
+            await node.AnnounceAsync();
+            var ready = await rig.Py.Command("enable-pn", "pn-ready", TimeSpan.FromSeconds(15));
+            var destination = Convert.FromHexString(ready.GetProperty("dest").GetString()!);
+            await WaitFor(() => rig.Router.HasPath(destination), 20);
+            node.SetPeerSyncStrategy(destination, strategy);
+            await rig.Py.Command($"use-pn {Convert.ToHexStringLower(node.DestinationHash)}", "pn-selected", TimeSpan.FromSeconds(15));
+            var hashes = new HashSet<string>();
+            for (var index = 0; index < 3; index++)
+            {
+                var queued = await rig.Py.Command($"send {rig.Py.HashHex} propagated 384 batch-{index} batch-{index}",
+                    "sent_queued", TimeSpan.FromSeconds(30));
+                hashes.Add(queued.GetProperty("hash").GetString()!);
+                await rig.Py.NextAsync("delivered", index, TimeSpan.FromSeconds(30));
+                await WaitFor(() => node.MessageCount == index + 1, 15);
+            }
+            Assert.Equal(3, node.Peers.Single().UnhandledCount);
+            var first = await node.SynchronizePeerAsync(destination, deadline.Token);
+            Assert.Equal(strategy == LxmPeerSyncStrategy.Persistent ? 3 : 1, first);
+            Assert.Equal(3 - first, node.Peers.Single().UnhandledCount);
+            if (strategy == LxmPeerSyncStrategy.Lazy)
+                for (var index = 0; index < 2; index++)
+                    Assert.Equal(1, await node.SynchronizePeerAsync(destination, deadline.Token));
+            for (var index = 0; index < 3; index++)
+            {
+                var received = await rig.Py.NextAsync("received", index, TimeSpan.FromSeconds(30));
+                Assert.True(received.GetProperty("signature_validated").GetBoolean());
+                Assert.True(hashes.Remove(received.GetProperty("hash").GetString()!));
+            }
+            Assert.Empty(hashes);
+            Assert.Equal(0, node.Peers.Single().UnhandledCount);
+            Assert.Equal(3, node.Peers.Single().HandledCount);
+            Assert.Equal(3, node.Peers.Single().Outgoing);
+            Assert.Equal(3, node.Peers.Single().Offered);
+            Assert.Equal(0, await node.SynchronizePeerAsync(destination, deadline.Token));
+        }
+        finally { if (Directory.Exists(storage)) Directory.Delete(storage, true); }
     }
 
     [LiveFact]

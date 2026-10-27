@@ -24,7 +24,8 @@ public sealed partial class LxmPropagationNode
     private void InitializeMaintenance()
     {
         _control = new LocalDestination(_identity,
-            Destination.Create(DestinationType.Single, LxmRouter.AppName, ["propagation", "control"], _identity)) { AcceptLinks = true };
+            Destination.Create(DestinationType.Single, LxmRouter.AppName, ["propagation", "control"], _identity))
+        { AcceptLinks = true };
         _control.RegisterRequestHandler("/pn/get/stats", request => ControlAllowed(request) ? CompileStats() : ControlError(request),
             RequestPolicy.All, useApplicationValues: true);
         _control.RegisterRequestHandler("/pn/peer/sync", request => ControlPeer(request, sync: true),
@@ -43,7 +44,7 @@ public sealed partial class LxmPropagationNode
             if (!_peers.ContainsKey(name))
             {
                 if (_peers.Count >= _options.MaxPeers) throw new ArgumentException("Static peers exceed MaxPeers.");
-                var peer = new LxmPeer(destination);
+                var peer = new LxmPeer(destination) { SyncStrategy = (int)_options.SyncStrategy };
                 foreach (var entry in _entries.Values) peer.AddUnhandled(entry.Id);
                 _peers.Add(name, peer);
             }
@@ -107,7 +108,7 @@ public sealed partial class LxmPropagationNode
             if (peer is null)
             {
                 if (_peers.Count >= _options.MaxPeers) return;
-                peer = new LxmPeer(received.DestinationHash);
+                peer = new LxmPeer(received.DestinationHash) { SyncStrategy = (int)_options.SyncStrategy };
                 foreach (var entry in _entries.Values) peer.AddUnhandled(entry.Id);
                 _peers.Add(key, peer);
             }
@@ -141,7 +142,7 @@ public sealed partial class LxmPropagationNode
 
     private async Task MaintainPeersAsync(CancellationToken ct)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(24));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(24), _options.TimeProvider);
         try
         {
             while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
@@ -150,12 +151,13 @@ public sealed partial class LxmPropagationNode
                 {
                     if (_disposed) break;
                     if (++_maintenanceTicks % 56 == 0) RotatePeers();
-                    var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+                    var now = Now;
                     foreach (var peer in _peers.Values.ToArray())
                         if (now > peer.LastHeard + TimeSpan.FromDays(14).TotalSeconds &&
                             !_options.StaticPeers.Any(hash => hash.AsSpan().SequenceEqual(peer.DestinationHash)))
                             _peers.Remove(Convert.ToHexStringLower(peer.DestinationHash));
-                    var waiting = _peers.Values.Where(peer => peer.UnhandledCount > 0 && !_queuedPeers.Contains(Convert.ToHexStringLower(peer.DestinationHash))).ToArray();
+                    var waiting = _peers.Values.Where(peer => peer.UnhandledCount > 0 && now >= peer.NextSyncAttempt &&
+                        !_queuedPeers.Contains(Convert.ToHexStringLower(peer.DestinationHash))).ToArray();
                     var alive = waiting.Where(peer => peer.Alive).OrderByDescending(peer => peer.SyncTransferRate).Take(2).ToArray();
                     var pool = alive.Length > 0
                         ? alive.Concat(waiting.Where(peer => peer.Alive && peer.SyncTransferRate == 0).Take(alive.Length)).ToArray()
@@ -183,7 +185,7 @@ public sealed partial class LxmPropagationNode
                 }
 
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
-                catch (Exception ex) { Log?.Invoke("Scheduled propagation peer synchronization failed: " + ex.Message); }
+                catch (Exception ex) { Report("Scheduled propagation peer synchronization failed: " + ex.Message); }
                 finally { lock (_gate) _queuedPeers.Remove(Convert.ToHexStringLower(destination)); }
             }
         }
@@ -230,19 +232,32 @@ public sealed partial class LxmPropagationNode
                 var isStatic = _options.StaticPeers.Any(hash => hash.AsSpan().SequenceEqual(peer.DestinationHash));
                 peerStats[peer.DestinationHash] = new Dictionary<object, object?>
                 {
-                    ["type"] = isStatic ? "static" : "discovered", ["state"] = (long)peer.State,
-                    ["alive"] = peer.Alive, ["name"] = PeerName(peer), ["last_heard"] = (long)peer.LastHeard,
-                    ["next_sync_attempt"] = peer.NextSyncAttempt, ["last_sync_attempt"] = peer.LastSyncAttempt,
-                    ["sync_backoff"] = peer.SyncBackoff, ["peering_timebase"] = peer.PeeringTimebase,
-                    ["ler"] = (long)peer.LinkEstablishmentRate, ["str"] = (long)peer.SyncTransferRate,
-                    ["transfer_limit"] = peer.TransferLimitKilobytes, ["sync_limit"] = peer.SyncLimitKilobytes,
-                    ["target_stamp_cost"] = peer.StampCost, ["stamp_cost_flexibility"] = peer.StampFlexibility,
-                    ["peering_cost"] = peer.PeeringCost, ["peering_key"] = peer.PeeringKeyValue,
-                    ["network_distance"] = _router.HopsTo(peer.DestinationHash), ["rx_bytes"] = peer.RxBytes, ["tx_bytes"] = peer.TxBytes,
+                    ["type"] = isStatic ? "static" : "discovered",
+                    ["state"] = (long)peer.State,
+                    ["alive"] = peer.Alive,
+                    ["name"] = PeerName(peer),
+                    ["last_heard"] = (long)peer.LastHeard,
+                    ["next_sync_attempt"] = peer.NextSyncAttempt,
+                    ["last_sync_attempt"] = peer.LastSyncAttempt,
+                    ["sync_backoff"] = peer.SyncBackoff,
+                    ["peering_timebase"] = peer.PeeringTimebase,
+                    ["ler"] = (long)peer.LinkEstablishmentRate,
+                    ["str"] = (long)peer.SyncTransferRate,
+                    ["transfer_limit"] = peer.TransferLimitKilobytes,
+                    ["sync_limit"] = peer.SyncLimitKilobytes,
+                    ["target_stamp_cost"] = peer.StampCost,
+                    ["stamp_cost_flexibility"] = peer.StampFlexibility,
+                    ["peering_cost"] = peer.PeeringCost,
+                    ["peering_key"] = peer.PeeringKeyValue,
+                    ["network_distance"] = _router.HopsTo(peer.DestinationHash),
+                    ["rx_bytes"] = peer.RxBytes,
+                    ["tx_bytes"] = peer.TxBytes,
                     ["acceptance_rate"] = peer.AcceptanceRate,
                     ["messages"] = new Dictionary<object, object?>
                     {
-                        ["offered"] = peer.Offered, ["outgoing"] = peer.Outgoing, ["incoming"] = peer.Incoming,
+                        ["offered"] = peer.Offered,
+                        ["outgoing"] = peer.Outgoing,
+                        ["incoming"] = peer.Incoming,
                         ["unhandled"] = (long)peer.UnhandledCount,
                     },
                 };
@@ -251,12 +266,17 @@ public sealed partial class LxmPropagationNode
             var staticCount = _peers.Values.Count(peer => _options.StaticPeers.Any(hash => hash.AsSpan().SequenceEqual(peer.DestinationHash)));
             return new Dictionary<object, object?>
             {
-                ["identity_hash"] = _identity.Hash, ["destination_hash"] = DestinationHash,
+                ["identity_hash"] = _identity.Hash,
+                ["destination_hash"] = DestinationHash,
                 ["uptime"] = Now - _started,
-                ["delivery_limit"] = _deliveryLimit / 1000.0, ["propagation_limit"] = _options.TransferLimit / 1000.0,
-                ["sync_limit"] = _options.SyncLimit / 1000.0, ["target_stamp_cost"] = (long)_options.StampCost,
-                ["stamp_cost_flexibility"] = (long)_options.StampFlexibility, ["peering_cost"] = (long)_options.PeeringCost,
-                ["max_peering_cost"] = (long)_options.MaxPeeringCost, ["autopeer_maxdepth"] = (long)_options.AutoPeerMaxDepth,
+                ["delivery_limit"] = _deliveryLimit / 1000.0,
+                ["propagation_limit"] = _options.TransferLimit / 1000.0,
+                ["sync_limit"] = _options.SyncLimit / 1000.0,
+                ["target_stamp_cost"] = (long)_options.StampCost,
+                ["stamp_cost_flexibility"] = (long)_options.StampFlexibility,
+                ["peering_cost"] = (long)_options.PeeringCost,
+                ["max_peering_cost"] = (long)_options.MaxPeeringCost,
+                ["autopeer_maxdepth"] = (long)_options.AutoPeerMaxDepth,
                 ["from_static_only"] = _options.FromStaticOnly,
                 ["messagestore"] = new Dictionary<object, object?> { ["count"] = (long)_entries.Count, ["bytes"] = _storedBytes, ["limit"] = _options.StorageLimit },
                 ["clients"] = new Dictionary<object, object?>
@@ -264,9 +284,13 @@ public sealed partial class LxmPropagationNode
                     ["client_propagation_messages_received"] = _clientMessagesReceived,
                     ["client_propagation_messages_served"] = _clientMessagesServed,
                 },
-                ["unpeered_propagation_incoming"] = _unpeeredIncoming, ["unpeered_propagation_rx_bytes"] = _unpeeredRxBytes,
-                ["static_peers"] = (long)staticCount, ["discovered_peers"] = (long)(_peers.Count - staticCount),
-                ["total_peers"] = (long)_peers.Count, ["max_peers"] = (long)_options.MaxPeers, ["peers"] = peerStats,
+                ["unpeered_propagation_incoming"] = _unpeeredIncoming,
+                ["unpeered_propagation_rx_bytes"] = _unpeeredRxBytes,
+                ["static_peers"] = (long)staticCount,
+                ["discovered_peers"] = (long)(_peers.Count - staticCount),
+                ["total_peers"] = (long)_peers.Count,
+                ["max_peers"] = (long)_options.MaxPeers,
+                ["peers"] = peerStats,
             };
         }
     }

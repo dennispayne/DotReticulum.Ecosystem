@@ -117,13 +117,15 @@ def main():
     parser.add_argument("--transport", action="store_true")
     parser.add_argument("--delivery-limit-kb", type=int, default=1000)
     parser.add_argument("--propagation-limit-kb", type=int, default=256)
+    parser.add_argument("--propagation-sync-limit-kb", type=float, default=10240)
     parser.add_argument("--identity")
     parser.add_argument("--storage")
     parser.add_argument("--enforce-ratchets", action="store_true")
+    parser.add_argument("--parallel-pn-validation", action="store_true")
     args = parser.parse_args()
 
     verify_reference(require_lxmf=True)
-    if args.delivery_limit_kb <= 0 or args.propagation_limit_kb <= 0:
+    if args.delivery_limit_kb <= 0 or args.propagation_limit_kb <= 0 or args.propagation_sync_limit_kb <= 0:
         parser.error("Delivery and propagation limits must be positive")
     write_config(args.config, args.tcp_server_port, args.rnsd_port, args.transport)
     RNS.Reticulum(configdir=args.config, loglevel=args.loglevel)
@@ -136,6 +138,8 @@ def main():
     router = LXMF.LXMRouter(identity=identity, storagepath=args.storage or os.path.join(args.config, "lxmf"), autopeer=False,
                             enforce_stamps=True, enforce_ratchets=args.enforce_ratchets,
                             propagation_cost=13, propagation_limit=args.propagation_limit_kb,
+                            sync_limit=args.propagation_sync_limit_kb,
+                            sequential_validation=not args.parallel_pn_validation,
                             delivery_limit=args.delivery_limit_kb)
     local = router.register_delivery_identity(identity, display_name="PyLxmf", stamp_cost=args.stamp_cost)
 

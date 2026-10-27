@@ -43,7 +43,7 @@ public sealed partial class LxmRouter
         foreach (Action<string> callback in callbacks.GetInvocationList())
         {
             try { callback(message); }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Trace.TraceError("LXMF log observer failed: {0}", ex.Message); }
         }
     }
 }

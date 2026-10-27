@@ -22,6 +22,7 @@ public sealed class LxmPropagationOptions
     public bool AutoPeer { get; init; } = true;
     public int AutoPeerMaxDepth { get; init; } = 4;
     public int MaxPeeringCost { get; init; } = 26;
+    public LxmPeerSyncStrategy SyncStrategy { get; init; } = LxmPeerSyncStrategy.Persistent;
     public IReadOnlyCollection<byte[]> ControlAllowedIdentities { get; init; } = [];
     public IReadOnlyCollection<byte[]> PrioritisedDestinations { get; init; } = [];
     public TimeProvider TimeProvider { get; init; } = TimeProvider.System;
@@ -69,6 +70,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             _options.TransferLimit <= 0 || _options.SyncLimit < _options.TransferLimit || _options.StorageLimit <= 0 ||
             _options.RequestTimeout <= TimeSpan.Zero || _options.MaxPeers < 1 || _options.AutoPeerMaxDepth < 0 ||
             _options.MaxPeeringCost is < 0 or > 256 || _options.MaxInboundSyncs < 1 || deliveryLimit <= 0 ||
+            _options.SyncStrategy is not (LxmPeerSyncStrategy.Lazy or LxmPeerSyncStrategy.Persistent) ||
             _options.StaticPeers.Select(Convert.ToHexStringLower).Distinct().Count() > _options.MaxPeers)
             throw new ArgumentException("Invalid propagation limits or costs.", nameof(options));
         if (_options.AllowedIdentities.Concat(_options.StaticPeers).Concat(_options.ControlAllowedIdentities)
@@ -106,6 +108,15 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
     public int MessageCount { get { lock (_gate) return _entries.Count; } }
     public long StoredBytes { get { lock (_gate) return _storedBytes; } }
     public Action<string>? Log { get; set; }
+    private void Report(string message)
+    {
+        if (Log is not { } callbacks) return;
+        foreach (Action<string> callback in callbacks.GetInvocationList())
+        {
+            try { callback(message); }
+            catch (Exception ex) { System.Diagnostics.Trace.TraceError("LXMF propagation log observer failed: {0}", ex.Message); }
+        }
+    }
     public IReadOnlyList<LxmPeer> Peers { get { lock (_gate) return _peers.Values.ToArray(); } }
     private double Now => _options.TimeProvider.GetUtcNow().ToUnixTimeMilliseconds() / 1000.0;
 
@@ -270,7 +281,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            Log?.Invoke("LXMF propagation transfer rejected: " + ex.Message);
+            Report("LXMF propagation transfer rejected: " + ex.Message);
             return false;
         }
     }
@@ -403,6 +414,27 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         }
     }
 
+    public void SetPeerSyncStrategy(ReadOnlySpan<byte> destinationHash, LxmPeerSyncStrategy strategy)
+    {
+        if (destinationHash.Length != 16) throw new ArgumentException("Peer destination must be 16 bytes.", nameof(destinationHash));
+        if (strategy is not (LxmPeerSyncStrategy.Lazy or LxmPeerSyncStrategy.Persistent))
+            throw new ArgumentOutOfRangeException(nameof(strategy));
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            var name = Convert.ToHexStringLower(destinationHash);
+            if (!_peers.TryGetValue(name, out var peer))
+            {
+                if (_peers.Count >= _options.MaxPeers) throw new InvalidOperationException("Propagation peer capacity reached.");
+                peer = new LxmPeer(destinationHash.ToArray()) { LastHeard = Now };
+                foreach (var entry in _entries.Values) peer.AddUnhandled(entry.Id);
+                _peers.Add(name, peer);
+            }
+            peer.SyncStrategy = (int)strategy;
+            SavePeers();
+        }
+    }
+
     public async Task<int> SynchronizePeerAsync(byte[] destinationHash, CancellationToken cancellationToken = default)
     {
         using var owned = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
@@ -410,6 +442,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         await _sync.WaitAsync(owned.Token).ConfigureAwait(false);
         Link? link = null;
         LxmPeer? peer = null;
+        var transferred = 0;
         try
         {
             lock (_gate)
@@ -418,101 +451,128 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
                 if (!_peers.TryGetValue(name, out peer))
                 {
                     if (_peers.Count >= _options.MaxPeers) throw new InvalidOperationException("Propagation peer capacity reached.");
-                    peer = new LxmPeer(destinationHash);
+                    peer = new LxmPeer(destinationHash) { LastHeard = Now, SyncStrategy = (int)_options.SyncStrategy };
                     foreach (var entry in _entries.Values) peer.AddUnhandled(entry.Id);
                     _peers.Add(name, peer);
                 }
-                peer.LastSyncAttempt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+                peer.LastSyncAttempt = Now;
             }
-            link = await LxmPropagationTransport.ConnectAsync(_router, destinationHash, _options.RequestTimeout, owned.Token).ConfigureAwait(false);
-            peer.State = 2;
-            peer.LinkEstablishmentRate = link.EstablishmentRate ?? 0;
-            Log?.Invoke("Propagation peer link established.");
-            link.Identify(_identity);
-            var remote = _router.Engine.Known.Recall(destinationHash)!;
-            if (!LxmfPropagationAnnounce.TryParse(_router.Engine.Known.RecallAppData(destinationHash), out var config))
-                throw new InvalidOperationException("Peer has not announced valid propagation configuration.");
-            if (config!.PeeringCost > _options.MaxPeeringCost)
+            while (true)
             {
-                lock (_gate) _peers.Remove(Convert.ToHexStringLower(destinationHash));
-                throw new InvalidOperationException("Peer peering cost exceeds the configured maximum.");
-            }
-            var peeringId = remote.Hash.Concat(_identity.Hash).ToArray();
-            peer.TransferLimitKilobytes = config!.TransferLimitKilobytes;
-            peer.SyncLimitKilobytes = config.SyncLimitKilobytes;
-            peer.StampCost = config.StampCost;
-            peer.StampFlexibility = config.StampFlexibility;
-            peer.PeeringCost = config.PeeringCost;
-            peer.Metadata = config.Metadata;
-            peer.PeeringTimebase = config.Timebase;
-            if (peer.PeeringKey is null || peer.PeeringKeyValue < config.PeeringCost)
-            {
-                Log?.Invoke($"Generating propagation peering key at cost {config.PeeringCost}.");
-                peer.PeeringKey = await LxStamper.GenerateAsync(peeringId, config.PeeringCost, owned.Token,
-                    LxStamper.WorkblockExpandRoundsPeering).ConfigureAwait(false);
-                peer.PeeringKeyValue = LxStamper.Value(LxStamper.Workblock(peeringId, LxStamper.WorkblockExpandRoundsPeering), peer.PeeringKey);
-            }
-            Entry[] entries;
-            lock (_gate) entries = _entries.Values.Where(entry => !peer.IsHandled(entry.Id) &&
-                entry.StampValue >= Math.Max(0, config.StampCost - config.StampFlexibility) &&
-                entry.Size + 16 <= config.TransferLimitKilobytes * 1000).OrderBy(entry => entry.Size).ToArray();
-            var sized = new List<Entry>();
-            long offeredSize = 24;
-            foreach (var entry in entries)
-                if (entry.Size + 16 <= Math.Min(_options.SyncLimit, config.SyncLimitKilobytes * 1000) - offeredSize)
-                {
-                    sized.Add(entry);
-                    offeredSize += entry.Size + 16;
-                }
-            entries = sized.ToArray();
-            if (entries.Length == 0) return 0;
-            var response = await LxmPropagationTransport.RequestAsync(link, "/offer",
-                new object?[] { peer.PeeringKey, entries.Select(entry => (object?)entry.Id).ToArray() }, _options.RequestTimeout, _options.SyncLimit, owned.Token).ConfigureAwait(false);
-            lock (_gate) peer.Offered += entries.Length;
-            Log?.Invoke($"Propagation peer offer response received for {entries.Length} messages.");
-            if (response is false)
-            {
-                lock (_gate) foreach (var entry in entries) peer.MarkHandled(entry.Id);
+                owned.Token.ThrowIfCancellationRequested();
+                peer.State = 1;
+                link = await LxmPropagationTransport.ConnectAsync(_router, destinationHash, _options.RequestTimeout, owned.Token).ConfigureAwait(false);
+                peer.State = 2;
                 peer.Alive = true;
-                peer.LastHeard = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
-                return 0;
-            }
-            var selected = response is true ? entries : response is object?[] wanted
-                ? entries.Where(entry => wanted.OfType<byte[]>().Any(id => id.AsSpan().SequenceEqual(entry.Id))).ToArray()
-                : throw new InvalidOperationException("Peer rejected propagation offer: " + response);
-            var payloads = new List<object?>();
-            long total = 24;
-            foreach (var entry in selected)
-            {
-                if (entry.Size + 16 > Math.Min(_options.SyncLimit, config!.SyncLimitKilobytes * 1000) - total) continue;
-                payloads.Add(File.ReadAllBytes(entry.Path));
-                total += entry.Size + 16;
-            }
-
-            if (payloads.Count == 0) return 0;
-            var envelope = MsgPack.Pack(new object?[] { DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0, payloads.ToArray() });
-            var transferStarted = System.Diagnostics.Stopwatch.GetTimestamp();
-            await LxmPropagationTransport.SendResourceAsync(link, envelope, _options.RequestTimeout, owned.Token).ConfigureAwait(false);
-            Log?.Invoke($"Propagation peer transfer completed with {payloads.Count} messages.");
-            lock (_gate)
-            {
-                foreach (var entry in selected) peer.MarkHandled(entry.Id);
-                peer.Outgoing += payloads.Count;
-                peer.TxBytes += envelope.Length;
-                peer.SyncTransferRate = envelope.Length / Math.Max(0.0001, System.Diagnostics.Stopwatch.GetElapsedTime(transferStarted).TotalSeconds);
-                peer.Alive = true;
-                peer.LastHeard = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+                peer.LastHeard = Now;
                 peer.SyncBackoff = 0;
+                peer.NextSyncAttempt = 0;
+                peer.LinkEstablishmentRate = link.EstablishmentRate ?? 0;
+                Report("Propagation peer link established.");
+                link.Identify(_identity);
+                var remote = _router.Engine.Known.Recall(destinationHash)!;
+                if (!LxmfPropagationAnnounce.TryParse(_router.Engine.Known.RecallAppData(destinationHash), out var config))
+                    throw new InvalidOperationException("Peer has not announced valid propagation configuration.");
+                if (config!.PeeringCost > _options.MaxPeeringCost)
+                {
+                    lock (_gate) _peers.Remove(Convert.ToHexStringLower(destinationHash));
+                    throw new InvalidOperationException("Peer peering cost exceeds the configured maximum.");
+                }
+                var peeringId = remote.Hash.Concat(_identity.Hash).ToArray();
+                peer.TransferLimitKilobytes = config!.TransferLimitKilobytes;
+                peer.SyncLimitKilobytes = config.SyncLimitKilobytes;
+                peer.StampCost = config.StampCost;
+                peer.StampFlexibility = config.StampFlexibility;
+                peer.PeeringCost = config.PeeringCost;
+                peer.Metadata = config.Metadata;
+                peer.PeeringTimebase = config.Timebase;
+                if (peer.PeeringKey is null || peer.PeeringKeyValue < config.PeeringCost)
+                {
+                    Report($"Generating propagation peering key at cost {config.PeeringCost}.");
+                    peer.PeeringKey = await LxStamper.GenerateAsync(peeringId, config.PeeringCost, owned.Token,
+                        LxStamper.WorkblockExpandRoundsPeering).ConfigureAwait(false);
+                    peer.PeeringKeyValue = LxStamper.Value(LxStamper.Workblock(peeringId, LxStamper.WorkblockExpandRoundsPeering), peer.PeeringKey);
+                }
+                Entry[] entries;
+                lock (_gate)
+                {
+                    var ids = peer.PrepareOffer(id =>
+                    {
+                        if (!_entries.TryGetValue(Convert.ToHexStringLower(id), out var entry)) return null;
+                        return new LxmPeerOfferEntry(entry.Id, CalculateStorageWeight(entry.Size, entry.Received, Now,
+                            _prioritised.Contains(Convert.ToHexStringLower(entry.Destination))), entry.Size, entry.StampValue);
+                    }, Math.Max(0, config.StampCost - config.StampFlexibility), config.TransferLimitKilobytes * 1000,
+                        Math.Min(_options.SyncLimit, config.SyncLimitKilobytes * 1000));
+                    entries = ids.Select(id => _entries[Convert.ToHexStringLower(id)]).ToArray();
+                }
+                if (entries.Length == 0) return transferred;
+                peer.State = 3;
+                var response = await LxmPropagationTransport.RequestAsync(link, "/offer",
+                    new object?[] { peer.PeeringKey, entries.Select(entry => (object?)entry.Id).ToArray() }, _options.RequestTimeout, _options.SyncLimit, owned.Token).ConfigureAwait(false);
+                peer.State = 4;
+                if (response is long error)
+                {
+                    if (error == 0xf0)
+                    {
+                        link.Identify(_identity);
+                        response = await LxmPropagationTransport.RequestAsync(link, "/offer",
+                            new object?[] { peer.PeeringKey, entries.Select(entry => (object?)entry.Id).ToArray() },
+                            _options.RequestTimeout, _options.SyncLimit, owned.Token).ConfigureAwait(false);
+                    }
+                    else if (error == 0xf1) Unpeer(destinationHash);
+                    else if (error == 0xf6)
+                    {
+                        peer.NextSyncAttempt = Now + 180;
+                        return transferred;
+                    }
+                }
+                Report($"Propagation peer offer response received for {entries.Length} messages.");
+                byte[][] selected;
+                lock (_gate) selected = peer.SelectWanted(entries.Select(entry => entry.Id).ToArray(), response);
+                if (selected.Length == 0)
+                {
+                    lock (_gate) peer.Offered += entries.Length;
+                    return transferred;
+                }
+                var payloads = new List<object?>();
+                var offeredEntries = entries.ToDictionary(entry => Convert.ToHexStringLower(entry.Id));
+                foreach (var id in selected)
+                {
+                    var entry = offeredEntries[Convert.ToHexStringLower(id)];
+                    if (File.Exists(entry.Path)) payloads.Add(File.ReadAllBytes(entry.Path));
+                }
+
+                var envelope = MsgPack.Pack(new object?[] { Now, payloads.ToArray() });
+                var transferStarted = System.Diagnostics.Stopwatch.GetTimestamp();
+                peer.State = 5;
+                await LxmPropagationTransport.SendResourceAsync(link, envelope, _options.RequestTimeout, owned.Token).ConfigureAwait(false);
+                Report($"Propagation peer transfer completed with {payloads.Count} messages.");
+                lock (_gate)
+                {
+                    foreach (var id in selected) peer.MarkHandled(id);
+                    peer.Offered += entries.Length;
+                    peer.Outgoing += payloads.Count;
+                    peer.TxBytes += envelope.Length;
+                    peer.SyncTransferRate = envelope.Length * 8.0 / Math.Max(0.0001, System.Diagnostics.Stopwatch.GetElapsedTime(transferStarted).TotalSeconds);
+                    peer.Alive = true;
+                    peer.LastHeard = Now;
+                    peer.SyncBackoff = 0;
+                }
+                transferred += payloads.Count;
+                link.Teardown();
+                link = null;
+                lock (_gate)
+                    if (!peer.ContinueAfterTransfer) return transferred;
             }
-            return payloads.Count;
         }
+        catch (OperationCanceledException) when (owned.IsCancellationRequested) { throw; }
         catch
         {
             if (peer is not null)
             {
                 peer.Alive = false;
                 peer.SyncBackoff += 720;
-                peer.NextSyncAttempt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0 + peer.SyncBackoff;
+                peer.NextSyncAttempt = Now + peer.SyncBackoff;
             }
             throw;
         }

@@ -13,6 +13,7 @@ import subprocess
 import sys
 import os
 import threading
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import LXMF
@@ -134,6 +135,64 @@ peer.peering_key = [peering_key, LXMF.LXStamper.stamp_value(peering_workblock, p
 peer.add_handled_message(propagated.transient_id)
 peer_bytes = peer.to_bytes()
 assert peer_type.from_bytes(peer_bytes, router).handled_message_count == 1
+# Transport is observed, not run: execute actual peer offer preparation and
+# completion policies against source-owned entry weights and queue bookkeeping.
+selection_cases = []
+router.prioritised_list = [bytes([3]) * 16]
+for sync_limit in (0.9, 0.756):
+    router.propagation_entries = {}
+    selection_entries = []
+    selected_peer = peer_type(router, dst.hash)
+    selected_peer.peering_cost = 4
+    selected_peer.peering_key = [peering_key, 4]
+    selected_peer.propagation_stamp_cost = 16
+    selected_peer.propagation_stamp_cost_flexibility = 3
+    selected_peer.propagation_transfer_limit = 1
+    selected_peer.propagation_sync_limit = sync_limit
+    selected_peer.state = peer_type.LINK_READY
+    offers = []
+    selected_peer.link = SimpleNamespace(request=lambda path, offer, **kwargs: offers.append(offer))
+    for index, size, age, value in ((1, 100, 0, 13), (2, 400, 8, 13), (3, 600, 0, 13),
+                                   (4, 1100, 0, 13), (5, 100, 0, 12)):
+        transient_id = bytes([index]) * 32
+        received = 1700000302.0 - age * 86400
+        router.propagation_entries[transient_id] = [bytes([index]) * 16, None, received, size, [], [], value]
+        selected_peer.add_unhandled_message(transient_id)
+        with patch.object(router_module.time, "time", return_value=1700000302.0):
+            weight = router.get_weight(transient_id)
+        selection_entries.append({"id": transient_id.hex(), "size": size, "weight": weight, "stamp_value": value})
+    selected_peer.add_unhandled_message(bytes([6]) * 32)
+    with patch.object(RNS.Transport, "has_path", return_value=True), \
+         patch.object(router_module.time, "time", return_value=1700000302.0):
+        selected_peer.sync()
+    selection_cases.append({"sync_limit": sync_limit * 1000, "entries": selection_entries,
+                            "offered": [entry.hex() for entry in offers[0][1]],
+                            "handled": [entry.hex() for entry in selected_peer.handled_messages],
+                            "unhandled": [entry.hex() for entry in selected_peer.unhandled_messages]})
+completion_cases = []
+for strategy in (peer_type.STRATEGY_LAZY, peer_type.STRATEGY_PERSISTENT):
+    for entry in router.propagation_entries.values():
+        entry[4] = []
+        entry[5] = []
+    completed_peer = peer_type(router, dst.hash, sync_strategy=strategy)
+    for index in (1, 2, 3): completed_peer.add_unhandled_message(bytes([index]) * 32)
+    completed_peer.last_offer = [bytes([1]) * 32, bytes([2]) * 32]
+    # A subset response marks the declined ID handled before the transfer.
+    router.propagation_entries[bytes([2]) * 32][1] = str(Path(__file__))
+    resource_type = RNS.Resource
+    with patch.object(RNS, "Resource", return_value=object()):
+        completed_peer.offer_response(SimpleNamespace(response=[bytes([2]) * 32]))
+    declined_handled = [entry.hex() for entry in completed_peer.handled_messages]
+    continued = []
+    completed_peer.sync = lambda: continued.append(True)
+    fake_resource = SimpleNamespace(status=resource_type.COMPLETE, get_transfer_size=lambda: 128,
+                                    get_data_size=lambda: 128)
+    with patch.object(router_module.time, "time", return_value=1700000302.0):
+        completed_peer.resource_concluded(fake_resource)
+    completion_cases.append({"strategy": strategy, "declined_handled": declined_handled,
+                             "handled": [entry.hex() for entry in completed_peer.handled_messages],
+                             "unhandled": [entry.hex() for entry in completed_peer.unhandled_messages],
+                             "continued": bool(continued)})
 router.storagepath = str(Path("artifacts") / "lxmf-vector-evidence")
 router.locally_delivered_transient_ids = {message.hash: 1700000302.0}
 with patch.object(router_module.time, "time", return_value=1700000302.0):
@@ -256,6 +315,8 @@ output = {
     "binary_fields": {"packed": binary_fields.packed.hex(), "hash": binary_fields.hash.hex()},
     "delivery_cache_packed": delivery_cache_packed.hex(),
     "peer_rotation": rotation_cases,
+    "peer_selection": selection_cases,
+    "peer_completion": completion_cases,
     "store_eviction": {"entries": eviction_entries, "prioritised": [entry.hex() for entry in router.prioritised_list],
                        "limit": router.message_storage_limit, "remaining": eviction_remaining},
     "paper_ingestion": {"results": [ingested, duplicate_ingest, allowed_duplicate], "observations": paper_observations},

@@ -89,6 +89,21 @@ Describe 'Executable release tags' -Tag Integration {
 }
 
 Describe 'Pester selection gate' -Tag Integration {
+    It 'fails when discovery cannot resolve the requested path' {
+        $runner = Join-Path $script:repository 'tests\run-pester.ps1'
+        $missing = Join-Path $TestDrive 'missing.Tests.ps1'
+        & pwsh -NoProfile -File $runner -Path $missing 2>&1 | Out-Null
+        $LASTEXITCODE | Should -Be 1
+    }
+
+    It 'fails when a selected test file cannot be discovered' {
+        $runner = Join-Path $script:repository 'tests\run-pester.ps1'
+        $broken = Join-Path $TestDrive 'broken.Tests.ps1'
+        "throw 'Discovery fixture failure'" | Set-Content -LiteralPath $broken
+        & pwsh -NoProfile -File $runner -Path $broken 2>&1 | Out-Null
+        $LASTEXITCODE | Should -Be 1
+    }
+
     It 'fails when no test matches the requested category' {
         $runner = Join-Path $script:repository 'tests\run-pester.ps1'
         & pwsh -NoProfile -File $runner -Path $PSCommandPath -Tag nonexistent-category 2>&1 | Out-Null

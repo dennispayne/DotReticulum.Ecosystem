@@ -15,7 +15,7 @@ if ($Tag.Count) {
     $configuration.Filter.Tag = $Tag
 }
 $result = Invoke-Pester -Configuration $configuration
-if ($result.FailedCount -gt 0 -or $result.Result -eq 'Failed' -or
+if ($null -eq $result -or $result.FailedCount -gt 0 -or $result.Result -eq 'Failed' -or
     ($result.PassedCount + $result.FailedCount + $result.SkippedCount) -eq 0) {
     exit 1
 }

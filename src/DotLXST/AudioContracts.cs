@@ -7,7 +7,7 @@ public sealed class AudioFrame
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(sampleRate, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(channels, 1);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(channels, 32);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(channels, 64);
         if (samples.Length % channels != 0) throw new ArgumentException("Incomplete interleaved sample.");
         Samples = samples;
         SampleRate = sampleRate;

@@ -74,7 +74,8 @@ line endings; these canonical hashes supersede those filesystem-specific hashes.
 `missing` means absent from .NET; `unverified` means a reference or environment
 claim has not been executed; `upstream-placeholder` means the inspected source
 does not implement the advertised branch. Rows group related public contracts;
-they are not an exhaustive method-by-method acceptance checklist.
+the public-callable disposition index below records the corresponding source
+surface. A grouped implemented row does not override an explicit limitation.
 
 ### Transport, signalling and sessions
 
@@ -94,7 +95,7 @@ they are not an exhaustive method-by-method acceptance checklist.
 | Telephone destination `lxst.telephony`; announces, remote identity identification | implemented | `TelephoneEndpoint`; real Python `Telephone` in both call directions |
 | Calling, available, ringing, connecting and established transitions; busy/rejected outcomes | implemented | Successful states and deny/reject outcomes live-verified in both directions; explicit rejection differs from silent timeout teardown |
 | Incoming authorization: all, none, identity list or callable; blocked callers take precedence | implemented | Executed primary policy matrix; immutable `TelephoneCallerPolicy`, safe policy replacement, endpoint callback and executable config/phonebook authorization |
-| One active call; incoming contention, answer, hangup and teardown | partial | Busy contender cannot interrupt an established call; recovery and bidirectional rejection live-verified; full simultaneous cross-dial matrix remains unverified |
+| One active call; incoming contention, answer, hangup and teardown | implemented | Busy contender cannot interrupt an established call; bidirectional rejection and simultaneous cross-dial Busy/recovery execute actual Python; setup requests are gated until both callers have entered outgoing state |
 | Ring/wait/connect timeouts, path requests, periodic announcements | partial | Incoming ring and outgoing wait timeout/recovery live-verified; silent active-link connect deadline and delayed auto-answer integration-tested; exhaustive timing/announce comparisons remain unverified |
 | Ringing/established/ended/busy/rejected callbacks | partial | Original .NET state event rather than five Python callbacks; isolated observer failures tested |
 | Profile negotiation (`255 + profile`), selection and mid-call switch | implemented | All eight initial profiles live-verified with either side originating direct calls; all eight mid-call profiles in both negotiation directions; medium-quality calls in both transport-hop topologies |
@@ -122,7 +123,7 @@ effect. The .NET configurable interval is an explicit extension.
 
 | Contract | Status | Reference |
 |---|---|---|
-| Raw interleaved floating samples, channel expansion/truncation, 16/32/64-bit depth/header | implemented | Executed upstream vectors; `RawAudioCodec` |
+| Raw interleaved floating samples, channel expansion/truncation, 16/32/64-bit depth/header | implemented | Executed upstream vectors; constructor depth buckets and explicit-channel clamp match primary; first successful encode/decode latches unspecified encoder channels, including valid implicit 33/64-channel frames |
 | Raw depth-128 native representation | implemented for pinned Linux x86 format | Original managed 80-bit extended conversion in a 16-byte slot; meaningful bytes and numerical rounding match actual NumPy, including signed zero/subnormals/infinities/NaNs; zero padding is accepted by actual reference; live both directions on all three topologies |
 | Raw native big-endian or IEEE binary128 hosts | unverified | Not interchangeable with the pinned little-endian x86 long-double profile; no corresponding host/reference execution |
 | Codec2 modes 700C, 1200, 1300, 1400, 1600, 2400 and 3200; default 2400 | implemented | Exact bitstreams and decoded sample vectors for all seven modes |
@@ -141,7 +142,7 @@ effect. The .NET configurable interval is an explicit extension.
 | General mixer source resampling | upstream-placeholder | `Mixer.py`, TODO for all source types |
 | High-pass, low-pass, band-pass and automatic gain-control state | implemented | Original managed filters; vectors executed against actual primary Python/native filter path |
 | Tone frequency, gain, easing, frame duration and start/stop | implemented | `ToneAudioSource`; actual generator vectors and async source lifecycle tests |
-| Line capture/playback, preferred devices, buffers, gain, filters and low latency | partial | Linux CLI capture/playback and runtime replacement exist; actual LineSource skip/easing vectors drive `AudioCaptureEnvelope`; gain/filters reuse endpoint processing; complete backend buffering remains missing; Linux low-latency toggle is an upstream unsupported branch, executed on real virtual-audio calls |
+| Line capture/playback, preferred devices, buffers, gain, filters and low latency | partial | Linux CLI capture/playback and runtime replacement exist; actual LineSource skip/easing vectors drive `AudioCaptureEnvelope`; `Audio.BufferedAudioSink` implements executed LineSink queue/playback/starvation contracts; gain/filters reuse endpoint processing; Linux low-latency toggle is an upstream unsupported branch, executed on real virtual-audio calls |
 | Loopback source/sink and buffering | implemented | `Audio.LoopbackAudioBridge`; executed relay/lifecycle observations; bounded queue/clock behavior is a .NET extension, not an upstream buffering claim |
 | Opus file playback, looping/timing and writing/finalizing | implemented | Original bounded file source/sink; actual Python files and .NET files cross-decode with identical samples; caller-owned source/sink `FilePlayer`/`FileRecorder` support stop/restart, live loop toggle, completion and safe concurrent disposal |
 
@@ -173,7 +174,7 @@ capture/playback quality claim follows from these headless processing tests.
 | Identity generation/load/failure and `storage` directory | implemented | Native Pester restart test; owner-only Unix creation; buffers zeroed |
 | Bundled ringtone copying and ringtone/ringer output | partial | No upstream sounds redistributed; user-supplied Opus ringtone loops on a separate selected sink and stops on answer; real native virtual-sink acceptance |
 | `[telephone]`: `speaker`, `microphone`, `ringer`, `ringtone`, `allowed_callers`, `blocked_callers` | partial | Implemented; runtime sink/capture reconfiguration tested; PulseAudio exact device identifiers instead of fuzzy matching |
-| `[phonebook]`: names, identity hashes, optional filtered numeric aliases, authorization integration | implemented | Actual primary ConfigObj/apply_config/load_phonebook/menu fixture covers quoted comma values, inline comments, ASCII numeric filtering, self exclusion and allowed/blocked lists; native menu/reload/restart acceptance |
+| `[phonebook]`: names, identity hashes, optional filtered numeric aliases, authorization integration | implemented | Actual primary ConfigObj/apply_config/load_phonebook/menu fixtures cover quoted comma values, inline comments, ASCII numeric filtering, self exclusion, trailing-comma allowed/blocked lists, ignored extra columns and skipped malformed phonebook rows; native menu/reload/restart acceptance |
 | `[hardware]`: `keypad`, `keypad_hook_pin`, `display` | missing | `Utilities/rnphone.py`, `apply_config` |
 | Commented amplifier-mute options | upstream-placeholder | Default config mentions `amp_mute_pin`/`amp_mute_level`; `apply_config` does not consume them |
 | `ignored` and `allowed` paths | upstream-placeholder | `reload_config` assigns paths; no persistence implementation established |
@@ -209,7 +210,7 @@ not implicitly covered by the network interfaces. This is not full API parity:
 | `Mixer.py`: start/stop, gain/mute, per-source frame limits, can-receive, source/sink/codec wiring | Implemented bounded timed `AudioMixer`; source/codec composition uses explicit C# interfaces |
 | `Pipeline.py`: codec/sink/running and start/stop | Implemented original source→codec→typed encoded sink composition, session adapter and lifecycle/replace/stop/disposal; source/codec ownership remains explicit; optional .NET processor execution is not attributed to the unused upstream parameter |
 | `Sources.py`: `get_backend`, backend device listing/recorder ownership; `Loopback`; `LineSource` gain/codec/start/stop; `OpusFileSource` | Partial Linux device I/O, headless loopback and streaming Opus file source; general backends and line-device gain controls remain missing |
-| `Sinks.py`: `get_backend`, backend device listing/player ownership; Sink/RemoteSink/LocalSink; LineSink low latency; OpusFileSink queue/finalization | Partial Linux I/O and Ogg Opus recording; explicit async backpressure instead of a Python frame deque; Linux Backend ignores constructor low_latency and its player lacks runtime enable_low_latency; other platform branches unverified |
+| `Sinks.py`: `get_backend`, backend device listing/player ownership; Sink/RemoteSink/LocalSink; LineSink low latency; OpusFileSink queue/finalization | Linux I/O, Ogg Opus recording and executed-reference `BufferedAudioSink` playback queue are implemented; explicit async file backpressure; Linux Backend ignores constructor low_latency and its player lacks runtime enable_low_latency; other platform branches unverified |
 | `Primitives/Players.py`: FilePlayer state, completion callback, source, loop/start/stop/play | Implemented device-independent `FilePlayer`; callback timing is asynchronous, not Python's polling schedule; source replacement requires stopped playback |
 | `Primitives/Recorders.py`: FileRecorder state, source/output path, start/stop/record | Implemented device-independent `FileRecorder` with a caller-owned source and per-run finalization; effective output-path replacement is an explicit extension over the executed upstream shadow-attribute placeholder |
 | `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Partial: gains, mute/reset and transmit band-pass/AGC are implemented; device queries, ringtone, ringback/busy tones and runtime capture/sink selection are Linux CLI-only; no invented low-latency effect is supplied for the reference's unsupported Linux branch |
@@ -222,6 +223,41 @@ not implicitly covered by the network interfaces. This is not full API parity:
 `Processing.py` contains no public function/class implementation in this release;
 `Common.nop` is a no-op helper, not a missing wire contract. Vendored Python
 codec/audio bindings are dependencies, not source to port into this repository.
+
+### Public-callable disposition index
+
+This index was checked against the primary release's top-level public classes,
+functions and directly declared non-underscore methods/properties. Constructors,
+callbacks and state are covered by the behavioral tables above. Vendored
+`Codecs/libs` and platform FFI internals are dependencies, not additional LXST
+features to reproduce.
+
+| Source surface | Disposition |
+|---|---|
+| `Codecs/Codec.py`: `Codec`, `CodecError`, `Null.encode/decode`, `resample_bytes`, `resample` | Original codec/error contracts, identity codec and rate-conversion APIs implemented; normalized/raw PCM vectors; host-format limits above |
+| `Codecs/Codec2.py`: `Codec2.set_mode/encode/decode` | Native adapter and mode/header behavior implemented; sample/bitstream evidence |
+| `Codecs/Opus.py`: `profile_channels`, `profile_samplerate`, `profile_application`, `profile_bitrate_ceiling`, `max_bytes_per_frame`, `set_profile`, `update_bitrate`, `encode`, `decode` | Original profile metadata, byte budgets, pre-encode mutation and native codec contracts implemented; post-encode mutation matches actual rejection |
+| `Codecs/Raw.py`: `Raw.encode/decode`; `Codecs/__init__.py`: `codec_header_byte`, `codec_type` | Codec/framing dispatch and raw state/conversion implemented; native-format bounds above |
+| `Filters.py`: `Filter`, `HighPass`, `LowPass`, `BandPass`, `AGC.handle_frame` | Managed `IAudioProcessor` composition and stateful filters implemented |
+| `Generators.py`: `ToneSource.codec/start/stop/running` | Managed tone source, mutable gain and lifecycle implemented |
+| `Mixer.py`: `start`, `stop`, `set_gain`, `mute`, `unmute`, `set_source_max_frames`, `can_receive`, `handle_frame`, `codec`, `source`, `sink` | Original bounded mixer with explicit typed source/sink contracts; general source resampling is an upstream placeholder |
+| `Network.py`: `SignallingReceiver.handle_signalling_from/signalling_received/signal`; `Packetizer.handle_frame/start/stop`; `LinkSource.start/stop` | Typed stream sessions, event callbacks, packetizer and transport adapter implemented; deferred signalling is an upstream placeholder |
+| `Pipeline.py`: `PipelineError`, `Pipeline.codec/sink/running/start/stop` | Original pipeline/error contracts and encoded/audio sink variants implemented; unused reference processor argument is not attributed behavior |
+| `Sources.py`: `Source`, `LocalSource`, `RemoteSource`; `Loopback.start/stop/can_receive/handle_frame/source`; `LineSource.linear_gain/codec/start/stop`; `OpusFileSource.codec/start/stop` | Source interfaces, loopback and file streaming implemented; Linux CLI capture has skip/easing/processing; general reusable device-backed LineSource API remains partial |
+| `Sinks.py`: `Sink.handle_frame/can_receive`, `RemoteSink`, `LocalSink`; `LineSink.can_receive/handle_frame/start/stop/enable_low_latency`; `OpusFileSink.frames_waiting/can_receive/handle_frame/start/stop` | Original sink contracts, buffered playback and file recording implemented; runtime Linux low-latency operation is absent upstream; other device backends unverified |
+| `Sources.py` backends: `get_backend`, `all_microphones`, `default_microphone`, `flush`, `get_recorder`, `release_recorder`; `Sinks.py` backends: `get_backend`, `all_speakers`, `default_speaker`, `flush`, `get_player`, `release_player` | Partial original Linux subprocess device selection/ownership; Python backend-object and generic backend-factory API shape is not reproduced |
+| Platform soundcard public enumeration/default/lookup and `get_name/set_name`; Linux `channel_name_map`, Windows `tid`, Darwin `error_number_to_string` | Linux CLI device listing/selection only; generic platform queries, backend renaming and other OS backends are missing, not network contracts |
+| `Primitives/Players.py`: `FilePlayer.running/playing/finished_callback/set_source/loop/start/stop/play` | Device-independent player implemented; asynchronous callback timing and explicit caller-owned sink |
+| `Primitives/Recorders.py`: `FileRecorder.running/recording/set_source/set_output_path/start/stop/record` | Device-independent recorder implemented; effective stopped-only output-path replacement is an explicit extension |
+| `Primitives/Telephony.py`: `Profiles.available_profiles/profile_index/profile_name/profile_abbrevation/get_codec/get_frame_time/next_profile`, `Signalling` constants | Profile metadata/factory/cycle and telephone signal values implemented; executed primary values |
+| `Telephone`: `available_outputs/available_inputs/default_output/default_input`, `set_speaker/set_microphone/set_ringer/set_ringtone`, `set_low_latency_output` | Linux utility device/ringtone composition only; no generic device-backed telephone facade or invented Linux low-latency effect |
+| `Telephone`: `teardown/announce/set_allowed/set_blocked/set_connect_timeout/set_announce_interval`, `set_ringing_callback/set_established_callback/set_ended_callback/set_busy_callback/set_rejected_callback` | Endpoint lifecycle, authorization and isolated state events implemented; connect timeout configured at construction, not a mutable endpoint setter; announce-interval setter is ineffective upstream |
+| `Telephone`: `set_busy_tone_time/enable_agc/disable_agc/set_busy/busy/active_profile/receive_muted/transmit_muted` | Configurable tone duration through source construction; AGC, busy override, profile and mute state implemented; CLI tone scheduling differs explicitly |
+| `Telephone`: `signal/answer/hangup/mute_receive/unmute_receive/mute_transmit/unmute_transmit/set_receive_gain/set_transmit_gain/switch_profile/call/signalling_received` | Endpoint/session behavior implemented, including actual profile negotiation, gains/mute and both-direction calls |
+| Hardware `LCD.print/clear/is_sleeping/sleep/wake/close`; `Event`; `Keypad.enable_hook/set_key_map/is_down/is_up/start/stop` | Fakeable software protocols implemented; OS providers and utility wiring missing |
+| `Utilities/rnphone.py`: `create_default_config/reload_config/load_phonebook/apply_config`, `enable_keypad/enable_hook/enable_display`, `is_available/is_in_call/is_ringing/call_is_connecting/hw_is_idle/hw_is_dialing` | Configuration and call status partial; hardware enable/state integration missing and explicitly rejected |
+| Utility `start/stop/dial/redial/call/ringing/call_ended/call_established/display_call_status/became_available`, `print_identity/print_destination/phonebook_menu/main_menu/run/cleanup/quit/sigint_handler/sigterm_handler`, `main`, `Terminal` | Native CLI lifecycle, menus, dialing, states and signals partial; literal terminal formatting/full key matrix and hardware display states are not claimed |
+| `Common.nop`, `Processing.py`, package/version metadata | No-op and empty processing module are not missing functionality; target version recorded, no Python module-layout emulation |
 
 ## Architecture and ownership
 
@@ -255,12 +291,22 @@ validates a replacement before swapping authorization and selected devices; a
 failed reload leaves the running process and prior settings intact. This atomic
 replacement is a deliberate .NET behavior: primary `reload_config` retains and
 merges existing phonebook/allow/block dictionaries and lists. Unknown settings
-and malformed hashes are rejected rather than silently ignored/skipped.
+and malformed allow/block policy hashes are rejected rather than silently
+ignored. Malformed phonebook rows are skipped with contextual warnings, matching
+the primary's usable-entry behavior. Empty trailing list components and extra
+phonebook columns are tolerated. Duplicate numeric aliases select the last menu
+entry, matching the actual primary's menu-key overwrite.
 `AudioCaptureEnvelope` reproduces the actual LineSource frame-delayed gain ramp
 and discarded threshold-crossing skip frame. Its vectors execute the unmodified
 ingest job using a disclosed synthetic recorder and deterministic clock, not a
 hardware capture claim. CLI capture applies the observed 75 ms skip and initial
 225 ms easing; subsequent profile/device restarts use zero easing.
+`BufferedAudioSink` has the observed six-frame drop-oldest bound, advisory
+`CanReceive` threshold below three queued frames, late-frame dropping, channel
+truncation and restart after starvation. The CLI resamples incoming audio to
+48 kHz before enqueueing; mono is retained. The sink does not own the supplied
+output. Its portable clock waits eight frame durations for starvation rather
+than claiming identical OS scheduling or hardware latency.
 The native acceptance checks self-entry exclusion and identity/config persistence
 across process restart. No history/ignored/allowed file implementation is invented.
 
@@ -356,10 +402,10 @@ pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 
 
 Recorded results:
 
-- Windows deterministic/unit suite: **58 passed**.
+- Windows deterministic/unit suite: **65 passed**.
 - WSL full LXST suite against the actual primary-release checkout:
-  **114 passed, zero skipped**, including six real telephone topology cases,
-  sixteen initial-profile cases and six policy/rejection/timeout recovery cases.
+  **122 passed, zero skipped**, including six real telephone topology cases,
+  sixteen initial-profile cases and seven policy/rejection/timeout recovery cases.
 - Telephone lifecycle cases include a blocked sink proving that a second
   disposer cannot finish early, continued service after authorization/observer
   exceptions, and cancellation of an abandoned path lookup without disrupting
@@ -385,6 +431,13 @@ Recorded results:
   decoded float32 bits. The .NET encoder always zeros padding rather than
   transmitting arbitrary native memory. Halfway, overflow and subnormal
   conversion is rounded directly to float32 without an intermediate double.
+- `GenerateRawStateVectors.py` executes actual primary constructor depth
+  bucketing, explicit channel clamping and implicit first-frame channel latching.
+  Incoming header channels determine each decoded frame without resetting an
+  established encoder channel choice; the six-bit header supports implicit
+  frames up to 64 channels even though explicit constructor channels clamp at 32.
+  Explicit zero channels fails in actual Python encode with `OverflowError`;
+  .NET rejects that invalid configuration earlier in its constructor.
 - Managed DSP/source/mixer/pipeline vectors are recorded in
   `Fixtures/lxst-audio-processing.json`, generated by executing primary
   `3b596f48ddd252ddc9c315ef8f3020cfd3688223` through its actual native-filter
@@ -392,6 +445,11 @@ Recorded results:
   reference fixture. The upstream loopback `buffer_time=70 ms` argument is unused:
   no matching latency is claimed. The .NET 128-frame drop-oldest bound, paced
   reads, cancellation and restart/disposal behavior are explicit extensions.
+  Its executed LineSink observations cover the six-frame bound, advisory
+  backpressure, late-frame dropping, channel truncation, starvation/restart and
+  constructor autostart with disclosed fake backend/player/clock boundaries.
+  The .NET worker reports per-frame output failures without losing later service;
+  concurrent stop/disposal and failed error observers are tested.
 - `GenerateHardwareVectors.py` executes actual primary keypad and LCD drivers
   with disclosed fake GPIO/SMBus/clock boundaries. `HardwareTests` compares pin
   configurations, every I2C write/delay, key transitions, hook debounce and
@@ -423,10 +481,33 @@ evidence, not a listening test or proof of physical microphone/speaker quality.
 All eight initial profiles also establish calls in both originating directions
 on direct links and receive real Python codec frames. Authorization denial and
 explicit rejection are exercised in both directions; incoming ring and outgoing
-wait timeout cases recover with a subsequent call on the same endpoint. The
+wait timeout cases recover with a subsequent call on the same endpoint. A
+deterministic setup-packet barrier also verifies both nodes entering outgoing
+calls before either receives the other's request: both observe Busy, then a
+subsequent call succeeds. The
 reference busy-tone duration is explicitly set to zero in these policy cases;
 they do not verify busy-tone playback. Exhaustive cross-dial/timeout timing
 matrices, hardware I/O and long-duration recovery remain unverified.
+
+### Remaining software versus environment limits
+
+- **Missing software:** Raspberry Pi/Linux GPIO and I2C OS providers and
+  `rnphone` hardware configuration wiring. The fakeable keypad/LCD algorithms
+  are implemented; their bus vectors do not supply a kernel/device provider.
+  Every configured `[hardware]` option fails explicitly before identity creation,
+  rather than silently enabling a peripheral that is not supported.
+- **Missing software:** Windows, macOS and Android audio-device backends and
+  literal upstream example programs. Device-independent library primitives are
+  present; examples/assets and Python API/menu formatting are not redistributed
+  or claimed identical.
+- **Intentional differences:** atomic configuration replacement, stricter
+  unknown-setting/allow-list validation, prompt endpoint outcome callbacks with
+  asynchronous CLI busy tones, bounded asynchronous queues and explicit
+  ownership. These are not claimed as byte-for-byte Python application behavior.
+- **Unavailable execution environments:** physical audio/GPIO/I2C/RNode,
+  non-Linux device platforms, big-endian and IEEE binary128 hosts. No physical
+  quality, device latency or support claim follows from virtual/fake tests.
+  Exhaustive timing matrices and long-duration operation remain unverified.
 
 ### Reticulum adapter guarantees and ownership
 

@@ -1,0 +1,36 @@
+{
+  "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+  "source_sha256": "a0ea3cb846ec6d1b876462a0d9dd646cdceb2d84ac3c6f4028a354144b6d8664",
+  "allowed": "list",
+  "allowed_hashes": [
+    "11111111111111111111111111111111"
+  ],
+  "blocked_hashes": [
+    "22222222222222222222222222222222"
+  ],
+  "phonebook": {
+    "Alice": "11111111111111111111111111111111"
+  },
+  "aliases": {
+    "11111111111111111111111111111111": "12"
+  },
+  "menu": [
+    "help",
+    "h",
+    "?",
+    "p",
+    "phonebook",
+    "r",
+    "i",
+    "identity",
+    "d",
+    "desthash",
+    "a",
+    "anounce",
+    "redial",
+    "exit",
+    "quit",
+    "q"
+  ],
+  "config": "[telephone]\nallowed_callers = 11111111111111111111111111111111,\nblocked_callers = 22222222222222222222222222222222,\n\n[phonebook]\nAlice = 11111111111111111111111111111111, room12, ignored-extra\nWrongLength = short\nWrongHex = gggggggggggggggggggggggggggggggg\n\n[hardware]\n"
+}

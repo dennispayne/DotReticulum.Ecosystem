@@ -15,6 +15,7 @@ public sealed class LiveTelephonePolicyTests
     [InlineData("remote-timeout")]
     [InlineData("local-reject")]
     [InlineData("local-timeout")]
+    [InlineData("cross-dial")]
     [Trait("Category", "Live")]
     public async Task ActualTelephonePoliciesRejectionTimeoutAndSubsequentCallRecover(string mode)
     {
@@ -31,7 +32,8 @@ public sealed class LiveTelephonePolicyTests
             if (mode == "remote-deny") await python.CommandAsync("allowed none", "configured");
         }
         using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(45));
-        await using var manager = new PacketInterfaceManager([new TcpClientPacketInterface("127.0.0.1", port)]);
+        var wire = new ImpairedPacketInterface(new TcpClientPacketInterface("127.0.0.1", port));
+        await using var manager = new PacketInterfaceManager([wire]);
         await using var router = new TransportRouter(manager, new());
         using var identity = Identity.Generate();
         await using var phone = new TelephoneEndpoint(router, identity, new()
@@ -51,7 +53,16 @@ public sealed class LiveTelephonePolicyTests
             await python.CommandAsync("announce", "announced");
             await phone.AnnounceAsync(stop.Token);
             await LiveStreamTests.WaitForAsync(() => router.HasPath(python.Hash));
-            if (mode.StartsWith("remote-", StringComparison.Ordinal))
+            if (mode == "cross-dial")
+            {
+                wire.HoldLinkRequests();
+                await phone.CallAsync(python.Identity, cancellationToken: stop.Token);
+                await python.CommandAsync("call " + Convert.ToHexStringLower(phone.DestinationHash), "calling");
+                wire.ReleaseLinkRequests();
+                await python.WaitAsync("busy");
+                await LiveStreamTests.WaitForAsync(() => states.Contains(CallState.Busy) && phone.State == CallState.Available);
+            }
+            else if (mode.StartsWith("remote-", StringComparison.Ordinal))
             {
                 await phone.CallAsync(python.Identity, cancellationToken: stop.Token);
                 if (mode is "remote-reject" or "remote-timeout")

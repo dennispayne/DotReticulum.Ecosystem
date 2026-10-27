@@ -93,6 +93,46 @@ public sealed class StreamPacketTests
         Assert.Throws<FormatException>(() => new RawAudioCodec().Decode(Convert.FromHexString(bytes)));
 
     [Fact]
+    public void RawConstructorBucketsAndFirstFrameChannelLatchingMatchActualPrimary()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-raw-state.json")));
+        var root = fixture.RootElement;
+        var mono = new AudioFrame(new float[] { .25f, -.5f }, 48000, 1);
+        var stereo = new AudioFrame(new float[] { .25f, .75f, -.5f, 1 }, 48000, 2);
+        foreach (var vector in root.GetProperty("depths").EnumerateArray())
+        {
+            using var codec = new RawAudioCodec(vector.GetProperty("requested").GetInt32());
+            Assert.Equal(vector.GetProperty("header").GetByte(), codec.Encode(mono)[0]);
+        }
+        foreach (var vector in root.GetProperty("channels").EnumerateArray())
+        {
+            if (vector.TryGetProperty("error", out _))
+            {
+                Assert.Throws<ArgumentOutOfRangeException>(() => new RawAudioCodec(channels: vector.GetProperty("requested").GetInt32()));
+                continue;
+            }
+            using var codec = new RawAudioCodec(channels: vector.GetProperty("requested").GetInt32());
+            Assert.Equal(Convert.FromHexString(vector.GetProperty("encoded").GetString()!), codec.Encode(mono));
+        }
+        using var firstEncoded = new RawAudioCodec(32);
+        Assert.Equal(Convert.FromHexString(root.GetProperty("encode_mono").GetString()!), firstEncoded.Encode(mono));
+        Assert.Equal(Convert.FromHexString(root.GetProperty("encode_stereo_latched_mono").GetString()!), firstEncoded.Encode(stereo));
+        firstEncoded.Decode(Convert.FromHexString(root.GetProperty("incoming_stereo").GetString()!));
+        Assert.Equal(Convert.FromHexString(root.GetProperty("encode_after_decode_stays_mono").GetString()!), firstEncoded.Encode(stereo));
+        using var firstDecoded = new RawAudioCodec(32);
+        firstDecoded.Decode(Convert.FromHexString(root.GetProperty("incoming_stereo").GetString()!));
+        Assert.Equal(Convert.FromHexString(root.GetProperty("encode_after_first_decode_expands_stereo").GetString()!), firstDecoded.Encode(mono));
+        foreach (var vector in root.GetProperty("implicit_wide").EnumerateArray())
+        {
+            using var codec = new RawAudioCodec(32);
+            var bytes = Convert.FromHexString(vector.GetProperty("encoded").GetString()!);
+            var frame = codec.Decode(bytes);
+            Assert.Equal(vector.GetProperty("channels").GetInt32(), frame.Channels);
+            Assert.Equal(bytes, codec.Encode(frame));
+        }
+    }
+
+    [Fact]
     public void PinnedLinuxExtendedPrecisionMatchesActualMeaningfulBytesAndZeroPaddingAcceptance()
     {
         using var fixture = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-raw-extended.json")));

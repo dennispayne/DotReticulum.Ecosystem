@@ -6,16 +6,15 @@ namespace DotLXST;
 public sealed class RawAudioCodec : IAudioCodec
 {
     private readonly int _bitDepth;
-    private readonly int? _channels;
+    private int _channels;
     private readonly int _sampleRate;
 
     public RawAudioCodec(int bitDepth = 16, int? channels = null, int sampleRate = 48_000)
     {
-        if (bitDepth is not (16 or 32 or 64 or 128)) throw new ArgumentOutOfRangeException(nameof(bitDepth));
-        if (channels is < 1 or > 32) throw new ArgumentOutOfRangeException(nameof(channels));
+        if (channels == 0) throw new ArgumentOutOfRangeException(nameof(channels));
         ArgumentOutOfRangeException.ThrowIfLessThan(sampleRate, 1);
-        _bitDepth = bitDepth;
-        _channels = channels;
+        _bitDepth = bitDepth >= 128 ? 128 : bitDepth >= 64 ? 64 : bitDepth >= 32 ? 32 : 16;
+        _channels = channels is { } count ? Math.Clamp(count, 1, 32) : 0;
         _sampleRate = sampleRate;
     }
 
@@ -25,7 +24,8 @@ public sealed class RawAudioCodec : IAudioCodec
     {
         ArgumentNullException.ThrowIfNull(frame);
         if (frame.SampleRate != _sampleRate) throw new ArgumentException("Raw codec does not resample.");
-        var channels = _channels ?? frame.Channels;
+        Interlocked.CompareExchange(ref _channels, frame.Channels, 0);
+        var channels = Volatile.Read(ref _channels);
         var width = _bitDepth / 8;
         var length = checked(frame.SamplesPerChannel * channels * width + 1);
         if (length > StreamPacket.MaximumEncodedBytes) throw new ArgumentException("Raw frame is too large.");
@@ -55,7 +55,6 @@ public sealed class RawAudioCodec : IAudioCodec
         if (data.IsEmpty || data.Length > StreamPacket.MaximumEncodedBytes) throw new FormatException("Invalid raw frame length.");
         var channels = (data[0] & 63) + 1;
         var depth = data[0] >> 6;
-        if (channels > 32) throw new FormatException("Raw frame exceeds supported channel count.");
         var width = 2 << depth;
         if ((data.Length - 1) % (width * channels) != 0) throw new FormatException("Truncated raw samples.");
         var output = new float[(data.Length - 1) / width];
@@ -70,6 +69,7 @@ public sealed class RawAudioCodec : IAudioCodec
                 _ => RawExtendedFloat.Read(value),
             };
         }
+        Interlocked.CompareExchange(ref _channels, channels, 0);
         return new(output, _sampleRate, channels);
     }
 

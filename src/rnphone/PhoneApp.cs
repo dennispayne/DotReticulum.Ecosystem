@@ -77,6 +77,7 @@ public static class PhoneApp
             var path = Path.Combine(directory, "config");
             if (!File.Exists(path)) await File.WriteAllTextAsync(path, PhoneConfiguration.Default, stop);
             var settings = PhoneConfiguration.Load(path);
+            foreach (var warning in settings.Warnings) await error.WriteLineAsync("rnphone: " + warning);
             using var identity = LoadIdentity(Path.Combine(directory, "identity"));
             settings.ExcludeLocalIdentity(identity.HexHash);
             await using var node = ReticulumNode.Open(rnsConfig,
@@ -84,9 +85,13 @@ public static class PhoneApp
             await using var sink = new PulseAudioSink(settings.Speaker, () => output.WriteLine("Audio receive ready"));
             await using var toneSink = new PulseAudioSink(settings.Speaker);
             await using var ringerSink = new PulseAudioSink(settings.Ringer);
+            await using var playback = new DotLXST.Audio.BufferedAudioSink(sink, 48000, 2)
+            {
+                Error = (context, exception) => error.WriteLine($"{context} {exception?.Message}"),
+            };
             await using var telephone = new TelephoneEndpoint(node.Router, identity,
                 new TelephoneOptions { RingTimeout = TimeSpan.FromSeconds(30), WaitTimeout = TimeSpan.FromSeconds(60),
-                    AuthorizeCaller = peer => Volatile.Read(ref settings).Authorize(peer.HexHash), Sink = sink });
+                    AuthorizeCaller = peer => Volatile.Read(ref settings).Authorize(peer.HexHash), Sink = new ResamplingPlaybackSink(playback) });
             telephone.Error = (context, exception) => error.WriteLine($"{context} {exception?.Message}");
             var audioGate = new object();
             CancellationTokenSource? captureStop = null;
@@ -207,6 +212,7 @@ public static class PhoneApp
                         if (line == "reload")
                         {
                             var replacement = PhoneConfiguration.Load(path);
+                            foreach (var warning in replacement.Warnings) await error.WriteLineAsync("rnphone: " + warning);
                             replacement.ExcludeLocalIdentity(identity.HexHash);
                             sink.SetDevice(replacement.Speaker);
                             toneSink.SetDevice(replacement.Speaker);
@@ -269,7 +275,7 @@ public static class PhoneApp
                             if (phonebookOpen)
                             {
                                 var number = 0;
-                                var selection = settings.Phonebook.Values.FirstOrDefault(entry =>
+                                var selection = settings.Phonebook.Values.LastOrDefault(entry =>
                                 {
                                     number++;
                                     return (entry.Alias ?? number.ToString(System.Globalization.CultureInfo.InvariantCulture)) == line;

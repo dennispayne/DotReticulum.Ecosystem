@@ -1,8 +1,15 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
 using DotLXST;
+using DotLXST.Audio;
 
 namespace Rnphone;
+
+internal sealed class ResamplingPlaybackSink(IAudioSink sink) : IAudioSink
+{
+    public ValueTask WriteAsync(AudioFrame frame, CancellationToken cancellationToken = default) =>
+        sink.WriteAsync(frame.SampleRate == 48000 ? frame : AudioResampler.Resample(frame, 48000), cancellationToken);
+}
 
 /// <summary>Linux device I/O is isolated in cancellable processes, outside the platform-independent library.</summary>
 internal static class PulseAudio

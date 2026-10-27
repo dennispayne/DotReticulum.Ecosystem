@@ -233,6 +233,18 @@ Describe 'Native rnphone configuration and phonebook persistence' -Tag Integrati
             Wait-PhoneLine $phone '^12 Updated:' | Out-Null
             Send-PhoneLine $phone 'q'
             Wait-PhoneLine $phone '^Phonebook closed' | Out-Null
+            $single = Get-Content -Raw (Join-Path $script:phoneRoot 'tests/DotLXST.Tests/Fixtures/rnphone-config-single-list.json') | ConvertFrom-Json
+            $single.config | Set-Content -LiteralPath $path
+            Send-PhoneLine $phone 'reload'
+            Wait-PhoneLine $phone '^Configuration reloaded' | Out-Null
+            Send-PhoneLine $phone 'p'
+            foreach ($entry in $single.phonebook.psobject.Properties) {
+                $alias = $single.aliases.($entry.Value)
+                Wait-PhoneLine $phone ("^$alias " + [regex]::Escape($entry.Name) + ': <' + $entry.Value + '>') | Out-Null
+            }
+            Send-PhoneLine $phone 'q'
+            Wait-PhoneLine $phone '^Phonebook closed' -Occurrence 2 | Out-Null
+            ($phone.Output -join "`n") | Should -Not -Match '(?m)^\d+ Wrong(Length|Hex):'
             Send-PhoneLine $phone 'q'
             $phone.Process.WaitForExit(10000) | Should -BeTrue
             $phone.Process.ExitCode | Should -Be 0

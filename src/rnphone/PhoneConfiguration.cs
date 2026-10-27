@@ -10,6 +10,7 @@ internal sealed class PhoneConfiguration
     public string Allowed { get; private set; } = "all";
     public HashSet<string> Blocked { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, (string Hash, string? Alias)> Phonebook { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public List<string> Warnings { get; } = [];
 
     public static PhoneConfiguration Load(string path)
     {
@@ -39,7 +40,7 @@ internal sealed class PhoneConfiguration
                     {
                         case "speaker": result.Speaker = value; break;
                         case "microphone": result.Microphone = value; break;
-                        case "allowed_callers": result.Allowed = value.ToLowerInvariant(); break;
+                        case "allowed_callers": result.Allowed = string.Join(',', values.Where(hash => hash.Length != 0)).ToLowerInvariant(); break;
                         case "blocked_callers":
                             foreach (var hash in values.Where(hash => hash.Length != 0))
                                 result.Blocked.Add(ValidateHash(hash));
@@ -51,8 +52,9 @@ internal sealed class PhoneConfiguration
                     break;
                 case "phonebook":
                     var parts = values;
-                    var alias = parts.Length == 2 ? new string(parts[1].Where(char.IsAsciiDigit).ToArray()) : null;
-                    result.Phonebook.Add(key, (ValidateHash(parts[0]), string.IsNullOrEmpty(alias) ? null : alias));
+                    var alias = parts.Length >= 2 ? new string(parts[1].Where(char.IsAsciiDigit).ToArray()) : null;
+                    try { result.Phonebook.Add(key, (ValidateHash(parts[0]), string.IsNullOrEmpty(alias) ? null : alias)); }
+                    catch (FormatException) { result.Warnings.Add($"Ignoring malformed phonebook entry {key}."); }
                     break;
                 case "hardware": throw new NotSupportedException($"Hardware setting {key} is not implemented by this build.");
                 default: throw new FormatException("rnphone settings must be inside a section.");

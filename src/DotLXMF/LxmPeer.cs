@@ -47,6 +47,19 @@ public sealed class LxmPeer
     internal bool IsHandled(byte[] id) => _handled.Contains(Convert.ToHexStringLower(id));
     internal bool ContinueAfterTransfer => SyncStrategy == (int)LxmPeerSyncStrategy.Persistent && UnhandledCount > 0;
 
+    internal void RecordCompletedTransfer(IReadOnlyCollection<byte[]> transferred, int offered, long dataSize,
+        long transferSize, double elapsedSeconds, double completedAt)
+    {
+        foreach (var id in transferred) MarkHandled(id);
+        Offered += offered;
+        Outgoing += transferred.Count;
+        TxBytes += dataSize;
+        SyncTransferRate = transferSize * 8.0 / Math.Max(0.0001, elapsedSeconds);
+        Alive = true;
+        LastHeard = completedAt;
+        SyncBackoff = 0;
+    }
+
     internal byte[][] PrepareOffer(Func<byte[], LxmPeerOfferEntry?> lookup, int minimumStampValue,
         double transferLimit, double syncLimit)
     {

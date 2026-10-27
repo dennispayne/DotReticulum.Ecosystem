@@ -544,24 +544,18 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
                 foreach (var id in selected)
                 {
                     var entry = offeredEntries[Convert.ToHexStringLower(id)];
-                    if (File.Exists(entry.Path)) payloads.Add(File.ReadAllBytes(entry.Path));
+                    payloads.Add(File.ReadAllBytes(entry.Path));
                 }
 
                 var envelope = MsgPack.Pack(new object?[] { Now, payloads.ToArray() });
                 var transferStarted = System.Diagnostics.Stopwatch.GetTimestamp();
                 peer.State = 5;
-                await LxmPropagationTransport.SendResourceAsync(link, envelope, _options.RequestTimeout, owned.Token).ConfigureAwait(false);
+                var resource = await LxmPropagationTransport.SendResourceAsync(link, envelope, _options.RequestTimeout, owned.Token).ConfigureAwait(false);
                 Report($"Propagation peer transfer completed with {payloads.Count} messages.");
                 lock (_gate)
                 {
-                    foreach (var id in selected) peer.MarkHandled(id);
-                    peer.Offered += entries.Length;
-                    peer.Outgoing += payloads.Count;
-                    peer.TxBytes += envelope.Length;
-                    peer.SyncTransferRate = envelope.Length * 8.0 / Math.Max(0.0001, System.Diagnostics.Stopwatch.GetElapsedTime(transferStarted).TotalSeconds);
-                    peer.Alive = true;
-                    peer.LastHeard = Now;
-                    peer.SyncBackoff = 0;
+                    peer.RecordCompletedTransfer(selected, entries.Length, resource.TotalSize, resource.Size,
+                        System.Diagnostics.Stopwatch.GetElapsedTime(transferStarted).TotalSeconds, Now);
                 }
                 transferred += payloads.Count;
                 link.Teardown();
@@ -722,15 +716,16 @@ internal static class LxmPropagationTransport
         catch { receipt.Cancel(); throw; }
     }
 
-    internal static async Task SendResourceAsync(Link link, byte[] data, TimeSpan timeout, CancellationToken ct)
+    internal static async Task<Resource> SendResourceAsync(Link link, byte[] data, TimeSpan timeout, CancellationToken ct)
     {
-        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var done = new TaskCompletionSource<Resource>(TaskCreationOptions.RunContinuationsAsynchronously);
         var resource = link.SendResource(data, null, concluded: completed =>
         {
-            if (completed.Status == ResourceStatus.Complete) done.TrySetResult();
+            if (completed.Status == ResourceStatus.Complete) done.TrySetResult(completed);
             else done.TrySetException(new IOException("Propagation resource failed: " + completed.Status));
         });
         using var registration = ct.Register(() => resource.Cancel());
-        await done.Task.WaitAsync(timeout, ct).ConfigureAwait(false);
+        try { return await done.Task.WaitAsync(timeout, ct).ConfigureAwait(false); }
+        catch { resource.Cancel(); throw; }
     }
 }

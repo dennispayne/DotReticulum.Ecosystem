@@ -4,6 +4,23 @@ namespace DotLXMF.Tests;
 public class LxmPropagationTests
 {
     [Fact]
+    public async Task PropagationResourceCompletion_ExposesActualCompressedWireAndOriginalDataSizes()
+    {
+        await using var pair = await LxmfPair.CreateAsync();
+        var link = await LxmPropagationTransport.ConnectAsync(pair.ClientRouter, pair.Server.DeliveryHash,
+            TimeSpan.FromSeconds(10), CancellationToken.None);
+        try
+        {
+            var data = new byte[200_000];
+            var resource = await LxmPropagationTransport.SendResourceAsync(link, data, TimeSpan.FromSeconds(10), CancellationToken.None);
+            Assert.Equal(DotReticulum.Transport.ResourceStatus.Complete, resource.Status);
+            Assert.Equal(data.Length, resource.TotalSize);
+            Assert.InRange(resource.Size, 1, data.Length / 10);
+        }
+        finally { link.Teardown(); }
+    }
+
+    [Fact]
     public async Task RetrievalAuthorizationError_PreservesSourceErrorUntilResetAndRecoversAfterAllow()
     {
         using var vectors = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(

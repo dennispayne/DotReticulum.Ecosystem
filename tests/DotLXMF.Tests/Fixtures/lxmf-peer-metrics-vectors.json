@@ -1,0 +1,47 @@
+{
+  "lxmf_sha": "e8ba02483217af43be284a72f1c059c730b7d047",
+  "rns_sha": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "source_sha256": "64b066894d854734ac4c1238ebef74cca3060a2fddc88c27a7793c84beb525ef",
+  "fixed_now": 1700000302.0,
+  "cases": [
+    {
+      "label": "uncompressed",
+      "data_size": 4096,
+      "transfer_size": 4128,
+      "elapsed": 2.0,
+      "offered": 3,
+      "outgoing": 2,
+      "tx_bytes": 4096,
+      "sync_transfer_rate": 16512.0,
+      "alive": true,
+      "last_heard": 1700000302.0,
+      "unhandled_count": 0
+    },
+    {
+      "label": "compressed",
+      "data_size": 4096,
+      "transfer_size": 320,
+      "elapsed": 2.0,
+      "offered": 3,
+      "outgoing": 2,
+      "tx_bytes": 4096,
+      "sync_transfer_rate": 1280.0,
+      "alive": true,
+      "last_heard": 1700000302.0,
+      "unhandled_count": 0
+    },
+    {
+      "label": "short-transfer",
+      "data_size": 17,
+      "transfer_size": 64,
+      "elapsed": 0.125,
+      "offered": 3,
+      "outgoing": 2,
+      "tx_bytes": 17,
+      "sync_transfer_rate": 4096.0,
+      "alive": true,
+      "last_heard": 1700000302.0,
+      "unhandled_count": 0
+    }
+  ]
+}

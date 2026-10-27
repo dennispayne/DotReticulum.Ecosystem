@@ -1,0 +1,147 @@
+name: Release
+
+# Runs only for a pushed telemetry-v<major>.<minor>.<build> tag (create it with tools/new-release-tag.ps1)
+# or a manual dispatch. A manual dispatch builds and uploads the zips as workflow artifacts without
+# publishing a GitHub release. DotLXMF is a library and has no release artifact here.
+on:
+  push:
+    tags:
+      - 'telemetry-v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Package ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+          - os: macos-latest
+            rid: osx-arm64
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Require a tagged commit on main
+        if: github.ref_type == 'tag'
+        run: |
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          git merge-base --is-ancestor $env:GITHUB_SHA origin/main
+          if ($LASTEXITCODE -ne 0) { throw "Tag $env:GITHUB_REF_NAME is not on main." }
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Install Linux NativeAOT prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          sudo apt-get install -y clang zlib1g-dev
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run tests
+        run: dotnet test tests/DotTelemetry.Tests/DotTelemetry.Tests.csproj -c Release
+
+      - name: Publish NativeAOT
+        run: |
+          $publish = @('publish', 'src/DotTelemetry/DotTelemetry.csproj',
+            '-c', 'Release', '-r', '${{ matrix.rid }}', '--self-contained', 'true',
+            '-p:ILLinkTreatWarningsAsErrors=true', '-p:IlcTreatWarningsAsErrors=true',
+            '-o', 'artifacts/native')
+          if ($IsWindows) {
+            $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer'
+            $env:PATH = "$installer;$env:PATH"
+            $installation = & (Join-Path $installer 'vswhere.exe') -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+            if (!$installation) { throw 'MSVC NativeAOT tools are unavailable.' }
+            $setup = Join-Path $installation 'VC/Auxiliary/Build/vcvars64.bat'
+            & $env:ComSpec /c "call `"$setup`" >nul && dotnet $($publish -join ' ')"
+          } else {
+            dotnet @publish
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Smoke-test the native binary
+        run: |
+          $binary = Join-Path $PWD $(if ($IsWindows) { 'artifacts/native/telemetry.exe' } else { 'artifacts/native/telemetry' })
+          & $binary --help
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Stage package and create zip
+        run: |
+          $version = if ('${{ github.ref_type }}' -eq 'tag') { $env:GITHUB_REF_NAME -replace '^telemetry-v' } else { "dispatch-$($env:GITHUB_SHA.Substring(0, 12))" }
+          $name = "DotTelemetry-$version-${{ matrix.rid }}"
+          $exe = if ($IsWindows) { 'telemetry.exe' } else { 'telemetry' }
+          New-Item -ItemType Directory -Path "artifacts/$name", artifacts/release | Out-Null
+          Copy-Item "artifacts/native/$exe", LICENSE -Destination "artifacts/$name"
+          $zip = Join-Path $PWD "artifacts/release/$name.zip"
+          if ($IsWindows) {
+            Compress-Archive -Path "artifacts/$name/*" -DestinationPath $zip
+          } else {
+            Push-Location "artifacts/$name"
+            zip -r -y -q $zip .
+            $code = $LASTEXITCODE
+            Pop-Location
+            if ($code -ne 0) { exit $code }
+          }
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLowerInvariant()
+          "$hash  $name.zip" | Set-Content -LiteralPath "$zip.sha256" -Encoding ascii
+
+      - name: Upload release files
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ matrix.rid }}
+          path: artifacts/release/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish GitHub release
+    needs: package
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Download release files
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cat release/*.sha256 > release/SHA256SUMS.txt
+          gh release create "$GITHUB_REF_NAME" release/*.zip release/SHA256SUMS.txt \
+            --verify-tag --title "DotTelemetry ${GITHUB_REF_NAME#telemetry-v}" --generate-notes

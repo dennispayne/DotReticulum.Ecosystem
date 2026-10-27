@@ -62,6 +62,10 @@ The Reticulum stack's own compatibility status and platform support are document
 
 Each project carries the **upstream release it targets, plus a build number**, like DotReticulum does. `DotLXMF` is `1.2.1.<height>`: the first three components are the LXMF release, entered by hand in [`src/DotLXMF/version.json`](src/DotLXMF/version.json); the last is the git height from [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning), which resets when the upstream number changes. A version names the target, not completed parity. Every project in this repository gets its own `version.json` for its own upstream. `DotTelemetry` has no upstream, so it uses its own `0.1.<height>` number.
 
+### Releases
+
+The only release artifact is the `telemetry` executable. A release is a `telemetry-v<version>` tag on `main` (for example `telemetry-v0.1.12`). Create it with `pwsh tools/new-release-tag.ps1` and push it; the [Release workflow](.github/workflows/release.yml) then builds NativeAOT zips for `linux-x64`, `win-x64` and `osx-arm64` with SHA-256 checksums and attaches them to a GitHub release. A manual run builds the zips as artifacts without publishing. DotLXMF is a library consumed through the submodule and has no release artifact. macOS is built but not verified.
+
 ## Contributing
 
 Contributions are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md).

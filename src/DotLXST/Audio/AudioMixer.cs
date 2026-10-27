@@ -81,6 +81,22 @@ public sealed class AudioMixer : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Applies the mixer's dB gain or mute to a frame. Clipping is intentionally
+    /// deferred until after sources have been summed, as in the upstream mixer.
+    /// </summary>
+    public static AudioFrame ApplyGain(AudioFrame frame, float gainDb, bool muted = false)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        if (!float.IsFinite(gainDb)) throw new ArgumentOutOfRangeException(nameof(gainDb));
+        if (muted) return new(new float[frame.Samples.Length], frame.SampleRate, frame.Channels);
+        var gain = GainLinear(gainDb);
+        var output = new float[frame.Samples.Length];
+        var input = frame.Samples.Span;
+        for (var i = 0; i < input.Length; i++) output[i] = input[i] * gain;
+        return new(output, frame.SampleRate, frame.Channels);
+    }
+
     public bool CanAccept(object source)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -231,7 +247,7 @@ public sealed class AudioMixer : IAsyncDisposable
         float gain;
         lock (_gate)
         {
-            gain = _muted ? 0f : _gainDb == 0 ? 1f : MathF.Pow(10f, _gainDb / 10f);
+            gain = GainLinear(_gainDb, _muted);
             foreach (var queue in _sources.Values)
                 if (queue.Frames.TryDequeue(out var frame)) frames.Add(frame);
         }
@@ -249,6 +265,9 @@ public sealed class AudioMixer : IAsyncDisposable
         for (var i = 0; i < output.Length; i++) output[i] = Math.Clamp(output[i], -1f, 1f);
         return new(output, _sampleRate, _channels);
     }
+
+    private static float GainLinear(float gainDb, bool muted = false) =>
+        muted ? 0f : gainDb == 0 ? 1f : MathF.Pow(10f, gainDb / 10f);
 
     private AudioFrame Adapt(AudioFrame frame)
     {

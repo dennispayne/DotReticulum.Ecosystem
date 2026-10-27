@@ -8,6 +8,29 @@ namespace DotLXST.Tests.Audio;
 public sealed class AudioMixerTests
 {
     [Fact]
+    public void FrameGainAndMuteMatchUpstreamMixingAndFinalClipping()
+    {
+        var source = System.Text.Json.JsonDocument.Parse(
+            File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-audio-processing.json")))
+            .RootElement.GetProperty("mixerGain");
+        var input = source.GetProperty("input").EnumerateArray()
+            .Select(row => row.EnumerateArray().Select(value => value.GetSingle()).ToArray()).ToArray();
+        var gainDb = source.GetProperty("gainDb").GetSingle();
+        var first = AudioMixer.ApplyGain(new AudioFrame(input[0], 8_000, 1), gainDb);
+        var second = AudioMixer.ApplyGain(new AudioFrame(input[1], 8_000, 1), gainDb);
+        var output = first.Samples.ToArray().Zip(second.Samples.ToArray(), (a, b) => Math.Clamp(a + b, -1f, 1f)).ToArray();
+        var muted = AudioMixer.ApplyGain(new AudioFrame(input[0], 8_000, 1), gainDb, muted: true);
+
+        AssertFrameSamples(source.GetProperty("mixedOutput"), output, 2e-6f);
+        AssertFrameSamples(source.GetProperty("mutedOutput"),
+            muted.Samples.ToArray().Zip(AudioMixer.ApplyGain(new AudioFrame(input[1], 8_000, 1), gainDb, true).Samples.ToArray(),
+                (a, b) => Math.Clamp(a + b, -1f, 1f)).ToArray(), 0f);
+        Assert.Equal(0f, muted.Samples.Span[0]);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            AudioMixer.ApplyGain(new AudioFrame(new[] { 1f }, 8_000, 1), float.NaN));
+    }
+
+    [Fact]
     public async Task MixerBoundsSourcesAndFramesAndMixesAdaptedChannels()
     {
         var sink = new FrameSink();
@@ -94,5 +117,14 @@ public sealed class AudioMixerTests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
             return await _frames.Reader.ReadAsync(timeout.Token);
         }
+
+    }
+
+    private static void AssertFrameSamples(System.Text.Json.JsonElement expected, float[] actual, float tolerance)
+    {
+        var values = expected.EnumerateArray().Select(value => value.GetSingle()).ToArray();
+        Assert.Equal(values.Length, actual.Length);
+        for (var index = 0; index < values.Length; index++)
+            Assert.InRange(Math.Abs(values[index] - actual[index]), 0f, tolerance);
     }
 }

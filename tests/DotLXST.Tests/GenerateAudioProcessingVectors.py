@@ -11,6 +11,7 @@ from LXST.Codecs.Codec import Null
 from LXST import Filters
 from LXST.Filters import AGC, BandPass, HighPass, LowPass
 from LXST.Generators import ToneSource
+from LXST.Mixer import Mixer
 from LXST.Sources import Loopback
 
 
@@ -51,6 +52,38 @@ class RecordingSink:
         self.frames.append((frame, source))
 
 
+class MixerSource:
+    channels = 1
+    samplerate = 8000
+
+
+class MixerSink:
+    def __init__(self):
+        self.frames = []
+        self.mixer = None
+
+    def can_receive(self, from_source=None):
+        return True
+
+    def handle_frame(self, frame, source):
+        self.frames.append(np.asarray(frame, dtype=np.float32).reshape(-1).tolist())
+        self.mixer.stop()
+
+
+def mix_reference(gain_db, muted):
+    sink = MixerSink()
+    mixer = Mixer(samplerate=8000, sink=sink, gain=gain_db)
+    sink.mixer = mixer
+    mixer.muted = muted
+    source_a = MixerSource()
+    source_b = MixerSource()
+    mixer.handle_frame(np.asarray([0.2, 0.6, -0.5, 0.1], dtype=np.float32), source_a, decoded=True)
+    mixer.handle_frame(np.asarray([0.3, 0.5, -0.6, -0.2], dtype=np.float32), source_b, decoded=True)
+    mixer.should_run = True
+    mixer._mixer_job()
+    return sink.frames[0]
+
+
 def main():
     revision = subprocess.check_output(
         ["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True
@@ -82,6 +115,14 @@ def main():
     high = filter_vector(HighPass(180), filter_input, 8000)
     low = filter_vector(LowPass(1200), filter_input, 8000)
     band = filter_vector(BandPass(180, 1200), filter_input, 8000)
+    bandpass_input_rate = 48_000
+    bandpass_input = [
+        float(np.sin(2 * np.pi * 440 * i / bandpass_input_rate) * 0.4 + np.sin(2 * np.pi * 3000 * i / bandpass_input_rate) * 0.2)
+        for i in range(32)
+    ]
+    bandpass_outputs = {}
+    for rate in (8000, 24000, 48000):
+        bandpass_outputs[str(rate)] = filter_vector(BandPass(250, 8500), bandpass_input, rate)
 
     agc_input = np.asarray(
         [[0.08, -0.04], [0.1, -0.05], [0.12, -0.06], [0.15, -0.08]] * 40,
@@ -167,6 +208,24 @@ def main():
     }
     loopback.stop()
     output["loopback"]["stopClearsRunning"] = not loopback.should_run
+    mixer_input = [[0.2, 0.6, -0.5, 0.1], [0.3, 0.5, -0.6, -0.2]]
+    mixer_gain = mix_reference(6.0, False)
+    mixer_muted = mix_reference(6.0, True)
+    output["bandpassAboveNyquist"] = {
+        "lowCut": 250,
+        "highCut": 8500,
+        "sampleRates": [8000, 24000, 48000],
+        "input": bandpass_input,
+        "inputRate": bandpass_input_rate,
+        "outputs": bandpass_outputs,
+    }
+    output["mixerGain"] = {
+        "input": mixer_input,
+        "gainDb": 6.0,
+        "mixedOutput": mixer_gain,
+        "mutedOutput": mixer_muted,
+        "gainLinear": 10 ** (6.0 / 10.0),
+    }
     fixture = Path(__file__).parent / "Fixtures" / "lxst-audio-processing.json"
     fixture.write_text(json.dumps(output, separators=(",", ":")) + "\n")
     print(f"Wrote {fixture} from LXST {revision}")

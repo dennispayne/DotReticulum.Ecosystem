@@ -98,10 +98,10 @@ public abstract class AudioFilter
 {
     public abstract AudioFrame Process(AudioFrame frame);
 
-    protected static void ValidateCutoff(float cutoff, int sampleRate)
+    protected static void ValidateCutoff(float cutoff)
     {
-        if (!float.IsFinite(cutoff) || cutoff <= 0 || cutoff >= sampleRate / 2f)
-            throw new ArgumentOutOfRangeException(nameof(cutoff), "Cutoff must be between zero and Nyquist.");
+        if (!float.IsFinite(cutoff) || cutoff <= 0)
+            throw new ArgumentOutOfRangeException(nameof(cutoff), "Cutoff must be finite and positive.");
     }
 
     protected static void ValidateFiniteSamples(AudioFrame frame)
@@ -120,7 +120,7 @@ public sealed class HighPassFilter(float cutoffHz) : AudioFilter
     public override AudioFrame Process(AudioFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
-        ValidateCutoff(cutoffHz, frame.SampleRate);
+        ValidateCutoff(cutoffHz);
         ValidateFiniteSamples(frame);
         if (frame.Samples.IsEmpty) return frame;
         EnsureState(frame);
@@ -169,7 +169,7 @@ public sealed class LowPassFilter(float cutoffHz) : AudioFilter
     public override AudioFrame Process(AudioFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
-        ValidateCutoff(cutoffHz, frame.SampleRate);
+        ValidateCutoff(cutoffHz);
         ValidateFiniteSamples(frame);
         if (frame.Samples.IsEmpty) return frame;
         if (_sampleRate != frame.SampleRate || _states.Length != frame.Channels)

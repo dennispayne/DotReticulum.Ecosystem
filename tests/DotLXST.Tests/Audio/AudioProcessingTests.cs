@@ -49,10 +49,31 @@ public sealed class AudioProcessingTests
         var second = continued.Process(new AudioFrame(input.AsMemory(7), frame.SampleRate, 1));
         AssertSamples(source.GetProperty("highPass"), first.Samples.ToArray().Concat(second.Samples.ToArray()).ToArray(), 2e-6f);
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => new LowPassFilter(4_000).Process(frame));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new LowPassFilter(0).Process(frame));
         Assert.Throws<ArgumentOutOfRangeException>(() => new BandPassFilter(1_200, 180).Process(frame));
         Assert.Throws<ArgumentException>(() => new HighPassFilter(100).Process(
             new AudioFrame(new float[] { float.PositiveInfinity }, 8_000, 1)));
+    }
+
+    [Fact]
+    public void BandPassAboveNyquistMatchesPinnedFiltersAcrossCodecRates()
+    {
+        var source = Vectors.RootElement.GetProperty("bandpassAboveNyquist");
+        var input = ReadFloats(source.GetProperty("input"));
+        var lowCut = source.GetProperty("lowCut").GetSingle();
+        var highCut = source.GetProperty("highCut").GetSingle();
+
+        foreach (var rateElement in source.GetProperty("sampleRates").EnumerateArray())
+        {
+            var rate = rateElement.GetInt32();
+            var frame = new AudioFrame(input, rate, 1);
+            var actual = new BandPassFilter(lowCut, highCut).Process(frame);
+            var expected = ReadFloats(source.GetProperty("outputs").GetProperty(rate.ToString()));
+            AssertSamples(expected, actual.Samples.Span, 2e-6f);
+        }
+
+        Assert.True(highCut > 8_000 / 2f);
+        Assert.True(highCut < 24_000 / 2f);
     }
 
     [Fact]

@@ -59,7 +59,7 @@ def command_lines():
             raise ValueError("Harness command exceeds 64 KiB")
 
 
-def write_config(path, tcp_server_port, rnsd_port):
+def write_config(path, tcp_server_port, rnsd_port, enable_transport=False):
     interfaces = ""
     if tcp_server_port:
         interfaces += f"""  [[PyTCPServer]]
@@ -76,7 +76,7 @@ def write_config(path, tcp_server_port, rnsd_port):
     target_port = {rnsd_port}
 """
     config = f"""[reticulum]
-  enable_transport = No
+  enable_transport = {"Yes" if enable_transport else "No"}
   share_instance = No
   instance_name = dotreticulum_interop_p07
   panic_on_interface_error = No
@@ -114,17 +114,21 @@ def main():
     parser.add_argument("--rnsd-port", type=int, default=0)
     parser.add_argument("--stamp-cost", type=int, default=None)
     parser.add_argument("--loglevel", type=int, default=RNS.LOG_WARNING)
+    parser.add_argument("--transport", action="store_true")
+    parser.add_argument("--delivery-limit-kb", type=int, default=1000)
     args = parser.parse_args()
 
     verify_reference(require_lxmf=True)
-    write_config(args.config, args.tcp_server_port, args.rnsd_port)
+    if args.delivery_limit_kb <= 0:
+        parser.error("--delivery-limit-kb must be positive")
+    write_config(args.config, args.tcp_server_port, args.rnsd_port, args.transport)
     RNS.Reticulum(configdir=args.config, loglevel=args.loglevel)
     RNS.Transport.register_announce_handler(Handler())
     RNS.Transport.register_announce_handler(PropagationHandler())
 
     identity = RNS.Identity()
     router = LXMF.LXMRouter(identity=identity, storagepath=os.path.join(args.config, "lxmf"), autopeer=False, enforce_stamps=True,
-                            propagation_cost=13)
+                            propagation_cost=13, delivery_limit=args.delivery_limit_kb)
     local = router.register_delivery_identity(identity, display_name="PyLxmf", stamp_cost=args.stamp_cost)
 
     def on_message(message):

@@ -4,6 +4,23 @@ namespace DotLXMF.Tests;
 public class LxmPropagationTests
 {
     [Fact]
+    public async Task PropagationPathResponse_AdvertisesConfigurationWithoutPriorAnnounce()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "propagation-path-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = path });
+            var node = pair.Server.EnablePropagationNode(new LxmPropagationOptions { Name = "Path-only PN", AutoPeer = false });
+            Assert.False(pair.ClientRouter.HasPath(node.DestinationHash));
+            await pair.ClientRouter.RequestPathAsync(node.DestinationHash);
+            await pair.WaitAsync(() => LxmfPropagationAnnounce.TryParse(pair.ClientRouter.Engine.Known.RecallAppData(node.DestinationHash), out _));
+            Assert.True(LxmfPropagationAnnounce.TryParse(pair.ClientRouter.Engine.Known.RecallAppData(node.DestinationHash), out var announce));
+            Assert.Equal(16, announce!.StampCost);
+        }
+        finally { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); }
+    }
+
+    [Fact]
     public async Task StoreCapacity_PreservesLowerWeightPriorityMessages()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "propagation-capacity-" + Guid.NewGuid().ToString("N"));
@@ -15,7 +32,10 @@ public class LxmPropagationTests
             pair.ClientRouter.Engine.Known.Remember(preferred, new byte[32], preferredIdentity.ExportPublicKey(), null);
             var node = pair.Server.EnablePropagationNode(new LxmPropagationOptions
             {
-                StampCost = 13, StorageLimit = 800, AutoPeer = false, PrioritisedDestinations = [preferred],
+                StampCost = 13,
+                StorageLimit = 800,
+                AutoPeer = false,
+                PrioritisedDestinations = [preferred],
             });
             await node.AnnounceAsync();
             await pair.WaitAsync(() => pair.ClientRouter.HasPath(node.DestinationHash));
@@ -87,11 +107,21 @@ public class LxmPropagationTests
             var active = new TaskCompletionSource<DotReticulum.Transport.Link>(TaskCreationOptions.RunContinuationsAsynchronously);
             var link = pair.ClientRouter.Links.Connect(pair.ServerIdentity, node.ControlDestinationHash, ready => active.TrySetResult(ready));
             await active.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await pair.WaitAsync(() => pair.ServerRouter.Links.Links.Any(inbound => !inbound.IsInitiator));
+            var incoming = pair.ServerRouter.Links.Links.Single(inbound => !inbound.IsInitiator);
+            using var releaseObserver = new ManualResetEventSlim();
+            var observerStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            incoming.RemoteIdentified += (_, _) =>
+            {
+                observerStarted.TrySetResult();
+                releaseObserver.Wait(TimeSpan.FromSeconds(15));
+            };
             try
             {
                 var unidentified = link.Request("/pn/get/stats", null, useApplicationValues: true)!;
                 Assert.Equal(0xf0L, await unidentified.ResponseTask.WaitAsync(TimeSpan.FromSeconds(10)));
                 link.Identify(pair.ClientIdentity);
+                await observerStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
                 var stats = link.Request("/pn/get/stats", null, useApplicationValues: true)!;
                 var result = await stats.ResponseTask.WaitAsync(TimeSpan.FromSeconds(10));
                 if (!allowControl)
@@ -108,7 +138,7 @@ public class LxmPropagationTests
                     Assert.Equal(0xfdL, await absent.ResponseTask.WaitAsync(TimeSpan.FromSeconds(10)));
                 }
             }
-            finally { link.Teardown(); }
+            finally { releaseObserver.Set(); link.Teardown(); }
         }
         finally { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); }
     }

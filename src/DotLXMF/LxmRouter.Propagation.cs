@@ -50,7 +50,9 @@ public sealed partial class LxmRouter
         plain.CopyTo(wire, DeliveryHash.Length);
         try { _ = LxMessage.Unpack(wire, hash => _router.Engine.Known.Recall(hash), LxmMethod.Propagated); }
         catch (Exception ex) when (ex is FormatException or ArgumentException or OverflowException) { return false; }
-        return Deliver(wire, LxmMethod.Propagated);
+        var accepted = _inbound.Writer.TryWrite(new InboundWork(wire, LxmMethod.Propagated, TransientId: Identity.FullHash(data)));
+        if (!accepted && Volatile.Read(ref _disposed) == 0) Report("LXMF inbound queue is full; dropping propagated message.");
+        return accepted;
     }
 
     /// <summary>Downloads this identity's messages and acknowledges successful decryption to the node unless retain is true.</summary>

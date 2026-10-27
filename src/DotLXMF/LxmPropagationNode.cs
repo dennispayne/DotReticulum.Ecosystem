@@ -97,6 +97,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         };
         _local.RegisterRequestHandler("/get", GetMessages, RequestPolicy.All, useApplicationValues: true);
         _local.RegisterRequestHandler("/offer", Offer, RequestPolicy.All, useApplicationValues: true);
+        _local.SetDefaultAppDataProvider(GetAnnounceAppData);
         router.RegisterLocalDestination(_local);
         InitializeMaintenance();
     }
@@ -130,15 +131,21 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         lock (_gate) return _entries.TryGetValue(Convert.ToHexStringLower(transientId), out var entry) ? entry.StampValue : null;
     }
 
-    public ValueTask AnnounceAsync(CancellationToken cancellationToken = default)
+    public byte[] GetAnnounceAppData()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var metadata = new Dictionary<object, object?> { [0L] = "1.2.1", [0xfeL] = "DotLXMF" };
         if (_options.Name is { } name) metadata[1L] = System.Text.Encoding.UTF8.GetBytes(name);
-        var announce = new LxmfPropagationAnnounce(DateTimeOffset.UtcNow.ToUnixTimeSeconds(), !_options.FromStaticOnly,
+        var announce = new LxmfPropagationAnnounce((long)Now, !_options.FromStaticOnly,
             _options.TransferLimit / 1000.0, _options.SyncLimit / 1000.0, _options.StampCost, _options.StampFlexibility,
             _options.PeeringCost, metadata);
-        return _router.AnnounceAsync(_local, cancellationToken: cancellationToken, appData: announce.Pack());
+        return announce.Pack();
+    }
+
+    public ValueTask AnnounceAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return _router.AnnounceAsync(_local, cancellationToken: cancellationToken);
     }
 
     private bool ProvePropagation(Packet packet)
@@ -426,7 +433,10 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             if (!LxmfPropagationAnnounce.TryParse(_router.Engine.Known.RecallAppData(destinationHash), out var config))
                 throw new InvalidOperationException("Peer has not announced valid propagation configuration.");
             if (config!.PeeringCost > _options.MaxPeeringCost)
+            {
+                lock (_gate) _peers.Remove(Convert.ToHexStringLower(destinationHash));
                 throw new InvalidOperationException("Peer peering cost exceeds the configured maximum.");
+            }
             var peeringId = remote.Hash.Concat(_identity.Hash).ToArray();
             peer.TransferLimitKilobytes = config!.TransferLimitKilobytes;
             peer.SyncLimitKilobytes = config.SyncLimitKilobytes;
@@ -606,6 +616,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         }
         finally
         {
+            _router.Engine.DeregisterHandler(_announceHandler);
             _router.DeregisterLocalDestination(_local);
             _router.DeregisterLocalDestination(_control);
             _storeLease.Dispose();

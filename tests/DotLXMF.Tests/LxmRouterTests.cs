@@ -85,6 +85,192 @@ internal sealed class LxmfPair : IAsyncDisposable
 public class LxmRouterTests
 {
     [Fact]
+    public async Task OutboundStampCache_ImportsExecutedPythonFormatExpiresAndSurvivesRestart()
+    {
+        using var fixture = System.Text.Json.JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxmf-contract-vectors.json")));
+        var root = fixture.RootElement;
+        var cache = root.GetProperty("stamp_cost_cache");
+        var destination = Identity.FromPrivateKey(Convert.FromHexString(root.GetProperty("destination_private_key").GetString()!));
+        var hash = LxMessage.DeliveryDestinationHash(destination);
+        var path = Path.Combine(AppContext.BaseDirectory, "stamp-cost-import-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(path, "lxmf"));
+            var file = Path.Combine(path, "lxmf", "outbound_stamp_costs");
+            var packed = Convert.FromHexString(cache.GetProperty("packed").GetString()!);
+            File.WriteAllBytes(file, packed);
+            await using var interfaces = new PacketInterfaceManager([]);
+            var transport = new TransportRouter(interfaces, new TransportRouterOptions());
+            var options = new LxmRouterOptions { StoragePath = path };
+            await using (var expired = new LxmRouter(transport, destination, options: options))
+                Assert.Null(expired.GetOutboundStampCost(hash));
+            var map = Assert.IsType<Dictionary<object, object?>>(MsgPack.UnpackApplicationValue(packed));
+            foreach (var value in map.Values)
+                Assert.IsType<object?[]>(value)[0] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+            File.WriteAllBytes(file, MsgPack.Pack(map));
+            await using (var imported = new LxmRouter(transport, destination, options: options))
+            {
+                Assert.Equal(12, imported.GetOutboundStampCost(hash));
+                imported.UpdateStampCost(hash, null);
+                var other = Enumerable.Repeat((byte)8, 16).ToArray();
+                imported.UpdateStampCost(other, 14);
+                imported.SaveOutboundStampCosts();
+                Assert.Throws<ArgumentOutOfRangeException>(() => imported.UpdateStampCost(hash, 255));
+                Assert.Throws<ArgumentException>(() => imported.UpdateStampCost(new byte[15], 12));
+            }
+            await using var reopened = new LxmRouter(transport, destination, options: options);
+            Assert.Null(reopened.GetOutboundStampCost(hash));
+            Assert.Equal(14, reopened.GetOutboundStampCost(Enumerable.Repeat((byte)8, 16).ToArray()));
+        }
+        finally { if (Directory.Exists(path)) Directory.Delete(path, true); }
+    }
+
+    [Fact]
+    public async Task MutableStampCost_AnnouncesNewRequirementAndNoStampPolicy()
+    {
+        await using var pair = await LxmfPair.CreateAsync();
+        Assert.True(pair.Server.SetInboundStampCost(4));
+        Assert.False(pair.Server.SetInboundStampCost(255));
+        var emitted = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        await pair.WaitAsync(() => DateTimeOffset.UtcNow.ToUnixTimeSeconds() > emitted);
+        await pair.Server.AnnounceAsync();
+        await pair.WaitAsync(() => pair.Client.GetOutboundStampCost(pair.Server.DeliveryHash) == 4);
+        var stamped = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "new stamp requirement");
+        await pair.Client.SendAsync(stamped);
+        Assert.Equal(LxmState.Delivered, await stamped.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+        await pair.WaitAsync(() => pair.ServerInbox.Count == 1);
+        Assert.True(pair.ServerInbox[0].StampValid);
+        Assert.True(pair.Server.SetInboundStampCost(-1));
+        emitted = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        await pair.WaitAsync(() => DateTimeOffset.UtcNow.ToUnixTimeSeconds() > emitted);
+        await pair.Server.AnnounceAsync();
+        await pair.WaitAsync(() => pair.Client.GetOutboundStampCost(pair.Server.DeliveryHash) is null);
+        var unstamped = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "no stamp requirement");
+        await pair.Client.SendAsync(unstamped);
+        Assert.Equal(LxmState.Delivered, await unstamped.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+        Assert.Null(unstamped.Stamp);
+    }
+
+    [Fact]
+    public async Task PaperIngestion_MatchesUpstreamStampBypassDuplicatesAndRestart()
+    {
+        using var fixture = System.Text.Json.JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxmf-contract-vectors.json")));
+        var root = fixture.RootElement;
+        var source = Identity.FromPrivateKey(Convert.FromHexString(root.GetProperty("source_private_key").GetString()!));
+        var destination = Identity.FromPrivateKey(Convert.FromHexString(root.GetProperty("destination_private_key").GetString()!));
+        var uri = root.GetProperty("paper").GetProperty("uri").GetString()!;
+        var expected = root.GetProperty("paper_ingestion").GetProperty("observations")[0];
+        var path = Path.Combine(AppContext.BaseDirectory, "paper-ingest-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            await using var interfaces = new PacketInterfaceManager([]);
+            var transport = new TransportRouter(interfaces, new TransportRouterOptions());
+            transport.Engine.Known.Remember(LxMessage.DeliveryDestinationHash(source), new byte[32], source.ExportPublicKey(), null);
+            var options = new LxmRouterOptions { StoragePath = path, InboundStampCost = 254 };
+            await using var router = new LxmRouter(transport, destination, options: options);
+            var received = new List<ReceivedMessage>();
+            router.Log = _ => throw new InvalidOperationException("broken logger");
+            router.MessageReceived = _ => throw new InvalidOperationException("broken observer");
+            router.MessageReceived += received.Add;
+            Assert.Equal(LxmPaperIngestResult.LocalDelivery, await router.IngestPaperUriAsync(uri));
+            Assert.Equal(LxmPaperIngestResult.Duplicate, await router.IngestPaperUriAsync(uri));
+            Assert.Equal(LxmPaperIngestResult.LocalDelivery, await router.IngestPaperUriAsync(uri, allowDuplicate: true));
+            Assert.Equal(2, received.Count);
+            Assert.All(received, item =>
+            {
+                Assert.Equal(expected.GetProperty("hash").GetString(), Convert.ToHexStringLower(item.Message.Hash!));
+                Assert.Equal(expected.GetProperty("method").GetInt32(), (int)item.Message.Method);
+                Assert.Equal(expected.GetProperty("signature_validated").GetBoolean(), item.Message.SignatureValidated);
+                Assert.Equal(expected.GetProperty("stamp_valid").GetBoolean(), item.StampValid);
+            });
+            Assert.Equal(LxmPaperIngestResult.Rejected, await router.IngestPaperUriAsync("lxm://not-valid"));
+            await router.DisposeAsync();
+            await using var reopened = new LxmRouter(transport, destination, options: options);
+            Assert.Equal(LxmPaperIngestResult.Duplicate, await reopened.IngestPaperUriAsync(uri));
+            Assert.True(reopened.HasMessage(Convert.FromHexString(expected.GetProperty("hash").GetString()!)));
+            var processed = Assert.IsType<Dictionary<object, object?>>(MsgPack.UnpackApplicationValue(
+                File.ReadAllBytes(Path.Combine(path, "lxmf", "locally_processed"))));
+            Assert.Single(processed);
+            Assert.Equal(32, Assert.IsType<byte[]>(processed.Keys.Single()).Length);
+        }
+        finally { if (Directory.Exists(path)) Directory.Delete(path, true); }
+    }
+
+    [Fact]
+    public async Task PaperIngestion_RecordsDeliveryWithNoObserver()
+    {
+        await using var interfaces = new PacketInterfaceManager([]);
+        var transport = new TransportRouter(interfaces, new TransportRouterOptions());
+        var destination = Identity.Generate();
+        await using var router = new LxmRouter(transport, destination);
+        var paper = LxMessage.Create(router.DeliveryHash, Identity.Generate(), "no observer", method: LxmMethod.Paper);
+        paper.Pack(destinationIdentity: destination);
+        Assert.Equal(LxmPaperIngestResult.LocalDelivery, await router.IngestPaperUriAsync(paper.AsUri()));
+        Assert.True(router.HasMessage(paper.Hash!));
+    }
+
+    [Fact]
+    public async Task PaperIngestion_BoundsQueuedWorkAndCancelsPendingDeliveryOnDisposal()
+    {
+        await using var interfaces = new PacketInterfaceManager([]);
+        var transport = new TransportRouter(interfaces, new TransportRouterOptions());
+        var destination = Identity.Generate();
+        await using var router = new LxmRouter(transport, destination, options: new LxmRouterOptions { InboundQueueCapacity = 1 });
+        using var release = new ManualResetEventSlim();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var count = 0;
+        router.MessageReceived = _ =>
+        {
+            Interlocked.Increment(ref count);
+            started.TrySetResult();
+            release.Wait(TimeSpan.FromSeconds(10));
+        };
+        string Paper(string content)
+        {
+            var message = LxMessage.Create(router.DeliveryHash, Identity.Generate(), content, method: LxmMethod.Paper);
+            message.Pack(destinationIdentity: destination);
+            return message.AsUri();
+        }
+        var active = router.IngestPaperUriAsync(Paper("active"));
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var queued = router.IngestPaperUriAsync(Paper("queued"));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => router.IngestPaperUriAsync(Paper("over capacity")));
+            var disposal = router.DisposeAsync().AsTask();
+            release.Set();
+            await disposal;
+            Assert.Equal(LxmPaperIngestResult.LocalDelivery, await active);
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => queued);
+            Assert.Equal(1, count);
+        }
+        finally { release.Set(); }
+    }
+
+    [Fact]
+    public async Task OutboundCapacity_IncludesCancellableStampPreparation()
+    {
+        await using var pair = await LxmfPair.CreateAsync(
+            serverOptions: new LxmRouterOptions { InboundStampCost = 254 },
+            clientOptions: new LxmRouterOptions { OutboundQueueCapacity = 1 });
+        var first = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "cancel expensive preparation");
+        var preparing = pair.Client.SendAsync(first);
+        var excess = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "over capacity");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => pair.Client.SendAsync(excess));
+        pair.Client.Cancel(first);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => preparing);
+        Assert.Equal(LxmState.Cancelled, await first.Completion);
+        var issued = pair.Server.Tickets.Generate(pair.Client.DeliveryHash)!;
+        try { pair.Client.Tickets.Remember(pair.Server.DeliveryHash, issued); }
+        finally { System.Security.Cryptography.CryptographicOperations.ZeroMemory(issued.Token); }
+        var recovery = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "after cancellation");
+        await pair.Client.SendAsync(recovery);
+        Assert.Equal(LxmState.Delivered, await recovery.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+    }
+
+    [Fact]
     public async Task IgnoredSource_IsDroppedAndCanBeReenabled()
     {
         await using var pair = await LxmfPair.CreateAsync();

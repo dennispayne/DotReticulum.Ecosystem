@@ -12,6 +12,7 @@ from pathlib import Path
 import subprocess
 import sys
 import os
+import threading
 from unittest.mock import patch
 
 import LXMF
@@ -181,6 +182,38 @@ eviction_remaining = [entry.hex() for entry in router.propagation_entries]
 for file_path in Path(router.storagepath).iterdir():
     file_path.unlink()
 Path(router.storagepath).rmdir()
+router.propagation_entries = {}
+router.delivery_destinations = {dst.hash: dst}
+dst.stamp_cost = 254
+router._enforce_stamps = True
+router.ignored_list = []
+router.locally_processed_transient_ids = {}
+router.locally_delivered_transient_ids = {}
+router.delivered_transient_ids_lock = threading.Lock()
+router.processed_transient_ids_lock = threading.Lock()
+paper_observations = []
+router._LXMRouter__delivery_callback = lambda incoming: paper_observations.append({
+    "hash": incoming.hash.hex(), "method": incoming.method, "stamp_valid": incoming.stamp_valid,
+    "signature_validated": incoming.signature_validated})
+with patch.object(router_module.time, "time", return_value=1700000302.0):
+    ingested = router.ingest_lxm_uri(paper.as_uri(finalise=False), "local", "duplicate")
+    duplicate_ingest = router.ingest_lxm_uri(paper.as_uri(finalise=False), "local", "duplicate")
+    allowed_duplicate = router.ingest_lxm_uri(paper.as_uri(finalise=False), "local", "duplicate", allow_duplicate=True)
+assert ingested == "local" and duplicate_ingest == "duplicate" and allowed_duplicate == "local"
+assert len(paper_observations) == 2 and all(entry["method"] == LXMF.LXMessage.PROPAGATED for entry in paper_observations)
+router.outbound_stamp_costs = {
+    dst.hash: [1700000302.0, 12],
+    src.hash: [1700000302.0 - router.STAMP_COST_EXPIRY - 1, 18],
+    bytes([9]) * 16: [1700000302.0, None],
+}
+router.cost_file_lock = threading.Lock()
+with patch.object(router_module.time, "time", return_value=1700000302.0):
+    router.clean_outbound_stamp_costs()
+router.save_outbound_stamp_costs()
+stamp_cost_cache = Path(router.storagepath, "outbound_stamp_costs").read_bytes()
+assert src.hash not in router.outbound_stamp_costs and router.get_outbound_stamp_cost(dst.hash) == 12
+Path(router.storagepath, "outbound_stamp_costs").unlink()
+Path(router.storagepath).rmdir()
 
 announces = [
     b"Legacy",
@@ -225,6 +258,8 @@ output = {
     "peer_rotation": rotation_cases,
     "store_eviction": {"entries": eviction_entries, "prioritised": [entry.hex() for entry in router.prioritised_list],
                        "limit": router.message_storage_limit, "remaining": eviction_remaining},
+    "paper_ingestion": {"results": [ingested, duplicate_ingest, allowed_duplicate], "observations": paper_observations},
+    "stamp_cost_cache": {"packed": stamp_cost_cache.hex(), "expiry": router.STAMP_COST_EXPIRY},
     "propagation": {
         "packed": propagated.packed.hex(),
         "envelope": propagated.propagation_packed.hex(),

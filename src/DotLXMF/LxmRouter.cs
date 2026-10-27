@@ -60,6 +60,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
     private readonly LocalDestination _local;
     private readonly object _gate = new();
     private readonly List<LxMessage> _outbound = [];
+    private readonly Dictionary<LxMessage, CancellationTokenSource> _preparing = [];
     private readonly Dictionary<string, Link> _links = [];
     private readonly HashSet<Link> _incomingLinks = [];
     private readonly HashSet<string> _ignored = [];
@@ -70,9 +71,10 @@ public sealed partial class LxmRouter : IAsyncDisposable
     private readonly CancellationTokenSource _cts = new();
     private Task _loop = Task.CompletedTask;
     private Task _inboundLoop = Task.CompletedTask;
-    private readonly Channel<(byte[] Data, LxmMethod Method)> _inbound;
+    private readonly Channel<InboundWork> _inbound;
     private readonly DestinationRatchets? _ratchets;
     private readonly LxmTicketStore _tickets;
+    private int _inboundStampCost;
     private int _started;
     private int _disposed;
 
@@ -83,7 +85,9 @@ public sealed partial class LxmRouter : IAsyncDisposable
         _options = options ?? new LxmRouterOptions();
         ArgumentOutOfRangeException.ThrowIfLessThan(_options.InboundQueueCapacity, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(_options.OutboundQueueCapacity, 1);
-        _inbound = System.Threading.Channels.Channel.CreateBounded<(byte[], LxmMethod)>(new BoundedChannelOptions(_options.InboundQueueCapacity)
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(_options.InboundStampCost ?? 0, 255);
+        _inboundStampCost = Math.Max(0, _options.InboundStampCost ?? 0);
+        _inbound = System.Threading.Channels.Channel.CreateBounded<InboundWork>(new BoundedChannelOptions(_options.InboundQueueCapacity)
         {
             SingleReader = true,
             FullMode = BoundedChannelFullMode.Wait,
@@ -101,7 +105,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         try
         {
             _tickets = new LxmTicketStore(_options.StoragePath is { } storage ? Path.Combine(storage, "lxmf", "available_tickets") : null);
-            try { LoadDeliveryHistory(); }
+            try { LoadDeliveryHistory(); LoadProcessedHistory(); LoadOutboundStampCosts(); }
             catch { _tickets.Dispose(); throw; }
         }
         catch
@@ -112,13 +116,15 @@ public sealed partial class LxmRouter : IAsyncDisposable
         _local = new LocalDestination(identity, destination)
         {
             Ratchets = _ratchets,
-            AppData = displayName is null ? null : LxmfAppData.Build(displayName, _options.InboundStampCost),
+            AppData = GetAnnounceAppData(),
             AcceptLinks = true,
             ProofStrategy = ProofStrategy.All,
             PacketReceived = OnOpportunisticPacket,
             LinkEstablished = OnLinkEstablished,
         };
+        _local.SetDefaultAppDataProvider(GetAnnounceAppData);
         router.RegisterLocalDestination(_local);
+        InitializeDeliveryAnnounces();
     }
 
     public string? DisplayName { get; }
@@ -162,7 +168,25 @@ public sealed partial class LxmRouter : IAsyncDisposable
         using var preparation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
         cancellationToken = preparation.Token;
         cancellationToken.ThrowIfCancellationRequested();
-        message.Log ??= Log;
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            if (_outbound.Contains(message) || _preparing.ContainsKey(message)) throw new InvalidOperationException("Message is already queued.");
+            if (_outbound.Count + _preparing.Count >= _options.OutboundQueueCapacity) throw new InvalidOperationException("LXMF outbound queue is full.");
+            _preparing.Add(message, preparation);
+        }
+        try { await PrepareAndQueueAsync(message, cancellationToken).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            message.State = LxmState.Cancelled;
+            throw;
+        }
+        finally { lock (_gate) _preparing.Remove(message); }
+    }
+
+    private async Task PrepareAndQueueAsync(LxMessage message, CancellationToken cancellationToken)
+    {
+        message.Log ??= Report;
         Start();
         if (message.Packed is null)
         {
@@ -178,7 +202,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 try { stamp = message.CreateTicketStamp(ticket.Token); }
                 finally { CryptographicOperations.ZeroMemory(ticket.Token); }
             }
-            else if (LxmfAppData.StampCost(_router.Engine.Known.RecallAppData(message.DestinationHash)) is { } cost)
+            else if (GetOutboundStampCost(message.DestinationHash) is { } cost)
             {
                 var id = message.ComputeHash();
                 stamp = await LxStamper.GenerateAsync(id, cost, cancellationToken).ConfigureAwait(false);
@@ -210,8 +234,10 @@ public sealed partial class LxmRouter : IAsyncDisposable
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            cancellationToken.ThrowIfCancellationRequested();
             if (_outbound.Count >= _options.OutboundQueueCapacity) throw new InvalidOperationException("LXMF outbound queue is full.");
             if (_outbound.Contains(message)) throw new InvalidOperationException("Message is already queued.");
+            _preparing.Remove(message);
             _outbound.Add(message);
         }
         _wake.Release();
@@ -229,7 +255,11 @@ public sealed partial class LxmRouter : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(message);
         message.State = LxmState.Cancelled;
-        lock (_gate) _outbound.Remove(message);
+        lock (_gate)
+        {
+            _outbound.Remove(message);
+            if (_preparing.TryGetValue(message, out var preparation)) preparation.Cancel();
+        }
         message.ActiveResource?.Cancel();
     }
 
@@ -279,6 +309,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 await _wake.WaitAsync(_options.ProcessingInterval, ct).ConfigureAwait(false);
                 while (_wake.CurrentCount > 0) await _wake.WaitAsync(0, ct).ConfigureAwait(false);
                 await ProcessAsync(ct).ConfigureAwait(false);
+                SaveOutboundStampCosts();
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -299,7 +330,8 @@ public sealed partial class LxmRouter : IAsyncDisposable
         lock (_gate) pending = [.. _outbound];
         foreach (var message in pending)
         {
-            if (message.State is LxmState.Delivered or LxmState.Sent or LxmState.Failed or LxmState.Rejected or LxmState.Cancelled)
+            if (message.State is LxmState.Delivered or LxmState.Failed or LxmState.Rejected or LxmState.Cancelled ||
+                message.State == LxmState.Sent && message.Method == LxmMethod.Propagated)
             {
                 lock (_gate) _outbound.Remove(message);
                 continue;
@@ -484,7 +516,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
 
     private bool Deliver(byte[] lxmfData, LxmMethod method)
     {
-        var accepted = _inbound.Writer.TryWrite((lxmfData, method));
+        var accepted = _inbound.Writer.TryWrite(new InboundWork(lxmfData, method));
         if (!accepted && Volatile.Read(ref _disposed) == 0)
             Log?.Invoke("LXMF inbound queue is full; dropping incoming message.");
         return accepted;
@@ -494,66 +526,101 @@ public sealed partial class LxmRouter : IAsyncDisposable
     {
         try
         {
-            await foreach (var (lxmfData, method) in _inbound.Reader.ReadAllAsync(ct).ConfigureAwait(false))
-                ProcessIncoming(lxmfData, method);
+            await foreach (var work in _inbound.Reader.ReadAllAsync(ct).ConfigureAwait(false))
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    work.Completion?.TrySetCanceled(ct);
+                    break;
+                }
+                var result = LxmPaperIngestResult.Rejected;
+                try
+                {
+                    if (work.TransientId is { } transient && !RememberProcessed(transient, work.AllowDuplicate))
+                        result = LxmPaperIngestResult.Duplicate;
+                    else result = ProcessIncoming(work);
+                }
+                catch (Exception ex) { Report("Could not process incoming LXMF data: " + ex.Message); }
+                finally { work.Completion?.TrySetResult(result); }
+            }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        finally
+        {
+            while (_inbound.Reader.TryRead(out var pending)) pending.Completion?.TrySetCanceled(ct);
+        }
     }
 
-    private void ProcessIncoming(byte[] lxmfData, LxmMethod method)
+    private LxmPaperIngestResult ProcessIncoming(InboundWork work)
     {
         try
         {
-                var message = LxMessage.Unpack(lxmfData, hash => hash.AsSpan().SequenceEqual(DeliveryHash) ? _identity : _router.Engine.Known.Recall(hash), method);
-                if (!message.DestinationHash.AsSpan().SequenceEqual(DeliveryHash)) return;
-                lock (_gate)
-                    if (_ignored.Contains(Convert.ToHexStringLower(message.SourceHash))) return;
-                message.TransportEncrypted = true;
-                message.TransportEncryption = "Curve25519";
-                if (message.SignatureValidated && message.Fields.TryGetValue(LxmField.Ticket, out var value) &&
-                    value is object?[] { Length: >= 2 } entry && entry[1] is byte[] { Length: LxMessage.TicketLength } token &&
-                    entry[0] is double or float or long or ulong)
-                {
-                    var expires = MsgPack.ToDouble(entry[0]);
-                    if (double.IsFinite(expires)) _tickets.Remember(message.SourceHash, new LxmTicket(expires, token));
-                }
+            var message = LxMessage.Unpack(work.Data, hash => hash.AsSpan().SequenceEqual(DeliveryHash) ? _identity : _router.Engine.Known.Recall(hash), work.Method);
+            if (!message.DestinationHash.AsSpan().SequenceEqual(DeliveryHash)) return LxmPaperIngestResult.Rejected;
+            lock (_gate)
+                if (_ignored.Contains(Convert.ToHexStringLower(message.SourceHash))) return LxmPaperIngestResult.Rejected;
+            message.TransportEncrypted = true;
+            message.TransportEncryption = "Curve25519";
+            if (message.SignatureValidated && message.Fields.TryGetValue(LxmField.Ticket, out var value) &&
+                value is object?[] { Length: >= 2 } entry && entry[1] is byte[] { Length: LxMessage.TicketLength } token &&
+                entry[0] is double or float or long or ulong)
+            {
+                var expires = MsgPack.ToDouble(entry[0]);
+                if (double.IsFinite(expires)) _tickets.Remember(message.SourceHash, new LxmTicket(expires, token));
+            }
 
-                bool? stampValid = null;
-                if (_options.InboundStampCost is { } cost)
+            bool? stampValid = null;
+            if (InboundStampCost is { } cost)
+            {
+                var tickets = _tickets.GetInbound(message.SourceHash);
+                try { stampValid = message.ValidateStamp(cost, tickets); }
+                finally { foreach (var ticket in tickets) CryptographicOperations.ZeroMemory(ticket); }
+                if (stampValid == false && _options.EnforceStamps && !work.IgnoreStamps)
                 {
-                    var tickets = _tickets.GetInbound(message.SourceHash);
-                    try { stampValid = message.ValidateStamp(cost, tickets); }
-                    finally { foreach (var ticket in tickets) CryptographicOperations.ZeroMemory(ticket); }
-                    if (stampValid == false && _options.EnforceStamps)
+                    Log?.Invoke($"Dropping {message} with invalid stamp");
+                    return LxmPaperIngestResult.Rejected;
+                }
+            }
+
+            var key = Convert.ToHexStringLower(message.Hash!);
+            lock (_gate)
+            {
+                var now = Now;
+                foreach (var stale in _seen.Where(e => now - e.Value > DeliveryHistoryRetention.TotalSeconds).Select(e => e.Key).ToList()) _seen.Remove(stale);
+                if (_seen.ContainsKey(key) && !work.AllowDuplicate) return LxmPaperIngestResult.Duplicate;
+                var transientKey = work.TransientId is { } transient ? Convert.ToHexStringLower(transient) : null;
+                var additions = (_seen.ContainsKey(key) ? 0 : 1) +
+                    (transientKey is null || _seen.ContainsKey(transientKey) ? 0 : 1);
+                if (_seen.Count + additions > 65_536) throw new InvalidOperationException("LXMF duplicate cache capacity reached.");
+                var previous = _seen.GetValueOrDefault(key);
+                var previousTransient = transientKey is null ? 0 : _seen.GetValueOrDefault(transientKey);
+                _seen[key] = now;
+                if (transientKey is not null) _seen[transientKey] = now;
+                try { SaveDeliveryHistory(); }
+                catch
+                {
+                    if (previous == 0) _seen.Remove(key); else _seen[key] = previous;
+                    if (transientKey is not null)
                     {
-                        Log?.Invoke($"Dropping {message} with invalid stamp");
-                        return;
+                        if (previousTransient == 0) _seen.Remove(transientKey); else _seen[transientKey] = previousTransient;
                     }
+                    throw;
                 }
+            }
 
-                var key = Convert.ToHexStringLower(message.Hash!);
-                lock (_gate)
-                {
-                    var now = Now;
-                    foreach (var stale in _seen.Where(e => now - e.Value > DeliveryHistoryRetention.TotalSeconds).Select(e => e.Key).ToList()) _seen.Remove(stale);
-                    if (_seen.ContainsKey(key)) return;
-                    if (_seen.Count >= 65_536) throw new InvalidOperationException("LXMF duplicate cache capacity reached.");
-                    if (!_seen.TryAdd(key, now)) return;
-                    try { SaveDeliveryHistory(); }
-                    catch { _seen.Remove(key); throw; }
-                }
-
-                if (MessageReceived is { } callbacks)
+            if (MessageReceived is { } callbacks)
                 foreach (Action<ReceivedMessage> callback in callbacks.GetInvocationList())
                 {
                     try { callback(new ReceivedMessage(message, stampValid)); }
-                    catch (Exception ex) { Log?.Invoke($"LXMF receive observer failed for {message}: {ex}"); }
+                    catch (Exception ex) { Report($"LXMF receive observer failed for {message}: {ex}"); }
                 }
+            return LxmPaperIngestResult.LocalDelivery;
         }
         catch (Exception ex)
-            {
-                Log?.Invoke("Could not process incoming LXMF data: " + ex.Message);
-            }
+        {
+            Report("Could not process incoming LXMF data: " + ex.Message);
+            return LxmPaperIngestResult.Rejected;
+        }
     }
 
     public async ValueTask DisposeAsync()
@@ -580,6 +647,9 @@ public sealed partial class LxmRouter : IAsyncDisposable
             catch (Exception ex) { Log?.Invoke("Could not close LXMF link: " + ex.Message); }
         }
 
+        _router.Engine.DeregisterHandler(_deliveryAnnounceHandler);
+        try { SaveOutboundStampCosts(); }
+        catch (Exception ex) { Report("Could not save outbound LXMF stamp costs during disposal: " + ex.Message); }
         _router.DeregisterLocalDestination(_local);
         _ratchets?.Dispose();
         _tickets.Dispose();

@@ -188,7 +188,12 @@ public sealed class LxMessage
                     catch (Exception ex)
                     {
                         var error = $"LXMF state callback failed for destination {Convert.ToHexStringLower(DestinationHash)}: {ex}";
-                        if (Log is { } log) log(error);
+                        if (Log is { } logs)
+                            foreach (Action<string> log in logs.GetInvocationList())
+                            {
+                                try { log(error); }
+                                catch { }
+                            }
                         else System.Diagnostics.Trace.TraceError(error);
                     }
                 }

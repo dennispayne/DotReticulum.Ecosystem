@@ -65,6 +65,30 @@ Headless native codec cases require `DOTLXST_NATIVE=1` with compatible Opus and 
 
 Telephone audio cases additionally require `DOTLXST_VIRTUAL_AUDIO=1` on Linux with PulseAudio and its `pactl`, `pacat` and `parec` tools. They use virtual audio, not physical microphone/speaker or audio-quality acceptance.
 
+With the reference paths configured, enable all three LXST modes to run its
+complete provisioned Linux suite:
+
+```powershell
+$env:DOTLXST_LIVE = '1'
+$env:DOTLXST_NATIVE = '1'
+$env:DOTLXST_VIRTUAL_AUDIO = '1'
+dotnet test tests\DotLXST.Tests\DotLXST.Tests.csproj -c Release --artifacts-path <linux-output-directory>
+```
+
+Use distinct `--artifacts-path` directories for Windows, Linux and concurrent
+validation processes. Shared `obj` outputs from Windows and WSL are not
+interchangeable; a successful restore on one OS does not prepare the other.
+
+Published executable acceptance selects a binary explicitly:
+`DOTRETICULUM_LXMD_BINARY` for `Lxmd.Tests.ps1`, or
+`DOTLXST_RNPHONE_BINARY` for `Rnphone.Tests.ps1`. Run the chosen script through
+`tests\run-pester.ps1 -Path <test-script> -Tag Native`. The phone's Python case
+also requires `DOTLXST_LIVE=1`; `-Tag NativeStandalone` selects its source-free,
+two-native-process virtual-audio flow instead. Run phone acceptance from a
+native Linux working directory, not the Windows-mounted checkout: Pester's
+temporary identity files must support owner-only Unix permissions. The test
+script and binary may be supplied by absolute path.
+
 ## Language ownership
 
 C# implements and verifies our solution. PowerShell 7 builds and operates the development workflow. Python only bridges to the upstream Python reference: small adapters for actual RNS/LXMF API calls, callback observations and independent vector generation. Do not reimplement reference behavior in our languages.

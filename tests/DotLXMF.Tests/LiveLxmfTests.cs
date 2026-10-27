@@ -26,13 +26,15 @@ public class LiveLxmfTests
         private readonly Task _run;
         public PyLinkNode Py = null!;
         public TransportRouter Router { get; }
+        public int Port { get; }
         public Identity Identity { get; } = Identity.Generate();
         public LxmRouter Lxmf { get; }
         public List<ReceivedMessage> Inbox { get; } = [];
         public System.Collections.Concurrent.ConcurrentQueue<string> Log { get; } = new();
 
-        private Rig(int port, int? stampCost, string? storagePath)
+        private Rig(int port, int? stampCost, string? storagePath, bool largeMessages)
         {
+            Port = port;
             _manager = new PacketInterfaceManager([new TcpClientPacketInterface("127.0.0.1", port)]);
             Router = new TransportRouter(_manager, new TransportRouterOptions());
             Lxmf = new LxmRouter(Router, Identity, "DotNetLxmf", new LxmRouterOptions
@@ -40,6 +42,7 @@ public class LiveLxmfTests
                 ProcessingInterval = TimeSpan.FromMilliseconds(500),
                 InboundStampCost = stampCost,
                 StoragePath = storagePath,
+                DeliveryPerTransferLimit = largeMessages ? 4_000_000 : 1_000_000,
             });
             Lxmf.MessageReceived = m => { lock (Inbox) Inbox.Add(m); };
             Lxmf.Log = Log.Enqueue;
@@ -47,12 +50,15 @@ public class LiveLxmfTests
             _run = Task.Run(() => Router.RunAsync(_cts.Token));
         }
 
-        public static async Task<Rig> StartAsync(int? stampCost = null, string? storagePath = null)
+        public static async Task<Rig> StartAsync(int? stampCost = null, string? storagePath = null, bool largeMessages = false)
         {
             var port = FreePort();
+            var arguments = new List<string>();
+            if (stampCost is { } cost) arguments.AddRange(["--stamp-cost", cost.ToString()]);
+            if (largeMessages) arguments.AddRange(["--delivery-limit-kb", "4000", "--propagation-limit-kb", "4000"]);
             var py = await PyLinkNode.StartAsync("lxmf", tcpServerPort: port, harness: "live_lxmf_node.py",
-                extraArguments: stampCost is { } cost ? ["--stamp-cost", cost.ToString()] : null);
-            var rig = new Rig(port, stampCost, storagePath) { Py = py };
+                extraArguments: [.. arguments]);
+            var rig = new Rig(port, stampCost, storagePath, largeMessages) { Py = py };
             await rig._manager.StartAsync(rig._cts.Token);
             rig.Lxmf.Start();
             await Task.Delay(1000);
@@ -78,12 +84,75 @@ public class LiveLxmfTests
             catch (Exception ex) when (ex is OperationCanceledException or TimeoutException) { }
             await _manager.DisposeAsync();
             await Py.DisposeAsync();
+            Identity.Dispose();
         }
     }
 
     private static string HexContent(int size, int seed) => Convert.ToHexStringLower(new Random(seed).GetItems(Enumerable.Range(0, 256).Select(i => (byte)i).ToArray(), size / 2));
 
     private static string Sha(byte[] data) => Convert.ToHexStringLower(SHA256.HashData(data));
+
+    [LiveFact]
+    [Trait("Category", "Live")]
+    public async Task SignedRatchets_SurviveNativePythonCrossImportAndDelayedPacketRestart()
+    {
+        var storage = Path.Combine(AppContext.BaseDirectory, "live-ratchets-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(storage);
+        try
+        {
+            await using var rig = await Rig.StartAsync(storagePath: storage);
+            var identityPath = Path.Combine(storage, "test-identity");
+            var privateKey = rig.Identity.ExportPrivateKey();
+            try { File.WriteAllBytes(identityPath, privateKey); }
+            finally { CryptographicOperations.ZeroMemory(privateKey); }
+            var hash = rig.Lxmf.DeliveryHashHex;
+            var ratchetFile = Path.Combine(storage, "lxmf", "ratchets", hash + ".ratchets");
+            Assert.True(File.Exists(ratchetFile));
+            var nativePacket = await rig.Py.Command($"prepare-opportunistic {hash} native-key native-file",
+                "prepared", TimeSpan.FromSeconds(10));
+            Assert.NotEmpty(nativePacket.GetProperty("ratchet_id").GetString()!);
+            await rig.Lxmf.DisposeAsync();
+            await using (var replacement = await PyLinkNode.StartAsync("python-ratchet-import", rnsdPort: rig.Port,
+                harness: "live_lxmf_node.py", extraArguments: ["--identity", identityPath, "--storage", storage, "--enforce-ratchets"]))
+            {
+                Assert.Equal(hash, replacement.HashHex);
+                var before = rig.Py.Events("announce").Count(value => value.GetProperty("dest").GetString() == hash);
+                var emitted = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                await WaitFor(() => DateTimeOffset.UtcNow.ToUnixTimeSeconds() > emitted, 5);
+                await rig.Py.Command("announce", "announced", TimeSpan.FromSeconds(10));
+                await replacement.WaitForAnnounce(rig.Py.Hash, TimeSpan.FromSeconds(20));
+                await replacement.Command("announce", "announced", TimeSpan.FromSeconds(10));
+                await rig.Py.NextAsync("announce", before, TimeSpan.FromSeconds(20), value => value.GetProperty("dest").GetString() == hash);
+                await rig.Py.Command("send-prepared native-file", "prepared-sent", TimeSpan.FromSeconds(10));
+                var imported = await replacement.NextAsync("received", 0, TimeSpan.FromSeconds(20));
+                Assert.Equal(nativePacket.GetProperty("hash").GetString(), imported.GetProperty("hash").GetString());
+                Assert.Equal(nativePacket.GetProperty("ratchet_id").GetString(), imported.GetProperty("ratchet_id").GetString());
+                Assert.True(imported.GetProperty("signature_validated").GetBoolean());
+                await rig.Py.NextAsync("prepared-delivered", 0, TimeSpan.FromSeconds(10));
+                await rig.Py.Command($"prepare-opportunistic {hash} python-key python-file", "prepared", TimeSpan.FromSeconds(10));
+            }
+
+            var pythonPacket = rig.Py.Events("prepared").Last();
+            Assert.NotEqual(nativePacket.GetProperty("ratchet_id").GetString(), pythonPacket.GetProperty("ratchet_id").GetString());
+            await using var resumed = new LxmRouter(rig.Router, rig.Identity, "ResumedRatchets",
+                new LxmRouterOptions { StoragePath = storage, EnforceRatchets = true });
+            var inbox = new TaskCompletionSource<ReceivedMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            resumed.MessageReceived = received => inbox.TrySetResult(received);
+            resumed.Start();
+            var count = rig.Py.Events("announce").Count(value => value.GetProperty("dest").GetString() == hash);
+            var previous = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            await WaitFor(() => DateTimeOffset.UtcNow.ToUnixTimeSeconds() > previous, 5);
+            await resumed.AnnounceAsync();
+            await rig.Py.NextAsync("announce", count, TimeSpan.FromSeconds(20), value => value.GetProperty("dest").GetString() == hash);
+            await rig.Py.Command("send-prepared python-file", "prepared-sent", TimeSpan.FromSeconds(10));
+            var recovered = await inbox.Task.WaitAsync(TimeSpan.FromSeconds(20));
+            Assert.Equal(pythonPacket.GetProperty("hash").GetString(), Convert.ToHexStringLower(recovered.Message.Hash!));
+            Assert.Equal(pythonPacket.GetProperty("sha256").GetString(), Sha(recovered.Message.ContentBytes));
+            Assert.True(recovered.Message.SignatureValidated);
+            await rig.Py.NextAsync("prepared-delivered", 1, TimeSpan.FromSeconds(10));
+        }
+        finally { if (Directory.Exists(storage)) Directory.Delete(storage, true); }
+    }
 
     private static async Task DotNetToPython(LxmMethod method, int size)
     {
@@ -232,8 +301,8 @@ public class LiveLxmfTests
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(120));
         try
         {
-            await using var rig = await Rig.StartAsync(storagePath: storage);
-            var dotnetNode = rig.Lxmf.EnablePropagationNode(new LxmPropagationOptions { StampCost = 13 });
+            await using var rig = await Rig.StartAsync(storagePath: storage, largeMessages: true);
+            var dotnetNode = rig.Lxmf.EnablePropagationNode(new LxmPropagationOptions { StampCost = 13, TransferLimit = 4_000_000 });
             await dotnetNode.AnnounceAsync();
             var ready = await rig.Py.Command("enable-pn", "pn-ready", TimeSpan.FromSeconds(15));
             var pythonNode = Convert.FromHexString(ready.GetProperty("dest").GetString()!);
@@ -242,20 +311,36 @@ public class LiveLxmfTests
             var offlineHash = LxMessage.DeliveryDestinationHash(offline);
             rig.Router.Engine.Known.Remember(offlineHash, new byte[32], offline.ExportPublicKey(), null);
             rig.Lxmf.OutboundPropagationNode = pythonNode;
-            var first = LxMessage.Create(offlineHash, rig.Identity, "stored for offline recipient", method: LxmMethod.Propagated);
+            var content = RandomNumberGenerator.GetBytes(2_200_000);
+            var first = LxMessage.CreateBinary(offlineHash, rig.Identity, content, method: LxmMethod.Propagated);
             await rig.Lxmf.SendAsync(first, deadline.Token);
             Assert.Equal(LxmState.Sent, await first.Completion.WaitAsync(TimeSpan.FromSeconds(60)));
+            var storedBy = DateTime.UtcNow.AddSeconds(20);
+            while ((await rig.Py.Command("pn-count", "pn-count", TimeSpan.FromSeconds(10))).GetProperty("count").GetInt32() != 1)
+            {
+                if (DateTime.UtcNow >= storedBy) throw new TimeoutException("Python did not validate/store the propagated Resource. " + rig.Py.Log);
+                await Task.Delay(50);
+            }
             var synced = await rig.Py.Command($"peer-sync {Convert.ToHexStringLower(dotnetNode.DestinationHash)}", "peer-synced", TimeSpan.FromSeconds(90));
             Assert.Equal(1, synced.GetProperty("outgoing").GetInt32());
             await WaitFor(() => dotnetNode.MessageCount == 1, 20);
+            var stored = File.ReadAllBytes(Directory.EnumerateFiles(Path.Combine(storage, "lxmf", "messagestore"),
+                Convert.ToHexStringLower(first.TransientId!) + "_*").Single());
+            var decrypted = offline.Decrypt(stored.AsSpan(LxMessage.DestinationLength, stored.Length - LxMessage.DestinationLength - LxStamper.StampSize));
+            Assert.NotNull(decrypted);
+            var recovered = LxMessage.Unpack([.. offlineHash, .. decrypted], _ => rig.Identity, LxmMethod.Propagated);
+            Assert.True(recovered.SignatureValidated);
+            Assert.Equal(Sha(content), Sha(recovered.ContentBytes));
             await rig.Py.Command($"use-pn {Convert.ToHexStringLower(dotnetNode.DestinationHash)}", "pn-selected", TimeSpan.FromSeconds(15));
-            await rig.Py.Command($"send {rig.Py.HashHex} propagated 200 peer-seed peer-return", "sent_queued", TimeSpan.FromSeconds(30));
+            var queued = await rig.Py.Command($"send {rig.Py.HashHex} propagated 2200000 peer-seed peer-return", "sent_queued", TimeSpan.FromSeconds(30));
             await rig.Py.NextAsync("delivered", 0, TimeSpan.FromSeconds(60));
             await WaitFor(() => dotnetNode.MessageCount == 2, 20);
             Assert.Equal(1, await dotnetNode.SynchronizePeerAsync(pythonNode, deadline.Token));
             var delivered = await rig.Py.NextAsync("received", 0, TimeSpan.FromSeconds(30));
             Assert.True(delivered.GetProperty("signature_validated").GetBoolean());
             Assert.Equal((int)LxmMethod.Propagated, delivered.GetProperty("method").GetInt32());
+            Assert.Equal(2_200_000, delivered.GetProperty("size").GetInt32());
+            Assert.Equal(queued.GetProperty("sha256").GetString(), delivered.GetProperty("sha256").GetString());
             Assert.Equal(0, await dotnetNode.SynchronizePeerAsync(pythonNode, deadline.Token));
         }
         finally { if (Directory.Exists(storage)) Directory.Delete(storage, recursive: true); }

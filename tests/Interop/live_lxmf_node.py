@@ -116,25 +116,34 @@ def main():
     parser.add_argument("--loglevel", type=int, default=RNS.LOG_WARNING)
     parser.add_argument("--transport", action="store_true")
     parser.add_argument("--delivery-limit-kb", type=int, default=1000)
+    parser.add_argument("--propagation-limit-kb", type=int, default=256)
+    parser.add_argument("--identity")
+    parser.add_argument("--storage")
+    parser.add_argument("--enforce-ratchets", action="store_true")
     args = parser.parse_args()
 
     verify_reference(require_lxmf=True)
-    if args.delivery_limit_kb <= 0:
-        parser.error("--delivery-limit-kb must be positive")
+    if args.delivery_limit_kb <= 0 or args.propagation_limit_kb <= 0:
+        parser.error("Delivery and propagation limits must be positive")
     write_config(args.config, args.tcp_server_port, args.rnsd_port, args.transport)
     RNS.Reticulum(configdir=args.config, loglevel=args.loglevel)
     RNS.Transport.register_announce_handler(Handler())
     RNS.Transport.register_announce_handler(PropagationHandler())
 
-    identity = RNS.Identity()
-    router = LXMF.LXMRouter(identity=identity, storagepath=os.path.join(args.config, "lxmf"), autopeer=False, enforce_stamps=True,
-                            propagation_cost=13, delivery_limit=args.delivery_limit_kb)
+    identity = RNS.Identity.from_file(args.identity) if args.identity else RNS.Identity()
+    if identity is None:
+        parser.error("Could not load the requested identity")
+    router = LXMF.LXMRouter(identity=identity, storagepath=args.storage or os.path.join(args.config, "lxmf"), autopeer=False,
+                            enforce_stamps=True, enforce_ratchets=args.enforce_ratchets,
+                            propagation_cost=13, propagation_limit=args.propagation_limit_kb,
+                            delivery_limit=args.delivery_limit_kb)
     local = router.register_delivery_identity(identity, display_name="PyLxmf", stamp_cost=args.stamp_cost)
 
     def on_message(message):
         emit({"event": "received", "hash": message.hash.hex(), "source": message.source_hash.hex(), "title": message.title_as_string(),
               "size": len(message.content), "sha256": hashlib.sha256(message.content).hexdigest(), "method": message.method,
               "signature_validated": message.signature_validated,
+              "ratchet_id": message.ratchet_id.hex() if message.ratchet_id else None,
               "stamp_valid": message.stamp_valid, "stamp_size": len(message.stamp) if message.stamp else 0,
               "has_ticket": LXMF.FIELD_TICKET in message.fields,
               "fields": {str(k): ("<ticket-redacted>" if k == LXMF.FIELD_TICKET else v.hex() if isinstance(v, bytes) else repr(v))
@@ -142,12 +151,40 @@ def main():
 
     router.register_delivery_callback(on_message)
     emit({"event": "ready", "dest": local.hash.hex(), "identity_hash": identity.hash.hex()})
+    prepared = {}
 
     for line in command_lines():
         parts = line.strip().split()
         if not parts:
             continue
         cmd = parts[0]
+        if cmd == "prepare-opportunistic" and len(parts) == 4:
+            if len(prepared) >= 4:
+                raise ValueError("Prepared packet capacity exceeded")
+            destination_hash = bytes.fromhex(parts[1])
+            remote = RNS.Identity.recall(destination_hash)
+            if remote is None or RNS.Identity.get_ratchet(destination_hash) is None:
+                raise ValueError("The recipient has not announced an identity and ratchet")
+            destination = RNS.Destination(remote, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")
+            content = random.Random(parts[2]).randbytes(96)
+            message = LXMF.LXMessage(destination, local, content, parts[3], desired_method=LXMF.LXMessage.OPPORTUNISTIC)
+            message.defer_stamp = False
+            message.pack()
+            packet = RNS.Packet(destination, message.packed[LXMF.LXMessage.DESTINATION_LENGTH:])
+            packet.pack()
+            prepared[parts[3]] = (packet, message.hash)
+            emit({"event": "prepared", "tag": parts[3], "hash": message.hash.hex(),
+                  "ratchet_id": packet.ratchet_id.hex(), "sha256": hashlib.sha256(content).hexdigest()})
+            continue
+        if cmd == "send-prepared" and len(parts) == 2:
+            packet, message_hash = prepared.pop(parts[1])
+            receipt = packet.send()
+            if not receipt:
+                raise RuntimeError("The prepared packet could not be sent")
+            receipt.set_delivery_callback(lambda received, hashed=message_hash:
+                                          emit({"event": "prepared-delivered", "hash": hashed.hex()}))
+            emit({"event": "prepared-sent", "hash": message_hash.hex()})
+            continue
         if cmd == "quit":
             break
         if cmd == "announce":

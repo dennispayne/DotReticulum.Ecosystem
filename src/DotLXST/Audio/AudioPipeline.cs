@@ -1,10 +1,16 @@
 namespace DotLXST.Audio;
 
+public interface IEncodedAudioSink
+{
+    ValueTask WriteAsync(EncodedFrame frame, CancellationToken cancellationToken = default);
+}
+
 public sealed class AudioPipeline : IAsyncDisposable
 {
     private readonly object _gate = new();
     private readonly IAudioSource _source;
-    private readonly IAudioSink _sink;
+    private readonly IAudioSink? _sink;
+    private readonly IEncodedAudioSink? _encodedSink;
     private readonly AudioFilter? _processor;
     private CancellationTokenSource? _stopSource;
     private Task? _stopTask;
@@ -23,6 +29,24 @@ public sealed class AudioPipeline : IAsyncDisposable
         _sink = sink;
         _processor = processor;
     }
+
+    private AudioPipeline(IAudioSource source, IAudioCodec codec, IEncodedAudioSink sink, AudioFilter? processor)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(codec);
+        ArgumentNullException.ThrowIfNull(sink);
+        _source = source;
+        _codec = codec;
+        _encodedSink = sink;
+        _processor = processor;
+    }
+
+    public static AudioPipeline CreateEncoded(
+        IAudioSource source,
+        IAudioCodec codec,
+        IEncodedAudioSink sink,
+        AudioFilter? processor = null) =>
+        new(source, codec, sink, processor);
 
     public Task Completion
     {
@@ -128,14 +152,28 @@ public sealed class AudioPipeline : IAsyncDisposable
         {
             cancellationToken.ThrowIfCancellationRequested();
             var frame = _processor?.Process(sourceFrame) ?? sourceFrame;
-            AudioFrame decoded;
-            lock (_gate)
+            if (_encodedSink is { } encodedSink)
             {
-                var encoded = _codec.Encode(frame);
-                decoded = _codec.Decode(encoded);
-            }
+                EncodedFrame encoded;
+                lock (_gate)
+                {
+                    var data = _codec.Encode(frame);
+                    encoded = new(_codec.Kind, data);
+                }
 
-            await _sink.WriteAsync(decoded, cancellationToken).ConfigureAwait(false);
+                await encodedSink.WriteAsync(encoded, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                AudioFrame decoded;
+                lock (_gate)
+                {
+                    var data = _codec.Encode(frame);
+                    decoded = _codec.Decode(data);
+                }
+
+                await _sink!.WriteAsync(decoded, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 }

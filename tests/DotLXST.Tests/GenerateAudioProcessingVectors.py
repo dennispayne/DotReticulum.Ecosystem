@@ -12,11 +12,18 @@ from LXST.Codecs.Codec import resample
 from LXST.Codecs.Codec import resample_bytes
 from LXST.Codecs.Codec import Null
 from LXST.Codecs.Opus import Opus
+from LXST.Codecs.Raw import Raw
 from LXST import Filters
 from LXST.Filters import AGC, BandPass, HighPass, LowPass
 from LXST.Generators import ToneSource
 from LXST.Mixer import Mixer
 from LXST.Sources import Loopback
+from LXST.Sources import Source
+from LXST.Sinks import Sink
+from LXST.Pipeline import Pipeline
+from LXST import Network
+from LXST.Network import codec_header_byte, codec_type
+from LXST.Codecs.Codec2 import Codec2
 
 
 ROOT = Path(os.environ["DOTRETICULUM_LXST_UPSTREAM"]).resolve(strict=True)
@@ -33,6 +40,9 @@ SOURCE_FILES = [
     "LXST/Pipeline.py",
     "LXST/Sources.py",
     "LXST/Sinks.py",
+    "LXST/Network.py",
+    "LXST/Codecs/Raw.py",
+    "LXST/Codecs/__init__.py",
 ]
 
 
@@ -74,6 +84,32 @@ class MixerSink:
     def handle_frame(self, frame, source):
         self.frames.append(np.asarray(frame, dtype=np.float32).reshape(-1).tolist())
         self.mixer.stop()
+
+
+class HeadlessPipelineSource(Source):
+    def __init__(self):
+        self.samplerate = 8_000
+        self.should_run = False
+
+    def start(self):
+        self.should_run = True
+
+    def stop(self):
+        self.should_run = False
+
+
+class HeadlessPipelineSink(Sink):
+    pass
+
+
+class CapturedPacket:
+    observations = []
+
+    def __init__(self, destination, data, create_receipt):
+        self.observations.append((destination, bytes(data), create_receipt))
+
+    def send(self):
+        return True
 
 
 def mix_reference(gain_db, muted):
@@ -139,6 +175,28 @@ def main():
     reference_opus = Opus()
     reference_opus.source = SimpleNamespace(samplerate=codec_input_rate)
     codec_encoded = reference_opus.encode(codec_input)
+    pipeline_source = HeadlessPipelineSource()
+    pipeline_sink = HeadlessPipelineSink()
+    pipeline_codec = Raw(channels=1, bitdepth=16)
+    pipeline = Pipeline(pipeline_source, pipeline_codec, pipeline_sink, processor=object())
+    pipeline.start()
+    pipeline_running_after_start = pipeline.running
+    pipeline.stop()
+    pipeline_raw_input = np.asarray([[0.25], [-0.5]], dtype=np.float32)
+    pipeline_raw_encoded = pipeline_codec.encode(pipeline_raw_input)
+    codec_markers = {codec.__name__: codec_header_byte(codec).hex() for codec in (Raw, Opus, Codec2)}
+    original_packet = Network.RNS.Packet
+    packetizer = Network.Packetizer(object())
+    packetizer.source = pipeline_source
+    CapturedPacket.observations = []
+    try:
+        Network.RNS.Packet = CapturedPacket
+        packetizer.handle_frame(pipeline_raw_encoded)
+    finally:
+        Network.RNS.Packet = original_packet
+    _, packet_data, create_receipt = CapturedPacket.observations[0]
+    unpacked_packet = Network.mp.unpackb(packet_data)
+    packetized_frame = unpacked_packet[Network.FIELD_FRAMES]
 
     filter_input = [
         0.0, 0.5, -0.25, 0.75, -0.5, 0.25, 1.0, -1.0,
@@ -211,6 +269,33 @@ def main():
             "channels": 1,
             "input": codec_input.reshape(-1).tolist(),
             "encoded": codec_encoded.hex(),
+        },
+        "pipeline": {
+            "pipelineSetsSourceBackReference": pipeline_source.pipeline is pipeline,
+            "pipelineAssignsSinkToSource": pipeline_source.sink is pipeline_sink,
+            "pipelineAssignsCodecToSource": pipeline_source.codec is pipeline_codec,
+            "pipelineAssignsSourceAndSinkToCodec": (
+                pipeline_codec.source is pipeline_source and pipeline_codec.sink is pipeline_sink
+            ),
+            "startStartsSource": pipeline_running_after_start,
+            "stopStopsSource": not pipeline.running,
+            "processorArgumentObserved": hasattr(pipeline, "processor"),
+            "codecMarkers": codec_markers,
+            "codecMarkerRoundTrips": {
+                codec.__name__: codec_type(codec_header_byte(codec)[0]) is codec
+                for codec in (Raw, Opus, Codec2)
+            },
+            "rawFrame": {
+                "input": pipeline_raw_input.reshape(-1).tolist(),
+                "channels": 1,
+                "encoded": pipeline_raw_encoded.hex(),
+            },
+            "packetizerUsesCodecMarkerAndFrameField": (
+                packetized_frame == bytes.fromhex(codec_markers["Raw"]) + pipeline_raw_encoded
+            ),
+            "packetCreateReceipt": create_receipt,
+            "packetizerImplementsReliabilityOrFragmentation": False,
+            "packetizedFrame": packetized_frame.hex(),
         },
         "filters": {
             "input": filter_input,

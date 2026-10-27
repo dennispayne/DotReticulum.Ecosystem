@@ -1,5 +1,7 @@
 using DotReticulum.Core;
 using DotReticulum.Transport;
+using System.Diagnostics;
+using DotLXST.Audio;
 
 namespace DotLXST;
 
@@ -35,6 +37,10 @@ public sealed record TelephoneOptions
     public TimeSpan AnnounceInterval { get; init; } = TimeSpan.FromHours(3);
     public int ReceiveCapacity { get; init; } = 32;
     public Func<Identity, bool>? AuthorizeCaller { get; init; }
+    public TelephoneCallerPolicy CallerPolicy { get; init; } = new();
+    public float ReceiveGainDb { get; init; }
+    public float TransmitGainDb { get; init; }
+    public bool UseAutomaticGainControl { get; init; } = true;
     public IAudioSink? Sink { get; init; }
     public IAudioCodecFactory CodecFactory { get; init; } = new NativeAudioCodecFactory();
     public string? OpusLibraryPath { get; init; }
@@ -57,6 +63,16 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         public IAudioCodec? Encoder { get; set; }
         public TelephoneProfile? EncoderProfile { get; set; }
         public SemaphoreSlim AudioLock { get; } = new(1, 1);
+        public BandPassFilter TransmitFilter { get; } = new(250, 8500);
+        public AutomaticGainControl TransmitAgc { get; } = new(targetLevelDb: -15);
+        public bool UseAutomaticGainControl { get; set; }
+    }
+
+    private sealed class ReceiveSink(TelephoneEndpoint endpoint) : IAudioSink
+    {
+        public Call Call { get; set; } = null!;
+        public ValueTask WriteAsync(AudioFrame frame, CancellationToken cancellationToken = default) =>
+            endpoint.ReceiveAudioAsync(Call, frame, cancellationToken);
     }
 
     private readonly TransportRouter _router;
@@ -66,11 +82,17 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     private readonly object _gate = new();
     private readonly CancellationTokenSource _stop = new();
     private readonly List<Task> _cleanup = [];
+    private TelephoneCallerPolicy _callerPolicy;
     private Call? _call;
     private CancellationTokenSource? _pendingDial;
     private bool _started;
     private bool _disposed;
     private bool _externalBusy;
+    private float _receiveGainDb;
+    private float _transmitGainDb;
+    private bool _receiveMuted;
+    private bool _transmitMuted;
+    private bool _useAutomaticGainControl;
     private TaskCompletionSource? _disposeCompletion;
     private Task _announcements = Task.CompletedTask;
     private CallState _state = CallState.Available;
@@ -81,6 +103,13 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         _identity = identity ?? throw new ArgumentNullException(nameof(identity));
         _options = options ?? new();
         ArgumentNullException.ThrowIfNull(_options.CodecFactory);
+        ArgumentNullException.ThrowIfNull(_options.CallerPolicy);
+        _callerPolicy = _options.CallerPolicy;
+        if (!float.IsFinite(_options.ReceiveGainDb) || !float.IsFinite(_options.TransmitGainDb))
+            throw new ArgumentOutOfRangeException(nameof(options));
+        _receiveGainDb = _options.ReceiveGainDb;
+        _transmitGainDb = _options.TransmitGainDb;
+        _useAutomaticGainControl = _options.UseAutomaticGainControl;
         if (_options.RingTimeout <= TimeSpan.Zero || _options.WaitTimeout <= TimeSpan.Zero ||
             _options.ConnectTimeout <= TimeSpan.Zero || _options.AnnounceInterval <= TimeSpan.Zero ||
             _options.AutoAnswerDelay < TimeSpan.Zero || _options.ReceiveCapacity < 1)
@@ -98,9 +127,56 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     public bool IsBusy { get { lock (_gate) return _externalBusy || _state != CallState.Available; } }
     public TelephoneProfile? ActiveProfile { get { lock (_gate) return _call?.Profile; } }
     public Identity? RemoteIdentity { get { lock (_gate) return _call?.Link.RemoteIdentity; } }
+    public float ReceiveGainDb
+    {
+        get { lock (_gate) return _receiveGainDb; }
+        set { SetGain(value, receive: true); }
+    }
+    public float TransmitGainDb
+    {
+        get { lock (_gate) return _transmitGainDb; }
+        set { SetGain(value, receive: false); }
+    }
+    public bool ReceiveMuted
+    {
+        get { lock (_gate) return _call is not null && _receiveMuted; }
+        set { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); _receiveMuted = value; } }
+    }
+    public bool TransmitMuted
+    {
+        get { lock (_gate) return _call is not null && _transmitMuted; }
+        set { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); _transmitMuted = value; } }
+    }
+    /// <summary>Controls filter construction for subsequent calls, like the reference setter.</summary>
+    public bool UseAutomaticGainControl
+    {
+        get { lock (_gate) return _useAutomaticGainControl; }
+        set { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); _useAutomaticGainControl = value; } }
+    }
     public event Action<CallState>? StateChanged;
     public event Action<AudioFrame>? AudioReceived;
     public Action<string, Exception?>? Error { get; set; }
+
+    public void SetCallerPolicy(TelephoneCallerPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _callerPolicy = policy;
+        }
+    }
+
+    private void SetGain(float value, bool receive)
+    {
+        if (!float.IsFinite(value)) throw new ArgumentOutOfRangeException(nameof(value));
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (receive) _receiveGainDb = value;
+            else _transmitGainDb = value;
+        }
+    }
 
     public void SetBusy(bool busy = true)
     {
@@ -136,6 +212,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         EnsureStarted();
         if (!Enum.IsDefined(profile)) throw new ArgumentOutOfRangeException(nameof(profile));
         var destination = Destination.Create(DestinationType.Single, "lxst", ["telephony"], remote);
+        var started = Stopwatch.GetTimestamp();
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token, cancellationToken);
         timeout.CancelAfter(_options.WaitTimeout);
         lock (_gate)
@@ -157,8 +234,11 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
                 if (_state != CallState.Calling || !ReferenceEquals(_pendingDial, timeout))
                     throw new OperationCanceledException("Call was cancelled.");
                 var link = _router.Links.Connect(remote, destination.Hash, establishmentTimeout: _options.ConnectTimeout.TotalSeconds);
-                _call = Attach(link, true, profile);
-                _call.Deadline = WatchTimeoutAsync(_call, _options.WaitTimeout);
+                var call = _call = Attach(link, true, profile);
+                var elapsed = Stopwatch.GetElapsedTime(started);
+                call.Deadline = Task.WhenAll(
+                    WatchTimeoutAsync(call, Remaining(_options.WaitTimeout, elapsed)),
+                    WatchTimeoutAsync(call, Remaining(_options.ConnectTimeout, elapsed), CallState.Ringing));
                 _pendingDial = null;
             }
         }
@@ -175,13 +255,48 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     private Call Attach(Link link, bool outgoing, TelephoneProfile profile)
     {
         var transport = new ReticulumStreamTransport(link, _options.ReceiveCapacity) { Error = message => Report(message, null) };
-        var session = new StreamSession(transport, _options.CodecFactory, _options.Sink) { Error = Report };
-        var call = new Call(link, transport, session, outgoing, profile);
+        var sink = new ReceiveSink(this);
+        var session = new StreamSession(transport, _options.CodecFactory, sink) { Error = Report };
+        var call = new Call(link, transport, session, outgoing, profile) { UseAutomaticGainControl = _useAutomaticGainControl };
+        sink.Call = call;
         session.SignalReceived += signal => ReceiveSignal(call, signal);
-        session.FrameReceived += frame => Notify(AudioReceived, frame);
-        link.Closed += _ => CloseCall(call);
+        link.Closed += _ => TrackCleanup(CloseAfterIngressAsync(call));
         session.Start();
         return call;
+    }
+
+    private async ValueTask ReceiveAudioAsync(Call call, AudioFrame frame, CancellationToken cancellationToken)
+    {
+        float gain;
+        bool muted;
+        lock (_gate)
+        {
+            if (!ReferenceEquals(_call, call)) return;
+            gain = _receiveGainDb;
+            muted = _receiveMuted;
+        }
+        var output = ApplyMixerGain(frame, gain, muted);
+        if (_options.Sink is not null)
+        {
+            try { await _options.Sink.WriteAsync(output, cancellationToken).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception ex) { Report("LXST audio sink failed.", ex); }
+        }
+        Notify(AudioReceived, output);
+    }
+
+    private static AudioFrame ApplyMixerGain(AudioFrame frame, float gain, bool muted)
+    {
+        var amplified = AudioMixer.ApplyGain(frame, gain, muted);
+        var samples = amplified.Samples.ToArray();
+        for (var index = 0; index < samples.Length; index++) samples[index] = Math.Clamp(samples[index], -1, 1);
+        return new(samples, frame.SampleRate, frame.Channels);
+    }
+
+    private async Task CloseAfterIngressAsync(Call call)
+    {
+        await call.Session.Completion.ConfigureAwait(false);
+        CloseCall(call);
     }
 
     private void AcceptLink(Link link)
@@ -194,12 +309,12 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
                 call = Attach(link, false, TelephoneProfile.MediumQuality);
                 _call = call;
                 link.RemoteIdentified += (_, identity) => CallerIdentified(call, identity);
-                call.Deadline = WatchTimeoutAsync(call, _options.RingTimeout);
+                call.Deadline = WatchTimeoutAsync(call, _options.ConnectTimeout, CallState.Ringing);
             }
         }
         if (call is null)
         {
-            try { link.Send(new StreamPacket { Signals = [(long)CallState.Busy] }.Encode(), createReceipt: false); }
+            try { SendFinalSignal(link, CallState.Busy); }
             finally { link.Teardown(); }
         }
         else SendSignal(call, (long)CallState.Available);
@@ -208,7 +323,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     private void CallerIdentified(Call call, Identity identity)
     {
         var allowed = false;
-        try { allowed = _options.AuthorizeCaller?.Invoke(identity) ?? true; }
+        try { allowed = Volatile.Read(ref _callerPolicy).IsAllowed(identity) && (_options.AuthorizeCaller?.Invoke(identity) ?? true); }
         catch (Exception ex) { Report("LXST caller authorization failed.", ex); }
         lock (_gate)
         {
@@ -222,7 +337,8 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
             }
             SetState(CallState.Ringing);
             SendSignal(call, (long)CallState.Ringing);
-            if (_options.AutoAnswerDelay is { } delay) TrackCleanup(AutoAnswerAsync(call, delay));
+            if (_options.AutoAnswerDelay is { } delay && delay > TimeSpan.Zero) TrackCleanup(AutoAnswerAsync(call, delay));
+            else call.Deadline = Task.WhenAll(call.Deadline, WatchTimeoutAsync(call, _options.RingTimeout));
         }
     }
 
@@ -316,15 +432,27 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         try
         {
             TelephoneProfile profile;
-            lock (_gate) profile = call.Profile;
+            float gain;
+            bool muted;
+            lock (_gate)
+            {
+                profile = call.Profile;
+                gain = _transmitGainDb;
+                muted = _transmitMuted;
+            }
+            var filtered = call.TransmitFilter.Process(frame);
+            if (call.UseAutomaticGainControl) filtered = call.TransmitAgc.Process(filtered);
+            var processed = ApplyMixerGain(filtered, gain, muted);
             if (call.Encoder is null || call.EncoderProfile != profile)
             {
                 var replacement = CreateEncoder(profile);
-                call.Encoder?.Dispose();
+                var previous = call.Encoder;
                 call.Encoder = replacement;
                 call.EncoderProfile = profile;
+                try { previous?.Dispose(); }
+                catch (Exception ex) { Report("LXST previous encoder cleanup failed.", ex); }
             }
-            await call.Session.SendFrameAsync(new(call.Encoder.Kind, call.Encoder.Encode(frame)), linked.Token).ConfigureAwait(false);
+            await call.Session.SendFrameAsync(new(call.Encoder.Kind, call.Encoder.Encode(processed)), linked.Token).ConfigureAwait(false);
         }
         finally { call.AudioLock.Release(); }
     }
@@ -351,14 +479,17 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         catch (Exception ex) { Report("LXST signalling send failed.", ex); CloseCall(call); }
     }
 
-    private async Task WatchTimeoutAsync(Call call, TimeSpan timeout)
+    private static TimeSpan Remaining(TimeSpan limit, TimeSpan elapsed) =>
+        elapsed >= limit ? TimeSpan.Zero : limit - elapsed;
+
+    private async Task WatchTimeoutAsync(Call call, TimeSpan timeout, CallState before = CallState.Established)
     {
         try
         {
             await Task.Delay(timeout, call.Stop.Token).ConfigureAwait(false);
             lock (_gate)
             {
-                if (ReferenceEquals(_call, call) && _state != CallState.Established)
+                if (ReferenceEquals(_call, call) && _state < before)
                 {
                     call.Link.Teardown();
                     CloseCall(call);
@@ -377,11 +508,19 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
             pending?.Cancel();
             if (_call is { } call)
             {
+                if (!call.Outgoing && _state == CallState.Ringing)
+                    SendFinalSignal(call.Link, CallState.Rejected);
                 call.Link.Teardown();
                 CloseCall(call);
             }
             else if (_state != CallState.Available) SetState(CallState.Available);
         }
+    }
+
+    private void SendFinalSignal(Link link, CallState signal)
+    {
+        if (!link.TrySend(new StreamPacket { Signals = [(long)signal] }.Encode()))
+            Report("LXST final status could not be enqueued.", null);
     }
 
     private void CloseCall(Call call)
@@ -390,6 +529,8 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         {
             if (!ReferenceEquals(_call, call)) return;
             _call = null;
+            _receiveMuted = false;
+            _transmitMuted = false;
             call.Stop.Cancel();
             SetState(CallState.Available);
             TrackCleanup(CleanupCallAsync(call));
@@ -424,6 +565,8 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
 
     private void SetState(CallState state)
     {
+        if (state == CallState.Established && _state != CallState.Established && _call is { } call)
+            call.UseAutomaticGainControl = _useAutomaticGainControl;
         _state = state;
         Notify(StateChanged, state);
     }

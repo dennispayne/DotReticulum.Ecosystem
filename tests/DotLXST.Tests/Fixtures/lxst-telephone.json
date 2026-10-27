@@ -1,0 +1,140 @@
+{
+  "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+  "telephony_sha256": "35b2a4093368223145a548ac671504b43a4dcdac62368db754b082fe40138825",
+  "policies": [
+    {
+      "allowed": "all",
+      "blocked": false,
+      "result": true
+    },
+    {
+      "allowed": "all",
+      "blocked": true,
+      "result": false
+    },
+    {
+      "allowed": "none",
+      "blocked": false,
+      "result": false
+    },
+    {
+      "allowed": "none",
+      "blocked": true,
+      "result": false
+    },
+    {
+      "allowed": "list-match",
+      "blocked": false,
+      "result": true
+    },
+    {
+      "allowed": "list-match",
+      "blocked": true,
+      "result": false
+    },
+    {
+      "allowed": "list-other",
+      "blocked": false,
+      "result": false
+    },
+    {
+      "allowed": "list-other",
+      "blocked": true,
+      "result": false
+    },
+    {
+      "allowed": "callback-match",
+      "blocked": false,
+      "result": true
+    },
+    {
+      "allowed": "callback-match",
+      "blocked": true,
+      "result": false
+    },
+    {
+      "allowed": "callback-other",
+      "blocked": false,
+      "result": false
+    },
+    {
+      "allowed": "callback-other",
+      "blocked": true,
+      "result": false
+    }
+  ],
+  "profiles": [
+    {
+      "profile": 16,
+      "name": "Ultra Low Bandwidth",
+      "abbreviation": "ULBW",
+      "index": 0,
+      "next": 32,
+      "frame_ms": 400,
+      "codec": "Codec2"
+    },
+    {
+      "profile": 32,
+      "name": "Very Low Bandwidth",
+      "abbreviation": "VLBW",
+      "index": 1,
+      "next": 48,
+      "frame_ms": 320,
+      "codec": "Codec2"
+    },
+    {
+      "profile": 48,
+      "name": "Low Bandwidth",
+      "abbreviation": "LBW",
+      "index": 2,
+      "next": 64,
+      "frame_ms": 200,
+      "codec": "Codec2"
+    },
+    {
+      "profile": 64,
+      "name": "Medium Quality",
+      "abbreviation": "MQ",
+      "index": 3,
+      "next": 80,
+      "frame_ms": 60,
+      "codec": "Opus"
+    },
+    {
+      "profile": 80,
+      "name": "High Quality",
+      "abbreviation": "HQ",
+      "index": 4,
+      "next": 96,
+      "frame_ms": 60,
+      "codec": "Opus"
+    },
+    {
+      "profile": 96,
+      "name": "Super High Quality",
+      "abbreviation": "SHQ",
+      "index": 5,
+      "next": 128,
+      "frame_ms": 60,
+      "codec": "Opus"
+    },
+    {
+      "profile": 128,
+      "name": "Low Latency",
+      "abbreviation": "LL",
+      "index": 6,
+      "next": 112,
+      "frame_ms": 20,
+      "codec": "Opus"
+    },
+    {
+      "profile": 112,
+      "name": "Ultra Low Latency",
+      "abbreviation": "ULL",
+      "index": 7,
+      "next": 16,
+      "frame_ms": 10,
+      "codec": "Opus"
+    }
+  ]
+}

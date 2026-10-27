@@ -157,8 +157,22 @@ def main():
                         remote = RNS.Identity.recall(dest_hash)
                 if remote is None:
                     raise RuntimeError("No identity for remote telephone")
-                phone.call(remote)
+                phone.call(remote, profile=int(parts[2]) if len(parts) > 2 else None)
                 emit("calling")
+            elif parts[0] == "allowed":
+                from LXST.Primitives.Telephony import Telephone
+                phone.set_allowed(Telephone.ALLOW_ALL if parts[1] == "all" else
+                                  Telephone.ALLOW_NONE if parts[1] == "none" else [bytes.fromhex(parts[1])])
+                emit("configured")
+            elif parts[0] == "auto-answer":
+                phone.auto_answer = float(parts[1])
+                emit("configured")
+            elif parts[0] == "busy-tone":
+                phone.set_busy_tone_time(float(parts[1]))
+                emit("configured")
+            elif parts[0] == "ring-time":
+                phone.ring_time = float(parts[1])
+                emit("configured")
             elif parts[0] == "hangup":
                 phone.hangup()
                 emit("hungup")

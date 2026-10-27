@@ -92,13 +92,13 @@ they are not an exhaustive method-by-method acceptance checklist.
 | Decode/deliver frame then process signalling in a combined envelope | implemented | `StreamSessionTests.ThrowingObserversCannotDisableOtherObserversOrSignals` |
 | Error reporting for incoming malformed packets | implemented | Unit error/recovery tests; observer failures are isolated |
 | Telephone destination `lxst.telephony`; announces, remote identity identification | implemented | `TelephoneEndpoint`; real Python `Telephone` in both call directions |
-| Calling, available, ringing, connecting and established transitions; busy/rejected outcomes | partial | Successful states live-verified; full remote rejection matrix is unverified |
-| Incoming authorization: all, none, identity list or callable; blocked callers take precedence | partial | Endpoint callable policy; executable config lists/phonebook; rejection recovery integration test |
-| One active call; incoming contention, answer, hangup and teardown | partial | Answer/teardown live-verified; full simultaneous contention matrix is unverified |
-| Ring/wait/connect timeouts, path requests, periodic announcements | partial | Implemented async deadlines; exhaustive timeout/announce timing comparisons remain unverified |
+| Calling, available, ringing, connecting and established transitions; busy/rejected outcomes | implemented | Successful states and deny/reject outcomes live-verified in both directions; explicit rejection differs from silent timeout teardown |
+| Incoming authorization: all, none, identity list or callable; blocked callers take precedence | implemented | Executed primary policy matrix; immutable `TelephoneCallerPolicy`, safe policy replacement, endpoint callback and executable config/phonebook authorization |
+| One active call; incoming contention, answer, hangup and teardown | partial | Busy contender cannot interrupt an established call; recovery and bidirectional rejection live-verified; full simultaneous cross-dial matrix remains unverified |
+| Ring/wait/connect timeouts, path requests, periodic announcements | partial | Incoming ring and outgoing wait timeout/recovery live-verified; silent active-link connect deadline and delayed auto-answer integration-tested; exhaustive timing/announce comparisons remain unverified |
 | Ringing/established/ended/busy/rejected callbacks | partial | Original .NET state event rather than five Python callbacks; isolated observer failures tested |
-| Profile negotiation (`255 + profile`), selection and mid-call switch | partial | All eight mid-call profiles live-verified in both negotiation directions; exhaustive non-default initial setup remains unverified |
-| Receive/transmit gain, mute, AGC, low-latency output, ringer/device selection | missing | `Primitives/Telephony.py`, public setters |
+| Profile negotiation (`255 + profile`), selection and mid-call switch | implemented | All eight initial profiles live-verified with either side originating direct calls; all eight mid-call profiles in both negotiation directions; medium-quality calls in both transport-hop topologies |
+| Receive/transmit gain, mute, AGC, low-latency output, ringer/device selection | partial | Endpoint gains/mute and transmit band-pass/optional AGC reuse executed-reference DSP; native codec mute/unmute and gain/reset tests; ringer, runtime device switching and low-latency selection remain incomplete |
 | Mirror-only legacy `CallEndpoint` placeholder | not-applicable | `Call.py` is absent from the authoritative 0.4.5 release |
 | Pre-establishment outgoing-close callback | upstream-placeholder | `Primitives/Telephony.py`, `__outgoing_link_closed` is empty |
 | Explicit network quality/loss adaptation, retransmission and resource-transfer contract | upstream-placeholder | `Network.py` sends best-effort packets with no LXST retransmission/resource protocol; loss is not concealed by a made-up reliability layer |
@@ -107,6 +107,16 @@ Telephone defaults differ from utility defaults. `Telephone` uses 60-second
 ring, 70-second wait and 5-second connect timeouts. `ReticulumTelephone` supplies
 30-second ring, 60-second wait and a separate 10-second path lookup limit.
 These are source observations, not executed behavioral evidence.
+
+The endpoint now executes the primary caller-policy/profile APIs for reference
+vectors. Its total outgoing wait budget includes path discovery, with a separate
+deadline for reaching ringing. Incoming manual rejection sends status `1` before
+teardown; a ring timeout does not. Manual ring timeout is not applied to delayed
+auto-answer calls. Unidentified incoming links have a bounded connect deadline,
+an explicit defensive .NET extension rather than a claimed Python timeout.
+The source `set_announce_interval()` stores `announce_interval`, but `__jobs`
+reads the `ANNOUNCE_INTERVAL` constant; that mutable setter has no demonstrated
+effect. The .NET configurable interval is an explicit extension.
 
 ### Codecs and audio processing
 
@@ -139,6 +149,16 @@ maximum quality; low/ultra-low latency. Their nominal frame durations are
 400/320/200/60/60/60/20/10 ms respectively. The bandwidth profiles select Codec2
 700C/1600/3200; the remaining profiles select Opus. The default is medium quality.
 Codec2 aggregation durations are not Opus frame durations.
+
+Endpoint transmit audio passes through the independently verified
+`BandPassFilter(250, 8500)` and, by default, `AutomaticGainControl(-15)`, then
+reference mixer gain/mute and final `[-1, 1]` clipping. The reference permits
+the 8500 Hz cutoff even with 8 kHz input; vectors cover that non-Nyquist-limited
+behavior. Gain follows the actual mixer's `10 ** (gain / 10)` multiplier, not
+an assumed `gain / 20` amplitude convention. Receive gain/mute affects both
+the external sink and audio observers. Mute resets on teardown; gains persist.
+The AGC setter affects filter construction for subsequent calls. No physical
+capture/playback quality claim follows from these headless processing tests.
 
 ### Utilities, configuration and persistence
 
@@ -191,9 +211,9 @@ not implicitly covered by the network interfaces. This is not full API parity:
 | `Sinks.py`: `get_backend`, backend device listing/player ownership; Sink/RemoteSink/LocalSink; LineSink low latency; OpusFileSink queue/finalization | Partial Linux I/O and Ogg Opus recording; explicit async backpressure instead of a Python frame deque; full hierarchy/low-latency parity missing |
 | `Primitives/Players.py`: FilePlayer state, completion callback, source, loop/start/stop/play | Partial: file async enumeration, looping, timing and completion exist; dynamic player/control wrapper remains missing |
 | `Primitives/Recorders.py`: FileRecorder state, source/output path, start/stop/record | Partial: recording sink/finalization exist; device/filter/recorder wrapper remains missing; no private or physical audio is committed |
-| `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Missing public processing/controls; configuration rejects unsupported ringtone/hardware settings rather than ignoring them |
+| `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Partial: gains, mute/reset and transmit band-pass/AGC are implemented; device queries are Linux CLI-only; busy/ring tones, runtime device/low-latency controls remain missing |
 | `Primitives/Telephony.py`: external busy override | Implemented; real incoming rejection followed by clearing busy and accepting the next call is integration-tested |
-| `Primitives/Telephony.py`: Profiles labels/abbreviations/index/next helpers | Partial: typed enums/codec parameters exist; no exact label or helper API parity claim |
+| `Primitives/Telephony.py`: Profiles labels/abbreviations/index/next helpers | Implemented `TelephoneProfiles`; executed primary labels, abbreviations, frame durations and ordering; CLI profile cycle follows low latency then ultra-low latency |
 | `Utilities/rnphone.py`: ReticulumTelephone reload/apply config, keypad/hook/display enablement and hardware state; complete terminal menu/redial/status/signal behavior | Partial; supported CLI subset and persisted identity are tested, full utility behavior remains deferred |
 | `Primitives/hardware`: LCD print/clear/sleep/wake/close; Keypad hook/key-map/key-state/start/stop | Missing; no corresponding physical peripherals are verified |
 | `Platforms/{linux,windows,darwin,android}` | Original Linux subprocess backend only; no translation or redistribution of upstream platform bindings |
@@ -302,9 +322,10 @@ pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 
 
 Recorded results:
 
-- Windows deterministic/unit suite: **36 passed**.
+- Windows deterministic/unit suite: **40 passed**.
 - WSL full LXST suite against the actual primary-release checkout:
-  **57 passed, zero skipped**, including six real telephone call cases.
+  **90 passed, zero skipped**, including six real telephone topology cases,
+  sixteen initial-profile cases and six policy/rejection/timeout recovery cases.
 - Telephone lifecycle cases include a blocked sink proving that a second
   disposer cannot finish early, continued service after authorization/observer
   exceptions, and cancellation of an abandoned path lookup without disrupting
@@ -341,8 +362,13 @@ monitor, Python-to-.NET decoded frames and teardown. Direct cases also switch
 through all eight profiles in both negotiation directions and exchange frames.
 This is virtual device
 evidence, not a listening test or proof of physical microphone/speaker quality.
-Exhaustive initial-profile/policy/timeout matrices, hardware I/O and long-duration
-recovery remain unverified.
+All eight initial profiles also establish calls in both originating directions
+on direct links and receive real Python codec frames. Authorization denial and
+explicit rejection are exercised in both directions; incoming ring and outgoing
+wait timeout cases recover with a subsequent call on the same endpoint. The
+reference busy-tone duration is explicitly set to zero in these policy cases;
+they do not verify busy-tone playback. Exhaustive cross-dial/timeout timing
+matrices, hardware I/O and long-duration recovery remain unverified.
 
 ### Reticulum adapter guarantees and ownership
 

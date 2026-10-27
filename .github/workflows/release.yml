@@ -1,13 +1,22 @@
 name: Release
 
-# Runs only for a pushed telemetry-v<major>.<minor>.<build> tag (create it with tools/new-release-tag.ps1)
-# or a manual dispatch. A manual dispatch builds and uploads the zips as workflow artifacts without
-# publishing a GitHub release. DotLXMF is a library and has no release artifact here.
+# Tag-driven executable releases, or manual packaging without publication.
 on:
   push:
     tags:
       - 'telemetry-v[0-9]+.[0-9]+.[0-9]+'
+      - 'lxmd-v[0-9]+.[0-9]+.[0-9]+.[0-9]+'
+      - 'rnphone-v[0-9]+.[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
+    inputs:
+      application:
+        description: Executable to package
+        type: choice
+        options:
+          - telemetry
+          - lxmd
+          - rnphone
+        default: telemetry
 
 permissions:
   contents: read
@@ -17,26 +26,74 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  select:
+    name: Select executable
+    runs-on: ubuntu-latest
+    outputs:
+      application: ${{ steps.select.outputs.application }}
+      project: ${{ steps.select.outputs.project }}
+      package: ${{ steps.select.outputs.package }}
+      version: ${{ steps.select.outputs.version }}
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - name: Select release target
+        id: select
+        shell: pwsh
+        env:
+          REQUESTED_APPLICATION: ${{ inputs.application }}
+        run: |
+          $application = if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            if ($env:GITHUB_REF_NAME -notmatch '^(telemetry|lxmd|rnphone)-v(\d+\.\d+\.\d+(?:\.\d+)?)$') {
+              throw "Unexpected release tag $env:GITHUB_REF_NAME"
+            }
+            $Matches[1]
+          } else {
+            $env:REQUESTED_APPLICATION
+          }
+          $targets = @{
+            telemetry = @{ Project = 'src/DotTelemetry/DotTelemetry.csproj'; Package = 'DotTelemetry' }
+            lxmd = @{ Project = 'src/lxmd/lxmd.csproj'; Package = 'lxmd' }
+            rnphone = @{ Project = 'src/rnphone/rnphone.csproj'; Package = 'rnphone' }
+          }
+          if (!$targets.ContainsKey($application)) { throw "Unknown executable $application" }
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $env:GITHUB_REF_NAME -replace "^$application-v", ''
+          } else {
+            "dispatch-$($env:GITHUB_SHA.Substring(0, 12))"
+          }
+          "application=$application" >> $env:GITHUB_OUTPUT
+          "project=$($targets[$application].Project)" >> $env:GITHUB_OUTPUT
+          "package=$($targets[$application].Package)" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+          $platforms = if ($application -eq 'rnphone') {
+            @(@{ os = 'ubuntu-latest'; rid = 'linux-x64' })
+          } else {
+            @(
+              @{ os = 'ubuntu-latest'; rid = 'linux-x64' }
+              @{ os = 'windows-latest'; rid = 'win-x64' }
+              @{ os = 'macos-latest'; rid = 'osx-arm64' }
+            )
+          }
+          "matrix=$(@{ include = @($platforms) } | ConvertTo-Json -Compress -Depth 3)" >> $env:GITHUB_OUTPUT
+
   package:
     name: Package ${{ matrix.rid }}
+    needs: select
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: true
-      matrix:
-        include:
-          - os: ubuntu-latest
-            rid: linux-x64
-          - os: windows-latest
-            rid: win-x64
-          - os: macos-latest
-            rid: osx-arm64
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
     defaults:
       run:
         shell: pwsh
     env:
       DOTNET_NOLOGO: 'true'
       DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+      RELEASE_APPLICATION: ${{ needs.select.outputs.application }}
+      RELEASE_PROJECT: ${{ needs.select.outputs.project }}
+      RELEASE_PACKAGE: ${{ needs.select.outputs.package }}
+      RELEASE_VERSION: ${{ needs.select.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -65,8 +122,14 @@ jobs:
           sudo apt-get install -y clang zlib1g-dev
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Install Linux phone runtime dependencies
+        if: needs.select.outputs.application == 'rnphone'
+        run: |
+          sudo apt-get install -y libopus0 libcodec2-1.2 pulseaudio pulseaudio-utils
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Run tests
-        run: dotnet test tests/DotTelemetry.Tests/DotTelemetry.Tests.csproj -c Release --logger trx --results-directory TestResults/release
+        run: dotnet test DotReticulum.Ecosystem.slnx -c Release --logger trx --results-directory TestResults/release
 
       - name: Summarize test results
         if: ${{ !cancelled() }}
@@ -77,7 +140,7 @@ jobs:
 
       - name: Publish NativeAOT
         run: |
-          $publish = @('publish', 'src/DotTelemetry/DotTelemetry.csproj',
+          $publish = @('publish', $env:RELEASE_PROJECT,
             '-c', 'Release', '-r', '${{ matrix.rid }}', '--self-contained', 'true',
             '-p:ILLinkTreatWarningsAsErrors=true', '-p:IlcTreatWarningsAsErrors=true',
             '-o', 'artifacts/native')
@@ -95,17 +158,61 @@ jobs:
 
       - name: Smoke-test the native binary
         run: |
-          $binary = Join-Path $PWD $(if ($IsWindows) { 'artifacts/native/telemetry.exe' } else { 'artifacts/native/telemetry' })
+          $exe = $env:RELEASE_APPLICATION + $(if ($IsWindows) { '.exe' } else { '' })
+          $binary = Join-Path $PWD "artifacts/native/$exe"
           & $binary --help
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Prepare pinned Python delivery reference
+        if: needs.select.outputs.application == 'lxmd'
+        run: |
+          python -m venv artifacts/reference-venv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $python = Join-Path $PWD $(if ($IsWindows) {
+            'artifacts/reference-venv/Scripts/python.exe'
+          } else {
+            'artifacts/reference-venv/bin/python'
+          })
+          & $python -m pip install 'lxmf==1.2.1'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git clone --quiet --filter=blob:none --no-checkout https://github.com/markqvist/Reticulum.git artifacts/reference-rns
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git -C artifacts/reference-rns checkout --quiet a29bfb51c468945c96a1ee22cae0114e993e2391
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "DOTRETICULUM_PYTHON=$python" >> $env:GITHUB_ENV
+          "DOTRETICULUM_UPSTREAM=$(Join-Path $PWD 'artifacts/reference-rns')" >> $env:GITHUB_ENV
+          'DOTRETICULUM_LIVE=1' >> $env:GITHUB_ENV
+
+      - name: Install executable acceptance runner
+        if: needs.select.outputs.application != 'telemetry'
+        run: |
+          & ./external/DotReticulum/tests/install-pester.ps1
+
+      - name: Verify native delivery and restart
+        if: needs.select.outputs.application == 'lxmd'
+        run: |
+          $exe = if ($IsWindows) { 'lxmd.exe' } else { 'lxmd' }
+          $env:DOTRETICULUM_LXMD_BINARY = Join-Path $PWD "artifacts/native/$exe"
+          & ./tests/run-pester.ps1 -Path ./tests/Pester/Lxmd.Tests.ps1 -Tag Native
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify native phone audio flow
+        if: needs.select.outputs.application == 'rnphone'
+        run: |
+          $env:DOTLXST_RNPHONE_BINARY = Join-Path $PWD 'artifacts/native/rnphone'
+          $env:DOTLXST_VIRTUAL_AUDIO = '1'
+          & ./tests/run-pester.ps1 -Path ./tests/Pester/Rnphone.Tests.ps1 -Tag NativeStandalone
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Stage package and create zip
         run: |
-          $version = if ('${{ github.ref_type }}' -eq 'tag') { $env:GITHUB_REF_NAME -replace '^telemetry-v' } else { "dispatch-$($env:GITHUB_SHA.Substring(0, 12))" }
-          $name = "DotTelemetry-$version-${{ matrix.rid }}"
-          $exe = if ($IsWindows) { 'telemetry.exe' } else { 'telemetry' }
+          $name = "$env:RELEASE_PACKAGE-$env:RELEASE_VERSION-${{ matrix.rid }}"
+          $exe = $env:RELEASE_APPLICATION + $(if ($IsWindows) { '.exe' } else { '' })
           New-Item -ItemType Directory -Path "artifacts/$name", artifacts/release | Out-Null
           Copy-Item "artifacts/native/$exe", LICENSE -Destination "artifacts/$name"
+          if ($env:RELEASE_APPLICATION -eq 'rnphone') {
+            Copy-Item docs/lxst.md -Destination "artifacts/$name"
+          }
           $zip = Join-Path $PWD "artifacts/release/$name.zip"
           if ($IsWindows) {
             Compress-Archive -Path "artifacts/$name/*" -DestinationPath $zip
@@ -129,7 +236,7 @@ jobs:
 
   publish:
     name: Publish GitHub release
-    needs: package
+    needs: [select, package]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -147,8 +254,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_PACKAGE: ${{ needs.select.outputs.package }}
+          RELEASE_VERSION: ${{ needs.select.outputs.version }}
         run: |
           set -euo pipefail
           cat release/*.sha256 > release/SHA256SUMS.txt
           gh release create "$GITHUB_REF_NAME" release/*.zip release/SHA256SUMS.txt \
-            --verify-tag --title "DotTelemetry ${GITHUB_REF_NAME#telemetry-v}" --generate-notes
+            --verify-tag --title "$RELEASE_PACKAGE $RELEASE_VERSION" --generate-notes

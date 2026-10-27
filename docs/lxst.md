@@ -279,6 +279,15 @@ and native-library boundaries. `rnphone` implements Linux I/O with cancellable
 `parec`/`pacat` subprocesses and obtains devices from `pactl`. It never starts
 audio for help, version or configuration errors.
 
+`IAudioDeviceBackend` supplies typed input/output enumeration and defaults plus
+asynchronously owned `IAudioCapture`/`IAudioPlayback` leases. `DeviceAudioSource`
+enforces a single active reader, configurable linear gain, cancellation and
+lease cleanup; `DeviceAudioSink` serializes writes, reopens on format/device
+changes and recovers by releasing a failed output lease before the next write.
+Disposing either wrapper releases leases, not the caller-owned backend.
+These original interfaces replace Python backend-object shapes rather than
+claiming Python class-layout compatibility.
+
 `DotLXST.Audio` supplies a separately tested managed processor, mixer, generator
 and pipeline layer; the stream/session interfaces do not silently apply it.
 Endpoint AGC/band-pass processing is shared by the CLI. The CLI does not yet

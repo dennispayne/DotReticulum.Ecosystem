@@ -38,12 +38,13 @@ internal static class PulseAudio
         await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
-    public static async Task CaptureAsync(TelephoneEndpoint telephone, string? device, CancellationToken stop, Action? firstFrame = null)
+    public static async Task CaptureAsync(TelephoneEndpoint telephone, Func<string?> deviceProvider, CancellationToken stop, Action? firstFrame = null)
     {
         while (!stop.IsCancellationRequested && telephone.State == CallState.Established)
         {
             var reported = false;
             var profile = telephone.ActiveProfile ?? TelephoneProfile.MediumQuality;
+            var device = deviceProvider();
             var (rate, channels, duration) = Format(profile);
             var arguments = new List<string> { "--raw", "--format=float32le", "--rate=" + rate, "--channels=" + channels, "--latency-msec=20" };
             if (device is not null) arguments.Add("--device=" + device);
@@ -52,7 +53,8 @@ internal static class PulseAudio
             try
             {
                 var bytes = new byte[rate * channels * duration / 1000 * sizeof(float)];
-                while (!stop.IsCancellationRequested && telephone.State == CallState.Established && telephone.ActiveProfile == profile)
+                while (!stop.IsCancellationRequested && telephone.State == CallState.Established &&
+                    telephone.ActiveProfile == profile && deviceProvider() == device)
                 {
                     await process.StandardOutput.BaseStream.ReadExactlyAsync(bytes, stop).ConfigureAwait(false);
                     var samples = new float[bytes.Length / sizeof(float)];
@@ -94,6 +96,10 @@ internal sealed class PulseAudioSink(string? device, Action? firstFrame = null) 
     private (int Rate, int Channels) _format;
     private bool _disposed;
     private bool _reported;
+    private string? _device = device;
+    private string? _activeDevice;
+
+    public void SetDevice(string? device) => Volatile.Write(ref _device, device);
 
     public async ValueTask WriteAsync(AudioFrame frame, CancellationToken cancellationToken = default)
     {
@@ -101,15 +107,17 @@ internal sealed class PulseAudioSink(string? device, Action? firstFrame = null) 
         try
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_process is null || _format != (frame.SampleRate, frame.Channels))
+            var currentDevice = Volatile.Read(ref _device);
+            if (_process is null || _format != (frame.SampleRate, frame.Channels) || currentDevice != _activeDevice)
             {
                 await CloseProcessAsync().ConfigureAwait(false);
                 var arguments = new List<string> { "--playback", "--raw", "--format=float32le",
                     "--rate=" + frame.SampleRate, "--channels=" + frame.Channels, "--latency-msec=20" };
-                if (device is not null) arguments.Add("--device=" + device);
+                if (currentDevice is not null) arguments.Add("--device=" + currentDevice);
                 _process = PulseAudio.Start("pacat", arguments, input: true, output: false);
                 _errors = PulseAudio.DrainErrorsAsync(_process);
                 _format = (frame.SampleRate, frame.Channels);
+                _activeDevice = currentDevice;
             }
             var bytes = new byte[frame.Samples.Length * sizeof(float)];
             for (var i = 0; i < frame.Samples.Length; i++)
@@ -131,6 +139,13 @@ internal sealed class PulseAudioSink(string? device, Action? firstFrame = null) 
         }
         _process.Dispose();
         _process = null;
+    }
+
+    public async ValueTask StopAsync()
+    {
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try { await CloseProcessAsync().ConfigureAwait(false); }
+        finally { _gate.Release(); }
     }
 
     public async ValueTask DisposeAsync()

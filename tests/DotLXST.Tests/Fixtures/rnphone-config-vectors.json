@@ -1,0 +1,39 @@
+{
+  "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+  "source_sha256": "a0ea3cb846ec6d1b876462a0d9dd646cdceb2d84ac3c6f4028a354144b6d8664",
+  "allowed": "list",
+  "allowed_hashes": [
+    "11111111111111111111111111111111",
+    "22222222222222222222222222222222"
+  ],
+  "blocked_hashes": [
+    "22222222222222222222222222222222"
+  ],
+  "phonebook": {
+    "Alice": "11111111111111111111111111111111",
+    "Bob": "22222222222222222222222222222222"
+  },
+  "aliases": {
+    "11111111111111111111111111111111": "12",
+    "22222222222222222222222222222222": "2"
+  },
+  "menu": [
+    "help",
+    "h",
+    "?",
+    "p",
+    "phonebook",
+    "r",
+    "i",
+    "identity",
+    "d",
+    "desthash",
+    "a",
+    "anounce",
+    "redial",
+    "exit",
+    "quit",
+    "q"
+  ],
+  "config": "[telephone]\nallowed_callers = phonebook\nblocked_callers = 22222222222222222222222222222222\nspeaker = \"lxst_output\"\nmicrophone = lxst_input\n[phonebook]\nAlice = \"11111111111111111111111111111111\", \"room #12\"\nBob = 22222222222222222222222222222222, office 2A\nSelf = 00000000000000000000000000000000, 99\n[hardware]\n"
+}

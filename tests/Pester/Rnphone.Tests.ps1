@@ -98,6 +98,21 @@ BeforeAll {
         try { ([Net.IPEndPoint]$listener.LocalEndpoint).Port }
         finally { $listener.Stop() }
     }
+
+    function Wait-PhoneSinkUsage {
+        param([string] $Server, [string] $Sink, [bool] $Expected = $true)
+        $sinks = Invoke-PhoneCommand 'pactl' @('-s', $Server, 'list', 'short', 'sinks')
+        $index = [regex]::Match($sinks.Output, '(?m)^(\d+)\s+' + [regex]::Escape($Sink) + '\s+').Groups[1].Value
+        $index | Should -Not -BeNullOrEmpty
+        $deadline = [DateTime]::UtcNow.AddSeconds(10)
+        do {
+            $inputs = Invoke-PhoneCommand 'pactl' @('-s', $Server, 'list', 'short', 'sink-inputs')
+            $used = $inputs.Output -match ('(?m)^\d+\s+' + $index + '\s+')
+            if ($used -eq $Expected) { return }
+            Start-Sleep -Milliseconds 50
+        } while ([DateTime]::UtcNow -lt $deadline)
+        throw "Pulse sink $Sink usage expected $Expected; actual sink inputs: $($inputs.Output)"
+    }
 }
 
 Describe 'Published rnphone CLI' -Tag Integration, Native -Skip:(!$env:DOTLXST_RNPHONE_BINARY -and !$env:DOTRETICULUM_RNPHONE_BINARY) {
@@ -124,6 +139,78 @@ Describe 'Published rnphone CLI' -Tag Integration, Native -Skip:(!$env:DOTLXST_R
     }
 }
 
+Describe 'Native rnphone configuration and phonebook persistence' -Tag Integration, Native, NativeUtility -Skip:(
+    !$IsLinux -or (!$env:DOTLXST_RNPHONE_BINARY -and !$env:DOTRETICULUM_RNPHONE_BINARY)) {
+    It 'matches executed primary phonebook aliases, reloads atomically and persists identity/config across restart' {
+        $root = Join-Path $script:phoneArtifacts ('rnphone-config-' + [Guid]::NewGuid().ToString('N'))
+        $phoneConfig = Join-Path $root 'phone'
+        $rnsConfig = Join-Path $root 'rns'
+        New-Item -ItemType Directory -Force $phoneConfig, $rnsConfig | Out-Null
+        $phone = $null
+        try {
+            $fixturePath = Join-Path $script:phoneRoot 'tests/DotLXST.Tests/Fixtures/rnphone-config-vectors.json'
+            $fixture = Get-Content -LiteralPath $fixturePath -Raw | ConvertFrom-Json
+            $path = Join-Path $phoneConfig 'config'
+            $fixture.config | Set-Content -LiteralPath $path
+            "[reticulum]`nshare_instance = no`n[logging]`nloglevel = 4`n[interfaces]`n" |
+                Set-Content (Join-Path $rnsConfig 'config')
+            $phone = Start-PhoneProcess $script:phoneBinary @('--config', $phoneConfig, '--rnsconfig', $rnsConfig)
+            Wait-PhoneLine $phone 'Reticulum Telephone ready' | Out-Null
+            $identity = Wait-PhoneLine $phone '^Identity hash:'
+            $localHash = [regex]::Match($identity, '[a-f0-9]{32}').Value
+            $configuration = $fixture.config.Replace('00000000000000000000000000000000', $localHash)
+            $configuration | Set-Content -LiteralPath $path
+            Send-PhoneLine $phone 'reload'
+            Wait-PhoneLine $phone '^Configuration reloaded' | Out-Null
+            Send-PhoneLine $phone 'phonebook'
+            foreach ($entry in $fixture.phonebook.psobject.Properties) {
+                $alias = $fixture.aliases.($entry.Value)
+                Wait-PhoneLine $phone ("^$alias " + [regex]::Escape($entry.Name) + ': <' + $entry.Value + '>') | Out-Null
+            }
+            Send-PhoneLine $phone 'q'
+            Wait-PhoneLine $phone '^Phonebook closed' | Out-Null
+            ($phone.Output -join "`n") | Should -Not -Match '(?m)^\d+ Self:'
+            $phone.Process.HasExited | Should -BeFalse
+            $configuration.Replace('Alice =', 'Updated =') | Set-Content -LiteralPath $path
+            Send-PhoneLine $phone 'reload'
+            Wait-PhoneLine $phone '^Configuration reloaded' -Occurrence 2 | Out-Null
+            Send-PhoneLine $phone 'p'
+            Wait-PhoneLine $phone '^12 Updated:' | Out-Null
+            Send-PhoneLine $phone 'b'
+            Wait-PhoneLine $phone '^Phonebook closed' -Occurrence 2 | Out-Null
+            "[telephone]`nunknown = invalid`n" | Set-Content -LiteralPath $path
+            Send-PhoneLine $phone 'reload'
+            $deadline = [DateTime]::UtcNow.AddSeconds(5)
+            do { Read-PhoneProcess $phone; Start-Sleep -Milliseconds 20 } while (
+                !($phone.Error -match 'Unsupported rnphone setting') -and [DateTime]::UtcNow -lt $deadline)
+            ($phone.Error -join "`n") | Should -Match 'Unsupported rnphone setting'
+            $phone.Process.HasExited | Should -BeFalse
+            Send-PhoneLine $phone 'p'
+            Wait-PhoneLine $phone '^12 Updated:' -Occurrence 2 | Out-Null
+            Send-PhoneLine $phone 'b'
+            Wait-PhoneLine $phone '^Phonebook closed' -Occurrence 3 | Out-Null
+            $configuration.Replace('Alice =', 'Updated =') | Set-Content -LiteralPath $path
+            Send-PhoneLine $phone 'quit'
+            $phone.Process.WaitForExit(10000) | Should -BeTrue
+            $phone.Process.ExitCode | Should -Be 0
+            Stop-PhoneProcess $phone
+            $phone = Start-PhoneProcess $script:phoneBinary @('--config', $phoneConfig, '--rnsconfig', $rnsConfig)
+            Wait-PhoneLine $phone 'Reticulum Telephone ready' | Out-Null
+            (Wait-PhoneLine $phone '^Identity hash:') | Should -BeExactly $identity
+            Send-PhoneLine $phone 'p'
+            Wait-PhoneLine $phone '^12 Updated:' | Out-Null
+            Send-PhoneLine $phone 'q'
+            Wait-PhoneLine $phone '^Phonebook closed' | Out-Null
+            Send-PhoneLine $phone 'q'
+            $phone.Process.WaitForExit(10000) | Should -BeTrue
+            $phone.Process.ExitCode | Should -Be 0
+        } finally {
+            Stop-PhoneProcess $phone
+            if (Test-Path $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+        }
+    }
+}
+
 Describe 'Native rnphone against actual Python Telephone' -Tag Integration, Native -Skip:(
     !$IsLinux -or (!$env:DOTLXST_RNPHONE_BINARY -and !$env:DOTRETICULUM_RNPHONE_BINARY) -or
     $env:DOTLXST_LIVE -ne '1' -or $env:DOTLXST_VIRTUAL_AUDIO -ne '1') {
@@ -144,6 +231,9 @@ Describe 'Native rnphone against actual Python Telephone' -Tag Integration, Nati
 load-module module-native-protocol-tcp listen=127.0.0.1 port=$pulsePort auth-anonymous=yes
 load-module module-null-sink sink_name=lxst_output rate=48000 channels=2
 load-module module-null-source source_name=lxst_input rate=48000 channels=2
+load-module module-null-sink sink_name=lxst_ringer rate=48000 channels=2
+load-module module-null-sink sink_name=lxst_alternate rate=48000 channels=2
+load-module module-null-source source_name=lxst_alternate_input rate=48000 channels=2
 set-default-sink lxst_output
 set-default-source lxst_input
 "@ | Set-Content $pulseConfig
@@ -264,6 +354,9 @@ Describe 'Two native rnphone processes with isolated virtual audio' -Tag Integra
 load-module module-native-protocol-tcp listen=127.0.0.1 port=$pulsePort auth-anonymous=yes
 load-module module-null-sink sink_name=lxst_output rate=48000 channels=2
 load-module module-null-source source_name=lxst_input rate=48000 channels=2
+load-module module-null-sink sink_name=lxst_ringer rate=48000 channels=2
+load-module module-null-sink sink_name=lxst_alternate rate=48000 channels=2
+load-module module-null-source source_name=lxst_alternate_input rate=48000 channels=2
 set-default-sink lxst_output
 set-default-source lxst_input
 "@ | Set-Content $pulseConfig
@@ -280,8 +373,10 @@ set-default-source lxst_input
             } while ($probe.Code -ne 0 -and [DateTime]::UtcNow -lt $deadline)
             $probe.Code | Should -Be 0
             foreach ($directory in @($firstConfig, $secondConfig)) {
-                "[telephone]`nspeaker = lxst_output`nmicrophone = lxst_input`nallowed_callers = all`n" |
+                "[telephone]`nspeaker = lxst_output`nmicrophone = lxst_input`nallowed_callers = all`nringer = lxst_ringer`nringtone = ringtone.opus`n" |
                     Set-Content (Join-Path $directory 'config')
+                $fixture = Get-Content -Raw (Join-Path $script:phoneRoot 'tests/DotLXST.Tests/Fixtures/lxst-file-vectors.json') | ConvertFrom-Json
+                [IO.File]::WriteAllBytes((Join-Path $directory 'ringtone.opus'), [Convert]::FromBase64String($fixture.file_base64))
             }
             $port = Get-PhonePort
             @"
@@ -317,15 +412,25 @@ target_port = $port
             Send-PhoneLine $first 'announce'
             Send-PhoneLine $second $firstIdentity
             Wait-PhoneLine $first '^State: Ringing' | Out-Null
+            Wait-PhoneSinkUsage $pulseAddress 'lxst_ringer'
             Send-PhoneLine $first ''
             foreach ($phone in @($first, $second)) {
                 Wait-PhoneLine $phone '^State: Established' | Out-Null
                 Wait-PhoneLine $phone '^Audio transmit ready' | Out-Null
                 Wait-PhoneLine $phone '^Audio receive ready' | Out-Null
             }
+            Wait-PhoneSinkUsage $pulseAddress 'lxst_ringer' $false
+            $firstPath = Join-Path $firstConfig 'config'
+            (Get-Content -Raw $firstPath).Replace('speaker = lxst_output', 'speaker = lxst_alternate').
+                Replace('microphone = lxst_input', 'microphone = lxst_alternate_input') | Set-Content $firstPath
+            Send-PhoneLine $first 'reload'
+            Wait-PhoneLine $first '^Configuration reloaded' | Out-Null
+            Wait-PhoneSinkUsage $pulseAddress 'lxst_alternate'
+            Wait-PhoneLine $first '^Audio transmit ready' -Occurrence 2 | Out-Null
             Send-PhoneLine $first 'profile'
             Wait-PhoneLine $first '^Profile: HighQuality' | Out-Null
-            foreach ($phone in @($first, $second)) { Wait-PhoneLine $phone '^Audio transmit ready' -Occurrence 2 | Out-Null }
+            Wait-PhoneLine $first '^Audio transmit ready' -Occurrence 3 | Out-Null
+            Wait-PhoneLine $second '^Audio transmit ready' -Occurrence 2 | Out-Null
             Send-PhoneLine $second ''
             foreach ($phone in @($first, $second)) { Wait-PhoneLine $phone '^State: Available' | Out-Null }
             Send-PhoneLine $second 'announce'

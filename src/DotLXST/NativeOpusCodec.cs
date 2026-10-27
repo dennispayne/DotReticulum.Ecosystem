@@ -18,11 +18,15 @@ public sealed unsafe class NativeOpusCodec : IAudioCodec
     private bool _disposed;
     private readonly int _decodeRate;
     private readonly int _decodeChannels;
+    private OpusParameters _parameters;
+    private bool _encoded;
+    private long _outputBytes;
+    private double _outputMilliseconds;
 
     public NativeOpusCodec(OpusProfile profile = OpusProfile.VoiceLow, string? libraryPath = null,
         int? decodeSampleRate = null, int? decodeChannels = null)
     {
-        Parameters = OpusParameters.For(profile);
+        _parameters = OpusParameters.For(profile);
         _decodeRate = decodeSampleRate ?? Parameters.SampleRate;
         _decodeChannels = decodeChannels ?? Parameters.Channels;
         if (_decodeRate is not (8000 or 12000 or 16000 or 24000 or 48000)) throw new ArgumentOutOfRangeException(nameof(decodeSampleRate));
@@ -52,28 +56,61 @@ public sealed unsafe class NativeOpusCodec : IAudioCodec
     }
 
     public CodecKind Kind => CodecKind.Opus;
-    public OpusParameters Parameters { get; }
+    public OpusParameters Parameters { get { lock (_gate) return _parameters; } }
+    public long OutputBytes { get { lock (_gate) return _outputBytes; } }
+    public double OutputMilliseconds { get { lock (_gate) return _outputMilliseconds; } }
+    public double OutputBitrate { get { lock (_gate) return _outputMilliseconds == 0 ? 0 : _outputBytes * 8000 / _outputMilliseconds; } }
+
+    public void SetProfile(OpusProfile profile)
+    {
+        var parameters = OpusParameters.For(profile);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_encoded) throw new InvalidOperationException("The reference encoder cannot change its application after encoding.");
+            var error = 0;
+            var replacement = _createEncoder(parameters.SampleRate, parameters.Channels, parameters.Voice ? 2048 : 2049, &error);
+            if (error != 0 || replacement == 0) throw new InvalidOperationException($"libopus encoder creation failed: {error}.");
+            _destroyEncoder(_encoder);
+            _encoder = replacement;
+            _parameters = parameters;
+        }
+    }
+
+    public int UpdateBitrate(double frameDurationMilliseconds)
+    {
+        if (!double.IsFinite(frameDurationMilliseconds) || frameDurationMilliseconds <= 0 ||
+            frameDurationMilliseconds > 120) throw new ArgumentOutOfRangeException(nameof(frameDurationMilliseconds));
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return (int)Math.Ceiling(_parameters.BitrateCeiling * frameDurationMilliseconds / 8000);
+        }
+    }
 
     public byte[] Encode(AudioFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
-        if (frame.SampleRate != Parameters.SampleRate) throw new ArgumentException("Supply audio at the codec sample rate.");
-        var duration = frame.SamplesPerChannel * 1000.0 / frame.SampleRate;
-        if (duration is not (2.5 or 5 or 10 or 20 or 40 or 60)) throw new ArgumentException("Unsupported Opus frame duration.");
-        var pcm = new short[frame.SamplesPerChannel * Parameters.Channels];
-        var input = frame.Samples.Span;
-        for (var i = 0; i < frame.SamplesPerChannel; i++)
-            for (var channel = 0; channel < Parameters.Channels; channel++)
-                pcm[i * Parameters.Channels + channel] = ToPcm(input[i * frame.Channels + Math.Min(channel, frame.Channels - 1)]);
-        var output = new byte[(int)Math.Ceiling(Parameters.BitrateCeiling * duration / 8000)];
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            if (frame.SampleRate != _parameters.SampleRate) throw new ArgumentException("Supply audio at the codec sample rate.");
+            var duration = frame.SamplesPerChannel * 1000.0 / frame.SampleRate;
+            if (duration is not (2.5 or 5 or 10 or 20 or 40 or 60)) throw new ArgumentException("Unsupported Opus frame duration.");
+            var pcm = new short[frame.SamplesPerChannel * _parameters.Channels];
+            var input = frame.Samples.Span;
+            for (var i = 0; i < frame.SamplesPerChannel; i++)
+                for (var channel = 0; channel < _parameters.Channels; channel++)
+                    pcm[i * _parameters.Channels + channel] = ToPcm(input[i * frame.Channels + Math.Min(channel, frame.Channels - 1)]);
+            var output = new byte[UpdateBitrate(duration)];
+            _encoded = true;
             fixed (short* samples = pcm)
             fixed (byte* bytes = output)
             {
                 var count = _encode(_encoder, samples, frame.SamplesPerChannel, bytes, output.Length);
                 if (count < 0) throw new InvalidOperationException($"libopus encode failed: {count}.");
+                _outputBytes += count;
+                _outputMilliseconds += duration;
                 return output.AsSpan(0, count).ToArray();
             }
         }

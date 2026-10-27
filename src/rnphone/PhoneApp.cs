@@ -18,10 +18,11 @@ public static class PhoneApp
           -h, --help           Show this help
 
         Interactive: identity, desthash, announce, phonebook, redial, profile, quit.
+        Extensions: reload, mute-receive, mute-transmit, receive-gain DB, transmit-gain DB.
         Enter a caller identity hash/name/alias to dial; Enter answers a ringing
         call or ends an active call. Requires separately installed libopus,
         libcodec2 and Linux pactl/pacat/parec for audio.
-        Ringtone playback, hardware controls and non-Linux device I/O are not implemented.
+        Hardware controls and non-Linux device I/O are not implemented.
         """;
 
     public static async Task<int> RunAsync(string[] args, TextReader input, TextWriter output, TextWriter error, CancellationToken stop)
@@ -77,23 +78,52 @@ public static class PhoneApp
             if (!File.Exists(path)) await File.WriteAllTextAsync(path, PhoneConfiguration.Default, stop);
             var settings = PhoneConfiguration.Load(path);
             using var identity = LoadIdentity(Path.Combine(directory, "identity"));
+            settings.ExcludeLocalIdentity(identity.HexHash);
             await using var node = ReticulumNode.Open(rnsConfig,
                 (level, message) => { if (level <= 3 + verbosity) error.WriteLine($"Reticulum[{level}]: {message}"); });
             await using var sink = new PulseAudioSink(settings.Speaker, () => output.WriteLine("Audio receive ready"));
+            await using var ringerSink = new PulseAudioSink(settings.Ringer);
             await using var telephone = new TelephoneEndpoint(node.Router, identity,
                 new TelephoneOptions { RingTimeout = TimeSpan.FromSeconds(30), WaitTimeout = TimeSpan.FromSeconds(60),
-                    AuthorizeCaller = peer => settings.Authorize(peer.HexHash), Sink = sink });
+                    AuthorizeCaller = peer => Volatile.Read(ref settings).Authorize(peer.HexHash), Sink = sink });
             telephone.Error = (context, exception) => error.WriteLine($"{context} {exception?.Message}");
             var audioGate = new object();
             CancellationTokenSource? captureStop = null;
             Identity? dialledIdentity = null;
             Task capture = Task.CompletedTask;
+            Task ringing = Task.CompletedTask;
+            CancellationTokenSource? ringingStop = null;
             telephone.StateChanged += state =>
             {
                 output.WriteLine("State: " + state);
                 output.Flush();
                 lock (audioGate)
                 {
+                    if (state == CallState.Ringing && telephone.RemoteIdentity is not null &&
+                        Volatile.Read(ref settings).Ringtone is { } ringtone && File.Exists(ringtone))
+                    {
+                        ringingStop?.Cancel();
+                        var previousRinging = ringing;
+                        var previousStop = ringingStop;
+                        ringingStop = CancellationTokenSource.CreateLinkedTokenSource(stop);
+                        var ringToken = ringingStop.Token;
+                        ringing = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await previousRinging;
+                                previousStop?.Dispose();
+                                ringToken.ThrowIfCancellationRequested();
+                                await using var player = new FilePlayer(ringerSink, ringtone, loop: true);
+                                player.Play(ringToken);
+                                await player.Completion;
+                            }
+                            catch (OperationCanceledException) when (ringToken.IsCancellationRequested) { }
+                            catch (Exception ex) { error.WriteLine("Ringtone playback failed: " + ex.Message); }
+                            finally { await ringerSink.StopAsync(); }
+                        });
+                    }
+                    else if (state != CallState.Ringing) ringingStop?.Cancel();
                     if (state == CallState.Established)
                     {
                         var previous = capture;
@@ -108,7 +138,7 @@ public static class PhoneApp
                                 await previous;
                                 previousStop?.Dispose();
                                 token.ThrowIfCancellationRequested();
-                                await PulseAudio.CaptureAsync(telephone, settings.Microphone, token, () => output.WriteLine("Audio transmit ready"));
+                                await PulseAudio.CaptureAsync(telephone, () => Volatile.Read(ref settings).Microphone, token, () => output.WriteLine("Audio transmit ready"));
                             }
                             catch (Exception ex) when (token.IsCancellationRequested &&
                                 ex is OperationCanceledException or ObjectDisposedException or InvalidOperationException or IOException) { }
@@ -125,6 +155,7 @@ public static class PhoneApp
             await output.WriteLineAsync("Reticulum Telephone ready");
             await output.FlushAsync();
             string? last = null;
+            var phonebookOpen = false;
             try
             {
                 if (service) await node.Completion;
@@ -133,10 +164,28 @@ public static class PhoneApp
                     var line = await input.ReadLineAsync(stop);
                     if (line is null) break;
                     line = line.Trim();
+                    if (phonebookOpen && line is ("back" or "b" or "quit" or "q"))
+                    {
+                        phonebookOpen = false;
+                        await output.WriteLineAsync("Phonebook closed");
+                        await output.FlushAsync();
+                        continue;
+                    }
                     if (line is "quit" or "q" or "exit") break;
                     try
                     {
-                        if (telephone.State == CallState.Ringing && telephone.RemoteIdentity is not null)
+                        if (line == "reload")
+                        {
+                            var replacement = PhoneConfiguration.Load(path);
+                            replacement.ExcludeLocalIdentity(identity.HexHash);
+                            sink.SetDevice(replacement.Speaker);
+                            ringerSink.SetDevice(replacement.Ringer);
+                            Volatile.Write(ref settings, replacement);
+                            last = null;
+                            phonebookOpen = false;
+                            await output.WriteLineAsync("Configuration reloaded");
+                        }
+                        else if (telephone.State == CallState.Ringing && telephone.RemoteIdentity is not null)
                         {
                             if (line.Length == 0) await telephone.AnswerAsync(stop);
                             else telephone.Hangup();
@@ -147,37 +196,83 @@ public static class PhoneApp
                                 TelephoneProfiles.Next(telephone.ActiveProfile ?? TelephoneProfile.MediumQuality), stop);
                             await output.WriteLineAsync("Profile: " + telephone.ActiveProfile);
                         }
+                        else if (line is "mute-receive" or "mute-transmit")
+                        {
+                            if (line == "mute-receive") telephone.ReceiveMuted = !telephone.ReceiveMuted;
+                            else telephone.TransmitMuted = !telephone.TransmitMuted;
+                            await output.WriteLineAsync($"Receive muted: {telephone.ReceiveMuted}; transmit muted: {telephone.TransmitMuted}");
+                        }
+                        else if (line.StartsWith("receive-gain ", StringComparison.Ordinal) || line.StartsWith("transmit-gain ", StringComparison.Ordinal))
+                        {
+                            var gain = float.Parse(line[(line.IndexOf(' ') + 1)..], System.Globalization.CultureInfo.InvariantCulture);
+                            if (line[0] == 'r') telephone.ReceiveGainDb = gain;
+                            else telephone.TransmitGainDb = gain;
+                        }
                         else if (telephone.State is CallState.Established or CallState.Calling or CallState.Connecting) telephone.Hangup();
                         else if (line is "identity" or "i") await output.WriteLineAsync($"Identity hash: <{identity.HexHash}>");
                         else if (line is "desthash" or "d") await output.WriteLineAsync($"Destination hash: <{Convert.ToHexStringLower(telephone.DestinationHash)}>");
-                        else if (line is "announce" or "a") await telephone.AnnounceAsync(stop);
+                        else if (line is "announce" or "anounce" or "a")
+                        {
+                            await telephone.AnnounceAsync(stop);
+                            await output.WriteLineAsync("Announce sent");
+                        }
                         else if (line is "phonebook" or "p")
-                            foreach (var entry in settings.Phonebook) await output.WriteLineAsync($"{entry.Key}: {entry.Value.Hash} {entry.Value.Alias}");
+                        {
+                            var number = 0;
+                            foreach (var entry in settings.Phonebook)
+                            {
+                                number++;
+                                await output.WriteLineAsync($"{entry.Value.Alias ?? number.ToString(System.Globalization.CultureInfo.InvariantCulture)} {entry.Key}: <{entry.Value.Hash}>");
+                            }
+                            if (settings.Phonebook.Count == 0) await output.WriteLineAsync("No entries in phonebook");
+                            else phonebookOpen = true;
+                        }
                         else if (line is "help" or "h" or "?") await output.WriteLineAsync(Usage);
                         else if (line.Length != 0)
                         {
-                            if (line is "redial" or "r") line = last ?? throw new InvalidOperationException("Nothing has been dialled.");
+                            if (line is "redial" or "r")
+                            {
+                                if (last is null) continue;
+                                line = last;
+                            }
+                            if (phonebookOpen)
+                            {
+                                var number = 0;
+                                var selection = settings.Phonebook.Values.FirstOrDefault(entry =>
+                                {
+                                    number++;
+                                    return (entry.Alias ?? number.ToString(System.Globalization.CultureInfo.InvariantCulture)) == line;
+                                });
+                                if (selection.Hash is not null) line = selection.Hash;
+                            }
                             if (settings.Phonebook.TryGetValue(line, out var entry)) line = entry.Hash;
                             else line = settings.Phonebook.Values.FirstOrDefault(entry => entry.Alias == line).Hash ?? line;
                             last = PhoneConfiguration.ValidateHash(line);
                             var destination = Destination.ComputeHash(Convert.FromHexString(last), "lxst", ["telephony"]);
-                            if (!await node.WaitForPathAsync(destination, TimeSpan.FromSeconds(10), stop)) throw new TimeoutException("No path to caller.");
+                            telephone.SetBusy();
+                            try
+                            {
+                                if (!await node.WaitForPathAsync(destination, TimeSpan.FromSeconds(10), stop)) throw new TimeoutException("No path to caller.");
+                            }
+                            finally { telephone.SetBusy(false); }
                             dialledIdentity?.Dispose();
                             dialledIdentity = node.Router.Engine.Known.Recall(destination) ?? throw new InvalidOperationException("No announced remote identity.");
                             await telephone.CallAsync(dialledIdentity, cancellationToken: stop);
                         }
                     }
-                    catch (Exception ex) when (ex is ArgumentException or FormatException or InvalidOperationException or TimeoutException)
+                    catch (Exception ex) when (ex is ArgumentException or FormatException or InvalidOperationException or TimeoutException or NotSupportedException or IOException or UnauthorizedAccessException)
                     { await error.WriteLineAsync("rnphone: " + ex.Message); }
                     await output.FlushAsync();
                 }
             }
             finally
             {
-                lock (audioGate) captureStop?.Cancel();
+                lock (audioGate) { captureStop?.Cancel(); ringingStop?.Cancel(); }
                 await telephone.DisposeAsync();
                 await capture;
+                await ringing;
                 captureStop?.Dispose();
+                ringingStop?.Dispose();
                 dialledIdentity?.Dispose();
             }
             return 0;

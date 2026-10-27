@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text.Json;
 
 namespace DotLXST.Tests;
 
@@ -15,6 +16,51 @@ public sealed class NativeCodecFactAttribute : FactAttribute
 [Trait("Category", "Integration")]
 public sealed class NativeCodecTests
 {
+    [NativeCodecFact]
+    public void ProfileChangesBeforeEncodingAndChannelConversionMatchActualPrimaryControls()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-codec-state.json")));
+        foreach (var vector in fixture.RootElement.GetProperty("opus_channels").EnumerateArray())
+        {
+            using var codec = new NativeOpusCodec();
+            codec.SetProfile((OpusProfile)vector.GetProperty("profile").GetInt32());
+            var input = vector.GetProperty("input").EnumerateArray().Select(value => value.GetSingle()).ToArray();
+            var encoded = codec.Encode(new(input, vector.GetProperty("rate").GetInt32(), vector.GetProperty("channels").GetInt32()));
+            Assert.Equal(Convert.FromHexString(vector.GetProperty("encoded").GetString()!), encoded);
+            Assert.Equal(encoded.Length, codec.OutputBytes);
+            Assert.Equal(20, codec.OutputMilliseconds);
+            Assert.Equal(encoded.Length * 400, codec.OutputBitrate);
+            Assert.Throws<InvalidOperationException>(() => codec.SetProfile(OpusProfile.VoiceLow));
+        }
+        foreach (var vector in fixture.RootElement.GetProperty("opus_controls").EnumerateArray())
+        {
+            Assert.Equal("PyOggError", vector.GetProperty("post_encode_set_profile").GetString());
+            using var codec = new NativeOpusCodec((OpusProfile)vector.GetProperty("profile").GetInt32());
+            Assert.Equal(vector.GetProperty("max_bytes").GetInt32(), codec.UpdateBitrate(2.5));
+            Assert.Throws<ArgumentOutOfRangeException>(() => codec.UpdateBitrate(double.NaN));
+            codec.Dispose();
+            Assert.Throws<ObjectDisposedException>(() => codec.SetProfile(OpusProfile.AudioMaximum));
+        }
+    }
+
+    [NativeCodecFact]
+    public void StatefulCodec2ModeSwitchesAndUnknownHeadersMatchActualPrimary()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-codec-state.json")));
+        using var codec = new NativeCodec2();
+        var input = fixture.RootElement.GetProperty("codec2_input").EnumerateArray().Select(value => value.GetSingle()).ToArray();
+        foreach (var vector in fixture.RootElement.GetProperty("codec2_sequence").EnumerateArray())
+        {
+            var incoming = Convert.FromHexString(vector.GetProperty("incoming").GetString()!);
+            Assert.Equal(vector.GetProperty("decoded_count").GetInt32(), codec.Decode(incoming).SamplesPerChannel);
+            Assert.Equal(vector.GetProperty("mode").GetInt32(), codec.Mode);
+            Assert.Equal(Convert.FromHexString(vector.GetProperty("encoded_after_decode").GetString()!), codec.Encode(new(input, 8000, 2)));
+            incoming[0] = 255;
+            Assert.Equal(vector.GetProperty("unknown_count").GetInt32(), codec.Decode(incoming).SamplesPerChannel);
+            Assert.Equal(vector.GetProperty("mode").GetInt32(), codec.Mode);
+        }
+    }
+
     [NativeCodecFact]
     public void OpusAllProfilesMatchActualReferenceBitstreamAndDecode()
     {

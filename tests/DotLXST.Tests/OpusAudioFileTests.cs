@@ -9,6 +9,93 @@ namespace DotLXST.Tests;
 [Trait("Category", "Integration")]
 public sealed class OpusAudioFileTests
 {
+    private sealed class ControlledSink : IAudioSink
+    {
+        public int Count;
+        public TaskCompletionSource? Hold;
+        public TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public async ValueTask WriteAsync(AudioFrame frame, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref Count);
+            Entered.TrySetResult();
+            if (Hold is not null) await Hold.Task;
+        }
+    }
+
+    [NativeCodecFact]
+    public async Task PlayerLoopsRestartsReportsObserversAndEveryDisposerWaitsForTheExternalSink()
+    {
+        using var fixture = LoadFixture();
+        var root = CreateDirectory();
+        try
+        {
+            var path = Path.Combine(root, "player.opus");
+            await File.WriteAllBytesAsync(path, Convert.FromBase64String(fixture.RootElement.GetProperty("file_base64").GetString()!));
+            var sink = new ControlledSink();
+            var player = new FilePlayer(sink, path);
+            var completions = 0;
+            var errors = 0;
+            player.Error = (_, _) => errors++;
+            player.Finished += _ => throw new InvalidOperationException("test observer");
+            player.Finished += _ => { Assert.False(player.IsPlaying); completions++; };
+            player.Play();
+            await player.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(1, completions);
+            Assert.Equal(1, errors);
+            var firstCount = sink.Count;
+            player.SetLoop(true);
+            player.Play();
+            await LiveStreamTests.WaitForAsync(() => sink.Count > firstCount * 2);
+            player.SetLoop(false);
+            await player.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+            sink.Hold = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            sink.Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            player.Play();
+            await sink.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Throws<InvalidOperationException>(() => player.SetSource(path));
+            var first = player.DisposeAsync().AsTask();
+            var second = player.DisposeAsync().AsTask();
+            Assert.False(first.IsCompleted);
+            Assert.False(second.IsCompleted);
+            sink.Hold.TrySetResult();
+            await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Throws<ObjectDisposedException>(() => player.Play());
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [NativeCodecFact]
+    public async Task RecorderFinalizesOnStopAndSupportsSourceAndOutputReplacement()
+    {
+        using var fixture = LoadFixture();
+        var root = CreateDirectory();
+        try
+        {
+            var input = Path.Combine(root, "input.opus");
+            var output = Path.Combine(root, "output.opus");
+            var nextOutput = Path.Combine(root, "next.opus");
+            await File.WriteAllBytesAsync(input, Convert.FromBase64String(fixture.RootElement.GetProperty("file_base64").GetString()!));
+            await using var source = new OpusFileSource(input);
+            await using var recorder = new FileRecorder(source, output);
+            recorder.Record();
+            await recorder.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+            await using (var recorded = new OpusFileSource(output))
+                Assert.True(recorded.SamplesPerChannel > source.SamplesPerChannel);
+            await using var looping = new OpusFileSource(input, loop: true, timed: true);
+            recorder.SetSource(looping);
+            recorder.SetOutputPath(nextOutput);
+            recorder.Record();
+            await LiveStreamTests.WaitForAsync(() => File.Exists(nextOutput));
+            Assert.Throws<InvalidOperationException>(() => recorder.SetOutputPath(output));
+            await Task.WhenAll(recorder.StopAsync().AsTask(), recorder.StopAsync().AsTask());
+            Assert.False(recorder.IsRecording);
+            await Task.WhenAll(recorder.DisposeAsync().AsTask(), recorder.DisposeAsync().AsTask());
+            await using var stillOwnedByCaller = source.CaptureAsync().GetAsyncEnumerator();
+            Assert.True(await stillOwnedByCaller.MoveNextAsync());
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     [NativeCodecFact]
     public async Task ActualReferenceRecordingDecodesWithIdenticalFramesAndSamples()
     {

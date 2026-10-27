@@ -14,6 +14,7 @@ import LXST
 from LXST.Codecs import Null, Opus
 from LXST.Sinks import OpusFileSink
 from LXST.Sources import OpusFileSource
+from LXST.Primitives.Recorders import FileRecorder
 
 deployed = Path(__file__).resolve().parent / "Interop"
 sys.path.insert(0, str(deployed if deployed.is_dir() else Path(__file__).resolve().parents[1] / "Interop"))
@@ -84,6 +85,16 @@ def main():
                           for name in ["Sources.py", "Sinks.py", "Primitives/Players.py", "Primitives/Recorders.py"]},
         "file_base64": base64.b64encode(path.read_bytes()).decode(),
         **read_actual_file(path),
+    }
+    # Bypass only device construction; invoke the actual setter with a real sink.
+    recorder = FileRecorder.__new__(FileRecorder)
+    control_sink = OpusFileSink(path="original.opus", autodigest=False)
+    recorder._FileRecorder__sink = control_sink
+    recorder.set_output_path("replacement.opus")
+    output["recorder_set_output_path"] = {
+        "recorder_path": recorder._file_path,
+        "sink_path": control_sink._OpusFileSink__output_path,
+        "shadow_path": control_sink._FileRecorder__output_path,
     }
     Path(args.output).write_text(json.dumps(output, indent=2) + "\n")
     path.unlink()

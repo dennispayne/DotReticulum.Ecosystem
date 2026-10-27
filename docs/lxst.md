@@ -98,7 +98,7 @@ they are not an exhaustive method-by-method acceptance checklist.
 | Ring/wait/connect timeouts, path requests, periodic announcements | partial | Incoming ring and outgoing wait timeout/recovery live-verified; silent active-link connect deadline and delayed auto-answer integration-tested; exhaustive timing/announce comparisons remain unverified |
 | Ringing/established/ended/busy/rejected callbacks | partial | Original .NET state event rather than five Python callbacks; isolated observer failures tested |
 | Profile negotiation (`255 + profile`), selection and mid-call switch | implemented | All eight initial profiles live-verified with either side originating direct calls; all eight mid-call profiles in both negotiation directions; medium-quality calls in both transport-hop topologies |
-| Receive/transmit gain, mute, AGC, low-latency output, ringer/device selection | partial | Endpoint gains/mute and transmit band-pass/optional AGC reuse executed-reference DSP; native codec mute/unmute and gain/reset tests; ringer, runtime device switching and low-latency selection remain incomplete |
+| Receive/transmit gain, mute, AGC, low-latency output, ringer/device selection | partial | Endpoint gains/mute and transmit band-pass/optional AGC reuse executed-reference DSP; native codec mute/unmute and gain/reset tests; CLI supplied-ringtone and active-call device switching are verified; upstream low-latency toggling remains incomplete |
 | Mirror-only legacy `CallEndpoint` placeholder | not-applicable | `Call.py` is absent from the authoritative 0.4.5 release |
 | Pre-establishment outgoing-close callback | upstream-placeholder | `Primitives/Telephony.py`, `__outgoing_link_closed` is empty |
 | Explicit network quality/loss adaptation, retransmission and resource-transfer contract | upstream-placeholder | `Network.py` sends best-effort packets with no LXST retransmission/resource protocol; loss is not concealed by a made-up reliability layer |
@@ -125,12 +125,12 @@ effect. The .NET configurable interval is an explicit extension.
 | Raw interleaved floating samples, channel expansion/truncation, 16/32/64-bit depth/header | implemented | Executed upstream vectors; `RawAudioCodec` |
 | Raw float128 and native big-endian representations | missing | Explicitly rejected, not assigned an invented portable format |
 | Codec2 modes 700C, 1200, 1300, 1400, 1600, 2400 and 3200; default 2400 | implemented | Exact bitstreams and decoded sample vectors for all seven modes |
-| Codec2 mode header, whole-frame aggregation/truncation, mode changes, unknown-header fallback | partial | Implemented; exhaustive stateful mode-switch vectors are not yet present |
+| Codec2 mode header, whole-frame aggregation/truncation, mode changes, unknown-header fallback | implemented | Actual primary stateful decode→encode sequence changes 2400→700→700→3200→1200→2400 and tests unknown-header fallback after every step |
 | Codec2 signed-16-bit scaling and 8 kHz input | implemented | `NativeCodec2`; actual upstream encode/decode vectors |
 | Codec2 arbitrary-rate resampling | missing | Supply explicit 8 kHz samples; no hidden resampler |
 | Nine Opus voice/audio profiles; channel/rate/application/byte-ceiling selection | implemented | Exact bitstream/decode vectors for all nine profiles at all six durations |
 | Opus 2.5/5/10/20/40/60 ms frames | implemented | All 54 profile/duration combinations executed upstream and strictly compared |
-| Opus channel conversion | partial | Implemented; exhaustive channel-expansion/reduction comparison remains unverified |
+| Opus channel conversion | implemented | All nine profiles with distinct mono, stereo and three-channel input execute the primary truncation/last-channel expansion path and compare exact encoded bytes |
 | Opus arbitrary-rate resampling | missing | Supply audio at the selected codec sample rate |
 | Opus decoder output configuration and encoder/decoder lifetime | implemented | Explicit rate/channels and disposal; malformed/disposed-native-handle tests |
 | Partial Opus input-frame padding | upstream-placeholder | `Codecs/Opus.py`, TODO in `encode` |
@@ -142,7 +142,7 @@ effect. The .NET configurable interval is an explicit extension.
 | Tone frequency, gain, easing, frame duration and start/stop | implemented | `ToneAudioSource`; actual generator vectors and async source lifecycle tests |
 | Line capture/playback, preferred devices, buffers, gain, filters and low latency | partial | Linux CLI capture/playback exists; upstream buffering/gain/filter/low-latency contracts remain missing |
 | Loopback source/sink and buffering | implemented | `Audio.LoopbackAudioBridge`; executed relay/lifecycle observations; bounded queue/clock behavior is a .NET extension, not an upstream buffering claim |
-| Opus file playback, looping/timing and writing/finalizing | partial | Original bounded file source/sink; actual Python files and .NET files cross-decode with identical samples; convenience player/recorder controls remain incomplete |
+| Opus file playback, looping/timing and writing/finalizing | implemented | Original bounded file source/sink; actual Python files and .NET files cross-decode with identical samples; caller-owned source/sink `FilePlayer`/`FileRecorder` support stop/restart, live loop toggle, completion and safe concurrent disposal |
 
 Telephony exposes eight profiles: ultra-low/very-low/low bandwidth; medium/high/
 maximum quality; low/ultra-low latency. Their nominal frame durations are
@@ -166,13 +166,13 @@ capture/playback quality claim follows from these headless processing tests.
 |---|---|---|
 | Console entry point `rnphone` | partial | Native executable exists; no full CLI/daemon compatibility claim |
 | `--help`, `-l/--list-devices`, `--config`, `--rnsconfig`, `-s/--service`, `--systemd`, `--version`, repeated `-v/--verbose` | partial | Flags implemented; Linux-only device listing; original help/systemd text |
-| Interactive dial/redial, answer/hangup, identity/destination display, phonebook and profile controls | partial | Bidirectional native process calls verified; full menu/key interaction parity unverified |
+| Interactive dial/redial, answer/hangup, identity/destination display, phonebook and profile controls | partial | Bidirectional native calls, profile cycle, phonebook numeric aliases and submenu back/quit executed; exact terminal formatting and complete key matrix unverified |
 | Service mode, signals, shutdown cleanup, systemd example | partial | Native signal/startup path exists; full long-running service/reload acceptance missing |
 | Configuration directory precedence, default config creation and first-run behavior | partial | Precedence implemented; minimal original default config, no bundled assets |
 | Identity generation/load/failure and `storage` directory | implemented | Native Pester restart test; owner-only Unix creation; buffers zeroed |
-| Bundled ringtone copying and ringtone/ringer output | missing | No upstream sounds redistributed; configured unsupported keys fail explicitly |
-| `[telephone]`: `speaker`, `microphone`, `allowed_callers`, `blocked_callers` | partial | Implemented; PulseAudio exact device identifiers instead of fuzzy matching |
-| `[phonebook]`: names, identity hashes, optional filtered numeric aliases, authorization integration | partial | Implemented; exhaustive configuration/reload comparison missing |
+| Bundled ringtone copying and ringtone/ringer output | partial | No upstream sounds redistributed; user-supplied Opus ringtone loops on a separate selected sink and stops on answer; real native virtual-sink acceptance |
+| `[telephone]`: `speaker`, `microphone`, `ringer`, `ringtone`, `allowed_callers`, `blocked_callers` | partial | Implemented; runtime sink/capture reconfiguration tested; PulseAudio exact device identifiers instead of fuzzy matching |
+| `[phonebook]`: names, identity hashes, optional filtered numeric aliases, authorization integration | implemented | Actual primary ConfigObj/apply_config/load_phonebook/menu fixture covers quoted comma values, inline comments, ASCII numeric filtering, self exclusion and allowed/blocked lists; native menu/reload/restart acceptance |
 | `[hardware]`: `keypad`, `keypad_hook_pin`, `display` | missing | `Utilities/rnphone.py`, `apply_config` |
 | Commented amplifier-mute options | upstream-placeholder | Default config mentions `amp_mute_pin`/`amp_mute_level`; `apply_config` does not consume them |
 | `ignored` and `allowed` paths | upstream-placeholder | `reload_config` assigns paths; no persistence implementation established |
@@ -201,7 +201,7 @@ not implicitly covered by the network interfaces. This is not full API parity:
 | Reference surface | Status and boundary |
 |---|---|
 | `Codecs/Codec.py`: `Null.encode/decode`, `resample`, `resample_bytes` | Partial: `NullAudioCodec` preserves identity; `AudioResampler` covers tested normalized audio frames; raw-byte overload remains missing; codec adapters still require an explicit supported input rate |
-| `Codecs/Opus.py`: live `set_profile`, `update_bitrate` | Partial: .NET replaces a codec instance when a telephone profile changes; standalone mutable encoder/bitrate APIs missing |
+| `Codecs/Opus.py`: `set_profile`, `update_bitrate`, output counters | Implemented pre-encode `SetProfile`, byte-budget `UpdateBitrate` and output statistics; actual primary rejects every post-encode `set_profile` call, including an unchanged profile; .NET does likewise. Decoder output configuration remains independent of encoder profile changes |
 | `Network.py`: `handle_signalling_from`, Packetizer/LinkSource `start/stop` | Implemented through original event composition and explicit `StreamSession` lifetime, including arbitrary MessagePack signals; no Python inheritance/API-shape claim |
 | `Filters.py`: `Filter`, `HighPass`, `LowPass`, `BandPass`, `AGC.handle_frame` | Implemented original managed `AudioFilter` processors with actual-reference vectors |
 | `Generators.py`: `ToneSource` codec/running/start/stop | Implemented original `ToneAudioSource`, with gain/easing and cancellable enumeration |
@@ -209,9 +209,9 @@ not implicitly covered by the network interfaces. This is not full API parity:
 | `Pipeline.py`: codec/sink/running and start/stop | Partial original headless source→processor→codec→audio-sink pipeline; lifecycle/replace/stop/disposal are tested, broader encoded-sink/proxy behavior remains incomplete |
 | `Sources.py`: `get_backend`, backend device listing/recorder ownership; `Loopback`; `LineSource` gain/codec/start/stop; `OpusFileSource` | Partial Linux device I/O, headless loopback and streaming Opus file source; general backends and line-device gain controls remain missing |
 | `Sinks.py`: `get_backend`, backend device listing/player ownership; Sink/RemoteSink/LocalSink; LineSink low latency; OpusFileSink queue/finalization | Partial Linux I/O and Ogg Opus recording; explicit async backpressure instead of a Python frame deque; full hierarchy/low-latency parity missing |
-| `Primitives/Players.py`: FilePlayer state, completion callback, source, loop/start/stop/play | Partial: file async enumeration, looping, timing and completion exist; dynamic player/control wrapper remains missing |
-| `Primitives/Recorders.py`: FileRecorder state, source/output path, start/stop/record | Partial: recording sink/finalization exist; device/filter/recorder wrapper remains missing; no private or physical audio is committed |
-| `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Partial: gains, mute/reset and transmit band-pass/AGC are implemented; device queries are Linux CLI-only; busy/ring tones, runtime device/low-latency controls remain missing |
+| `Primitives/Players.py`: FilePlayer state, completion callback, source, loop/start/stop/play | Implemented device-independent `FilePlayer`; callback timing is asynchronous, not Python's polling schedule; source replacement requires stopped playback |
+| `Primitives/Recorders.py`: FileRecorder state, source/output path, start/stop/record | Implemented device-independent `FileRecorder` with a caller-owned source and per-run finalization; effective output-path replacement is an explicit extension over the executed upstream shadow-attribute placeholder |
+| `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Partial: gains, mute/reset and transmit band-pass/AGC are implemented; device queries, supplied ringtone and runtime capture/sink selection are Linux CLI-only; busy/dial tones and low-latency toggle remain missing |
 | `Primitives/Telephony.py`: external busy override | Implemented; real incoming rejection followed by clearing busy and accepting the next call is integration-tested |
 | `Primitives/Telephony.py`: Profiles labels/abbreviations/index/next helpers | Implemented `TelephoneProfiles`; executed primary labels, abbreviations, frame durations and ordering; CLI profile cycle follows low latency then ultra-low latency |
 | `Utilities/rnphone.py`: ReticulumTelephone reload/apply config, keypad/hook/display enablement and hardware state; complete terminal menu/redial/status/signal behavior | Partial; supported CLI subset and persisted identity are tested, full utility behavior remains deferred |
@@ -244,8 +244,19 @@ audio for help, version or configuration errors.
 
 `DotLXST.Audio` supplies a separately tested managed processor, mixer, generator
 and pipeline layer; the stream/session interfaces do not silently apply it.
-The CLI does not currently reproduce upstream AGC, band-pass filtering, easing,
-dial/ring tones, hardware peripherals or all persistence/configuration behavior.
+Endpoint AGC/band-pass processing is shared by the CLI. The CLI does not yet
+reproduce line-source initial skip/easing, dial/busy tones, hardware peripherals
+or all persistence/configuration behavior. Configured ringtone playback is
+implemented without redistributing the upstream asset.
+
+`PhoneConfiguration` reads quote-aware comma values and inline comments. Reload
+validates a replacement before swapping authorization and selected devices; a
+failed reload leaves the running process and prior settings intact. This atomic
+replacement is a deliberate .NET behavior: primary `reload_config` retains and
+merges existing phonebook/allow/block dictionaries and lists. Unknown settings
+and malformed hashes are rejected rather than silently ignored/skipped.
+The native acceptance checks self-entry exclusion and identity/config persistence
+across process restart. No history/ignored/allowed file implementation is invented.
 
 ### Native codec and platform matrix
 
@@ -266,7 +277,13 @@ chains. `OpusFileSink` opens/truncates the supplied path, requires the selected
 profile's sample rate/channels, bounds input to one second per frame, pads short
 frames to the first frame's length, appends the reference's ten silence frames,
 and finalizes on async disposal. Native containers interoperate; byte-identical
-Ogg page serialization or standalone player/recorder API parity is not claimed.
+Ogg page serialization is not claimed. `FilePlayer` and `FileRecorder` do not own
+their external sink/source. Stop and every concurrent disposer wait for in-flight
+I/O and file finalization. A recorder path change only applies while stopped.
+Executing primary `FileRecorder.set_output_path` leaves the actual sink path
+unchanged and creates a separate name-mangled shadow attribute; the effective
+.NET setter is an explicit extension. Default recorder capture filters/easing
+are source configuration, not silently imposed on caller-provided frames.
 Cancellation is observed between bounded native file operations; a blocking
 filesystem/native call itself is not forcibly interrupted.
 
@@ -322,9 +339,9 @@ pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 
 
 Recorded results:
 
-- Windows deterministic/unit suite: **40 passed**.
+- Windows deterministic/unit suite: **51 passed**.
 - WSL full LXST suite against the actual primary-release checkout:
-  **90 passed, zero skipped**, including six real telephone topology cases,
+  **101 passed, zero skipped**, including six real telephone topology cases,
   sixteen initial-profile cases and six policy/rejection/timeout recovery cases.
 - Telephone lifecycle cases include a blocked sink proving that a second
   disposer cannot finish early, continued service after authorization/observer
@@ -332,13 +349,17 @@ Recorded results:
   the next call.
 - Linux NativeAOT publish with both warning-as-error properties: **passed**;
   published `--help`: **passed**.
-- Native rnphone Pester process acceptance: **4 passed, zero skipped**:
+- Native rnphone Pester process acceptance: **5 passed, zero skipped**:
   CLI/error behavior; explicit unsupported-hardware rejection; calls in both
   directions, encoder/decoder/device-process paths, teardown, protected identity
-  and restart stability.
+  and restart stability; executed-reference phonebook/config reload; supplied
+  ringtone routing/stopping and active-call capture/playback device replacement.
 - Actual upstream Opus file fixture and reverse file-source acceptance:
-  **3 passed, zero skipped**, including exact frame/sample decoding, looping,
+  **5 passed, zero skipped**, including exact frame/sample decoding, looping,
   cancellation, malformed files and native handle disposal.
+- `GenerateCodecStateVectors.py` executes primary channel conversion, pre/post
+  encoding profile control, byte ceilings and stateful Codec2 mode/header behavior
+  in `lxst-codec-state.json`; no generated reference byte is hand-authored.
 - Managed DSP/source/mixer/pipeline vectors are recorded in
   `Fixtures/lxst-audio-processing.json`, generated by executing primary
   `3b596f48ddd252ddc9c315ef8f3020cfd3688223` through its actual native-filter

@@ -271,7 +271,7 @@ public sealed partial class LxmPropagationNode
                 ["uptime"] = Now - _started,
                 ["delivery_limit"] = _deliveryLimit / 1000.0,
                 ["propagation_limit"] = _options.TransferLimit / 1000.0,
-                ["sync_limit"] = _options.SyncLimit / 1000.0,
+                ["sync_limit"] = SyncLimit / 1000.0,
                 ["target_stamp_cost"] = (long)_options.StampCost,
                 ["stamp_cost_flexibility"] = (long)_options.StampFlexibility,
                 ["peering_cost"] = (long)_options.PeeringCost,

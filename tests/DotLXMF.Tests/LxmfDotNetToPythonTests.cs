@@ -48,6 +48,14 @@ public class LxmfDotNetToPythonTests
         messages.Add(("ticket", ticketed, null));
         var paper = LxMessage.Create(destinationHash, source, "Paper from .NET", "P", method: LxmMethod.Paper, timestamp: 1700000105.0);
         paper.Pack(destinationIdentity: destination);
+        using var group = DestinationEndpoint.Create(DestinationType.Group, DestinationDirection.Out, "lxmf", ["delivery"], destination);
+        group.LoadGroupKey(Enumerable.Range(0, 64).Select(value => (byte)value).ToArray());
+        var groupPaper = LxMessage.Create(group, source, "Group paper from .NET", "G", method: LxmMethod.Paper, timestamp: 1700000106.0);
+        groupPaper.Pack();
+        using var plain = DestinationEndpoint.Create(DestinationType.Plain, DestinationDirection.Out, "lxmf", ["delivery"]);
+        var plainMessage = LxMessage.Create(plain, source, "Plain from .NET", "P", method: LxmMethod.Opportunistic, timestamp: 1700000107.0);
+        plainMessage.Pack();
+        messages.Add(("plain", plainMessage, null));
 
         var path = Path.Combine(AppContext.BaseDirectory, "dotnet-lxmf-" + Guid.NewGuid().ToString("N") + ".json");
         try
@@ -95,6 +103,13 @@ public class LxmfDotNetToPythonTests
                 json.WriteString("uri", paper.AsUri(finalise: false));
                 json.WriteString("packed", Convert.ToHexStringLower(paper.Packed!));
                 json.WriteString("container", Convert.ToHexStringLower(paper.PackedContainer()));
+                json.WriteEndObject();
+                json.WriteStartObject("group_paper");
+                var groupKey = group.ExportGroupKey();
+                try { json.WriteString("key", Convert.ToHexStringLower(groupKey)); }
+                finally { System.Security.Cryptography.CryptographicOperations.ZeroMemory(groupKey); }
+                json.WriteString("uri", groupPaper.AsUri(finalise: false));
+                json.WriteString("packed", Convert.ToHexStringLower(groupPaper.Packed!));
                 json.WriteEndObject();
                 json.WriteStartArray("app_data");
                 foreach (var (name, cost) in new (string?, int?)[] { ("Alice", null), ("Bob \u00e9", 12), (null, null) })

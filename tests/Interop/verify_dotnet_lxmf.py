@@ -22,6 +22,9 @@ class _NoReticulum:
     def is_blackholed(self, identity):
         return False
 
+    def _used_destination_data(self, destination_hash):
+        pass
+
 
 RNS.Reticulum.get_instance = staticmethod(lambda: _NoReticulum())
 
@@ -68,6 +71,17 @@ if "paper" in data:
     assert restored.signature_validated and restored.packed == packed, "paper container rejected"
     assert restored.method == LXMessage.PAPER and restored.transport_encrypted is True
     sys.stderr.write("ok paper encryption, URI and container\n")
+
+if "group_paper" in data:
+    paper = data["group_paper"]
+    raw = base64.urlsafe_b64decode(paper["uri"][6:] + "==")
+    group = RNS.Destination(RNS.Identity.recall(raw[:16]), RNS.Destination.OUT, RNS.Destination.GROUP, "lxmf", "delivery")
+    group.load_private_key(bytes.fromhex(paper["key"]))
+    packed = raw[:16] + group.decrypt(raw[16:])
+    assert packed.hex() == paper["packed"], "group paper encryption mismatch"
+    parsed = LXMessage.unpack_from_bytes(packed, original_method=LXMessage.PAPER)
+    assert parsed.signature_validated, "group paper signature rejected"
+    sys.stderr.write("ok group paper encryption and URI\n")
 
 for a in data["app_data"]:
     raw = bytes.fromhex(a["data"])

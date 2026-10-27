@@ -12,7 +12,8 @@ public enum LxmPaperIngestResult
 public sealed partial class LxmRouter
 {
     private sealed record InboundWork(byte[] Data, LxmMethod Method, bool AllowDuplicate = false, bool IgnoreStamps = false,
-        byte[]? TransientId = null, TaskCompletionSource<LxmPaperIngestResult>? Completion = null);
+        byte[]? TransientId = null, TaskCompletionSource<LxmPaperIngestResult>? Completion = null,
+        byte[]? ExpectedDestination = null, DestinationType DestinationType = DestinationType.Single);
 
     /// <summary>
     /// Ingests a paper URI addressed to this router. As upstream, paper ingestion bypasses stamp enforcement and

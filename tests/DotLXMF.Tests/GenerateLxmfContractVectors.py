@@ -68,11 +68,77 @@ binary_fields.stamp = bytes(range(32))
 binary_fields.defer_stamp = False
 binary_fields.stamp_cost = 1
 binary_fields.pack()
+text_probe = LXMF.LXMessage(dst, src, b"\xff\x00\x80", b"\xfe")
+try:
+    text_probe.title_as_string()
+    title_decode_error = None
+except Exception as error:
+    title_decode_error = type(error).__name__
+invalid_content_string = text_probe.content_as_string()
+try:
+    LXMF.LXMessage(dst, src, "\ud800")
+    surrogate_error = None
+except Exception as error:
+    surrogate_error = type(error).__name__
+assigned = LXMF.LXMessage(None, None, "Assigned", "A", desired_method=LXMF.LXMessage.DIRECT,
+                         destination_hash=dst.hash, source_hash=src.hash)
+assignment_errors = []
+for setter in (assigned.set_destination, assigned.set_source):
+    try: setter("invalid")
+    except Exception as error: assignment_errors.append(type(error).__name__)
+assigned.set_destination(dst)
+assigned.set_source(src)
+for setter, value in ((assigned.set_destination, dst), (assigned.set_source, src)):
+    try: setter(value)
+    except Exception as error: assignment_errors.append(type(error).__name__)
+assigned.timestamp = 1700000103.0
+assigned.pack()
+plain_destination = RNS.Destination(None, RNS.Destination.OUT, RNS.Destination.PLAIN, "lxmf", "delivery")
+plain = LXMF.LXMessage(plain_destination, src, "Plain", "P", desired_method=LXMF.LXMessage.OPPORTUNISTIC)
+plain.timestamp = 1700000104.0
+plain.pack()
+plain.determine_transport_encryption()
+RNS.Transport.destinations.append(plain_destination)
+try:
+    LXMF.LXMessage.unpack_from_bytes(plain.packed)
+    plain_registered_unpack_error = None
+except Exception as error:
+    plain_registered_unpack_error = type(error).__name__
+finally:
+    RNS.Transport.destinations.remove(plain_destination)
+group_destination = RNS.Destination(destination, RNS.Destination.OUT, RNS.Destination.GROUP, "lxmf", "delivery")
+group_message = LXMF.LXMessage(group_destination, src, "Group", desired_method=LXMF.LXMessage.OPPORTUNISTIC)
+try:
+    group_message.pack()
+    group_pack_error = None
+except Exception as error:
+    group_pack_error = type(error).__name__
+group_key = bytes(range(64))
+group_destination.load_private_key(group_key)
+group_paper = LXMF.LXMessage(group_destination, src, "Group paper", "G", desired_method=LXMF.LXMessage.PAPER)
+group_paper.timestamp = 1700000105.0
+group_paper.pack()
+assert group_destination.decrypt(group_paper.paper_packed[16:]) == group_paper.packed[16:]
+group_paper.determine_transport_encryption()
+zero_timestamp = LXMF.LXMessage(dst, src, "Epoch", "Zero")
+zero_timestamp.timestamp = 0.0
+zero_timestamp.pack()
 
 # Execute ticket policy without starting router threads or doing filesystem I/O.
 # A fixed clock is the only behavioral input replaced; ticket policy is upstream.
 router_module = importlib.import_module("LXMF.LXMRouter")
 router = object.__new__(LXMF.LXMRouter)
+router.delivery_destinations = {}
+router.enforce_ratchets = False
+router.ratchetpath = str(Path("artifacts") / "lxmf-registration-evidence")
+first_registration = router.register_delivery_identity(source, display_name="First", stamp_cost=12)
+second_registration = router.register_delivery_identity(destination, display_name="Second", stamp_cost=14)
+registration_contract = {"first": first_registration.hash.hex(), "second": second_registration,
+                          "count": len(router.delivery_destinations), "cost": first_registration.stamp_cost}
+assert second_registration is None and len(router.delivery_destinations) == 1
+plain_router_result = router.lxmf_delivery(plain.packed, destination_type=RNS.Destination.PLAIN)
+for generated in Path(router.ratchetpath).iterdir(): generated.unlink()
+Path(router.ratchetpath).rmdir()
 router.available_tickets = {"outbound": {}, "inbound": {}, "last_deliveries": {}}
 router.save_available_tickets = lambda: None
 with patch.object(router_module.time, "time", return_value=1700000200.0):
@@ -313,6 +379,19 @@ output = {
         "container": paper_container.hex(),
     },
     "binary_fields": {"packed": binary_fields.packed.hex(), "hash": binary_fields.hash.hex()},
+    "message_api": {"invalid_title_error": title_decode_error, "invalid_content": invalid_content_string,
+                    "surrogate_error": surrogate_error, "assignment_errors": assignment_errors,
+                    "assigned_packed": assigned.packed.hex(), "assigned_hash": assigned.hash.hex()},
+    "delivery_registration": registration_contract,
+    "group_paper": {"key": group_key.hex(), "packed": group_paper.packed.hex(), "uri": group_paper.as_uri(finalise=False),
+                    "encryption": group_paper.transport_encryption},
+    "zero_timestamp_packed": zero_timestamp.packed.hex(),
+    "destination_types": {"plain_packed": plain.packed.hex(), "plain_hash": plain.hash.hex(),
+                          "plain_destination": plain_destination.hash.hex(), "plain_content_limit": LXMF.LXMessage.PLAIN_PACKET_MAX_CONTENT,
+                          "plain_encrypted": plain.transport_encrypted, "plain_encryption": plain.transport_encryption,
+                          "plain_router_result": plain_router_result,
+                          "plain_registered_unpack_error": plain_registered_unpack_error,
+                          "group_opportunistic_error": group_pack_error},
     "delivery_cache_packed": delivery_cache_packed.hex(),
     "peer_rotation": rotation_cases,
     "peer_selection": selection_cases,

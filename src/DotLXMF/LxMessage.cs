@@ -69,6 +69,7 @@ public static class LxmField
 /// </summary>
 public sealed class LxMessage
 {
+    private static readonly System.Text.UTF8Encoding StrictUtf8 = new(false, true);
     public const int DestinationLength = 16;
     public const int SignatureLength = 64;
     public const int TimestampSize = 8;
@@ -82,6 +83,7 @@ public sealed class LxMessage
     public const int EncryptedPacketMdu = 383;
 
     public const int EncryptedPacketMaxContent = EncryptedPacketMdu - Overhead + DestinationLength;
+    public const int PlainPacketMaxContent = 368;
 
     /// <summary>Largest packed content that still fits a single link packet at the default MTU.</summary>
     public static readonly int LinkPacketMaxContent = Link.ComputeMdu(Packet.Mtu) - Overhead;
@@ -90,6 +92,8 @@ public sealed class LxMessage
     private readonly TaskCompletionSource<LxmState> _done = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private LxmState _state = LxmState.Generating;
     private double _nextAttempt;
+    private bool _timestampSet;
+    private DestinationEndpoint? _destination;
 
     private LxMessage(byte[] destinationHash, byte[] sourceHash)
     {
@@ -97,9 +101,15 @@ public sealed class LxMessage
         SourceHash = sourceHash;
     }
 
-    public byte[] DestinationHash { get; }
+    public byte[] DestinationHash { get; private set; }
 
-    public byte[] SourceHash { get; }
+    public byte[] SourceHash { get; private set; }
+
+    public DestinationEndpoint? Destination => _destination;
+
+    public Identity? SourceIdentity => _source;
+
+    public DestinationType DestinationType => _destination?.Destination.Type ?? DestinationType.Single;
 
     /// <summary>Seconds since the Unix epoch, as upstream's <c>time.time()</c>.</summary>
     public double Timestamp { get; private set; }
@@ -108,9 +118,23 @@ public sealed class LxMessage
 
     public byte[] ContentBytes { get; private set; } = [];
 
-    public string Title => System.Text.Encoding.UTF8.GetString(TitleBytes);
+    public string Title => StrictUtf8.GetString(TitleBytes);
 
-    public string Content => System.Text.Encoding.UTF8.GetString(ContentBytes);
+    public string? Content
+    {
+        get
+        {
+            try { return StrictUtf8.GetString(ContentBytes); }
+            catch (System.Text.DecoderFallbackException)
+            {
+                if (Log is { } callbacks)
+                    foreach (Action<string> callback in callbacks.GetInvocationList())
+                        try { callback("Could not decode LXMF content as UTF-8."); }
+                        catch (Exception ex) { System.Diagnostics.Trace.TraceError("LXMF log observer failed: {0}", ex.Message); }
+                return null;
+            }
+        }
+    }
 
     /// <summary>Integer-keyed fields (see <see cref="LxmField"/>). Values are the msgpack object model of <see cref="MsgPack"/>.</summary>
     public Dictionary<object, object?> Fields { get; private set; } = [];
@@ -212,7 +236,7 @@ public sealed class LxMessage
     public Task<LxmState> Completion => _done.Task;
 
     /// <summary>Creates an outbound message to <paramref name="destinationHash"/> (an <c>lxmf.delivery</c> hash) from <paramref name="source"/>.</summary>
-    public static LxMessage Create(byte[] destinationHash, Identity source, string content, string title = "", Dictionary<object, object?>? fields = null,
+    public static LxMessage Create(byte[] destinationHash, Identity source, string? content, string? title = "", Dictionary<object, object?>? fields = null,
         LxmMethod method = LxmMethod.Direct, double? timestamp = null)
     {
         ArgumentNullException.ThrowIfNull(destinationHash);
@@ -220,14 +244,69 @@ public sealed class LxMessage
         if (destinationHash.Length != DestinationLength) throw new ArgumentException("Destination hash must be 16 bytes.", nameof(destinationHash));
         var message = new LxMessage(destinationHash, DeliveryDestinationHash(source))
         {
-            TitleBytes = System.Text.Encoding.UTF8.GetBytes(title ?? ""),
-            ContentBytes = System.Text.Encoding.UTF8.GetBytes(content ?? ""),
+            TitleBytes = StrictUtf8.GetBytes(title ?? ""),
+            ContentBytes = StrictUtf8.GetBytes(content ?? ""),
             Fields = fields ?? [],
             DesiredMethod = method,
             Timestamp = timestamp ?? 0,
+            _timestampSet = timestamp.HasValue,
         };
         message._source = source;
         return message;
+    }
+
+    public static LxMessage Create(DestinationEndpoint destination, Identity source, string? content, string? title = "",
+        Dictionary<object, object?>? fields = null, LxmMethod method = LxmMethod.Direct, double? timestamp = null)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+        var message = Create(destination.Destination.Hash, source, content, title, fields, method, timestamp);
+        message.SetDestination(destination);
+        return message;
+    }
+
+    public static LxMessage CreateUnassigned(byte[]? destinationHash = null, byte[]? sourceHash = null,
+        string? content = "", string? title = "", Dictionary<object, object?>? fields = null,
+        LxmMethod method = LxmMethod.Direct, double? timestamp = null)
+    {
+        if (destinationHash is { Length: not DestinationLength } || sourceHash is { Length: not DestinationLength })
+            throw new ArgumentException("Message destination and source hashes must be 16 bytes.");
+        return new LxMessage(destinationHash?.ToArray() ?? [], sourceHash?.ToArray() ?? [])
+        {
+            ContentBytes = StrictUtf8.GetBytes(content ?? ""),
+            TitleBytes = StrictUtf8.GetBytes(title ?? ""),
+            Fields = fields ?? [],
+            DesiredMethod = method,
+            Timestamp = timestamp ?? 0,
+            _timestampSet = timestamp.HasValue,
+        };
+    }
+
+    public void SetDestination(DestinationEndpoint destination)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+        if (_destination is not null) throw new InvalidOperationException("Cannot reassign message destination.");
+        if (Packed is not null) throw new InvalidOperationException("Cannot assign the destination of a packed message.");
+        _destination = destination;
+        DestinationHash = destination.Destination.Hash.ToArray();
+    }
+
+    public void SetSource(Identity source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        if (_source is not null) throw new InvalidOperationException("Cannot reassign message source.");
+        if (Packed is not null) throw new InvalidOperationException("Cannot assign the source of a packed message.");
+        _source = source;
+        SourceHash = DeliveryDestinationHash(source);
+    }
+
+    public void SetTitle(string title) => SetTitle(StrictUtf8.GetBytes(title));
+    public void SetContent(string content) => SetContent(StrictUtf8.GetBytes(content));
+    public void SetTitle(ReadOnlySpan<byte> title) { EnsureUnpacked(); TitleBytes = title.ToArray(); }
+    public void SetContent(ReadOnlySpan<byte> content) { EnsureUnpacked(); ContentBytes = content.ToArray(); }
+    public void SetFields(Dictionary<object, object?>? fields) { EnsureUnpacked(); Fields = fields ?? []; }
+    private void EnsureUnpacked()
+    {
+        if (Packed is not null) throw new InvalidOperationException("Cannot mutate a packed message.");
     }
 
     /// <summary>Creates a message without UTF-8 conversion of the title or content.</summary>
@@ -243,7 +322,7 @@ public sealed class LxMessage
     private Identity? _source;
 
     public static byte[] DeliveryDestinationHash(Identity identity) =>
-        Destination.ComputeHash(identity.Hash, LxmRouter.AppName, [LxmRouter.DeliveryAspect]);
+        DotReticulum.Core.Destination.ComputeHash(identity.Hash, LxmRouter.AppName, [LxmRouter.DeliveryAspect]);
 
     /// <summary>
     /// Signs and packs the message (upstream <c>pack</c>). <paramref name="stamp"/>, when given, is appended to the payload after hashing and does not
@@ -252,11 +331,15 @@ public sealed class LxMessage
     public byte[] Pack(byte[]? stamp = null, Identity? destinationIdentity = null, byte[]? ratchet = null)
     {
         if (Packed is not null) throw new InvalidOperationException("The message was already packed.");
-        if (DesiredMethod is LxmMethod.Paper or LxmMethod.Propagated &&
+        destinationIdentity ??= _destination?.Identity;
+        if (_destination is null && DesiredMethod is LxmMethod.Paper or LxmMethod.Propagated &&
             (destinationIdentity is null || !DeliveryDestinationHash(destinationIdentity).AsSpan().SequenceEqual(DestinationHash)))
             throw new ArgumentException("Paper and propagated messages require the matching destination identity.", nameof(destinationIdentity));
         var source = _source ?? throw new InvalidOperationException("Only locally created messages can be packed.");
-        if (Timestamp == 0) Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+        if (DestinationHash.Length != DestinationLength) throw new InvalidOperationException("Message destination is not assigned.");
+        if (!_timestampSet) { Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0; _timestampSet = true; }
+        if (DestinationType == DestinationType.Group && DesiredMethod == LxmMethod.Opportunistic)
+            throw new NotSupportedException("The pinned upstream cannot pack opportunistic GROUP messages.");
 
         var payload = new object?[] { Timestamp, TitleBytes, ContentBytes, Fields };
         var packedPayload = MsgPack.Pack(payload);
@@ -274,11 +357,16 @@ public sealed class LxMessage
         Packed = Concat(DestinationHash, SourceHash, Signature, packedPayload);
         var contentSize = packedPayload.Length - TimestampSize - StructOverhead;
         Method = DesiredMethod;
-        if (DesiredMethod == LxmMethod.Opportunistic && contentSize > EncryptedPacketMaxContent) Method = LxmMethod.Direct;
+        if (DesiredMethod == LxmMethod.Opportunistic)
+        {
+            if (DestinationType == DestinationType.Plain && contentSize > PlainPacketMaxContent)
+                throw new ArgumentException("Plain opportunistic message exceeds the single-packet limit.");
+            if (DestinationType == DestinationType.Single && contentSize > EncryptedPacketMaxContent) Method = LxmMethod.Direct;
+        }
         if (Method == LxmMethod.Direct) IsResource = contentSize > LinkPacketMaxContent;
         if (Method == LxmMethod.Paper)
         {
-            var paper = Concat(DestinationHash, destinationIdentity!.Encrypt(Packed.AsSpan(DestinationLength), ratchet));
+            var paper = Concat(DestinationHash, EncryptForDestination(Packed.AsSpan(DestinationLength), destinationIdentity, ratchet));
             if (paper.Length > PaperMdu)
             {
                 Packed = null;
@@ -286,18 +374,27 @@ public sealed class LxMessage
             }
 
             PaperPacked = paper;
-            TransportEncrypted = true;
-            TransportEncryption = "Curve25519";
         }
         else if (Method == LxmMethod.Propagated)
         {
-            PropagationData = Concat(DestinationHash, destinationIdentity!.Encrypt(Packed.AsSpan(DestinationLength), ratchet));
+            PropagationData = Concat(DestinationHash, EncryptForDestination(Packed.AsSpan(DestinationLength), destinationIdentity, ratchet));
             TransientId = Identity.FullHash(PropagationData);
             PropagationPacked = MsgPack.Pack(new object?[] { DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0, new object?[] { PropagationData } });
             IsResource = PropagationPacked.Length > LinkPacketMaxContent;
         }
+        DetermineTransportEncryption();
         return Packed;
     }
+
+    public void DetermineTransportEncryption()
+    {
+        TransportEncrypted = Method == LxmMethod.Direct || DestinationType != DestinationType.Plain;
+        TransportEncryption = Method == LxmMethod.Direct || DestinationType == DestinationType.Single ? "Curve25519" :
+            DestinationType == DestinationType.Group ? "AES-256" : "Unencrypted";
+    }
+
+    private byte[] EncryptForDestination(ReadOnlySpan<byte> data, Identity? identity, byte[]? ratchet) =>
+        _destination is { } endpoint ? endpoint.Encrypt(data, ratchet ?? []) : identity!.Encrypt(data, ratchet);
 
     public void SetPropagationStamp(ReadOnlySpan<byte> stamp, double? timestamp = null)
     {
@@ -324,16 +421,9 @@ public sealed class LxMessage
     public static LxMessage FromPaperUri(string uri, Identity destination, Func<byte[], Identity?> recallSource,
         Func<byte[], byte[]?>? decrypt = null)
     {
-        ArgumentNullException.ThrowIfNull(uri);
         ArgumentNullException.ThrowIfNull(destination);
-        if (!uri.StartsWith("lxm://", StringComparison.OrdinalIgnoreCase)) throw new FormatException("Invalid LXMF URI scheme.");
-        var encoded = uri[6..].Replace('-', '+').Replace('_', '/');
-        if (encoded.Length > ((PaperMdu + 2) / 3) * 4) throw new FormatException("Paper message exceeds the maximum size.");
-        byte[] paper;
-        try { paper = Convert.FromBase64String(encoded.PadRight((encoded.Length + 3) / 4 * 4, '=')); }
-        catch (FormatException) { throw new FormatException("Invalid LXMF URI encoding."); }
-        if (paper.Length <= DestinationLength || paper.Length > PaperMdu ||
-            !paper.AsSpan(0, DestinationLength).SequenceEqual(DeliveryDestinationHash(destination)))
+        var paper = DecodePaperUri(uri);
+        if (!paper.AsSpan(0, DestinationLength).SequenceEqual(DeliveryDestinationHash(destination)))
             throw new FormatException("Paper message is not addressed to this destination.");
         var encrypted = paper[DestinationLength..];
         var plain = decrypt is null ? destination.Decrypt(encrypted) : decrypt(encrypted);
@@ -341,6 +431,34 @@ public sealed class LxMessage
         var message = Unpack(Concat(paper[..DestinationLength], plain), recallSource, LxmMethod.Paper);
         message.PaperPacked = paper;
         return message;
+    }
+
+    public static LxMessage FromPaperUri(string uri, DestinationEndpoint destination, Func<byte[], Identity?> recallSource)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+        var paper = DecodePaperUri(uri);
+        if (!paper.AsSpan(0, DestinationLength).SequenceEqual(destination.Destination.Hash))
+            throw new FormatException("Paper message is not addressed to this destination.");
+        var plain = destination.Decrypt(paper.AsSpan(DestinationLength))
+            ?? throw new FormatException("Paper message could not be decrypted.");
+        var message = Unpack(Concat(paper[..DestinationLength], plain), recallSource, LxmMethod.Paper);
+        message._destination = destination;
+        message.PaperPacked = paper;
+        message.DetermineTransportEncryption();
+        return message;
+    }
+
+    private static byte[] DecodePaperUri(string uri)
+    {
+        ArgumentNullException.ThrowIfNull(uri);
+        if (!uri.StartsWith("lxm://", StringComparison.OrdinalIgnoreCase)) throw new FormatException("Invalid LXMF URI scheme.");
+        var encoded = uri[6..].Replace('-', '+').Replace('_', '/');
+        if (encoded.Length > ((PaperMdu + 2) / 3) * 4) throw new FormatException("Paper message exceeds the maximum size.");
+        byte[] paper;
+        try { paper = Convert.FromBase64String(encoded.PadRight((encoded.Length + 3) / 4 * 4, '=')); }
+        catch (FormatException) { throw new FormatException("Invalid LXMF URI encoding."); }
+        if (paper.Length <= DestinationLength || paper.Length > PaperMdu) throw new FormatException("Invalid paper message size.");
+        return paper;
     }
 
     /// <summary>Upstream ticket stamp: truncated SHA-256(ticket || message-id).</summary>
@@ -406,7 +524,7 @@ public sealed class LxMessage
     public byte[] ComputeHash()
     {
         if (Hash is not null) return Hash;
-        if (Timestamp == 0) Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+        if (!_timestampSet) { Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0; _timestampSet = true; }
         var packedPayload = MsgPack.Pack(new object?[] { Timestamp, TitleBytes, ContentBytes, Fields });
         return Identity.FullHash(Concat(DestinationHash, SourceHash, packedPayload));
     }

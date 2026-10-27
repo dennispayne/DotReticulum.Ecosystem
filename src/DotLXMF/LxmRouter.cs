@@ -228,8 +228,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
 
         if (message.IncludeTicket && message.Fields.ContainsKey(LxmField.Ticket))
             message.StateChanged += MarkTicketDelivered;
-        message.TransportEncrypted = true;
-        message.TransportEncryption = "Curve25519";
+        message.DetermineTransportEncryption();
         message.State = LxmState.Outbound;
         lock (_gate)
         {
@@ -380,6 +379,17 @@ public sealed partial class LxmRouter : IAsyncDisposable
 
     private async Task SendOpportunisticAsync(LxMessage message, CancellationToken ct)
     {
+        if (message.DestinationType == DestinationType.Plain)
+        {
+            message.DeliveryAttempts++;
+            message.NextAttempt = Now + _options.DeliveryRetryWait.TotalSeconds;
+            var plain = Packet.Create(PacketType.Data, DestinationType.Plain, message.DestinationHash,
+                message.Packed.AsMemory(LxMessage.DestinationLength));
+            await _router.SendAsync(plain, ct).ConfigureAwait(false);
+            message.State = LxmState.Sent;
+            Report("No receipt generated for sent plain opportunistic LXMF message.");
+            return;
+        }
         if (!await EnsurePathAsync(message, ct, allowPathless: false).ConfigureAwait(false)) return;
         var identity = _router.Engine.Known.Recall(message.DestinationHash)!;
         var encrypted = _router.Engine.Known.Encrypt(message.DestinationHash, message.Packed.AsSpan(LxMessage.DestinationLength))
@@ -556,11 +566,11 @@ public sealed partial class LxmRouter : IAsyncDisposable
         try
         {
             var message = LxMessage.Unpack(work.Data, hash => hash.AsSpan().SequenceEqual(DeliveryHash) ? _identity : _router.Engine.Known.Recall(hash), work.Method);
-            if (!message.DestinationHash.AsSpan().SequenceEqual(DeliveryHash)) return LxmPaperIngestResult.Rejected;
+            if (!message.DestinationHash.AsSpan().SequenceEqual(work.ExpectedDestination ?? DeliveryHash)) return LxmPaperIngestResult.Rejected;
             lock (_gate)
                 if (_ignored.Contains(Convert.ToHexStringLower(message.SourceHash))) return LxmPaperIngestResult.Rejected;
-            message.TransportEncrypted = true;
-            message.TransportEncryption = "Curve25519";
+            message.TransportEncrypted = work.DestinationType != DestinationType.Plain;
+            message.TransportEncryption = work.DestinationType == DestinationType.Plain ? null : "Curve25519";
             if (message.SignatureValidated && message.Fields.TryGetValue(LxmField.Ticket, out var value) &&
                 value is object?[] { Length: >= 2 } entry && entry[1] is byte[] { Length: LxMessage.TicketLength } token &&
                 entry[0] is double or float or long or ulong)
@@ -570,7 +580,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
             }
 
             bool? stampValid = null;
-            if (InboundStampCost is { } cost)
+            if (work.DestinationType != DestinationType.Plain && InboundStampCost is { } cost)
             {
                 var tickets = _tickets.GetInbound(message.SourceHash);
                 try { stampValid = message.ValidateStamp(cost, tickets); }
@@ -651,6 +661,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         try { SaveOutboundStampCosts(); }
         catch (Exception ex) { Report("Could not save outbound LXMF stamp costs during disposal: " + ex.Message); }
         _router.DeregisterLocalDestination(_local);
+        if (_plain is { } plain) { _router.DeregisterLocalDestination(plain); plain.Dispose(); }
         _ratchets?.Dispose();
         _tickets.Dispose();
         if (PropagationNode is { } propagation) await propagation.DisposeAsync().ConfigureAwait(false);

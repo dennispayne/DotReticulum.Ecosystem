@@ -227,19 +227,24 @@ def main():
             while peer.state != peer.IDLE and time.time() < deadline:
                 time.sleep(0.05)
             emit({"event": "peer-synced", "outgoing": peer.outgoing, "state": peer.state})
-        elif cmd == "send":
+        elif cmd in ("send", "send-plain"):
             dest_hash = bytes.fromhex(parts[1])
             method = {"opportunistic": LXMF.LXMessage.OPPORTUNISTIC, "direct": LXMF.LXMessage.DIRECT,
                       "propagated": LXMF.LXMessage.PROPAGATED}[parts[2]]
             size, seed, title = int(parts[3]), parts[4], parts[5] if len(parts) > 5 else ""
-            remote_identity = identity if dest_hash == local.hash else RNS.Identity.recall(dest_hash)
-            if remote_identity is None:
-                RNS.Transport.request_path(dest_hash)
-                deadline = time.time() + 20
-                while remote_identity is None and time.time() < deadline:
-                    time.sleep(0.2)
-                    remote_identity = RNS.Identity.recall(dest_hash)
-            destination = RNS.Destination(remote_identity, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")
+            if cmd == "send-plain":
+                destination = RNS.Destination(None, RNS.Destination.OUT, RNS.Destination.PLAIN, "lxmf", "delivery")
+                if destination.hash != dest_hash:
+                    raise ValueError("Plain destination hash does not match lxmf.delivery")
+            else:
+                remote_identity = identity if dest_hash == local.hash else RNS.Identity.recall(dest_hash)
+                if remote_identity is None:
+                    RNS.Transport.request_path(dest_hash)
+                    deadline = time.time() + 20
+                    while remote_identity is None and time.time() < deadline:
+                        time.sleep(0.2)
+                        remote_identity = RNS.Identity.recall(dest_hash)
+                destination = RNS.Destination(remote_identity, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")
             content = random.Random(seed).randbytes(size)
             message = LXMF.LXMessage(destination, local, content, title, fields={1: [b"py-field"]}, desired_method=method,
                                     include_ticket=len(parts) > 6 and parts[6] == "ticket")

@@ -51,11 +51,12 @@ public class LiveLxmfTests
         }
 
         public static async Task<Rig> StartAsync(int? stampCost = null, string? storagePath = null, bool largeMessages = false,
-            bool smallPropagationBatches = false)
+            bool smallPropagationBatches = false, int? referenceLogLevel = null)
         {
             var port = FreePort();
             var arguments = new List<string>();
             if (stampCost is { } cost) arguments.AddRange(["--stamp-cost", cost.ToString()]);
+            if (referenceLogLevel is { } level) arguments.AddRange(["--loglevel", level.ToString()]);
             if (largeMessages) arguments.AddRange(["--delivery-limit-kb", "4000", "--propagation-limit-kb", "4000"]);
             if (smallPropagationBatches) arguments.AddRange(["--propagation-limit-kb", "1", "--propagation-sync-limit-kb", "1",
                 "--parallel-pn-validation"]);
@@ -360,6 +361,23 @@ public class LiveLxmfTests
             Assert.Equal(0, await node.SynchronizePeerAsync(destination, deadline.Token));
         }
         finally { if (Directory.Exists(storage)) Directory.Delete(storage, true); }
+    }
+
+    [LiveFact]
+    [Trait("Category", "Live")]
+    public async Task PythonPlainMessageSender_DeliversToNativeEndpoint()
+    {
+        await using var rig = await Rig.StartAsync(stampCost: 254);
+        var plainHash = rig.Lxmf.RegisterPlainDelivery();
+        var queued = await rig.Py.Command($"send-plain {Convert.ToHexStringLower(plainHash)} opportunistic 100 plain-seed plain-return",
+            "sent_queued", TimeSpan.FromSeconds(10));
+        await WaitFor(() => { lock (rig.Inbox) return rig.Inbox.Count == 1; }, 30);
+        var incoming = rig.Inbox[0].Message;
+        Assert.True(incoming.SignatureValidated);
+        Assert.Equal(queued.GetProperty("hash").GetString(), Convert.ToHexStringLower(incoming.Hash!));
+        Assert.False(incoming.TransportEncrypted);
+        Assert.Null(incoming.TransportEncryption);
+        Assert.Null(rig.Inbox[0].StampValid);
     }
 
     [LiveFact]

@@ -67,7 +67,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         _started = Now;
         _deliveryLimit = deliveryLimit;
         if (_options.StampCost is < 13 or > 256 || _options.StampFlexibility < 0 || _options.PeeringCost is < 0 or > 256 ||
-            _options.TransferLimit <= 0 || _options.SyncLimit < _options.TransferLimit || _options.StorageLimit <= 0 ||
+            _options.TransferLimit <= 0 || _options.StorageLimit <= 0 ||
             _options.RequestTimeout <= TimeSpan.Zero || _options.MaxPeers < 1 || _options.AutoPeerMaxDepth < 0 ||
             _options.MaxPeeringCost is < 0 or > 256 || _options.MaxInboundSyncs < 1 || deliveryLimit <= 0 ||
             _options.SyncStrategy is not (LxmPeerSyncStrategy.Lazy or LxmPeerSyncStrategy.Persistent) ||
@@ -119,6 +119,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
     }
     public IReadOnlyList<LxmPeer> Peers { get { lock (_gate) return _peers.Values.ToArray(); } }
     private double Now => _options.TimeProvider.GetUtcNow().ToUnixTimeMilliseconds() / 1000.0;
+    private long SyncLimit => Math.Max(_options.SyncLimit, _options.TransferLimit);
 
     public static double CalculateStorageWeight(long size, double received, double now, bool prioritised) =>
         (prioritised ? 0.1 : 1) * Math.Max(1, (now - received) / (86400 * 4)) * size;
@@ -148,7 +149,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         var metadata = new Dictionary<object, object?> { [0L] = "1.2.1", [0xfeL] = "DotLXMF" };
         if (_options.Name is { } name) metadata[1L] = System.Text.Encoding.UTF8.GetBytes(name);
         var announce = new LxmfPropagationAnnounce((long)Now, !_options.FromStaticOnly,
-            _options.TransferLimit / 1000.0, _options.SyncLimit / 1000.0, _options.StampCost, _options.StampFlexibility,
+            _options.TransferLimit / 1000.0, SyncLimit / 1000.0, _options.StampCost, _options.StampFlexibility,
             _options.PeeringCost, metadata);
         return announce.Pack();
     }
@@ -186,7 +187,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         {
             lock (_gate)
             {
-                if (_disposed || advertisement.DataSize > _options.SyncLimit || !StaticPeerAllowed(link.RemoteIdentity) ||
+                if (_disposed || advertisement.DataSize > SyncLimit || !StaticPeerAllowed(link.RemoteIdentity) ||
                     !BypassSequential(link.RemoteIdentity) && _transferringLinks.Count >= _options.MaxInboundSyncs) return false;
                 _transferringLinks.Add(link.LinkIdHex);
                 return true;
@@ -242,7 +243,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         invalidStamps = false;
         try
         {
-            if (bytes.LongLength > _options.SyncLimit || !StaticPeerAllowed(link.RemoteIdentity) ||
+            if (bytes.LongLength > SyncLimit || !StaticPeerAllowed(link.RemoteIdentity) ||
                 MsgPack.UnpackApplicationValue(bytes) is not object?[] { Length: 2 } envelope ||
                 envelope[1] is not object?[] messages) return false;
             _ = MsgPack.ToDouble(envelope[0]);
@@ -368,7 +369,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             }
 
             var response = new List<object?>();
-            var limit = data.Length >= 3 ? Math.Min(_options.SyncLimit, MsgPack.ToDouble(data[2]) * 1000) : _options.SyncLimit;
+            var limit = data.Length >= 3 ? Math.Min(SyncLimit, MsgPack.ToDouble(data[2]) * 1000) : SyncLimit;
             if (!double.IsFinite(limit) || limit < 0) return 0xf4L;
             long total = 24;
             if (data[0] is object?[] wants)
@@ -502,13 +503,13 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
                         return new LxmPeerOfferEntry(entry.Id, CalculateStorageWeight(entry.Size, entry.Received, Now,
                             _prioritised.Contains(Convert.ToHexStringLower(entry.Destination))), entry.Size, entry.StampValue);
                     }, Math.Max(0, config.StampCost - config.StampFlexibility), config.TransferLimitKilobytes * 1000,
-                        Math.Min(_options.SyncLimit, config.SyncLimitKilobytes * 1000));
+                        Math.Min(SyncLimit, config.SyncLimitKilobytes * 1000));
                     entries = ids.Select(id => _entries[Convert.ToHexStringLower(id)]).ToArray();
                 }
                 if (entries.Length == 0) return transferred;
                 peer.State = 3;
                 var response = await LxmPropagationTransport.RequestAsync(link, "/offer",
-                    new object?[] { peer.PeeringKey, entries.Select(entry => (object?)entry.Id).ToArray() }, _options.RequestTimeout, _options.SyncLimit, owned.Token).ConfigureAwait(false);
+                    new object?[] { peer.PeeringKey, entries.Select(entry => (object?)entry.Id).ToArray() }, _options.RequestTimeout, SyncLimit, owned.Token).ConfigureAwait(false);
                 peer.State = 4;
                 if (response is long error)
                 {
@@ -517,7 +518,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
                         link.Identify(_identity);
                         response = await LxmPropagationTransport.RequestAsync(link, "/offer",
                             new object?[] { peer.PeeringKey, entries.Select(entry => (object?)entry.Id).ToArray() },
-                            _options.RequestTimeout, _options.SyncLimit, owned.Token).ConfigureAwait(false);
+                            _options.RequestTimeout, SyncLimit, owned.Token).ConfigureAwait(false);
                     }
                     else if (error == 0xf1) Unpeer(destinationHash);
                     else if (error == 0xf6)
@@ -594,7 +595,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
                 !double.IsFinite(received) || !int.TryParse(parts[2], out var value)) continue;
             if (Now > received + TimeSpan.FromDays(30).TotalSeconds) { File.Delete(path); continue; }
             var size = new FileInfo(path).Length;
-            if (size <= LxMessage.Overhead + LxStamper.StampSize || size > _options.SyncLimit || _entries.Count >= 65_536)
+            if (size <= LxMessage.Overhead + LxStamper.StampSize || size > SyncLimit || _entries.Count >= 65_536)
                 throw new InvalidDataException("Invalid or oversized propagation store entry.");
             var stamped = File.ReadAllBytes(path);
             var id = Identity.FullHash(stamped.AsSpan(0, stamped.Length - LxStamper.StampSize));

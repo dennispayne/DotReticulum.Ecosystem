@@ -10,12 +10,13 @@ public class LxmPropagationTests
         try
         {
             await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = path });
-            var node = pair.Server.EnablePropagationNode(new LxmPropagationOptions { Name = "Path-only PN", AutoPeer = false });
+            var node = pair.Server.EnablePropagationNode(new LxmPropagationOptions { Name = "Path-only PN", AutoPeer = false, SyncLimit = 1000 });
             Assert.False(pair.ClientRouter.HasPath(node.DestinationHash));
             await pair.ClientRouter.RequestPathAsync(node.DestinationHash);
             await pair.WaitAsync(() => LxmfPropagationAnnounce.TryParse(pair.ClientRouter.Engine.Known.RecallAppData(node.DestinationHash), out _));
             Assert.True(LxmfPropagationAnnounce.TryParse(pair.ClientRouter.Engine.Known.RecallAppData(node.DestinationHash), out var announce));
             Assert.Equal(16, announce!.StampCost);
+            Assert.Equal(256, announce.SyncLimitKilobytes);
         }
         finally { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); }
     }

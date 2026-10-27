@@ -1,29 +1,43 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-Creates the annotated release tag telemetry-v<version> for the current commit without pushing it.
+Creates an annotated executable release tag for the current commit without pushing it.
 
 .DESCRIPTION
-The version comes from Nerdbank.GitVersioning for DotTelemetry, so the tag matches the version
+The version comes from Nerdbank.GitVersioning for the selected project, so the tag matches the version
 embedded in the binary. Pushing the tag starts the Release workflow; this script never pushes
 unless -Push is given.
 #>
 [CmdletBinding()]
 param(
-    [string] $Project = 'src/DotTelemetry/DotTelemetry.csproj',
+    [ValidateSet('telemetry', 'lxmd', 'rnphone')]
+    [string] $Application = 'telemetry',
+    [string] $Project,
     [switch] $Push
 )
 
 $ErrorActionPreference = 'Stop'
 
+if (!$Project) {
+    $Project = if ($Application -eq 'telemetry') {
+        'src/DotTelemetry/DotTelemetry.csproj'
+    } elseif ($Application -eq 'lxmd') {
+        'src/lxmd/lxmd.csproj'
+    } else {
+        'src/rnphone/rnphone.csproj'
+    }
+}
+
 if (git status --porcelain) { throw 'The working tree has uncommitted changes.' }
 $branch = git rev-parse --abbrev-ref HEAD
 if ($branch -ne 'main') { throw "Releases are tagged from main, not '$branch'." }
 
-$version = (dotnet msbuild $Project -getProperty:NuGetPackageVersion -p:Configuration=Release -t:GetBuildVersion | Select-Object -Last 1).Trim()
-if ($LASTEXITCODE -ne 0 -or $version -notmatch '^\d+\.\d+\.\d+$') { throw "Unexpected version '$version'." }
+$property = if ($Application -eq 'telemetry') { 'NuGetPackageVersion' } else { 'AssemblyFileVersion' }
+$version = (dotnet msbuild $Project "-getProperty:$property" -p:Configuration=Release -t:GetBuildVersion | Select-Object -Last 1).Trim()
+$pattern = if ($Application -eq 'telemetry') { '^\d+\.\d+\.\d+$' } else { '^\d+\.\d+\.\d+\.\d+$' }
+if ($LASTEXITCODE -ne 0 -or $version -notmatch $pattern) { throw "Unexpected version '$version'." }
 
-$tag = "telemetry-v$version"
+$tag = "$Application-v$version"
 if (git tag --list $tag) { throw "Tag $tag already exists." }
 git tag -a $tag -m "Release $tag"
 if ($LASTEXITCODE -ne 0) { throw "Could not create $tag." }

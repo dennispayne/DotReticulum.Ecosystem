@@ -58,10 +58,10 @@ Live interoperability tests are opt-in and need the pinned Python reference: set
 | Tickets and delivery ratchets | Live reply-ticket exchange, signed ratchet-file handoffs and old-key delivery after restart; exact boundaries in [docs/lxmf.md](docs/lxmf.md) |
 | Propagation client and peers | Live bidirectional retrieval and 2.2 MB explicit peer synchronization with Python; full peer-policy compatibility remains incomplete |
 | Native `lxmd` | Windows/Linux NativeAOT delivery, control, persistence and autonomous mixed-node propagation/restart acceptance; not full daemon compatibility |
-| LXST framing and codecs | Executed upstream vectors; native Opus/Codec2 bitstream cases verified in WSL |
+| LXST framing and codecs | Executed upstream vectors, arbitrary signal maps and rate conversion; native Opus/Codec2 bitstreams verified in WSL. Extended raw precision is host-format-specific |
 | LXST stream sessions and telephone calls | Live Python in both call directions, direct and through Python/.NET transport hops; all eight initial telephone profiles, policy rejection and timeout/recovery cases use virtual audio. Remaining gaps are in [docs/lxst.md](docs/lxst.md) |
-| LXST headless audio processing | Reference-executed resampling, filters/AGC, tone, bounded mixing and pipeline cases; no physical audio-quality claim |
-| `rnphone` | Partial; native utility coverage is not full upstream API/platform parity |
+| LXST headless audio processing | Reference-executed resampling, filters/AGC, mutable tones, bounded mixing/playback, encoded pipelines and file controls; no physical audio-quality claim |
+| `rnphone` | Linux NativeAOT calls with Python and another native process, virtual audio, configuration reload, persisted identity and service shutdown; hardware integration and other-platform backends remain incomplete |
 | Telemetry (`telemetry`) | .NET-only: nodes publish and view reports through direct links and a .NET `rnsd` hop; no upstream counterpart |
 
 The Reticulum stack's own compatibility status and platform support are documented in the [DotReticulum README](https://github.com/dennispayne/DotReticulum#compatibility). Ecosystem managed and native checks have run on Windows and WSL/Linux; these do not establish macOS, physical-audio or RF compatibility. COM8 RAK4631/RNode identification was read-only; one radio does not establish an RF topology.

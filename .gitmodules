@@ -1,0 +1,3 @@
+[submodule "external/DotReticulum"]
+	path = external/DotReticulum
+	url = https://github.com/dennispayne/DotReticulum

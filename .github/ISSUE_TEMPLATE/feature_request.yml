@@ -1,0 +1,16 @@
+name: Feature request
+description: Propose a capability or protocol feature
+labels: [enhancement]
+body:
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should be added? Link the upstream Reticulum behavior or source where applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: How would it be verified?
+      description: Reference vectors, live-node interop, or platform evidence.

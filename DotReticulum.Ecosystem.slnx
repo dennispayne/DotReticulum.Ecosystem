@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DotLXMF/DotLXMF.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DotLXMF.Tests/DotLXMF.Tests.csproj" />
+  </Folder>
+</Solution>

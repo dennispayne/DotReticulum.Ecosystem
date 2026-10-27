@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>13.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <Deterministic>true</Deterministic>
+    <IsAotCompatible Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">true</IsAotCompatible>
+    <IsTrimmable Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">true</IsTrimmable>
+  </PropertyGroup>
+  <!-- Version = pinned upstream RNS release (version.json) + git height as the final component. -->
+  <ItemGroup>
+    <PackageReference Include="Nerdbank.GitVersioning" Version="3.10.94" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

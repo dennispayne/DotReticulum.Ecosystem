@@ -1,0 +1,13 @@
+bin/
+obj/
+artifacts/
+TestResults/
+*.user
+.vs/
+.idea/
+*.trx
+coverage*.xml
+__pycache__/
+*.pyc
+identity
+*.identity

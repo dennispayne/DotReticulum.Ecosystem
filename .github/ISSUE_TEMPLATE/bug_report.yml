@@ -1,0 +1,27 @@
+name: Bug report
+description: Report incorrect behavior or an interoperability failure
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include expected vs. actual behavior. Never paste private keys or captured private traffic.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: upstream
+    attributes:
+      label: Peer implementation and version (if interoperability related)
+      placeholder: Python RNS 1.5.x
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: OS, architecture, .NET SDK version

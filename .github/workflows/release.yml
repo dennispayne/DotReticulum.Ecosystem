@@ -125,7 +125,7 @@ jobs:
       - name: Install Linux phone runtime dependencies
         if: needs.select.outputs.application == 'rnphone'
         run: |
-          sudo apt-get install -y libopus0 libcodec2-1.2 pulseaudio pulseaudio-utils
+          sudo apt-get install -y libopus0 libcodec2-1.2 libopusfile0 libopusenc0 pulseaudio pulseaudio-utils
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run tests

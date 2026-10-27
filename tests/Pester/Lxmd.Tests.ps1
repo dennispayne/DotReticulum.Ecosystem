@@ -573,6 +573,9 @@ loglevel = 6
                 Start-Sleep -Milliseconds 50
             }
             Test-Path -LiteralPath $inbox | Should -BeTrue
+            $persisted = Invoke-AdapterCommand $python ("verify-unstamped-container " + $inbox) 'extended-fields-persisted' 20 -Other @($daemon)
+            $persisted.hash | Should -Be $unstamped.hash
+            $persisted.fields | Should -Be 4
             $python.Process.StandardInput.WriteLine("status $nativeDestination")
             $python.Process.StandardInput.Flush()
             $status = Wait-Event $python 'status' 30 -Other @($daemon)

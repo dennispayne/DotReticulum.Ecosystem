@@ -101,7 +101,9 @@ def main():
             link, remote = connect(target, aspect="delivery")
             try:
                 destination = RNS.Destination(remote, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")
-                message = LXMF.LXMessage(destination, local, b"unstamped delivery", "unstamped", desired_method=LXMF.LXMessage.DIRECT)
+                message = LXMF.LXMessage(destination, local, b"unstamped delivery", "unstamped",
+                                         fields={None: "nil", (1, b"two"): "tuple", float("inf"): "inf", float("nan"): "nan"},
+                                         desired_method=LXMF.LXMessage.DIRECT)
                 message.pack()
                 if message.stamp is not None:
                     raise AssertionError("Reference unexpectedly stamped the raw direct message")
@@ -114,6 +116,18 @@ def main():
                 emit({"event": "unstamped-delivered", "hash": message.hash.hex()})
             finally:
                 link.teardown()
+        elif command[0] == "verify-unstamped-container":
+            import math
+            import RNS.vendor.umsgpack as msgpack
+            with open(" ".join(command[1:]), "rb") as stored:
+                container = msgpack.unpackb(stored.read())
+            message = LXMF.LXMessage.unpack_from_bytes(container["lxmf_bytes"])
+            fields = message.fields
+            if fields.get(None) != "nil" or fields.get((1, b"two")) != "tuple" or fields.get(float("inf")) != "inf":
+                raise AssertionError("Native container did not preserve reference extended field keys")
+            if not any(isinstance(key, float) and math.isnan(key) and value == "nan" for key, value in fields.items()):
+                raise AssertionError("Native container did not preserve reference NaN field key")
+            emit({"event": "extended-fields-persisted", "hash": message.hash.hex(), "fields": len(fields)})
         elif command[0] == "effective-limits":
             from LXMF.Utilities import lxmd
             from RNS.vendor.configobj import ConfigObj

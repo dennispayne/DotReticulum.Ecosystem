@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>lxmd</AssemblyName>
+    <RootNamespace>Lxmd</RootNamespace>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DotLXMF\DotLXMF.csproj" />
+    <ProjectReference Include="..\..\external\DotReticulum\src\DotReticulum.Applications\DotReticulum.Applications.csproj" />
+  </ItemGroup>
+
+</Project>

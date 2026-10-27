@@ -11,6 +11,7 @@ from LXST.Codecs.Codec import Null
 from LXST import Filters
 from LXST.Filters import AGC, BandPass, HighPass, LowPass
 from LXST.Generators import ToneSource
+from LXST.Sources import Loopback
 
 
 ROOT = Path(os.environ["DOTRETICULUM_LXST_UPSTREAM"]).resolve(strict=True)
@@ -36,6 +37,18 @@ def filter_vector(filter_type, values, rate):
     processor = filter_type
     result = processor.handle_frame(samples(values), rate)
     return np.asarray(result, dtype=np.float32).reshape(-1).tolist()
+
+
+class RecordingSink:
+    def __init__(self):
+        self.accepting = True
+        self.frames = []
+
+    def can_receive(self, from_source=None):
+        return self.accepting
+
+    def handle_frame(self, frame, source):
+        self.frames.append((frame, source))
 
 
 def main():
@@ -81,11 +94,27 @@ def main():
     tone.ease_gain = 1.0
     tone_output = tone._ToneSource__generate().reshape(-1).tolist()
 
+    null = Null()
+    null_input = object()
+    null_encoded = null.encode(null_input)
+    null_decoded = null.decode(null_encoded)
+    recording_sink = RecordingSink()
+    loopback = Loopback(codec=null, sink=recording_sink)
+    loopback.sink = recording_sink
+    assigned_source = object()
+    loopback.source = assigned_source
+    loopback.start()
+    forwarded_frame = object()
+    loopback.handle_frame(forwarded_frame, object())
+    accepting = loopback.can_receive()
+    recording_sink.accepting = False
+    rejecting = loopback.can_receive()
+
     output = {
         "reference": {
             "revision": revision,
             "version": "0.4.5",
-            "method": "Executed pinned LXST APIs in the isolated reference venv; filters use the loaded upstream filter backend.",
+            "method": "Executed pinned LXST APIs in the isolated reference venv, including Null identity and Loopback sink observations; filters use the loaded upstream filter backend.",
             "filterBackend": "native" if Filters.USE_NATIVE_FILTERS else "python",
             "sourceSha256": hashes,
         },
@@ -117,7 +146,27 @@ def main():
             "channels": 1,
             "samples": tone_output,
         },
+        "nullCodec": {
+            "encodeReturnsSameObject": null_encoded is null_input,
+            "decodeReturnsSameObject": null_decoded is null_input,
+        },
+        "loopback": {
+            "maximumFrameBuffer": Loopback.MAX_FRAMES,
+            "initialQueuedFrames": len(loopback.frame_deque),
+            "startSetsRunning": loopback.should_run,
+            "sourceSetterPreservesReference": loopback.source is assigned_source,
+            "canReceiveWhenDownstreamAccepts": accepting,
+            "canReceiveWhenDownstreamRejects": rejecting,
+            "forwardsSameFrame": len(recording_sink.frames) == 1 and recording_sink.frames[0][0] is forwarded_frame,
+            "forwardsLoopbackAsSource": len(recording_sink.frames) == 1 and recording_sink.frames[0][1] is loopback,
+            "stopClearsRunning": None,
+            "constructorTargetFrameMs": Loopback.__init__.__defaults__[0],
+            "targetFrameMsUsedByLoopback": False,
+            "upstreamClockedOutput": False,
+        },
     }
+    loopback.stop()
+    output["loopback"]["stopClearsRunning"] = not loopback.should_run
     fixture = Path(__file__).parent / "Fixtures" / "lxst-audio-processing.json"
     fixture.write_text(json.dumps(output, separators=(",", ":")) + "\n")
     print(f"Wrote {fixture} from LXST {revision}")

@@ -548,10 +548,24 @@ loglevel = 6
             $status = Wait-Event $python 'status' 30 -Other @($daemon)
             $status.dest | Should -Be $nativeDestination
             $status.messages | Should -Be 0
+            $admission = Invoke-AdapterCommand $python "admission $nativeDestination" 'admission-recovered' 120 -Other @($daemon)
+            $admission.saturated | Should -Be 246
+            $admission.recovered | Should -BeTrue
+            $admission.held_resources | Should -Be 3
             $rejected = Invoke-AdapterCommand $python "bad-stamp $nativeDestination" 'bad-stamp-rejected' 90 -Other @($daemon)
             $rejected.response | Should -Be $rejected.expected
+            $elapsed = [Diagnostics.Stopwatch]::StartNew()
+            do {
+                $healthy = Invoke-AdapterCommand $python "status $nativeDestination" 'status' 30 -Other @($daemon)
+                $healthy.messages | Should -Be 1
+                Start-Sleep -Seconds 2
+            } while ($elapsed.Elapsed.TotalSeconds -lt 181)
+            $expired = Invoke-AdapterCommand $python 'retry-expired' 'throttle-expired' 90 -Other @($daemon)
+            $expired.response | Should -BeTrue
+            $elapsed.Elapsed.TotalSeconds | Should -BeGreaterOrEqual 180
+            $null = Wait-NodeCount $python $nativeDestination 2 @($daemon)
             $healthy = Invoke-AdapterCommand $python "status $nativeDestination" 'status' 30 -Other @($daemon)
-            $healthy.messages | Should -Be 0
+            $healthy.messages | Should -Be 2
 
             $nativeStatus = Invoke-Lxmd @('--status', '--peers', '--identity', $identity,
                 "--remote=$($ready.dest)", '--rnsconfig', $clientConfig, '--timeout', '10')

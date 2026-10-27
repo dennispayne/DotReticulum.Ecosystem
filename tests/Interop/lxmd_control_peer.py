@@ -39,7 +39,7 @@ def main():
     emit({"event": "ready", "dest": router.propagation_destination.hash.hex(), "identity_hash": identity.hash.hex(),
           "delivery": local.hash.hex()})
 
-    def connect(target):
+    def connect(target, sender=None):
         deadline = time.time() + 20
         if not RNS.Transport.has_path(target):
             RNS.Transport.request_path(target)
@@ -55,11 +55,12 @@ def main():
         if link.status != RNS.Link.ACTIVE:
             link.teardown()
             raise TimeoutError("Propagation link was not established")
-        link.identify(identity)
+        link.identify(sender or identity)
         return link, remote
 
     def request_offer(link, key, transient):
-        request = link.request("/offer", data=[key, [transient]], timeout=15)
+        ids = transient if isinstance(transient, list) else [transient]
+        request = link.request("/offer", data=[key, ids], timeout=15)
         deadline = time.time() + 20
         while request.get_status() != RNS.RequestReceipt.READY and time.time() < deadline:
             time.sleep(0.05)
@@ -67,6 +68,7 @@ def main():
             raise TimeoutError("Propagation offer was not answered")
         return request.get_response()
 
+    throttled = None
     while True:
         line = sys.stdin.buffer.raw.readline(65_537)
         if not line:
@@ -135,10 +137,109 @@ def main():
                 response = request_offer(retry, key, message.transient_id)
                 emit({"event": "bad-stamp-rejected", "response": response,
                       "expected": LXMPeer.ERROR_THROTTLED, "resource_status": resource.status})
+                throttled = (target, key, message)
             finally:
                 link.teardown()
                 if retry is not None:
                     retry.teardown()
+        elif command[0] == "retry-expired":
+            import RNS.vendor.umsgpack as msgpack
+            if throttled is None:
+                raise AssertionError("No previous rejected stamp transfer")
+            target, key, message = throttled
+            link, _ = connect(target)
+            try:
+                offered = request_offer(link, key, message.transient_id)
+                if offered is not True:
+                    raise AssertionError(f"Expired throttle still rejected valid peer: {offered}")
+                encrypted = msgpack.unpackb(message.propagation_packed)[1][0]
+                stamp = message.get_propagation_stamp(13)
+                resource = RNS.Resource(msgpack.packb([time.time(), [encrypted + stamp]]), link)
+                deadline = time.monotonic() + 30
+                while resource.status not in (RNS.Resource.COMPLETE, RNS.Resource.FAILED) and time.monotonic() < deadline:
+                    time.sleep(0.05)
+                if resource.status != RNS.Resource.COMPLETE:
+                    raise AssertionError(f"Valid post-expiry Resource failed: {resource.status}")
+                emit({"event": "throttle-expired", "response": offered, "transient": message.transient_id.hex()})
+            finally:
+                link.teardown()
+        elif command[0] == "admission":
+            import LXMF.LXStamper as stamper
+            import RNS.vendor.umsgpack as msgpack
+            from RNS.Resource import ResourceAdvertisement
+            from LXMF.LXMPeer import LXMPeer
+            target = bytes.fromhex(command[1])
+            links = []
+            probe = None
+            try:
+                first, remote = connect(target)
+                links.append(first)
+                config = msgpack.unpackb(RNS.Identity.recall_app_data(target))
+                key, _ = stamper.generate_stamp(remote.hash + identity.hash, config[5][2],
+                                                expand_rounds=stamper.WORKBLOCK_EXPAND_ROUNDS_PEERING)
+                message = LXMF.LXMessage(local, local, b"admission known message", "admission", desired_method=LXMF.LXMessage.PROPAGATED)
+                message.pack()
+                encrypted = msgpack.unpackb(message.propagation_packed)[1][0]
+                stamp = message.get_propagation_stamp(13)
+                if request_offer(first, key, message.transient_id) is not True:
+                    raise AssertionError("Initial admission offer rejected")
+                resource = RNS.Resource(msgpack.packb([time.time(), [encrypted + stamp]]), first)
+                deadline = time.monotonic() + 30
+                while resource.status != RNS.Resource.COMPLETE and time.monotonic() < deadline:
+                    time.sleep(0.05)
+                if resource.status != RNS.Resource.COMPLETE:
+                    raise AssertionError("Initial admission Resource failed")
+                # Resource proof can precede application stamp validation.
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    if request_offer(first, key, message.transient_id) is False:
+                        break
+                    time.sleep(0.05)
+                else:
+                    raise AssertionError("Known message did not enter native store")
+                first.teardown()
+                links.clear()
+                fresh = os.urandom(32)
+                sender = RNS.Identity()
+                probe, _ = connect(target, sender)
+                probe_key, _ = stamper.generate_stamp(remote.hash + sender.hash, config[5][2],
+                                                      expand_rounds=stamper.WORKBLOCK_EXPAND_ROUNDS_PEERING)
+                for _ in range(3):
+                    link, _ = connect(target)
+                    links.append(link)
+                    offered = request_offer(link, key, [message.transient_id, fresh])
+                    if offered != [fresh]:
+                        raise AssertionError(f"Subset admission offer rejected: {offered}")
+                    incomplete = RNS.Resource(os.urandom(8192), link, advertise=False, auto_compress=False)
+                    # Send the real reference advertisement, deliberately omit its data parts.
+                    # No Resource sender is registered, so it cannot answer part requests.
+                    RNS.Packet(link, ResourceAdvertisement(incomplete).pack(), context=RNS.Packet.RESOURCE_ADV).send()
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    response = request_offer(probe, probe_key, fresh)
+                    if response == LXMPeer.ERROR_THROTTLED:
+                        break
+                    time.sleep(0.05)
+                else:
+                    raise AssertionError(f"Three incomplete Resources did not saturate admission: {response}")
+                for link in links:
+                    link.teardown()
+                links.clear()
+                deadline = time.monotonic() + 15
+                while time.monotonic() < deadline:
+                    response = request_offer(probe, probe_key, fresh)
+                    if response is True:
+                        break
+                    time.sleep(0.05)
+                else:
+                    raise AssertionError(f"Admission did not recover after failed senders: {response}")
+                emit({"event": "admission-recovered", "saturated": LXMPeer.ERROR_THROTTLED,
+                      "recovered": response, "held_resources": 3})
+            finally:
+                for link in links:
+                    link.teardown()
+                if probe is not None:
+                    probe.teardown()
         elif command[0] in ("seed", "send"):
             offline = RNS.Identity()
             destination = RNS.Destination(offline, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")

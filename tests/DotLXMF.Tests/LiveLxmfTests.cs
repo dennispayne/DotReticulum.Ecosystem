@@ -154,6 +154,7 @@ public class LiveLxmfTests
             Assert.Equal(pythonPacket.GetProperty("hash").GetString(), Convert.ToHexStringLower(recovered.Message.Hash!));
             Assert.Equal(pythonPacket.GetProperty("sha256").GetString(), Sha(recovered.Message.ContentBytes));
             Assert.True(recovered.Message.SignatureValidated);
+            Assert.Equal(pythonPacket.GetProperty("ratchet_id").GetString(), Convert.ToHexStringLower(recovered.Message.RatchetId!));
             await rig.Py.NextAsync("prepared-delivered", 1, TimeSpan.FromSeconds(10));
         }
         finally { if (Directory.Exists(storage)) Directory.Delete(storage, true); }
@@ -173,6 +174,8 @@ public class LiveLxmfTests
         Assert.Equal(Convert.ToHexStringLower(message.Hash!), received.GetProperty("hash").GetString());
         Assert.Equal(LxmState.Delivered, await message.Completion.WaitAsync(TimeSpan.FromSeconds(60)));
         Assert.Equal(method == LxmMethod.Opportunistic ? LxmMethod.Opportunistic : LxmMethod.Direct, message.Method);
+        Assert.Equal(received.GetProperty("ratchet_id").GetString(),
+            message.RatchetId is null ? null : Convert.ToHexStringLower(message.RatchetId));
     }
 
     private static async Task PythonToDotNet(string method, int size)
@@ -262,6 +265,7 @@ public class LiveLxmfTests
                 await WaitFor(() => rig.Inbox.Count == index + 1, 20);
                 Assert.Equal(queued.GetProperty("sha256").GetString(),
                     Convert.ToHexStringLower(SHA256.HashData(rig.Inbox[index].Message.ContentBytes)));
+                Assert.Equal(link.LinkId, rig.Inbox[index].Message.RatchetId);
             }
             else
             {
@@ -272,6 +276,8 @@ public class LiveLxmfTests
                 var received = await rig.Py.NextAsync("received", index, TimeSpan.FromSeconds(30));
                 Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(bytes)), received.GetProperty("sha256").GetString());
                 Assert.Equal(LxmState.Delivered, await reply.Completion.WaitAsync(TimeSpan.FromSeconds(30)));
+                Assert.Equal(link.LinkId, reply.RatchetId);
+                Assert.Equal(Convert.ToHexStringLower(link.LinkId), received.GetProperty("ratchet_id").GetString());
             }
         }
         Assert.Equal(link.LinkId, Assert.Single(rig.Router.Links.Links, value => value.Status == LinkStatus.Active).LinkId);

@@ -1,0 +1,105 @@
+{
+  "lxmf_sha": "e8ba02483217af43be284a72f1c059c730b7d047",
+  "rns_sha": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "router_source_sha256": "56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9",
+  "message_source_sha256": "2fe8a1cb610e70f3d1c0b4f5086f660a45607484ce8dd53bd925943e95398aea",
+  "packed": "15d85003e9228eb136460fea1d6d71ee8202d9446618dd077ad595f50c6eebccfbd3ca1efafd9a04109bf0f36daa721b831ed711feb1242df1a8ff0a6d585ec7210e9da34b4dbafbd4c33ad00521779ceaf52400af557dc5b31034818410800e94cb41d954fc5b400000c4084d65746164617461c4084f6273657276656480",
+  "cases": [
+    {
+      "destination_type": 0,
+      "method": 1,
+      "blocked": false,
+      "accepted": true,
+      "ratchet_id": "72727272727272727272",
+      "encrypted": true,
+      "encryption": "Curve25519",
+      "rssi": -91.5,
+      "snr": 7.25,
+      "quality": 86
+    },
+    {
+      "destination_type": 0,
+      "method": 1,
+      "blocked": true,
+      "accepted": false,
+      "ratchet_id": null,
+      "encrypted": null,
+      "encryption": null,
+      "rssi": null,
+      "snr": null,
+      "quality": null
+    },
+    {
+      "destination_type": 3,
+      "method": 2,
+      "blocked": false,
+      "accepted": true,
+      "ratchet_id": "6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c",
+      "encrypted": true,
+      "encryption": "Curve25519",
+      "rssi": -91.5,
+      "snr": 7.25,
+      "quality": 86
+    },
+    {
+      "destination_type": 3,
+      "method": 2,
+      "blocked": true,
+      "accepted": false,
+      "ratchet_id": null,
+      "encrypted": null,
+      "encryption": null,
+      "rssi": null,
+      "snr": null,
+      "quality": null
+    },
+    {
+      "destination_type": 1,
+      "method": 5,
+      "blocked": false,
+      "accepted": true,
+      "ratchet_id": null,
+      "encrypted": true,
+      "encryption": "AES-256",
+      "rssi": -91.5,
+      "snr": 7.25,
+      "quality": 86
+    },
+    {
+      "destination_type": 1,
+      "method": 5,
+      "blocked": true,
+      "accepted": false,
+      "ratchet_id": null,
+      "encrypted": null,
+      "encryption": null,
+      "rssi": null,
+      "snr": null,
+      "quality": null
+    },
+    {
+      "destination_type": 2,
+      "method": 1,
+      "blocked": false,
+      "accepted": true,
+      "ratchet_id": null,
+      "encrypted": false,
+      "encryption": null,
+      "rssi": -91.5,
+      "snr": 7.25,
+      "quality": 86
+    },
+    {
+      "destination_type": 2,
+      "method": 1,
+      "blocked": true,
+      "accepted": false,
+      "ratchet_id": null,
+      "encrypted": null,
+      "encryption": null,
+      "rssi": null,
+      "snr": null,
+      "quality": null
+    }
+  ]
+}

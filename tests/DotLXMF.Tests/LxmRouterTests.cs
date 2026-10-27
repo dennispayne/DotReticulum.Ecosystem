@@ -136,6 +136,34 @@ public class LxmRouterTests
             link => link.Status == LinkStatus.Active).LinkId),
             $"Original {incoming.Status}/{incoming.TeardownReason}, RTT {incoming.Rtt}, attempts {reply.DeliveryAttempts}: {string.Join("\n", logs)}");
         Assert.Equal(incoming.LinkId, Assert.Single(pair.ClientRouter.Links.Links, link => link.Status == LinkStatus.Active).LinkId);
+        Assert.Equal(incoming.LinkId, reply.RatchetId);
+        Assert.Equal(incoming.LinkId, pair.ClientInbox[0].Message.RatchetId);
+    }
+
+    [Fact]
+    public async Task BlackholedMessageSource_IsRejectedBeforeHistoryAndObserverDelivery()
+    {
+        using var source = Identity.Generate();
+        using var destination = Identity.Generate();
+        var blocked = true;
+        await using var interfaces = new PacketInterfaceManager([]);
+        var transport = new TransportRouter(interfaces, new TransportRouterOptions
+        {
+            IsIdentityBlocked = hash => blocked && hash.AsSpan().SequenceEqual(source.Hash),
+        });
+        transport.Engine.Known.Remember(LxMessage.DeliveryDestinationHash(source), new byte[32], source.ExportPublicKey(), null);
+        await using var router = new LxmRouter(transport, destination);
+        var deliveries = 0;
+        router.MessageReceived = _ => deliveries++;
+        var message = LxMessage.Create(router.DeliveryHash, source, "block actual message source", method: LxmMethod.Paper);
+        message.Pack(destinationIdentity: destination);
+        Assert.Equal(LxmPaperIngestResult.Rejected, await router.IngestPaperUriAsync(message.AsUri()));
+        Assert.False(router.HasMessage(message.Hash!));
+        Assert.Equal(0, deliveries);
+        blocked = false;
+        Assert.Equal(LxmPaperIngestResult.LocalDelivery, await router.IngestPaperUriAsync(message.AsUri(), allowDuplicate: true));
+        Assert.True(router.HasMessage(message.Hash!));
+        Assert.Equal(1, deliveries);
     }
 
     [Fact]

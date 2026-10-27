@@ -245,6 +245,28 @@ public sealed class LxMessage
     public bool? TransportEncrypted { get; internal set; }
 
     public string? TransportEncryption { get; internal set; }
+    public bool SourceBlackholed { get; private set; }
+    private byte[]? _ratchetId;
+    public byte[]? RatchetId { get => _ratchetId?.ToArray(); internal set => _ratchetId = value?.ToArray(); }
+    public double? Rssi { get; internal set; }
+    public double? Snr { get; internal set; }
+    public double? Quality { get; internal set; }
+
+    internal void ApplyTransportMetadata(DestinationType type, PacketPhysicalLayer physicalLayer = default,
+        byte[]? ratchetId = null)
+    {
+        TransportEncrypted = type is DestinationType.Single or DestinationType.Group or DestinationType.Link;
+        TransportEncryption = type switch
+        {
+            DestinationType.Single or DestinationType.Link => "Curve25519",
+            DestinationType.Group => "AES-256",
+            _ => null,
+        };
+        Rssi = physicalLayer.Rssi;
+        Snr = physicalLayer.Snr;
+        Quality = physicalLayer.Quality;
+        if (_ratchetId is null && ratchetId is not null) RatchetId = ratchetId;
+    }
 
     public bool Incoming { get; private init; }
 
@@ -463,6 +485,8 @@ public sealed class LxMessage
             PropagationPacked = MsgPack.Pack(new object?[] { DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0, new object?[] { PropagationData } });
             IsResource = PropagationPacked.Length > LinkPacketMaxContent;
         }
+        if (Method is LxmMethod.Paper or LxmMethod.Propagated && ratchet is { Length: > 0 })
+            RatchetId = DestinationRatchets.GetRatchetId(ratchet);
         DetermineTransportEncryption();
         return Packed;
     }
@@ -628,7 +652,8 @@ public sealed class LxMessage
     }
 
     /// <summary>Parses <paramref name="lxmfBytes"/> (upstream <c>unpack_from_bytes</c>). <paramref name="recallSource"/> maps a source destination hash to its announced identity.</summary>
-    public static LxMessage Unpack(ReadOnlySpan<byte> lxmfBytes, Func<byte[], Identity?> recallSource, LxmMethod method = LxmMethod.Unknown)
+    public static LxMessage Unpack(ReadOnlySpan<byte> lxmfBytes, Func<byte[], Identity?> recallSource, LxmMethod method = LxmMethod.Unknown,
+        Func<Identity, bool>? sourceIsBlackholed = null)
     {
         ArgumentNullException.ThrowIfNull(recallSource);
         if (lxmfBytes.Length < Overhead - TimestampSize - StructOverhead) throw new FormatException("LXMF data is too short.");
@@ -668,6 +693,11 @@ public sealed class LxMessage
         };
 
         var sourceIdentity = recallSource(sourceHash);
+        if (sourceIdentity is not null && sourceIsBlackholed is not null)
+        {
+            try { message.SourceBlackholed = sourceIsBlackholed(sourceIdentity); }
+            catch (Exception ex) { System.Diagnostics.Trace.TraceError("Could not determine LXMF source blackhole status: {0}", ex.Message); }
+        }
         if (sourceIdentity is null)
         {
             message.UnverifiedReason = LxmUnverifiedReason.SourceUnknown;

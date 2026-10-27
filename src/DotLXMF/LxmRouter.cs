@@ -430,8 +430,9 @@ public sealed partial class LxmRouter : IAsyncDisposable
         }
         if (!await EnsurePathAsync(message, ct, allowPathless: true).ConfigureAwait(false)) return;
         var identity = _router.Engine.Known.Recall(message.DestinationHash)!;
-        var encrypted = _router.Engine.Known.Encrypt(message.DestinationHash, message.Packed.AsSpan(LxMessage.DestinationLength))
-            ?? throw new InvalidOperationException("Destination identity is no longer known.");
+        var ratchet = _router.Engine.Known.GetRatchet(message.DestinationHash);
+        var encrypted = identity.Encrypt(message.Packed.AsSpan(LxMessage.DestinationLength), ratchet);
+        message.RatchetId = ratchet is null ? null : DestinationRatchets.GetRatchetId(ratchet);
         var packet = Packet.Create(PacketType.Data, DestinationType.Single, message.DestinationHash, encrypted);
         message.DeliveryAttempts++;
         message.SentOnPath = _router.HasPath(message.DestinationHash);
@@ -485,6 +486,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         if (link.Status != LinkStatus.Active) return;
         if (!propagated && link.IsInitiator) IdentifyOnce(key, link);
         message.SentOnSlowPath = SlowPath(destination);
+        if (!propagated) message.RatchetId = link.LinkId;
         if (message.IsResource)
         {
             message.State = LxmState.Sending;
@@ -546,9 +548,10 @@ public sealed partial class LxmRouter : IAsyncDisposable
 
     private ValueTask OnOpportunisticPacket(ReceivedPacket received)
     {
-        var plain = _local.Decrypt(received.Packet.Payload.Span);
-        if (plain is null) return ValueTask.CompletedTask;
-        Deliver([.. DeliveryHash, .. plain], LxmMethod.Opportunistic);
+        var decrypted = _local.DecryptWithMetadata(received.Packet.Payload.Span);
+        if (decrypted is null) return ValueTask.CompletedTask;
+        Deliver([.. DeliveryHash, .. decrypted.Plaintext], LxmMethod.Opportunistic,
+            decrypted.RatchetId, received.Packet.PhysicalLayer);
         return ValueTask.CompletedTask;
     }
 
@@ -567,7 +570,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         if (Volatile.Read(ref _disposed) != 0) { link.Teardown(); return; }
         if (link.Status == LinkStatus.Closed) return;
         link.ResourceStrategy = ResourceStrategy.AcceptApp;
-        link.PacketReceived = (data, _) => Deliver(data, LxmMethod.Direct);
+        link.PacketReceived = (data, packet) => Deliver(data, LxmMethod.Direct, link.LinkId, packet.PhysicalLayer);
         link.ResourceAdvertised = advertisement => advertisement.DataSize <= _options.DeliveryPerTransferLimit;
         link.ResourceStarted = resource =>
         {
@@ -576,13 +579,15 @@ public sealed partial class LxmRouter : IAsyncDisposable
         link.ResourceReceived = resource =>
         {
             lock (_gate) _incomingResources.Remove(Convert.ToHexStringLower(resource.Hash));
-            if (resource.Status == ResourceStatus.Complete && resource.Data is { } data) Deliver(data, LxmMethod.Direct);
+            if (resource.Status == ResourceStatus.Complete && resource.Data is { } data)
+                Deliver(data, LxmMethod.Direct, link.LinkId, link.PhysicalLayer);
         };
     }
 
-    private bool Deliver(byte[] lxmfData, LxmMethod method)
+    private bool Deliver(byte[] lxmfData, LxmMethod method, byte[]? ratchetId = null, PacketPhysicalLayer physicalLayer = default)
     {
-        var accepted = _inbound.Writer.TryWrite(new InboundWork(lxmfData, method));
+        var accepted = _inbound.Writer.TryWrite(new InboundWork(lxmfData, method,
+            RatchetId: ratchetId, PhysicalLayer: physicalLayer));
         if (!accepted && Volatile.Read(ref _disposed) == 0)
             Report("LXMF inbound queue is full; dropping incoming message.");
         return accepted;
@@ -621,12 +626,13 @@ public sealed partial class LxmRouter : IAsyncDisposable
     {
         try
         {
-            var message = LxMessage.Unpack(work.Data, hash => hash.AsSpan().SequenceEqual(DeliveryHash) ? _identity : _router.Engine.Known.Recall(hash), work.Method);
+            var message = LxMessage.Unpack(work.Data, hash => hash.AsSpan().SequenceEqual(DeliveryHash) ? _identity : _router.Engine.Known.Recall(hash),
+                work.Method, source => _router.IsIdentityBlocked(source.Hash));
+            if (message.SourceBlackholed) return LxmPaperIngestResult.Rejected;
             if (!message.DestinationHash.AsSpan().SequenceEqual(work.ExpectedDestination ?? DeliveryHash)) return LxmPaperIngestResult.Rejected;
             lock (_gate)
                 if (_ignored.Contains(Convert.ToHexStringLower(message.SourceHash))) return LxmPaperIngestResult.Rejected;
-            message.TransportEncrypted = work.DestinationType != DestinationType.Plain;
-            message.TransportEncryption = work.DestinationType == DestinationType.Plain ? null : "Curve25519";
+            message.ApplyTransportMetadata(work.DestinationType, work.PhysicalLayer, work.RatchetId);
             if (message.SignatureValidated && message.TryGetField(LxmField.Ticket, out var value) &&
                 value is object?[] { Length: >= 2 } entry && entry[1] is byte[] { Length: LxMessage.TicketLength } token &&
                 entry[0] is double or float or long or ulong)

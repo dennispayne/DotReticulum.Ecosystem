@@ -18,13 +18,14 @@ public sealed partial class LxmRouter
             _plain = new LocalDestination(_identity, destination)
             {
                 AcceptLinks = false,
-                PacketDecrypted = (plain, _) =>
+                PacketDecrypted = (plain, received) =>
                 {
                     var wire = new byte[destination.Hash.Length + plain.Length];
                     destination.Hash.CopyTo(wire, 0);
                     plain.CopyTo(wire, destination.Hash.Length);
                     if (!_inbound.Writer.TryWrite(new InboundWork(wire, LxmMethod.Opportunistic,
-                        ExpectedDestination: destination.Hash, DestinationType: DestinationType.Plain)))
+                        ExpectedDestination: destination.Hash, DestinationType: DestinationType.Plain,
+                        PhysicalLayer: received.Packet.PhysicalLayer)))
                         Report("LXMF inbound queue is full; dropping plain message.");
                     return ValueTask.CompletedTask;
                 },

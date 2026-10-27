@@ -12,6 +12,41 @@ public class LxmMessageApiTests
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxmf-contract-vectors.json")));
 
     [Fact]
+    public void DeliveryMetadataAndBlackholeStatus_MatchActualReferenceDelivery()
+    {
+        using var vectors = JsonDocument.Parse(File.ReadAllText(Path.Combine(
+            AppContext.BaseDirectory, "Fixtures", "lxmf-metadata-vectors.json")));
+        using var source = Identity.FromPrivateKey(Enumerable.Range(1, 32).Concat(Enumerable.Range(101, 32)).Select(value => (byte)value).ToArray());
+        var wire = Convert.FromHexString(vectors.RootElement.GetProperty("packed").GetString()!);
+        foreach (var row in vectors.RootElement.GetProperty("cases").EnumerateArray())
+        {
+            var message = LxMessage.Unpack(wire, _ => source, (LxmMethod)row.GetProperty("method").GetInt32(),
+                _ => row.GetProperty("blocked").GetBoolean());
+            Assert.True(message.SignatureValidated);
+            Assert.Equal(row.GetProperty("accepted").GetBoolean(), !message.SourceBlackholed);
+            if (message.SourceBlackholed) continue;
+            var ratchet = row.GetProperty("ratchet_id");
+            var id = ratchet.ValueKind == JsonValueKind.Null ? null : Convert.FromHexString(ratchet.GetString()!);
+            message.ApplyTransportMetadata((DestinationType)row.GetProperty("destination_type").GetInt32(),
+                new PacketPhysicalLayer(-91.5, 7.25, 86), id);
+            Assert.Equal(id, message.RatchetId);
+            Assert.Equal(row.GetProperty("encrypted").GetBoolean(), message.TransportEncrypted);
+            Assert.Equal(row.GetProperty("encryption").GetString(), message.TransportEncryption);
+            Assert.Equal(row.GetProperty("rssi").GetDouble(), message.Rssi);
+            Assert.Equal(row.GetProperty("snr").GetDouble(), message.Snr);
+            Assert.Equal(row.GetProperty("quality").GetDouble(), message.Quality);
+            if (id is not null)
+            {
+                var saved = message.RatchetId!;
+                saved[0] ^= 0xff;
+                Assert.Equal(id, message.RatchetId);
+            }
+        }
+        Assert.False(LxMessage.Unpack(wire, _ => null, sourceIsBlackholed: _ => throw new InvalidOperationException()).SourceBlackholed);
+        Assert.False(LxMessage.Unpack(wire, _ => source, sourceIsBlackholed: _ => throw new IOException("observer unavailable")).SourceBlackholed);
+    }
+
+    [Fact]
     public void DeferredAssignment_PacksReferenceBytesAndRejectsReassignment()
     {
         using var vectors = Vectors();

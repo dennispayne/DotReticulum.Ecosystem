@@ -56,14 +56,16 @@ public sealed partial class LxmRouter
     private bool ReceivePropagatedData(byte[] data)
     {
         if (data.Length < LxMessage.DestinationLength || !data.AsSpan(0, LxMessage.DestinationLength).SequenceEqual(DeliveryHash)) return false;
-        var plain = _local.Decrypt(data.AsSpan(LxMessage.DestinationLength));
-        if (plain is null) return false;
+        var decrypted = _local.DecryptWithMetadata(data.AsSpan(LxMessage.DestinationLength));
+        if (decrypted is null) return false;
+        var plain = decrypted.Plaintext;
         var wire = new byte[DeliveryHash.Length + plain.Length];
         DeliveryHash.CopyTo(wire, 0);
         plain.CopyTo(wire, DeliveryHash.Length);
         try { _ = LxMessage.Unpack(wire, hash => _router.Engine.Known.Recall(hash), LxmMethod.Propagated); }
         catch (Exception ex) when (ex is FormatException or ArgumentException or OverflowException) { return false; }
-        var accepted = _inbound.Writer.TryWrite(new InboundWork(wire, LxmMethod.Propagated, TransientId: Identity.FullHash(data)));
+        var accepted = _inbound.Writer.TryWrite(new InboundWork(wire, LxmMethod.Propagated,
+            TransientId: Identity.FullHash(data), RatchetId: decrypted.RatchetId));
         if (!accepted && Volatile.Read(ref _disposed) == 0) Report("LXMF inbound queue is full; dropping propagated message.");
         return accepted;
     }

@@ -106,8 +106,10 @@ public sealed class StreamSession : IAsyncDisposable
                         if (_decoder is null || _decoder.Kind != frame.Codec)
                         {
                             var replacement = _codecs.Create(frame.Codec);
-                            _decoder?.Dispose();
+                            var previous = _decoder;
                             _decoder = replacement;
+                            try { previous?.Dispose(); }
+                            catch (Exception ex) { Report("LXST previous decoder cleanup failed.", ex); }
                         }
                         var decoded = _decoder.Decode(frame.Data.Span);
                         Interlocked.Increment(ref _decodedFrames);
@@ -180,15 +182,18 @@ public sealed class StreamSession : IAsyncDisposable
     }
 }
 
-/// <summary>A bounded, non-owning adapter over a dedicated Reticulum link.</summary>
+/// <summary>A bounded, non-owning adapter over a dedicated Reticulum link with no other core receiver.</summary>
 public sealed class ReticulumStreamTransport : IStreamTransport, IDisposable
 {
+    private static readonly object OwnershipGate = new();
+    private static readonly ConditionalWeakTable<Link, ReticulumStreamTransport> Owners = new();
     private readonly Link _link;
     private readonly Channel<ReadOnlyMemory<byte>> _incoming;
     private readonly Action<byte[], DotReticulum.Core.Packet> _handler;
     private readonly Action<Link> _closedHandler;
     private int _disposed;
     private long _dropped;
+    private long _unreportedDrops;
 
     public ReticulumStreamTransport(Link link, int receiveCapacity = 32)
     {
@@ -204,12 +209,23 @@ public sealed class ReticulumStreamTransport : IStreamTransport, IDisposable
             if (!_incoming.Writer.TryWrite(data.ToArray()))
             {
                 Interlocked.Increment(ref _dropped);
-                Report("LXST receive queue full or closed; packet discarded.");
+                Interlocked.Increment(ref _unreportedDrops);
             }
         };
         _closedHandler = _ => _incoming.Writer.TryComplete();
-        _link.PacketReceived += _handler;
-        _link.Closed += _closedHandler;
+        lock (OwnershipGate)
+        {
+            if (Owners.TryGetValue(_link, out _))
+                throw new InvalidOperationException("The link already has an LXST stream adapter.");
+            Owners.Add(_link, this);
+            try { _link.SetPacketReceiver(_handler); }
+            catch
+            {
+                Owners.Remove(_link);
+                throw;
+            }
+            _link.Closed += _closedHandler;
+        }
     }
 
     public Action<string>? Error { get; set; }
@@ -222,14 +238,28 @@ public sealed class ReticulumStreamTransport : IStreamTransport, IDisposable
         cancellationToken.ThrowIfCancellationRequested();
         if (_link.Status != LinkStatus.Active) throw new IOException("LXST link is not active.");
         if (packet.Length > MaximumPacketSize) throw new ArgumentException("Packet exceeds link MDU.", nameof(packet));
-        _link.Send(packet.Span, createReceipt: false);
+        if (!_link.TrySend(packet.Span))
+        {
+            Report("LXST stack rejected the outbound packet.");
+            throw new IOException("LXST stack rejected the outbound packet.");
+        }
         return ValueTask.CompletedTask;
     }
 
     public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         await foreach (var packet in _incoming.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        {
+            ReportDroppedPackets();
             yield return packet;
+        }
+        ReportDroppedPackets();
+    }
+
+    private void ReportDroppedPackets()
+    {
+        var dropped = Interlocked.Exchange(ref _unreportedDrops, 0);
+        if (dropped != 0) Report($"LXST receive queue full or closed; {dropped} packet(s) discarded.");
     }
 
     private void Report(string message)
@@ -242,8 +272,13 @@ public sealed class ReticulumStreamTransport : IStreamTransport, IDisposable
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _link.PacketReceived -= _handler;
-        _link.Closed -= _closedHandler;
+        lock (OwnershipGate)
+        {
+            _link.SetPacketReceiver(null);
+            _link.Closed -= _closedHandler;
+            Owners.Remove(_link);
+        }
         _incoming.Writer.TryComplete();
+        ReportDroppedPackets();
     }
 }

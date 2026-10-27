@@ -55,7 +55,7 @@ def main():
     parser.add_argument("--telephone", action="store_true")
     parser.add_argument("--transport", action="store_true")
     args = parser.parse_args()
-    verify_reference(require_lxmf=True, require_lxst=True)
+    verify_reference(require_lxst=True)
     path = Path(args.config)
     path.mkdir(parents=True, exist_ok=True)
     (path / "config").write_text(
@@ -153,6 +153,10 @@ def main():
             elif parts[0] == "hangup":
                 phone.hangup()
                 emit("hungup")
+            elif parts[0] == "profile":
+                if len(parts) > 1:
+                    phone.switch_profile(int(parts[1]))
+                emit("profile", value=phone.active_profile)
         except Exception as error:
             emit("error", message=str(error))
     if phone:

@@ -13,9 +13,8 @@ public sealed class LxstLiveFactAttribute : FactAttribute
 {
     public LxstLiveFactAttribute()
     {
-        if (Environment.GetEnvironmentVariable("DOTRETICULUM_LIVE") != "1" ||
-            Environment.GetEnvironmentVariable("DOTLXST_LIVE") != "1")
-            Skip = "Set DOTRETICULUM_LIVE=1 and DOTLXST_LIVE=1 with pinned Python RNS/LXST checkouts and native codecs.";
+        if (Environment.GetEnvironmentVariable("DOTLXST_LIVE") != "1")
+            Skip = "Set DOTLXST_LIVE=1 with pinned Python RNS/LXST checkouts and native codecs.";
     }
 }
 
@@ -23,9 +22,8 @@ public sealed class LxstLiveTheoryAttribute : TheoryAttribute
 {
     public LxstLiveTheoryAttribute()
     {
-        if (Environment.GetEnvironmentVariable("DOTRETICULUM_LIVE") != "1" ||
-            Environment.GetEnvironmentVariable("DOTLXST_LIVE") != "1")
-            Skip = "Set DOTRETICULUM_LIVE=1 and DOTLXST_LIVE=1 with pinned Python RNS/LXST checkouts and native codecs.";
+        if (Environment.GetEnvironmentVariable("DOTLXST_LIVE") != "1")
+            Skip = "Set DOTLXST_LIVE=1 with pinned Python RNS/LXST checkouts and native codecs.";
     }
 }
 

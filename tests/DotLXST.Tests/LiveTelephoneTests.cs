@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Net;
 using DotReticulum.Core;
 using DotReticulum.Interfaces;
 using DotReticulum.Transport;
@@ -9,9 +10,9 @@ public sealed class VirtualAudioTheoryAttribute : TheoryAttribute
 {
     public VirtualAudioTheoryAttribute()
     {
-        if (Environment.GetEnvironmentVariable("DOTRETICULUM_LIVE") != "1" || Environment.GetEnvironmentVariable("DOTLXST_LIVE") != "1" ||
+        if (Environment.GetEnvironmentVariable("DOTLXST_LIVE") != "1" ||
             Environment.GetEnvironmentVariable("DOTLXST_VIRTUAL_AUDIO") != "1" || !OperatingSystem.IsLinux())
-            Skip = "Requires DOTRETICULUM_LIVE=1, DOTLXST_LIVE=1, DOTLXST_VIRTUAL_AUDIO=1 and Linux pulseaudio/pactl/parec; no physical audio is used.";
+            Skip = "Requires DOTLXST_LIVE=1, DOTLXST_VIRTUAL_AUDIO=1 and Linux pulseaudio/pactl/parec; no physical audio is used.";
     }
 }
 
@@ -19,20 +20,32 @@ public sealed class VirtualAudioTheoryAttribute : TheoryAttribute
 public sealed class LiveTelephoneTests
 {
     [VirtualAudioTheory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [InlineData(false, "direct")]
+    [InlineData(true, "direct")]
+    [InlineData(false, "dotnet-hop")]
+    [InlineData(true, "dotnet-hop")]
+    [InlineData(false, "python-hop")]
+    [InlineData(true, "python-hop")]
     [Trait("Category", "Live")]
-    public async Task ActualPythonTelephoneSetsUpBidirectionalOpusAndTearsDown(bool pythonOriginates)
+    public async Task ActualPythonTelephoneSetsUpBidirectionalOpusAndTearsDown(bool pythonOriginates, string topology)
     {
         await using var pulse = await VirtualPulseServer.StartAsync();
         var port = LiveStreamTests.FreePort();
-        await using var python = await LxstPythonNode.StartAsync(port, telephone: true, pulseServer: pulse.Address);
-        await using var manager = new PacketInterfaceManager([new TcpClientPacketInterface("127.0.0.1", port)]);
+        var relayPort = topology == "direct" ? 0 : LiveStreamTests.FreePort();
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        await using var relayManager = topology == "dotnet-hop" ? new PacketInterfaceManager(
+            [new TcpServerPacketInterface(new IPEndPoint(IPAddress.Loopback, relayPort), perClientInterfaces: true)]) : null;
+        await using var relayRouter = relayManager is null ? null : new TransportRouter(relayManager,
+            new TransportRouterOptions { TransportEnabled = true });
+        if (relayManager is not null) await relayManager.StartAsync(stop.Token);
+        var relayDispatch = relayRouter?.RunAsync(stop.Token) ?? Task.CompletedTask;
+        await using var relayPython = topology == "python-hop" ? await LxstPythonNode.StartAsync(relayPort, transport: true) : null;
+        await using var python = await LxstPythonNode.StartAsync(port, telephone: true, pulseServer: pulse.Address, connectPort: relayPort);
+        await using var manager = new PacketInterfaceManager([new TcpClientPacketInterface("127.0.0.1", relayPort == 0 ? port : relayPort)]);
         await using var router = new TransportRouter(manager, new TransportRouterOptions());
         using var identity = Identity.Generate();
         await using var telephone = new TelephoneEndpoint(router, identity,
             new() { AutoAnswerDelay = TimeSpan.FromMilliseconds(300) });
-        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         var errors = new ConcurrentQueue<string>();
         var states = new ConcurrentQueue<CallState>();
         var audio = new ConcurrentQueue<AudioFrame>();
@@ -44,9 +57,11 @@ public sealed class LiveTelephoneTests
         telephone.Start();
         try
         {
+            if (relayPort == 0) await python.CommandAsync("wait-client", "client-ready");
             await python.CommandAsync("announce", "announced");
             await telephone.AnnounceAsync(stop.Token);
             await LiveStreamTests.WaitForAsync(() => router.HasPath(python.Hash));
+            if (relayPort != 0) Assert.True(router.HopsTo(python.Hash) >= 2, "Telephone path bypassed the configured transport.");
             if (pythonOriginates)
                 await python.CommandAsync("call " + Convert.ToHexStringLower(telephone.DestinationHash), "calling");
             else
@@ -73,6 +88,8 @@ public sealed class LiveTelephoneTests
             Assert.True(frequencyEnergy > .00001,
                 $"The virtual output lacked the generated tone (energy {frequencyEnergy}, peak {observed.Max(Math.Abs)}).");
             Assert.Contains(audio, frame => frame.SampleRate == 48000 && frame.Channels == 2);
+            if (relayPort == 0)
+                await VerifyProfileSwitchesAsync(telephone, python, audio, pythonOriginates, stop.Token);
             await python.CommandAsync("hangup", "hungup");
             await LiveStreamTests.WaitForAsync(() => telephone.State == CallState.Available);
             Assert.Empty(errors);
@@ -83,6 +100,46 @@ public sealed class LiveTelephoneTests
             await stop.CancelAsync();
             try { await dispatch; }
             catch (OperationCanceledException) { }
+            try { await relayDispatch; }
+            catch (OperationCanceledException) { }
+        }
+    }
+
+    private static async Task VerifyProfileSwitchesAsync(TelephoneEndpoint telephone, LxstPythonNode python,
+        ConcurrentQueue<AudioFrame> audio, bool pythonOriginates, CancellationToken stop)
+    {
+        foreach (var profile in Enum.GetValues<TelephoneProfile>())
+        {
+            var before = audio.Count;
+            if (pythonOriginates) await python.CommandAsync("profile " + (int)profile, "profile");
+            else await telephone.SwitchProfileAsync(profile, stop);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stop);
+            timeout.CancelAfter(TimeSpan.FromSeconds(10));
+            while (true)
+            {
+                var observed = await python.CommandAsync("profile", "profile");
+                if (observed.GetProperty("value").GetInt32() == (int)profile && telephone.ActiveProfile == profile) break;
+                await Task.Delay(25, timeout.Token);
+            }
+            var (rate, channels, duration) = profile switch
+            {
+                TelephoneProfile.UltraLowBandwidth => (8000, 1, 400),
+                TelephoneProfile.VeryLowBandwidth => (8000, 1, 320),
+                TelephoneProfile.LowBandwidth => (8000, 1, 200),
+                TelephoneProfile.HighQuality => (48000, 1, 60),
+                TelephoneProfile.MaximumQuality => (48000, 2, 60),
+                TelephoneProfile.UltraLowLatency => (24000, 1, 10),
+                TelephoneProfile.LowLatency => (24000, 1, 20),
+                _ => (24000, 1, 60),
+            };
+            for (var i = 0; i < 3; i++)
+            {
+                await telephone.SendAudioAsync(new(new float[rate * channels * duration / 1000], rate, channels), stop);
+                await Task.Delay(duration, stop);
+            }
+            var receivedRate = profile < TelephoneProfile.MediumQuality ? 8000 : 48000;
+            await LiveStreamTests.WaitForAsync(() => audio.Skip(before).Any(frame => frame.SampleRate == receivedRate));
+            Assert.Equal(CallState.Established, telephone.State);
         }
     }
 

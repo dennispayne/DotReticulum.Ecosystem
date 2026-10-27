@@ -40,9 +40,9 @@ internal static class PulseAudio
 
     public static async Task CaptureAsync(TelephoneEndpoint telephone, string? device, CancellationToken stop, Action? firstFrame = null)
     {
-        var reported = false;
         while (!stop.IsCancellationRequested && telephone.State == CallState.Established)
         {
+            var reported = false;
             var profile = telephone.ActiveProfile ?? TelephoneProfile.MediumQuality;
             var (rate, channels, duration) = Format(profile);
             var arguments = new List<string> { "--raw", "--format=float32le", "--rate=" + rate, "--channels=" + channels, "--latency-msec=20" };
@@ -58,7 +58,8 @@ internal static class PulseAudio
                     var samples = new float[bytes.Length / sizeof(float)];
                     for (var i = 0; i < samples.Length; i++)
                         samples[i] = BinaryPrimitives.ReadSingleLittleEndian(bytes.AsSpan(i * sizeof(float), sizeof(float)));
-                    await telephone.SendAudioAsync(new(samples, rate, channels), stop).ConfigureAwait(false);
+                    try { await telephone.SendAudioAsync(new(samples, rate, channels), stop).ConfigureAwait(false); }
+                    catch (ArgumentException) when (telephone.ActiveProfile != profile) { break; }
                     if (!reported) { reported = true; firstFrame?.Invoke(); }
                 }
             }

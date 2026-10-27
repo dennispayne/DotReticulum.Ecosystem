@@ -145,6 +145,7 @@ public static class PhoneApp
                             var profiles = Enum.GetValues<TelephoneProfile>();
                             var current = Array.IndexOf(profiles, telephone.ActiveProfile ?? TelephoneProfile.MediumQuality);
                             await telephone.SwitchProfileAsync(profiles[(current + 1) % profiles.Length], stop);
+                            await output.WriteLineAsync("Profile: " + telephone.ActiveProfile);
                         }
                         else if (telephone.State is CallState.Established or CallState.Calling or CallState.Connecting) telephone.Hangup();
                         else if (line is "identity" or "i") await output.WriteLineAsync($"Identity hash: <{identity.HexHash}>");

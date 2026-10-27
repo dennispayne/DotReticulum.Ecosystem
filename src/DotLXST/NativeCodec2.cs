@@ -23,8 +23,7 @@ public sealed unsafe class NativeCodec2 : IAudioCodec
         var nativeMode = NativeMode(mode);
         Mode = mode;
         _decodeMode = mode;
-        _library = NativeLibrary.Load(libraryPath ?? (OperatingSystem.IsWindows() ? "codec2.dll" :
-            OperatingSystem.IsMacOS() ? "libcodec2.dylib" : "libcodec2.so"));
+        _library = LoadLibrary(libraryPath);
         try
         {
             _create = (delegate* unmanaged[Cdecl]<int, nint>)NativeLibrary.GetExport(_library, "codec2_create");
@@ -47,6 +46,16 @@ public sealed unsafe class NativeCodec2 : IAudioCodec
 
     public CodecKind Kind => CodecKind.Codec2;
     public int Mode { get; private set; }
+
+    private static nint LoadLibrary(string? path)
+    {
+        if (path is not null) return NativeLibrary.Load(path);
+        if (OperatingSystem.IsWindows()) return NativeLibrary.Load("codec2.dll");
+        if (OperatingSystem.IsMacOS()) return NativeLibrary.Load("libcodec2.dylib");
+        if (NativeLibrary.TryLoad("libcodec2.so.1.2", out var library)) return library;
+        return NativeLibrary.Load("libcodec2.so");
+    }
+
     private static int NativeMode(int mode) => mode switch
     {
         3200 => 0, 2400 => 1, 1600 => 2, 1400 => 3, 1300 => 4, 1200 => 5, 700 => 8,

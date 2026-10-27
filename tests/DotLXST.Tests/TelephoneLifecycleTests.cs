@@ -26,6 +26,7 @@ public sealed class TelephoneLifecycleTests
 
     private sealed class Rig : IAsyncDisposable
     {
+        private readonly TcpServerPacketInterface _serverInterface;
         private readonly PacketInterfaceManager _serverManager;
         private readonly PacketInterfaceManager _clientManager;
         private readonly TransportRouter _server;
@@ -41,7 +42,8 @@ public sealed class TelephoneLifecycleTests
         public Rig(TelephoneOptions options)
         {
             var port = LiveStreamTests.FreePort();
-            _serverManager = new([new TcpServerPacketInterface(new IPEndPoint(IPAddress.Loopback, port))]);
+            _serverInterface = new(new IPEndPoint(IPAddress.Loopback, port));
+            _serverManager = new([_serverInterface]);
             _clientManager = new([new TcpClientPacketInterface("127.0.0.1", port)]);
             _server = new(_serverManager, new());
             _client = new(_clientManager, new());
@@ -54,6 +56,7 @@ public sealed class TelephoneLifecycleTests
             _serverRun = _server.RunAsync(_stop.Token);
             await _clientManager.StartAsync(_stop.Token);
             _clientRun = _client.RunAsync(_stop.Token);
+            await LiveStreamTests.WaitForAsync(() => _serverInterface.ClientCount == 1);
             Phone.Start();
             await Phone.AnnounceAsync();
             await LiveStreamTests.WaitForAsync(() => _client.HasPath(Phone.DestinationHash));
@@ -95,6 +98,19 @@ public sealed class TelephoneLifecycleTests
     }
 
     [Fact]
+    public async Task DuplicateLinkAdapterCannotReplaceAnExistingStreamReceiver()
+    {
+        await using var rig = new Rig(new()
+        {
+            AutoAnswerDelay = TimeSpan.FromMilliseconds(20), CodecFactory = new RawFactory(),
+        });
+        await rig.StartAsync();
+        await using var session = rig.Connect(out var established);
+        Assert.Throws<InvalidOperationException>(() => new ReticulumStreamTransport(rig.LastLink!));
+        await established.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
     public async Task EveryTelephoneDisposerWaitsForBlockedSinkAndReceiveWorker()
     {
         var sink = new BlockingSink();
@@ -116,6 +132,25 @@ public sealed class TelephoneLifecycleTests
         }
         finally { sink.Release.TrySetResult(); }
         await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
+    public async Task BusyOverrideRejectsAnIncomingCallAndCanBeClearedForContinuedService()
+    {
+        await using var rig = new Rig(new() { AutoAnswerDelay = TimeSpan.FromMilliseconds(20) });
+        rig.Phone.SetBusy();
+        await rig.StartAsync();
+        await using (var first = rig.Connect(out _))
+            await LiveStreamTests.WaitForAsync(() => rig.LastLink!.Status == LinkStatus.Closed);
+        Assert.True(rig.Phone.IsBusy);
+        using var remote = Identity.Generate();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => rig.Phone.CallAsync(remote));
+        rig.Phone.SetBusy(false);
+        await using var next = rig.Connect(out var established);
+        await established.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.True(rig.Phone.IsBusy);
+        rig.Phone.Hangup();
+        Assert.False(rig.Phone.IsBusy);
     }
 
     [Fact]

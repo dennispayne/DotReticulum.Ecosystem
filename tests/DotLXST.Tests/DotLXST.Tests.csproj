@@ -24,6 +24,7 @@
     <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Interop\live_lxst_node.py" Link="Interop\live_lxst_node.py" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Interop\reference_environment.py" Link="Interop\reference_environment.py" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="GenerateLxstFileVectors.py" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

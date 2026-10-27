@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.Net;
-using System.Net.Sockets;
 
 namespace DotLXST.Tests;
 
@@ -46,18 +44,28 @@ internal sealed class VirtualPulseServer : IAsyncDisposable
             directory, $"tcp:127.0.0.1:{port}");
         try
         {
-            await LiveStreamTests.WaitForAsync(() => CanConnect(port) || server._process.HasExited);
-            if (server._process.HasExited) throw new InvalidOperationException(await server._errors);
-            var probe = new ProcessStartInfo("pactl") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
-            foreach (var argument in new[] { "-s", server.Address, "info" }) probe.ArgumentList.Add(argument);
-            using var check = Process.Start(probe)!;
-            var output = check.StandardOutput.ReadToEndAsync();
-            var errors = check.StandardError.ReadToEndAsync();
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            await check.WaitForExitAsync(timeout.Token);
-            if (check.ExitCode != 0) throw new InvalidOperationException(await errors);
-            _ = await output;
-            return server;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            while (true)
+            {
+                if (server._process.HasExited) throw new InvalidOperationException(await server._errors);
+                var probe = new ProcessStartInfo("pactl") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
+                foreach (var argument in new[] { "-s", server.Address, "info" }) probe.ArgumentList.Add(argument);
+                using var check = Process.Start(probe)!;
+                var output = check.StandardOutput.ReadToEndAsync();
+                var errors = check.StandardError.ReadToEndAsync();
+                try { await check.WaitForExitAsync(timeout.Token); }
+                catch
+                {
+                    if (!check.HasExited) check.Kill(entireProcessTree: true);
+                    await check.WaitForExitAsync(CancellationToken.None);
+                    throw;
+                }
+                _ = await output;
+                var diagnostic = await errors;
+                if (check.ExitCode == 0) return server;
+                if (timeout.IsCancellationRequested) throw new TimeoutException("Virtual PulseAudio was not ready: " + diagnostic);
+                await Task.Delay(50, timeout.Token);
+            }
         }
 
         catch
@@ -65,13 +73,6 @@ internal sealed class VirtualPulseServer : IAsyncDisposable
             await server.DisposeAsync();
             throw;
         }
-    }
-
-    private static bool CanConnect(int port)
-    {
-        using var client = new TcpClient();
-        try { client.Connect(IPAddress.Loopback, port); return true; }
-        catch (SocketException) { return false; }
     }
 
     public async Task<float[]> RecordOutputAsync(int samples, CancellationToken cancellationToken)

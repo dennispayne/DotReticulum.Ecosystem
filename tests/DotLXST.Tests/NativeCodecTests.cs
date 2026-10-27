@@ -35,7 +35,7 @@ public sealed class NativeCodecTests
     {
         using var fixture = StreamPacketTests.LoadVectors();
         var path = Environment.GetEnvironmentVariable("DOTLXST_CODEC2_LIBRARY") ??
-            (OperatingSystem.IsWindows() ? "codec2.dll" : "libcodec2.so");
+            (OperatingSystem.IsWindows() ? "codec2.dll" : "libcodec2.so.1.2");
         // Codec2's excitation PRNG is process-global. Keep the module loaded for
         // the complete sequence, exactly as pycodec2 does during generation.
         var module = NativeLibrary.Load(path);

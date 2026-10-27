@@ -70,6 +70,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     private CancellationTokenSource? _pendingDial;
     private bool _started;
     private bool _disposed;
+    private bool _externalBusy;
     private TaskCompletionSource? _disposeCompletion;
     private Task _announcements = Task.CompletedTask;
     private CallState _state = CallState.Available;
@@ -94,11 +95,21 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
 
     public byte[] DestinationHash => _destination.Destination.Hash.ToArray();
     public CallState State { get { lock (_gate) return _state; } }
+    public bool IsBusy { get { lock (_gate) return _externalBusy || _state != CallState.Available; } }
     public TelephoneProfile? ActiveProfile { get { lock (_gate) return _call?.Profile; } }
     public Identity? RemoteIdentity { get { lock (_gate) return _call?.Link.RemoteIdentity; } }
     public event Action<CallState>? StateChanged;
     public event Action<AudioFrame>? AudioReceived;
     public Action<string, Exception?>? Error { get; set; }
+
+    public void SetBusy(bool busy = true)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _externalBusy = busy;
+        }
+    }
 
     public void Start()
     {
@@ -129,7 +140,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         timeout.CancelAfter(_options.WaitTimeout);
         lock (_gate)
         {
-            if (_call is not null || _state != CallState.Available) throw new InvalidOperationException("Telephone is busy.");
+            if (_externalBusy || _call is not null || _state != CallState.Available) throw new InvalidOperationException("Telephone is busy.");
             _pendingDial = timeout;
             _state = CallState.Calling;
         }
@@ -178,7 +189,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         Call? call = null;
         lock (_gate)
         {
-            if (!_disposed && _started && _call is null && _state == CallState.Available)
+            if (!_disposed && _started && !_externalBusy && _call is null && _state == CallState.Available)
             {
                 call = Attach(link, false, TelephoneProfile.MediumQuality);
                 _call = call;

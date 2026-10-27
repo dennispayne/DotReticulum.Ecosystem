@@ -88,7 +88,7 @@ they are not an exhaustive method-by-method acceptance checklist.
 | Codec discriminator before each encoded frame; raw `0`, Opus `1`, Codec2 `2` | implemented | `Codecs/__init__.py`; all-codec live stream tests |
 | Null codec identity operation; no packetizer mapping for Null | missing | `Codecs/Codec.py`; no separate .NET identity codec is exposed |
 | Single/list frame reception and mid-stream codec replacement | implemented | `Network.py`; vectors and live raw/Opus/Codec2/raw switching |
-| Reticulum packet send without receipts; inactive-link/failure behavior | partial | `ReticulumStreamTransport` throws for inactive links; see stack gap below |
+| Reticulum packet send without receipts; inactive-link/failure behavior | implemented | `ReticulumStreamTransport` uses `Link.TrySend`, reports local enqueue rejection and throws; this is not delivery confirmation |
 | Decode/deliver frame then process signalling in a combined envelope | implemented | `StreamSessionTests.ThrowingObserversCannotDisableOtherObserversOrSignals` |
 | Error reporting for incoming malformed packets | implemented | Unit error/recovery tests; observer failures are isolated |
 | Telephone destination `lxst.telephony`; announces, remote identity identification | implemented | `TelephoneEndpoint`; real Python `Telephone` in both call directions |
@@ -97,7 +97,7 @@ they are not an exhaustive method-by-method acceptance checklist.
 | One active call; incoming contention, answer, hangup and teardown | partial | Answer/teardown live-verified; full simultaneous contention matrix is unverified |
 | Ring/wait/connect timeouts, path requests, periodic announcements | partial | Implemented async deadlines; exhaustive timeout/announce timing comparisons remain unverified |
 | Ringing/established/ended/busy/rejected callbacks | partial | Original .NET state event rather than five Python callbacks; isolated observer failures tested |
-| Profile negotiation (`255 + profile`), selection and mid-call switch | partial | Medium-quality negotiation is live-verified; other telephone profile switches remain unverified |
+| Profile negotiation (`255 + profile`), selection and mid-call switch | partial | All eight mid-call profiles live-verified in both negotiation directions; exhaustive non-default initial setup remains unverified |
 | Receive/transmit gain, mute, AGC, low-latency output, ringer/device selection | missing | `Primitives/Telephony.py`, public setters |
 | Mirror-only legacy `CallEndpoint` placeholder | not-applicable | `Call.py` is absent from the authoritative 0.4.5 release |
 | Pre-establishment outgoing-close callback | upstream-placeholder | `Primitives/Telephony.py`, `__outgoing_link_closed` is empty |
@@ -124,15 +124,15 @@ These are source observations, not executed behavioral evidence.
 | Opus arbitrary-rate resampling | missing | Supply audio at the selected codec sample rate |
 | Opus decoder output configuration and encoder/decoder lifetime | implemented | Explicit rate/channels and disposal; malformed/disposed-native-handle tests |
 | Partial Opus input-frame padding | upstream-placeholder | `Codecs/Opus.py`, TODO in `encode` |
-| Resample functions, normalize option and supported channel handling | missing | `Codecs/Codec.py` |
-| Pipeline source/codec/sink wiring, processor slot, codec replacement and start/stop | missing | `Pipeline.py` |
-| Mixer buffering, per-source limits, gain, mute, channel conversion and timed output | missing | `Mixer.py` |
+| Resample functions, normalize option and supported channel handling | partial | `AudioResampler`; actual reference vectors cover rate conversion, normalization and mono/stereo; no portable float128 claim |
+| Pipeline source/codec/sink wiring, processor slot, codec replacement and start/stop | partial | Original headless `AudioPipeline` has synchronized codec replacement and async lifecycle; its audio-frame sink boundary performs a codec round trip, not the complete Python encoded-sink/proxy surface |
+| Mixer buffering, per-source limits, gain, mute, channel conversion and timed output | implemented | Original bounded `AudioMixer`; reference output and lifecycle tests |
 | General mixer source resampling | upstream-placeholder | `Mixer.py`, TODO for all source types |
-| High-pass, low-pass, band-pass and automatic gain-control state | missing | `Filters.py`, `Filters.c`, `Filters.h` |
-| Tone frequency, gain, easing, frame duration and start/stop | missing | `Generators.py`, `ToneSource` |
-| Line capture/playback, preferred devices, buffers, gain, filters and low latency | missing | `Sources.py`, `Sinks.py` |
+| High-pass, low-pass, band-pass and automatic gain-control state | implemented | Original managed filters; vectors executed against actual primary Python/native filter path |
+| Tone frequency, gain, easing, frame duration and start/stop | implemented | `ToneAudioSource`; actual generator vectors and async source lifecycle tests |
+| Line capture/playback, preferred devices, buffers, gain, filters and low latency | partial | Linux CLI capture/playback exists; upstream buffering/gain/filter/low-latency contracts remain missing |
 | Loopback source/sink and buffering | missing | `Sources.py`, `Loopback` |
-| Opus file playback, looping/timing, writing/finalizing and completion callbacks | missing | `Sources.py`, `Sinks.py`, `Primitives/Players.py`, `Primitives/Recorders.py` |
+| Opus file playback, looping/timing and writing/finalizing | partial | Original bounded file source/sink; actual Python files and .NET files cross-decode with identical samples; convenience player/recorder controls remain incomplete |
 
 Telephony exposes eight profiles: ultra-low/very-low/low bandwidth; medium/high/
 maximum quality; low/ultra-low latency. Their nominal frame durations are
@@ -156,7 +156,7 @@ Codec2 aggregation durations are not Opus frame durations.
 | `[hardware]`: `keypad`, `keypad_hook_pin`, `display` | missing | `Utilities/rnphone.py`, `apply_config` |
 | Commented amplifier-mute options | upstream-placeholder | Default config mentions `amp_mute_pin`/`amp_mute_level`; `apply_config` does not consume them |
 | `ignored` and `allowed` paths | upstream-placeholder | `reload_config` assigns paths; no persistence implementation established |
-| GPIO 4x4/5x5 keypad events, hook and key maps; I2C LCD1602 text/sleep/wake | missing | `Primitives/hardware/*.py` |
+| GPIO 4x4 keypad events, hook and key maps; I2C LCD1602 text/sleep/wake | missing | `Primitives/hardware/*.py`; 5x5 is a non-target mirror addition |
 | Example programs: file player/recorder/source, filters, mixer, pipelines, tone generator | missing | `examples/*.py`; these are examples, not additional installed console entry points |
 
 ### Dependencies and platform evidence
@@ -170,11 +170,37 @@ that extension build on Windows. Device backends exist for Linux, Windows,
 macOS and Android. Hardware peripherals additionally depend on appropriate
 GPIO/I2C modules and physical devices.
 
-No .NET codec strategy or native-library redistribution decision has been made.
-Any future native interop must isolate codec handles, expose explicit ownership,
-declare library versions/licensing, and demonstrate trimming/NativeAOT behavior.
-No target OS, real codec bitstream, microphone/speaker, GPIO/I2C device or
-RAK/RNode transport has been verified for DotLXST.
+The .NET native ABI strategy and tested matrix are described below. Physical
+microphone/speaker quality, GPIO/I2C and RAK/RNode transport remain unverified.
+
+### Public processing and remaining deferred APIs
+
+Processing is independently implemented; remaining missing contracts are explicit,
+not implicitly covered by the network interfaces. This is not full API parity:
+
+| Reference surface | Status and boundary |
+|---|---|
+| `Codecs/Codec.py`: `Null.encode/decode`, `resample`, `resample_bytes` | Partial: `AudioResampler` covers tested normalized audio frames; identity codec and raw-byte overload remain missing; codec adapters still require an explicit supported input rate |
+| `Codecs/Opus.py`: live `set_profile`, `update_bitrate` | Partial: .NET replaces a codec instance when a telephone profile changes; standalone mutable encoder/bitrate APIs missing |
+| `Network.py`: `handle_signalling_from`, Packetizer/LinkSource `start/stop` | Partial: original `StreamSession` owns equivalent receive/send lifetime; subclass/proxy API and arbitrary noninteger signals missing |
+| `Filters.py`: `Filter`, `HighPass`, `LowPass`, `BandPass`, `AGC.handle_frame` | Implemented original managed `AudioFilter` processors with actual-reference vectors |
+| `Generators.py`: `ToneSource` codec/running/start/stop | Implemented original `ToneAudioSource`, with gain/easing and cancellable enumeration |
+| `Mixer.py`: start/stop, gain/mute, per-source frame limits, can-receive, source/sink/codec wiring | Implemented bounded timed `AudioMixer`; source/codec composition uses explicit C# interfaces |
+| `Pipeline.py`: codec/sink/running and start/stop | Partial original headless source→processor→codec→audio-sink pipeline; lifecycle/replace/stop/disposal are tested, broader encoded-sink/proxy behavior remains incomplete |
+| `Sources.py`: `get_backend`, backend device listing/recorder ownership; `Loopback`; `LineSource` gain/codec/start/stop; `OpusFileSource` | Partial Linux device I/O plus streaming Opus file source; loopback and general backends remain missing |
+| `Sinks.py`: `get_backend`, backend device listing/player ownership; Sink/RemoteSink/LocalSink; LineSink low latency; OpusFileSink queue/finalization | Partial Linux I/O and Ogg Opus recording; explicit async backpressure instead of a Python frame deque; full hierarchy/low-latency parity missing |
+| `Primitives/Players.py`: FilePlayer state, completion callback, source, loop/start/stop/play | Partial: file async enumeration, looping, timing and completion exist; dynamic player/control wrapper remains missing |
+| `Primitives/Recorders.py`: FileRecorder state, source/output path, start/stop/record | Partial: recording sink/finalization exist; device/filter/recorder wrapper remains missing; no private or physical audio is committed |
+| `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Missing public processing/controls; configuration rejects unsupported ringtone/hardware settings rather than ignoring them |
+| `Primitives/Telephony.py`: external busy override | Implemented; real incoming rejection followed by clearing busy and accepting the next call is integration-tested |
+| `Primitives/Telephony.py`: Profiles labels/abbreviations/index/next helpers | Partial: typed enums/codec parameters exist; no exact label or helper API parity claim |
+| `Utilities/rnphone.py`: ReticulumTelephone reload/apply config, keypad/hook/display enablement and hardware state; complete terminal menu/redial/status/signal behavior | Partial; supported CLI subset and persisted identity are tested, full utility behavior remains deferred |
+| `Primitives/hardware`: LCD print/clear/sleep/wake/close; Keypad hook/key-map/key-state/start/stop | Missing; no corresponding physical peripherals are verified |
+| `Platforms/{linux,windows,darwin,android}` | Original Linux subprocess backend only; no translation or redistribution of upstream platform bindings |
+
+`Processing.py` contains no public function/class implementation in this release;
+`Common.nop` is a no-op helper, not a missing wire contract. Vendored Python
+codec/audio bindings are dependencies, not source to port into this repository.
 
 ## Architecture and ownership
 
@@ -196,7 +222,8 @@ and native-library boundaries. `rnphone` implements Linux I/O with cancellable
 `parec`/`pacat` subprocesses and obtains devices from `pactl`. It never starts
 audio for help, version or configuration errors.
 
-No DSP/mixer or file-container implementation is implied by these interfaces.
+`DotLXST.Audio` supplies a separately tested managed processor, mixer, generator
+and pipeline layer; the stream/session interfaces do not silently apply it.
 The CLI does not currently reproduce upstream AGC, band-pass filtering, easing,
 dial/ring tones, hardware peripherals or all persistence/configuration behavior.
 
@@ -207,6 +234,21 @@ No native libraries are redistributed by this repository. Users supply libopus
 LGPL and component notices). ABI handles and library references have explicit
 disposal; native operations are serialized, including Codec2's process-global
 excitation state. Native module loading uses no runtime code generation.
+Linux Codec2 first loads the verified runtime SONAME `libcodec2.so.1.2`, with
+an unversioned fallback; a development-package symlink is not required.
+
+Ogg file operations additionally use independently installed BSD-licensed Xiph
+libopusfile and libopusenc. The original C ABI wrappers were checked against
+their public headers and actual reference bindings; no Ogg muxer/demuxer source
+is ported. `OpusFileSource` decodes mono/stereo at 48 kHz into bounded frames
+(1–1000 ms), supports looping and optional pacing, and rejects channel-changing
+chains. `OpusFileSink` opens/truncates the supplied path, requires the selected
+profile's sample rate/channels, bounds input to one second per frame, pads short
+frames to the first frame's length, appends the reference's ten silence frames,
+and finalizes on async disposal. Native containers interoperate; byte-identical
+Ogg page serialization or standalone player/recorder API parity is not claimed.
+Cancellation is observed between bounded native file operations; a blocking
+filesystem/native call itself is not forcibly interrupted.
 
 | Environment | Evidence |
 |---|---|
@@ -247,31 +289,39 @@ dotnet test tests\DotLXST.Tests\DotLXST.Tests.csproj -c Release --filter "Catego
 # from those roots and optional DOTRETICULUM_LXMF_UPSTREAM only.
 python tests\DotLXST.Tests\GenerateLxstVectors.py --output tests\DotLXST.Tests\Fixtures\lxst-vectors.json
 $env:DOTLXST_NATIVE = "1"
-$env:DOTRETICULUM_LIVE = "1"
 $env:DOTLXST_LIVE = "1"
 $env:DOTLXST_VIRTUAL_AUDIO = "1"
 dotnet test tests\DotLXST.Tests\DotLXST.Tests.csproj -c Release
 dotnet publish src\rnphone\rnphone.csproj -c Release -r linux-x64 -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true
 # On Linux use a native-filesystem working directory for owner-only identity tests.
-$env:DOTRETICULUM_RNPHONE_BINARY = "<published rnphone>"
+$env:DOTLXST_RNPHONE_BINARY = "<published rnphone>"
 pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 -Tag Native
+# Python-free release gate: only the binary and isolated virtual audio are needed.
+pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 -Tag NativeStandalone
 ```
 
 Recorded results:
 
-- Windows deterministic/unit suite: **18 passed**.
+- Windows deterministic/unit suite: **29 passed**.
 - WSL full LXST suite against the actual primary-release checkout:
-  **29 passed, zero skipped**, twice consecutively with all four opt-ins enabled.
+  **49 passed, zero skipped**, including six real telephone call cases.
 - Telephone lifecycle cases include a blocked sink proving that a second
   disposer cannot finish early, continued service after authorization/observer
   exceptions, and cancellation of an abandoned path lookup without disrupting
   the next call.
 - Linux NativeAOT publish with both warning-as-error properties: **passed**;
   published `--help`: **passed**.
-- Native rnphone Pester process acceptance: **3 passed, zero skipped**:
+- Native rnphone Pester process acceptance: **4 passed, zero skipped**:
   CLI/error behavior; explicit unsupported-hardware rejection; calls in both
   directions, encoder/decoder/device-process paths, teardown, protected identity
   and restart stability.
+- Actual upstream Opus file fixture and reverse file-source acceptance:
+  **3 passed, zero skipped**, including exact frame/sample decoding, looping,
+  cancellation, malformed files and native handle disposal.
+- Managed DSP/source/mixer/pipeline vectors are recorded in
+  `Fixtures/lxst-audio-processing.json`, generated by executing primary
+  `3b596f48ddd252ddc9c315ef8f3020cfd3688223` through its actual native-filter
+  path. Windows/Linux unit gate: **29 passed**; production build: zero warnings.
 
 Live stream cases use actual unmodified Python Packetizer/LinkSource and real
 Reticulum TCP links in three topologies: direct; through a .NET transport; and
@@ -281,18 +331,40 @@ and 5 ms delay in each direction, and delivery after impairments are removed.
 The expected lost frames stay lost: LXST has no made-up retry protocol.
 
 Live telephony cases use actual unmodified Python `Telephone`, with both Python
-and .NET initiating. They verify setup states, medium-quality Opus audio in both
+and .NET initiating in direct, .NET transport-hop and Python transport-hop
+topologies. They verify setup states, medium-quality Opus audio in both
 directions, a generated 440 Hz signal observed at Python's isolated output
-monitor, Python-to-.NET decoded frames and teardown. This is virtual device
+monitor, Python-to-.NET decoded frames and teardown. Direct cases also switch
+through all eight profiles in both negotiation directions and exchange frames.
+This is virtual device
 evidence, not a listening test or proof of physical microphone/speaker quality.
-Telephone calls through transport hops, exhaustive profiles/policy/timeout
-matrices, hardware I/O and long-duration recovery remain unverified.
+Exhaustive initial-profile/policy/timeout matrices, hardware I/O and long-duration
+recovery remain unverified.
 
-### Stack gap
+### Reticulum adapter guarantees and ownership
 
-`Link.Send(data, createReceipt: false)` returns null both on successful
-receiptless enqueue and on failure. `ReticulumStreamTransport` can reject an
-inactive link and oversize frame but cannot reliably reproduce Python
-`Packetizer.transmit_failure` for a saturated stack outbound queue using the
-current public API. No LXST-specific submodule workaround is used. This gap is not hidden behind
-invented delivery receipts.
+The adapter uses the public `Link.TrySend` and `Link.SetPacketReceiver` APIs
+introduced at stack commit `de3138b` and present in the tested pin `36dafd2`.
+`TrySend` distinguishes a rejected local enqueue from successful receiptless
+enqueue; it does not invent delivery receipts or network reliability.
+The short core ingress receiver copies into a bounded queue and updates counters
+only. Decoding, signalling and error observers run outside core ingress.
+
+The adapter requires a dedicated link with no other core receiver. A second
+DotLXST adapter is rejected without replacing the first, and disposal releases
+its registration without owning or tearing down the link. The stack setter does
+not expose an ownership token or reject a foreign protocol's registration;
+callers must not use another core receiver on the dedicated link. This remaining
+public API ownership limitation is not worked around with private-field access.
+
+Concurrent legacy `PacketReceived` observers are unsuitable for deterministic
+setup ingestion. Python RNS also dispatches those observers on independent
+threads: no ordering guarantee for its public observers is claimed.
+The explicit ordered core ingress API fixes the observed native telephone
+Established-before-Connecting callback race without altering LXST packets.
+The Python-free `NativeStandalone` Pester flow passed five consecutive runs
+after adopting this API. Each run uses two real native rnphone processes and
+verifies both encode/network/decode/playback paths, profile reconfiguration,
+reverse-call recovery and clean shutdown. It requires only
+`DOTLXST_RNPHONE_BINARY`, `DOTLXST_VIRTUAL_AUDIO=1`, Linux libopus and PulseAudio;
+no Python/reference checkout or live flag is required.

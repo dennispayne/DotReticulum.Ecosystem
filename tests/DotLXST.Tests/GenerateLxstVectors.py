@@ -32,7 +32,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
-    verify_reference(require_lxmf=True, require_lxst=True)
+    verify_reference(require_lxst=True)
     root = Path(os.environ["DOTRETICULUM_LXST_UPSTREAM"]).resolve(strict=True)
     if not Path(LXST.__file__).resolve().is_relative_to(root / "LXST"):
         raise RuntimeError("Unexpected LXST module path")

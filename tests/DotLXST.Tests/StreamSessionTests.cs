@@ -29,6 +29,28 @@ public sealed class StreamSessionTests
             throw new NotSupportedException();
     }
 
+    private sealed class ObservedCodec(CodecKind kind, bool failDisposal = false) : IAudioCodec
+    {
+        private readonly RawAudioCodec _raw = new();
+        public CodecKind Kind => kind;
+        public bool Disposed { get; private set; }
+        public byte[] Encode(AudioFrame frame) => _raw.Encode(frame);
+        public AudioFrame Decode(ReadOnlySpan<byte> data) => _raw.Decode(data);
+        public void Dispose()
+        {
+            Disposed = true;
+            _raw.Dispose();
+            if (failDisposal) throw new InvalidOperationException("test decoder cleanup");
+        }
+    }
+
+    private sealed class SwitchingFactory : IAudioCodecFactory
+    {
+        public ObservedCodec First { get; } = new(CodecKind.Raw, failDisposal: true);
+        public ObservedCodec Second { get; } = new(CodecKind.Opus);
+        public IAudioCodec Create(CodecKind kind) => kind == CodecKind.Raw ? First : Second;
+    }
+
     [Fact]
     public async Task CoreDecodingRunsWithoutObserversAndRecoversAfterMalformedPacket()
     {
@@ -110,5 +132,25 @@ public sealed class StreamSessionTests
         Assert.False(second.IsCompleted);
         transport.BlockSend.TrySetResult();
         await Task.WhenAll(first, second, sending).WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task FailingPreviousDecoderCleanupDoesNotLeakReplacementOrDisableReceiving()
+    {
+        var factory = new SwitchingFactory();
+        var transport = new MemoryTransport();
+        var errors = new List<string>();
+        await using var session = new StreamSession(transport, factory);
+        session.Error = (context, _) => errors.Add(context);
+        session.Start();
+        foreach (var kind in new[] { CodecKind.Raw, CodecKind.Opus })
+            await transport.Incoming.Writer.WriteAsync(new StreamPacket { Frames = [new(kind, new byte[] { 0, 0, 0 })] }.Encode());
+        transport.Incoming.Writer.Complete();
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(2, session.DecodedFrames);
+        Assert.True(factory.First.Disposed);
+        Assert.Single(errors);
+        await session.DisposeAsync();
+        Assert.True(factory.Second.Disposed);
     }
 }

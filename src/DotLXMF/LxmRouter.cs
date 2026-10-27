@@ -713,6 +713,8 @@ public sealed partial class LxmRouter : IAsyncDisposable
             _links.Clear();
             _propagationLinks.Clear();
             _incomingLinks.Clear();
+            _retrievalLink = null;
+            _retrievalDestination = null;
             foreach (var message in _outbound) message.State = LxmState.Cancelled;
             _outbound.Clear();
         }

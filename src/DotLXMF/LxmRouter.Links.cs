@@ -29,7 +29,9 @@ public sealed partial class LxmRouter
         {
             var entries = _links.Where(entry => entry.Value.NoDataFor >
                 (_propagationLinks.Contains(entry.Value) ? 180 : 600)).ToArray();
-            expired = entries.Select(entry => entry.Value).Distinct().ToArray();
+            var links = entries.Select(entry => entry.Value);
+            if (_retrievalLink is { } retrieval && retrieval.NoDataFor > 180) links = links.Append(retrieval);
+            expired = links.Distinct().ToArray();
             foreach (var (key, link) in entries)
             {
                 _links.Remove(key);
@@ -39,6 +41,7 @@ public sealed partial class LxmRouter
         }
         foreach (var link in expired)
         {
+            ForgetRetrievalLink(link);
             try { link.Teardown(); }
             catch (Exception ex) { Report("Could not close idle LXMF link: " + ex.Message); }
         }

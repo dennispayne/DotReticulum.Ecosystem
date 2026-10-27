@@ -335,6 +335,60 @@ public class LiveLxmfTests
 
     [LiveFact]
     [Trait("Category", "Live")]
+    public async Task CachedRetrieval_ReportsLargeResponseCancellationRetentionAndRecoveryWithActualPython()
+    {
+        await using var rig = await Rig.StartAsync(largeMessages: true);
+        var ready = await rig.Py.Command("enable-pn", "pn-ready", TimeSpan.FromSeconds(15));
+        var node = Convert.FromHexString(ready.GetProperty("dest").GetString()!);
+        await WaitFor(() => rig.Router.HasPath(node), 20);
+        rig.Lxmf.OutboundPropagationNode = node;
+        var content = new byte[2_200_000];
+        RandomNumberGenerator.Fill(content);
+        var message = LxMessage.CreateBinary(rig.Lxmf.DeliveryHash, rig.Identity, content, method: LxmMethod.Propagated);
+        await rig.Lxmf.SendAsync(message);
+        Assert.Equal(LxmState.Sent, await message.Completion.WaitAsync(TimeSpan.FromSeconds(90)));
+        var storedCount = 0;
+        var storeDeadline = DateTime.UtcNow.AddSeconds(20);
+        while (storedCount == 0 && DateTime.UtcNow < storeDeadline)
+        {
+            var stored = await rig.Py.Command("pn-count", "pn-count", TimeSpan.FromSeconds(10));
+            storedCount = stored.GetProperty("count").GetInt32();
+            if (storedCount == 0) await Task.Delay(TimeSpan.FromMilliseconds(100));
+        }
+        Assert.Equal(1, storedCount);
+        var cancelled = 0;
+        rig.Lxmf.PropagationProgressChanged = router =>
+        {
+            if (router.PropagationTransferProgress is > 0 and < 1 && Interlocked.Exchange(ref cancelled, 1) == 0)
+                router.CancelPropagationNodeRequests();
+        };
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => rig.Lxmf.RequestMessagesFromPropagationNodeAsync());
+        Assert.Equal(1, cancelled);
+        Assert.Equal(LxmPropagationTransferState.Idle, rig.Lxmf.PropagationTransferState);
+        Assert.Null(rig.Lxmf.PropagationLinkId);
+        var remaining = await rig.Py.Command("pn-count", "pn-count", TimeSpan.FromSeconds(15));
+        Assert.Equal(1, remaining.GetProperty("count").GetInt32());
+        var progress = new System.Collections.Concurrent.ConcurrentQueue<(double Value, long? Size)>();
+        rig.Lxmf.PropagationProgressChanged = router => progress.Enqueue((router.PropagationTransferProgress, router.PropagationTransferSize));
+        Assert.Equal(1, await rig.Lxmf.RequestMessagesFromPropagationNodeAsync(retain: true));
+        Assert.Contains(progress, observation => observation.Value is > 0 and < 1 && observation.Size > 2_200_000);
+        await WaitFor(() => rig.Inbox.Count == 1, 20);
+        Assert.Equal(Sha(content), Sha(rig.Inbox[0].Message.ContentBytes));
+        Assert.Equal(1, rig.Lxmf.PropagationTransferLastResult);
+        Assert.Equal(0, rig.Lxmf.PropagationTransferLastDuplicates);
+        var cached = Assert.IsType<byte[]>(rig.Lxmf.PropagationLinkId);
+        var retained = await rig.Py.Command("pn-count", "pn-count", TimeSpan.FromSeconds(15));
+        Assert.Equal(1, retained.GetProperty("count").GetInt32());
+        Assert.Equal(0, await rig.Lxmf.RequestMessagesFromPropagationNodeAsync(retain: true));
+        Assert.Equal(cached, rig.Lxmf.PropagationLinkId);
+        Assert.Equal(0, await rig.Lxmf.RequestMessagesFromPropagationNodeAsync(retain: false));
+        Assert.Equal(cached, rig.Lxmf.PropagationLinkId);
+        var deleted = await rig.Py.Command("pn-count", "pn-count", TimeSpan.FromSeconds(15));
+        Assert.Equal(0, deleted.GetProperty("count").GetInt32());
+    }
+
+    [LiveFact]
+    [Trait("Category", "Live")]
     public async Task PythonClient_PropagatesToDotNetNodeAndRetrievesWithAcknowledgment()
     {
         var storage = Path.Combine(AppContext.BaseDirectory, "live-propagation-" + Guid.NewGuid().ToString("N"));

@@ -4,6 +4,84 @@ namespace DotLXMF.Tests;
 public class LxmPropagationTests
 {
     [Fact]
+    public async Task RetrievalAuthorizationError_PreservesSourceErrorUntilResetAndRecoversAfterAllow()
+    {
+        using var vectors = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(
+            AppContext.BaseDirectory, "Fixtures", "lxmf-retrieval-vectors.json")));
+        var path = Path.Combine(AppContext.BaseDirectory, "retrieval-access-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = path });
+            var node = pair.Server.EnablePropagationNode(new LxmPropagationOptions { AutoPeer = false, RequireAuthentication = true });
+            await node.AnnounceAsync();
+            await pair.WaitAsync(() => pair.ClientRouter.HasPath(node.DestinationHash));
+            await Assert.ThrowsAsync<IOException>(() => pair.Client.RequestMessagesFromPropagationNodeAsync(node.DestinationHash));
+            pair.Client.AcknowledgeSyncCompletion();
+            Assert.Equal((LxmPropagationTransferState)vectors.RootElement.GetProperty("acknowledge_error").GetProperty("state").GetInt32(),
+                pair.Client.PropagationTransferState);
+            Assert.Null(pair.Client.PropagationLinkId);
+            Assert.Null(pair.Client.PropagationTransferSize);
+            Assert.Null(pair.Client.PropagationTransferLastResult);
+            pair.Client.AcknowledgeSyncCompletion(resetState: true);
+            Assert.Equal(LxmPropagationTransferState.Idle, pair.Client.PropagationTransferState);
+            node.AllowIdentity(pair.ClientIdentity.Hash);
+            Assert.Equal(0, await pair.Client.RequestMessagesFromPropagationNodeAsync(node.DestinationHash));
+            Assert.Equal(LxmPropagationTransferState.Complete, pair.Client.PropagationTransferState);
+        }
+        finally { if (Directory.Exists(path)) Directory.Delete(path, true); }
+    }
+
+    [Fact]
+    public async Task Retrieval_ReusesCachedLinkAndMatchesSourceCompletionResetAndCancellation()
+    {
+        using var vectors = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(
+            AppContext.BaseDirectory, "Fixtures", "lxmf-retrieval-vectors.json")));
+        var empty = vectors.RootElement.GetProperty("cases").EnumerateArray().Single(row => row.GetProperty("label").GetString() == "empty-list");
+        var path = Path.Combine(AppContext.BaseDirectory, "retrieval-cache-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = path });
+            var node = pair.Server.EnablePropagationNode(new LxmPropagationOptions { AutoPeer = false });
+            await node.AnnounceAsync();
+            await pair.WaitAsync(() => pair.ClientRouter.HasPath(node.DestinationHash));
+            pair.Client.OutboundPropagationNode = node.DestinationHash;
+            var errors = new System.Collections.Concurrent.ConcurrentQueue<string>();
+            pair.Client.Log = errors.Enqueue;
+            var observations = 0;
+            pair.Client.PropagationProgressChanged = _ => throw new IOException("observer isolation");
+            pair.Client.PropagationProgressChanged += _ => observations++;
+            Assert.Equal(0, await pair.Client.RequestMessagesFromPropagationNodeAsync());
+            Assert.Equal((LxmPropagationTransferState)empty.GetProperty("state").GetInt32(), pair.Client.PropagationTransferState);
+            Assert.Equal(empty.GetProperty("progress").GetDouble(), pair.Client.PropagationTransferProgress);
+            Assert.Equal(empty.GetProperty("last_result").GetInt32(), pair.Client.PropagationTransferLastResult);
+            var firstLink = Assert.IsType<byte[]>(pair.Client.PropagationLinkId);
+            Assert.Equal(0, await pair.Client.RequestMessagesFromPropagationNodeAsync(maxMessages: 1));
+            Assert.Equal(1, pair.Client.PropagationTransferMaxMessages);
+            Assert.Equal(firstLink, pair.Client.PropagationLinkId);
+            pair.Client.AcknowledgeSyncCompletion();
+            Assert.Equal(LxmPropagationTransferState.Idle, pair.Client.PropagationTransferState);
+            Assert.Equal(0, pair.Client.PropagationTransferProgress);
+            Assert.Null(pair.Client.PropagationTransferSize);
+            Assert.Null(pair.Client.PropagationTransferLastResult);
+            Assert.Equal(firstLink, pair.Client.PropagationLinkId);
+            pair.Client.CancelPropagationNodeRequests();
+            Assert.Null(pair.Client.PropagationLinkId);
+            Assert.True(observations >= 4);
+            Assert.Contains(errors, error => error.Contains("propagation progress observer failed", StringComparison.Ordinal));
+            pair.Client.PropagationProgressChanged = null;
+            Assert.Equal(0, await pair.Client.RequestMessagesFromPropagationNodeAsync());
+            Assert.NotEqual(firstLink, pair.Client.PropagationLinkId);
+            var pending = pair.Client.RequestMessagesFromPropagationNodeAsync(Enumerable.Repeat((byte)9, 16).ToArray());
+            await pair.WaitAsync(() => pair.Client.PropagationTransferState == LxmPropagationTransferState.PathRequested);
+            pair.Client.CancelPropagationNodeRequests();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+            Assert.Equal(LxmPropagationTransferState.Idle, pair.Client.PropagationTransferState);
+            Assert.Null(pair.Client.PropagationLinkId);
+        }
+        finally { if (Directory.Exists(path)) Directory.Delete(path, true); }
+    }
+
+    [Fact]
     public async Task PropagationPathResponse_AdvertisesConfigurationWithoutPriorAnnounce()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "propagation-path-" + Guid.NewGuid().ToString("N"));
@@ -167,12 +245,17 @@ public class LxmPropagationTests
             Assert.Equal(LxmState.Sent, await message.Completion.WaitAsync(TimeSpan.FromSeconds(60)));
             await pair.WaitAsync(() => node.MessageCount == 1);
             Assert.Equal(1, await pair.Client.RequestMessagesFromPropagationNodeAsync());
+            Assert.Equal(1, pair.Client.PropagationTransferLastResult);
+            Assert.Equal(1, pair.Client.PropagationTransferProgress);
+            Assert.True(pair.Client.PropagationTransferSize > 0);
+            var cachedLink = pair.Client.PropagationLinkId;
             await pair.WaitAsync(() => pair.ClientInbox.Count == 1);
             Assert.Equal("stored message", pair.ClientInbox[0].Message.Content);
             Assert.Equal(LxmMethod.Propagated, pair.ClientInbox[0].Message.Method);
             Assert.True(pair.ClientInbox[0].Message.SignatureValidated);
             Assert.Equal(0, node.MessageCount);
             Assert.Equal(0, await pair.Client.RequestMessagesFromPropagationNodeAsync());
+            Assert.Equal(cachedLink, pair.Client.PropagationLinkId);
             await node.DisposeAsync();
             await using var reopened = new LxmPropagationNode(pair.ServerRouter, pair.ServerIdentity, path);
             var clients = Assert.IsType<Dictionary<object, object?>>(reopened.CompileStats()!["clients"]);

@@ -206,6 +206,32 @@ public class LxmRouterTests
     }
 
     [Fact]
+    public async Task CachedRetrievalLink_ExpiresAtSourcePropagationIdleBoundary()
+    {
+        var storage = Path.Combine(AppContext.BaseDirectory, "cached-retrieval-idle-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var clock = new LinkClock();
+            await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = storage },
+                transportTimeProvider: clock);
+            var node = pair.Server.EnablePropagationNode(new LxmPropagationOptions { AutoPeer = false, TimeProvider = clock });
+            await node.AnnounceAsync();
+            await pair.WaitAsync(() => pair.ClientRouter.HasPath(node.DestinationHash));
+            Assert.Equal(0, await pair.Client.RequestMessagesFromPropagationNodeAsync(node.DestinationHash));
+            var firstLink = Assert.IsType<byte[]>(pair.Client.PropagationLinkId);
+            clock.Advance(TimeSpan.FromSeconds(180));
+            Assert.Equal(0, pair.Client.CleanLinks());
+            Assert.Equal(firstLink, pair.Client.PropagationLinkId);
+            clock.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.Equal(1, pair.Client.CleanLinks());
+            Assert.Null(pair.Client.PropagationLinkId);
+            Assert.Equal(0, await pair.Client.RequestMessagesFromPropagationNodeAsync(node.DestinationHash));
+            Assert.NotEqual(firstLink, pair.Client.PropagationLinkId);
+        }
+        finally { if (Directory.Exists(storage)) Directory.Delete(storage, true); }
+    }
+
+    [Fact]
     public async Task IdlePropagationLinks_ExpireStrictlyAfter180SecondsAndReconnect()
     {
         var storage = Path.Combine(AppContext.BaseDirectory, "idle-propagation-" + Guid.NewGuid().ToString("N"));

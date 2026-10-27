@@ -1,0 +1,306 @@
+{
+  "lxmf_sha": "e8ba02483217af43be284a72f1c059c730b7d047",
+  "rns_sha": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "source_sha256": "56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9",
+  "cases": [
+    {
+      "label": "empty-list",
+      "retain": false,
+      "maximum": 0,
+      "response": [],
+      "state": 7,
+      "progress": 1.0,
+      "last_result": 0,
+      "closed": false,
+      "requests": []
+    },
+    {
+      "label": "wants-haves",
+      "retain": false,
+      "maximum": 1,
+      "response": [
+        "6161616161616161616161616161616161616161616161616161616161616161",
+        "6262626262626262626262626262626262626262626262626262626262626262",
+        "6363636363636363636363636363636363636363636363636363636363636363"
+      ],
+      "state": 0,
+      "progress": 0.0,
+      "last_result": null,
+      "closed": false,
+      "requests": [
+        {
+          "path": "/get",
+          "data": [
+            [
+              "6262626262626262626262626262626262626262626262626262626262626262"
+            ],
+            [
+              "6161616161616161616161616161616161616161616161616161616161616161"
+            ],
+            1000
+          ],
+          "callbacks": [
+            "failed_callback",
+            "progress_callback",
+            "response_callback"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "retain-known",
+      "retain": true,
+      "maximum": 1,
+      "response": [
+        "6161616161616161616161616161616161616161616161616161616161616161",
+        "6262626262626262626262626262626262626262626262626262626262626262",
+        "6363636363636363636363636363636363636363636363636363636363636363"
+      ],
+      "state": 0,
+      "progress": 0.0,
+      "last_result": null,
+      "closed": false,
+      "requests": [
+        {
+          "path": "/get",
+          "data": [
+            [
+              "6262626262626262626262626262626262626262626262626262626262626262"
+            ],
+            [],
+            1000
+          ],
+          "callbacks": [
+            "failed_callback",
+            "progress_callback",
+            "response_callback"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "all-known-retained",
+      "retain": true,
+      "maximum": 0,
+      "response": [
+        "6161616161616161616161616161616161616161616161616161616161616161"
+      ],
+      "state": 0,
+      "progress": 0.0,
+      "last_result": null,
+      "closed": false,
+      "requests": [
+        {
+          "path": "/get",
+          "data": [
+            [],
+            [],
+            1000
+          ],
+          "callbacks": [
+            "failed_callback",
+            "progress_callback",
+            "response_callback"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "no-identity-list",
+      "retain": false,
+      "maximum": 0,
+      "response": 240,
+      "state": 243,
+      "progress": 0.0,
+      "last_result": null,
+      "closed": true,
+      "requests": []
+    },
+    {
+      "label": "no-access-list",
+      "retain": false,
+      "maximum": 0,
+      "response": 241,
+      "state": 244,
+      "progress": 0.0,
+      "last_result": null,
+      "closed": true,
+      "requests": []
+    },
+    {
+      "label": "download-new",
+      "retain": false,
+      "response": [
+        "6e657720656e63727970746564206d657373616765"
+      ],
+      "state": 7,
+      "progress": 1.0,
+      "last_result": 1,
+      "duplicates": 0,
+      "closed": false,
+      "requests": [
+        {
+          "path": "/get",
+          "data": [
+            null,
+            [
+              "2339b6b06ba9e238c02f9fd54f8e03b865f91a0a64327d7dca5bb13e36c58361"
+            ]
+          ],
+          "callbacks": [
+            "failed_callback"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "download-retain-reference-defect",
+      "retain": true,
+      "response": [
+        "6e657720656e63727970746564206d657373616765"
+      ],
+      "state": 7,
+      "progress": 1.0,
+      "last_result": 1,
+      "duplicates": 0,
+      "closed": false,
+      "requests": [
+        {
+          "path": "/get",
+          "data": [
+            null,
+            [
+              "2339b6b06ba9e238c02f9fd54f8e03b865f91a0a64327d7dca5bb13e36c58361"
+            ]
+          ],
+          "callbacks": [
+            "failed_callback"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "download-duplicate",
+      "retain": false,
+      "response": [
+        "6f6c6420656e63727970746564206d657373616765"
+      ],
+      "state": 7,
+      "progress": 1.0,
+      "last_result": 1,
+      "duplicates": 1,
+      "closed": false,
+      "requests": [
+        {
+          "path": "/get",
+          "data": [
+            null,
+            [
+              "517e51573b11c4caa3b5e3b2644668f7ac50b9426e9acb280f29f6b4356bca41"
+            ]
+          ],
+          "callbacks": [
+            "failed_callback"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "download-rejected-reference-acknowledges",
+      "retain": false,
+      "response": [
+        "72656a656374656420656e63727970746564206d657373616765"
+      ],
+      "state": 7,
+      "progress": 1.0,
+      "last_result": 1,
+      "duplicates": 0,
+      "closed": false,
+      "requests": [
+        {
+          "path": "/get",
+          "data": [
+            null,
+            [
+              "f9cd99829d3c696cfd9d03a859b8b29634ba1000d9fa59821808c8fc298651ca"
+            ]
+          ],
+          "callbacks": [
+            "failed_callback"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "download-empty",
+      "retain": false,
+      "response": [],
+      "state": 7,
+      "progress": 1.0,
+      "last_result": 0,
+      "duplicates": 0,
+      "closed": false,
+      "requests": []
+    },
+    {
+      "label": "download-no-identity",
+      "retain": false,
+      "response": 240,
+      "state": 243,
+      "progress": 0.0,
+      "last_result": null,
+      "duplicates": 0,
+      "closed": true,
+      "requests": []
+    },
+    {
+      "label": "download-no-access",
+      "retain": false,
+      "response": 241,
+      "state": 244,
+      "progress": 0.0,
+      "last_result": null,
+      "duplicates": 0,
+      "closed": true,
+      "requests": []
+    }
+  ],
+  "reuse": {
+    "same_link": true,
+    "identifications": 1,
+    "state": 4,
+    "maximum": 2,
+    "requests": [
+      {
+        "path": "/get",
+        "data": [
+          null,
+          null
+        ],
+        "callbacks": [
+          "failed_callback",
+          "response_callback"
+        ]
+      }
+    ]
+  },
+  "progress": {
+    "state": 5,
+    "progress": 0.375,
+    "size": 1234567
+  },
+  "acknowledge_error": {
+    "state": 244,
+    "progress": 0.0,
+    "size": null,
+    "last_result": null
+  },
+  "cancellation": {
+    "closed": true,
+    "link_cleared": true,
+    "state": 0,
+    "progress": 0.0,
+    "size": null
+  },
+  "disclosure": "Only link I/O, persistence and delivery callback results are observed/stubbed; callback policy is actual upstream."
+}

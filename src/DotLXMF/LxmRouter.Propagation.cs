@@ -78,13 +78,21 @@ public sealed partial class LxmRouter
         ArgumentOutOfRangeException.ThrowIfNegative(maxMessages);
         var keepOnNode = retain ?? RetainNodeMessages;
         var node = destinationHash?.ToArray() ?? OutboundPropagationNode ?? throw new InvalidOperationException("No propagation node configured.");
+        if (node.Length != 16) throw new ArgumentException("Propagation destination must be 16 bytes.", nameof(destinationHash));
         using var owned = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
         await _retrieval.WaitAsync(owned.Token).ConfigureAwait(false);
         DotReticulum.Transport.Link? link = null;
+        var succeeded = false;
         try
         {
-            PropagationTransferState = LxmPropagationTransferState.LinkEstablishing;
-            link = await LxmPropagationTransport.ConnectAsync(_router, node, TimeSpan.FromSeconds(30), owned.Token).ConfigureAwait(false);
+            lock (_gate)
+            {
+                _activeRetrieval = owned;
+                PropagationTransferProgress = 0;
+                PropagationTransferSize = null;
+                PropagationTransferMaxMessages = maxMessages;
+            }
+            link = await GetRetrievalLinkAsync(node, owned.Token).ConfigureAwait(false);
             PropagationTransferState = LxmPropagationTransferState.LinkEstablished;
             link.Identify(_identity);
             PropagationTransferState = LxmPropagationTransferState.RequestSent;
@@ -101,17 +109,25 @@ public sealed partial class LxmRouter
             if (wants.Count == 0 && haves.Count == 0)
             {
                 PropagationTransferState = LxmPropagationTransferState.Complete;
+                PropagationTransferProgress = 1;
+                PropagationTransferLastResult = 0;
+                PropagationTransferLastDuplicates = 0;
+                succeeded = true;
+                NotifyPropagationProgress();
                 return 0;
             }
 
             PropagationTransferState = LxmPropagationTransferState.Receiving;
             response = await LxmPropagationTransport.RequestAsync(link, "/get",
                 new object?[] { wants.ToArray(), haves.ToArray(), _options.DeliveryPerTransferLimit / 1000.0 },
-                TimeSpan.FromSeconds(60), _options.DeliveryPerTransferLimit, owned.Token).ConfigureAwait(false);
+                TimeSpan.FromSeconds(60), _options.DeliveryPerTransferLimit, owned.Token,
+                receipt => UpdateRetrievalProgress(receipt, owned)).ConfigureAwait(false);
+            PropagationTransferState = LxmPropagationTransferState.ResponseReceived;
             EnsureRetrievalResponse(response);
             if (response is not object?[] messages) throw new FormatException("Invalid propagation download.");
             haves.Clear();
             var count = 0;
+            var duplicates = 0;
             foreach (var value in messages)
             {
                 if (value is not byte[] data) throw new FormatException("Invalid propagated message bytes.");
@@ -119,6 +135,7 @@ public sealed partial class LxmRouter
                 var key = Convert.ToHexStringLower(id);
                 bool known;
                 lock (_gate) known = _seen.ContainsKey(key);
+                if (known) duplicates++;
                 if (known || ReceivePropagatedData(data))
                 {
                     if (!keepOnNode) haves.Add(id);
@@ -133,17 +150,28 @@ public sealed partial class LxmRouter
             if (haves.Count > 0) await LxmPropagationTransport.RequestAsync(link, "/get", new object?[] { null, haves.ToArray() },
                 TimeSpan.FromSeconds(30), _options.DeliveryPerTransferLimit, owned.Token).ConfigureAwait(false);
             PropagationTransferState = LxmPropagationTransferState.Complete;
+            PropagationTransferProgress = 1;
+            PropagationTransferLastResult = messages.Length;
+            PropagationTransferLastDuplicates = duplicates;
+            succeeded = true;
+            NotifyPropagationProgress();
             return count;
+        }
+        catch (OperationCanceledException) when (owned.IsCancellationRequested)
+        {
+            AcknowledgeSyncCompletion(resetState: true);
+            throw;
         }
         catch
         {
-            if (PropagationTransferState is not (LxmPropagationTransferState.NoAccess or LxmPropagationTransferState.NoIdentity))
-                PropagationTransferState = LxmPropagationTransferState.Failed;
+            if (PropagationTransferState < LxmPropagationTransferState.NoPath)
+                PropagationTransferState = LxmPropagationTransferState.TransferFailed;
             throw;
         }
         finally
         {
-            link?.Teardown();
+            lock (_gate) if (ReferenceEquals(_activeRetrieval, owned)) _activeRetrieval = null;
+            if (!succeeded && link is not null) { ForgetRetrievalLink(link); link.Teardown(); }
             _retrieval.Release();
         }
     }

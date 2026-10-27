@@ -707,13 +707,19 @@ internal static class LxmPropagationTransport
         catch { link.Teardown(); throw; }
     }
 
-    internal static async Task<object?> RequestAsync(Link link, string path, object? data, TimeSpan timeout, long maxResponse, CancellationToken ct)
+    internal static async Task<object?> RequestAsync(Link link, string path, object? data, TimeSpan timeout, long maxResponse, CancellationToken ct,
+        Action<RequestReceipt>? progress = null)
     {
-        var receipt = link.Request(path, data, timeout: timeout.TotalSeconds, useApplicationValues: true)
+        var receipt = link.Request(path, data, timeout: timeout.TotalSeconds, useApplicationValues: true,
+            maxResponseSize: maxResponse, cancellationToken: ct, progressCallback: progress)
             ?? throw new IOException("Propagation request could not be sent.");
-        receipt.MaxResponseSize = maxResponse;
-        using var registration = ct.Register(receipt.Cancel);
-        return await receipt.ResponseTask.WaitAsync(timeout, ct).ConfigureAwait(false);
+        try
+        {
+            var response = await receipt.ResponseTask.WaitAsync(timeout, ct).ConfigureAwait(false);
+            progress?.Invoke(receipt);
+            return response;
+        }
+        catch { receipt.Cancel(); throw; }
     }
 
     internal static async Task SendResourceAsync(Link link, byte[] data, TimeSpan timeout, CancellationToken ct)

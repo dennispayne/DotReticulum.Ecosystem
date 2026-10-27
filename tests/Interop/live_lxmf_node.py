@@ -150,6 +150,7 @@ def main():
               "ratchet_id": message.ratchet_id.hex() if message.ratchet_id else None,
               "stamp_valid": message.stamp_valid, "stamp_size": len(message.stamp) if message.stamp else 0,
               "has_ticket": LXMF.FIELD_TICKET in message.fields,
+              "fields_sha256": hashlib.sha256(msgpack.packb(message.fields)).hexdigest(),
               "fields": {str(k): ("<ticket-redacted>" if k == LXMF.FIELD_TICKET else v.hex() if isinstance(v, bytes) else repr(v))
                          for k, v in (message.fields or {}).items()}})
 
@@ -227,7 +228,7 @@ def main():
             while peer.state != peer.IDLE and time.time() < deadline:
                 time.sleep(0.05)
             emit({"event": "peer-synced", "outgoing": peer.outgoing, "state": peer.state})
-        elif cmd in ("send", "send-plain"):
+        elif cmd in ("send", "send-plain", "send-extended"):
             dest_hash = bytes.fromhex(parts[1])
             method = {"opportunistic": LXMF.LXMessage.OPPORTUNISTIC, "direct": LXMF.LXMessage.DIRECT,
                       "propagated": LXMF.LXMessage.PROPAGATED}[parts[2]]
@@ -246,13 +247,16 @@ def main():
                         remote_identity = RNS.Identity.recall(dest_hash)
                 destination = RNS.Destination(remote_identity, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")
             content = random.Random(seed).randbytes(size)
-            message = LXMF.LXMessage(destination, local, content, title, fields={1: [b"py-field"]}, desired_method=method,
+            fields = ({None: "nil", (1, b"two", None): "tuple", float("inf"): "positive", float("nan"): "nan",
+                       0xFC: {None: "nested", (1, 2): b"\x01"}} if cmd == "send-extended" else {1: [b"py-field"]})
+            message = LXMF.LXMessage(destination, local, content, title, fields=fields, desired_method=method,
                                     include_ticket=len(parts) > 6 and parts[6] == "ticket")
             message.register_delivery_callback(lambda m: emit({"event": "delivered", "hash": m.hash.hex(), "state": m.state}))
             message.register_failed_callback(lambda m: emit({"event": "failed", "hash": m.hash.hex(), "state": m.state}))
             router.handle_outbound(message)
             emit({"event": "sent_queued", "hash": message.hash.hex(), "method": message.method, "representation": message.representation,
                   "stamp_size": len(message.stamp) if message.stamp else 0,
+                  "fields_sha256": hashlib.sha256(msgpack.packb(message.fields)).hexdigest(),
                   "size": len(content), "sha256": hashlib.sha256(content).hexdigest()})
 
     os._exit(0)

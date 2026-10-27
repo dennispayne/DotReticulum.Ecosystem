@@ -262,7 +262,8 @@ public class LiveLxmfTests
         rig.Lxmf.OutboundPropagationNode = node;
         var message = LxMessage.Create(rig.Lxmf.DeliveryHash, rig.Identity, "Python propagation storage", method: LxmMethod.Propagated);
         await rig.Lxmf.SendAsync(message);
-        Assert.Equal(LxmState.Sent, await message.Completion.WaitAsync(TimeSpan.FromSeconds(60)));
+        try { Assert.Equal(LxmState.Sent, await message.Completion.WaitAsync(TimeSpan.FromSeconds(60))); }
+        catch (TimeoutException ex) { throw new TimeoutException($"Propagation deposit timed out in {message.State} after {message.DeliveryAttempts} attempts. .NET: {string.Join("\n", rig.Log)}\nPython: {rig.Py.Log}", ex); }
         var stored = await rig.Py.Command("pn-count", "pn-count", TimeSpan.FromSeconds(15));
         Assert.Equal(1, stored.GetProperty("count").GetInt32());
         Assert.Equal(1, await rig.Lxmf.RequestMessagesFromPropagationNodeAsync());
@@ -379,6 +380,31 @@ public class LiveLxmfTests
         Assert.False(incoming.TransportEncrypted);
         Assert.Null(incoming.TransportEncryption);
         Assert.Null(rig.Inbox[0].StampValid);
+    }
+
+    [LiveFact]
+    [Trait("Category", "Live")]
+    public async Task ExtendedFields_RoundTripActualPythonMessageMaps()
+    {
+        await using var rig = await Rig.StartAsync(stampCost: 6);
+        var message = LxMessage.Create(rig.Py.Hash, rig.Identity, "Extended signed fields");
+        message.IncludeTicket = true;
+        message.SetFieldMap(new MsgPackMap(new(null, "nil"), new(new object?[] { 1L, new byte[] { 2 }, null }, "tuple"),
+            new(double.PositiveInfinity, "infinite"), new(double.CopySign(double.NaN, 1), "nan")));
+        await rig.Lxmf.SendAsync(message);
+        var received = await rig.Py.NextAsync("received", 0, TimeSpan.FromSeconds(30));
+        Assert.True(received.GetProperty("signature_validated").GetBoolean());
+        Assert.True(received.GetProperty("has_ticket").GetBoolean());
+        Assert.Equal(Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(MsgPack.Pack(message.FieldsValue))),
+            received.GetProperty("fields_sha256").GetString());
+        var queued = await rig.Py.Command($"send-extended {rig.Lxmf.DeliveryHashHex} direct 64 extended extended", "sent_queued", TimeSpan.FromSeconds(30));
+        await WaitFor(() => { lock (rig.Inbox) return rig.Inbox.Count == 1; }, 30);
+        var inbound = rig.Inbox[0].Message;
+        Assert.True(inbound.SignatureValidated);
+        Assert.True(inbound.StampValid);
+        Assert.Equal(LxMessage.TicketStampValue, inbound.StampValue);
+        Assert.Equal(queued.GetProperty("fields_sha256").GetString(),
+            Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(MsgPack.Pack(inbound.FieldsValue))));
     }
 
     [LiveFact]

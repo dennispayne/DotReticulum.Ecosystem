@@ -48,6 +48,18 @@
         "int"
       ],
       "error": null
+    },
+    {
+      "label": "nil-fields",
+      "packed": "15d85003e9228eb136460fea1d6d71ee8202d9446618dd077ad595f50c6eebcca2d739321b3a07fb00bfdd170fd3ca7f3f71c6a572a2c212f676b136931c4cff1621206baac5e252b8a551c97f6d50a49627a440fcea9894a217a7541d88140094cb41d954fc5b000000c40146c4064669656c6473c0",
+      "hash": "a5b0780e8f45cff3ee9fd59646f365b107b35e53989997f5067a28426f4d81b3",
+      "key_types": [],
+      "error": null
+    },
+    {
+      "label": "list-fields",
+      "error": "ValueError",
+      "packed": "15d85003e9228eb136460fea1d6d71ee8202d9446618dd077ad595f50c6eebcc58868b474b2b71fb85d19482730cb94fbf38aa7ce13a6dbec960a4b4d061890b26f7d9ec8c4cae0ba8d72104d45a40a4b1dba067aaa8b64c14cf86d9e5d9700f94cb41d954fc5b000000c40146c4064669656c647391a94e6f742061206d6170"
     }
   ]
 }

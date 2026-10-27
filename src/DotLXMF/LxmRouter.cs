@@ -193,7 +193,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         {
             if (message.IncludeTicket && _tickets.Generate(message.DestinationHash) is { } issued)
             {
-                try { message.Fields[LxmField.Ticket] = issued.ToField(); }
+                try { message.SetField(LxmField.Ticket, issued.ToField()); }
                 finally { CryptographicOperations.ZeroMemory(issued.Token); }
             }
 
@@ -231,7 +231,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
             else message.Pack(stamp);
         }
 
-        if (message.IncludeTicket && message.Fields.ContainsKey(LxmField.Ticket))
+        if (message.IncludeTicket && message.TryGetField(LxmField.Ticket, out _))
             message.StateChanged += MarkTicketDelivered;
         message.DetermineTransportEncryption();
         message.State = LxmState.Outbound;
@@ -576,7 +576,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 if (_ignored.Contains(Convert.ToHexStringLower(message.SourceHash))) return LxmPaperIngestResult.Rejected;
             message.TransportEncrypted = work.DestinationType != DestinationType.Plain;
             message.TransportEncryption = work.DestinationType == DestinationType.Plain ? null : "Curve25519";
-            if (message.SignatureValidated && message.Fields.TryGetValue(LxmField.Ticket, out var value) &&
+            if (message.SignatureValidated && message.TryGetField(LxmField.Ticket, out var value) &&
                 value is object?[] { Length: >= 2 } entry && entry[1] is byte[] { Length: LxMessage.TicketLength } token &&
                 entry[0] is double or float or long or ulong)
             {

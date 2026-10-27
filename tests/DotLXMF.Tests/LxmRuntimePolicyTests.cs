@@ -98,4 +98,29 @@ public class LxmRuntimePolicyTests
         await SendUnstamped("Allowed again");
         await pair.WaitAsync(() => pair.ServerInbox.Count == 2);
     }
+
+    [Fact]
+    public async Task ExtendedFieldDelivery_PreservesTicketsAndRunsWithoutReceiveObservers()
+    {
+        await using var pair = await LxmfPair.CreateAsync();
+        pair.Server.MessageReceived = null;
+        var first = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "No observer");
+        first.IncludeTicket = true;
+        first.SetFieldMap(new MsgPackMap([new(null, "preserved")]));
+        await pair.Client.SendAsync(first);
+        await first.Completion.WaitAsync(TimeSpan.FromSeconds(10));
+        await pair.WaitAsync(() => pair.Server.HasMessage(first.Hash!));
+        var ticket = pair.Server.Tickets.GetOutbound(pair.Client.DeliveryHash);
+        Assert.NotNull(ticket);
+        System.Security.Cryptography.CryptographicOperations.ZeroMemory(ticket.Token);
+        var received = new TaskCompletionSource<LxMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        pair.Server.MessageReceived = message => received.TrySetResult(message.Message);
+        var second = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "Observer");
+        second.SetFieldMap(new MsgPackMap([new(null, "still preserved")]));
+        await pair.Client.SendAsync(second);
+        var delivered = await received.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.True(delivered.SignatureValidated);
+        Assert.Equal(second.Hash, delivered.Hash);
+        Assert.Equal(MsgPack.Pack(second.FieldsValue), MsgPack.Pack(delivered.FieldsValue));
+    }
 }

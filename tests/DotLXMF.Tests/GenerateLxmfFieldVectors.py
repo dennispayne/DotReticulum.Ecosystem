@@ -41,8 +41,12 @@ for label, fields in (
     ("infinite-keys", {float("inf"): "positive", -float("inf"): "negative"}),
     ("nan-key", {float("nan"): "nan"}),
     ("nested-map", {0xFC: {None: "nested", (1, 2): b"\x01"}}),
+    ("nil-fields", None),
+    ("list-fields", ["Not a map"]),
 ):
-    message = LXMF.LXMessage(dst, src, "Fields", "F", fields=fields)
+    message = LXMF.LXMessage(dst, src, "Fields", "F", fields=fields if isinstance(fields, dict) else None)
+    if label in ("nil-fields", "list-fields"):
+        message.fields = fields
     message.timestamp = 1700000108.0
     try:
         message.pack()
@@ -51,7 +55,8 @@ for label, fields in (
         cases.append({"label": label, "packed": message.packed.hex(), "hash": message.hash.hex(),
                       "key_types": [type(key).__name__ for key in unpacked.fields], "error": None})
     except Exception as error:
-        cases.append({"label": label, "error": type(error).__name__})
+        cases.append({"label": label, "error": type(error).__name__,
+                      "packed": message.packed.hex() if message.packed else None})
 module = importlib.import_module("LXMF.LXMessage")
 output = {"lxmf_sha": SHA, "source_sha256": hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest(),
           "rns_sha": subprocess.check_output(["git", "-C", str(Path(RNS.__file__).parent.parent),

@@ -56,6 +56,11 @@ public class LxmfDotNetToPythonTests
         var plainMessage = LxMessage.Create(plain, source, "Plain from .NET", "P", method: LxmMethod.Opportunistic, timestamp: 1700000107.0);
         plainMessage.Pack();
         messages.Add(("plain", plainMessage, null));
+        var extended = LxMessage.Create(destinationHash, source, "Extended fields from .NET", "E", timestamp: 1700000108.0);
+        extended.SetFieldMap(new MsgPackMap(new(null, "nil"), new(new object?[] { 1L, new byte[] { 2 }, null }, "tuple"),
+            new(double.PositiveInfinity, "infinite"), new(double.CopySign(double.NaN, 1), "nan")));
+        extended.Pack();
+        messages.Add(("extended-fields", extended, null));
 
         var path = Path.Combine(AppContext.BaseDirectory, "dotnet-lxmf-" + Guid.NewGuid().ToString("N") + ".json");
         try
@@ -84,7 +89,7 @@ public class LxmfDotNetToPythonTests
                     json.WriteString("title", m.Title);
                     json.WriteString("content", m.Content);
                     json.WriteNumber("timestamp", m.Timestamp);
-                    json.WriteString("fields_packed", Convert.ToHexStringLower(MsgPack.Pack(m.Fields)));
+                    json.WriteString("fields_packed", Convert.ToHexStringLower(MsgPack.Pack(m.FieldsValue)));
                     if (m.Stamp is not null)
                     {
                         json.WriteString("stamp", Convert.ToHexStringLower(m.Stamp));

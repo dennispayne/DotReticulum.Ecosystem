@@ -130,12 +130,13 @@ public class LxmRouterTests
     public async Task MutableStampCost_AnnouncesNewRequirementAndNoStampPolicy()
     {
         await using var pair = await LxmfPair.CreateAsync();
-        Assert.True(pair.Server.SetInboundStampCost(4));
+        const int stampCost = 4;
+        Assert.True(pair.Server.SetInboundStampCost(stampCost));
         Assert.False(pair.Server.SetInboundStampCost(255));
         var emitted = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         await pair.WaitAsync(() => DateTimeOffset.UtcNow.ToUnixTimeSeconds() > emitted);
         await pair.Server.AnnounceAsync();
-        await pair.WaitAsync(() => pair.Client.GetOutboundStampCost(pair.Server.DeliveryHash) == 4);
+        await pair.WaitAsync(() => pair.Client.GetOutboundStampCost(pair.Server.DeliveryHash) == stampCost);
         var stamped = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "new stamp requirement");
         await pair.Client.SendAsync(stamped);
         Assert.Equal(LxmState.Delivered, await stamped.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
@@ -143,7 +144,7 @@ public class LxmRouterTests
         Assert.True(pair.ServerInbox[0].StampValid);
         Assert.True(pair.ServerInbox[0].Message.StampChecked);
         Assert.True(pair.ServerInbox[0].Message.StampValid);
-        Assert.InRange(pair.ServerInbox[0].Message.StampValue!.Value, 5, 256);
+        Assert.InRange(pair.ServerInbox[0].Message.StampValue!.Value, stampCost, 256);
         Assert.True(pair.Server.SetInboundStampCost(-1));
         emitted = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         await pair.WaitAsync(() => DateTimeOffset.UtcNow.ToUnixTimeSeconds() > emitted);

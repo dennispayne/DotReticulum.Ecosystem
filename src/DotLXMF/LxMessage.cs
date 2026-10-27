@@ -136,8 +136,78 @@ public sealed class LxMessage
         }
     }
 
-    /// <summary>Integer-keyed fields (see <see cref="LxmField"/>). Values are the msgpack object model of <see cref="MsgPack"/>.</summary>
-    public Dictionary<object, object?> Fields { get; private set; } = [];
+    private object _fieldsValue = new Dictionary<object, object?>();
+
+    /// <summary>Conventional field dictionary. For maps containing nil, tuple or nonfinite keys, use <see cref="FieldsValue"/>.</summary>
+    public Dictionary<object, object?> Fields
+    {
+        get => _fieldsValue as Dictionary<object, object?>
+            ?? throw new InvalidOperationException("The field map contains extended keys; use FieldsValue.");
+        private set => _fieldsValue = value;
+    }
+
+    /// <summary>The complete Dictionary or MsgPackMap, including extended keys and nested maps.</summary>
+    public object FieldsValue => _fieldsValue;
+
+    public void SetFieldMap(MsgPackMap fields)
+    {
+        ArgumentNullException.ThrowIfNull(fields);
+        EnsureUnpacked();
+        _fieldsValue = fields;
+    }
+
+    public bool TryGetField(long code, out object? value)
+    {
+        foreach (var (key, entry) in FieldEntries())
+            if (IsFieldKey(key, code)) { value = entry; return true; }
+        value = null;
+        return false;
+    }
+
+    public void SetField(long code, object? value)
+    {
+        EnsureUnpacked();
+        if (_fieldsValue is Dictionary<object, object?> dictionary)
+        {
+            var existing = dictionary.Keys.FirstOrDefault(key => IsFieldKey(key, code));
+            dictionary[existing ?? code] = value;
+        }
+        else
+        {
+            var found = false;
+            var entries = FieldEntries().Select(entry =>
+            {
+                if (!IsFieldKey(entry.Key, code)) return entry;
+                found = true;
+                return new KeyValuePair<object?, object?>(entry.Key, value);
+            }).ToList();
+            if (!found) entries.Add(new(code, value));
+            _fieldsValue = new MsgPackMap(entries.ToArray());
+        }
+    }
+
+    private IEnumerable<KeyValuePair<object?, object?>> FieldEntries() => _fieldsValue is MsgPackMap map ? map :
+        ((Dictionary<object, object?>)_fieldsValue).Select(entry => new KeyValuePair<object?, object?>(entry.Key, entry.Value));
+
+    private static bool IsFieldKey(object? key, long code) => key switch
+    {
+        sbyte value => value == code,
+        byte value => value == code,
+        short value => value == code,
+        ushort value => value == code,
+        int value => value == code,
+        uint value => value == code,
+        long value => value == code,
+        ulong value => code >= 0 && value == (ulong)code,
+        float value => IsFloatingFieldKey(value, code),
+        double value => IsFloatingFieldKey(value, code),
+        bool value => (value ? 1 : 0) == code,
+        _ => false,
+    };
+
+    private static bool IsFloatingFieldKey(double value, long code) =>
+        value >= long.MinValue && value < 9223372036854775808d &&
+        value == Math.Truncate(value) && (long)value == code;
 
     public byte[]? Stamp { get; private set; }
     public int? StampCost { get; internal set; }
@@ -346,7 +416,7 @@ public sealed class LxMessage
         if (DestinationType == DestinationType.Group && DesiredMethod == LxmMethod.Opportunistic)
             throw new NotSupportedException("The pinned upstream cannot pack opportunistic GROUP messages.");
 
-        var payload = new object?[] { Timestamp, TitleBytes, ContentBytes, Fields };
+        var payload = new object?[] { Timestamp, TitleBytes, ContentBytes, FieldsValue };
         var packedPayload = MsgPack.Pack(payload);
         var hashedPart = Concat(DestinationHash, SourceHash, packedPayload);
         Hash = Identity.FullHash(hashedPart);
@@ -356,7 +426,7 @@ public sealed class LxMessage
         if (stamp is not null)
         {
             Stamp = stamp;
-            packedPayload = MsgPack.Pack(new object?[] { Timestamp, TitleBytes, ContentBytes, Fields, stamp });
+            packedPayload = MsgPack.Pack(new object?[] { Timestamp, TitleBytes, ContentBytes, FieldsValue, stamp });
         }
 
         Packed = Concat(DestinationHash, SourceHash, Signature, packedPayload);
@@ -547,7 +617,7 @@ public sealed class LxMessage
     {
         if (Hash is not null) return Hash;
         if (!_timestampSet) { Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0; _timestampSet = true; }
-        var packedPayload = MsgPack.Pack(new object?[] { Timestamp, TitleBytes, ContentBytes, Fields });
+        var packedPayload = MsgPack.Pack(new object?[] { Timestamp, TitleBytes, ContentBytes, FieldsValue });
         return Identity.FullHash(Concat(DestinationHash, SourceHash, packedPayload));
     }
 
@@ -560,7 +630,7 @@ public sealed class LxMessage
         var sourceHash = lxmfBytes[DestinationLength..(2 * DestinationLength)].ToArray();
         var signature = lxmfBytes[(2 * DestinationLength)..((2 * DestinationLength) + SignatureLength)].ToArray();
         var packedPayload = lxmfBytes[((2 * DestinationLength) + SignatureLength)..].ToArray();
-        if (MsgPack.UnpackApplicationValue(packedPayload) is not object?[] payload || payload.Length < 4) throw new FormatException("LXMF payload is not a list of at least 4 elements.");
+        if (MsgPack.UnpackApplicationValue(packedPayload, allowExtendedMapKeys: true) is not object?[] payload || payload.Length < 4) throw new FormatException("LXMF payload is not a list of at least 4 elements.");
 
         byte[]? stamp = null;
         if (payload.Length > 4)
@@ -579,7 +649,12 @@ public sealed class LxMessage
             Timestamp = MsgPack.ToDouble(payload[0]),
             TitleBytes = AsBytes(payload[1]),
             ContentBytes = AsBytes(payload[2]),
-            Fields = payload[3] as Dictionary<object, object?> ?? [],
+            _fieldsValue = payload[3] switch
+            {
+                null => new Dictionary<object, object?>(),
+                Dictionary<object, object?> or MsgPackMap => payload[3]!,
+                _ => throw new FormatException("LXMF fields must be a map."),
+            },
             Stamp = stamp,
             Hash = hash,
             Signature = signature,
@@ -608,7 +683,7 @@ public sealed class LxMessage
     {
         if (Hash is null || Signature is null || Packed is null) return false;
         var packedPayload = Packed[((2 * DestinationLength) + SignatureLength)..];
-        if (Stamp is not null && MsgPack.UnpackApplicationValue(packedPayload) is object?[] payload && payload.Length > 4) packedPayload = MsgPack.Pack(payload[..4]);
+        if (Stamp is not null && MsgPack.UnpackApplicationValue(packedPayload, allowExtendedMapKeys: true) is object?[] payload && payload.Length > 4) packedPayload = MsgPack.Pack(payload[..4]);
         var hashedPart = Concat(DestinationHash, SourceHash, packedPayload);
         SignatureValidated = sourceIdentity.Verify(Signature, Concat(hashedPart, Hash));
         UnverifiedReason = SignatureValidated ? LxmUnverifiedReason.None : LxmUnverifiedReason.SignatureInvalid;

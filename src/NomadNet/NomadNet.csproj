@@ -14,5 +14,6 @@
   <ItemGroup>
     <ProjectReference Include="..\LXMF\LXMF.csproj" />
     <ProjectReference Include="..\..\external\DotReticulum\src\DotReticulum.Applications\DotReticulum.Applications.csproj" />
+    <None Update="ThirdPartyNotices\System.IO.Ports.MIT.txt" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -3,33 +3,187 @@
         x:Class="Sideband.Desktop.MainWindow"
         x:CompileBindings="True"
         Title="Sideband"
-        Width="1000"
-        Height="700"
-        MinWidth="760"
-        MinHeight="520">
-  <Grid RowDefinitions="Auto,Auto,*" Margin="12">
-    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-      <TextBox x:Name="ReticulumConfigBox" PlaceholderText="Reticulum config directory (blank uses default)" />
-      <Button x:Name="ConnectButton" Grid.Column="1" Content="Connect" Click="ConnectClicked" />
-      <Button x:Name="VoiceButton" Grid.Column="2" Content="Voice calls unavailable" IsEnabled="False"
-              ToolTip.Tip="This build targets LXST 0.4.5; Sideband's current voice integration requires LXST 0.5.4." />
-    </Grid>
-    <TextBlock x:Name="StatusText" Grid.Row="1" Margin="0,8" Text="Not connected" />
-    <Grid Grid.Row="2" ColumnDefinitions="280,*" ColumnSpacing="12">
-      <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" RowSpacing="6">
-        <TextBlock FontSize="18" FontWeight="SemiBold" Text="Contacts" />
-        <ListBox x:Name="ContactList" Grid.Row="1" SelectionChanged="ContactSelectionChanged" />
-        <TextBox x:Name="ContactNameBox" Grid.Row="2" PlaceholderText="Contact name" />
-        <TextBox x:Name="ContactHashBox" Grid.Row="3" PlaceholderText="LXMF delivery address (32 hex)" />
-        <Button Grid.Row="4" Content="Add contact" Click="AddContactClicked" />
+        Width="1040"
+        Height="820"
+        MinWidth="720"
+        MinHeight="620"
+        Background="{DynamicResource AppBackgroundBrush}">
+  <Grid RowDefinitions="64,*">
+    <Border Grid.Row="0" Background="{DynamicResource AccentBrush}">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="12,0">
+        <Button x:Name="MenuToggleButton" Width="44" Content="☰" Click="ToggleNavigation"
+                Background="Transparent" Foreground="White" />
+        <TextBlock x:Name="PageTitle" Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center"
+                   FontSize="20" FontWeight="SemiBold" Foreground="White" Text="Conversations" />
+        <TextBlock x:Name="ToolbarStatusText" Grid.Column="2" Margin="12,0" VerticalAlignment="Center"
+                   Foreground="White" Text="Offline" />
+        <Button Grid.Column="3" Width="44" Content="×" Click="CloseWindow"
+                Background="Transparent" Foreground="White" />
       </Grid>
-      <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto" RowSpacing="8">
-        <ListBox x:Name="MessageList" />
-        <TextBox x:Name="MessageBox" Grid.Row="1" AcceptsReturn="True" MinHeight="70"
-                 MaxLength="65536" PlaceholderText="Write a text message" />
-        <Button x:Name="SendButton" Grid.Row="2" HorizontalAlignment="Right"
-                Content="Send securely" Click="SendClicked" />
+    </Border>
+    <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+      <Border x:Name="NavigationPanel" Grid.Column="0" Width="240"
+              Background="{DynamicResource NavigationBackgroundBrush}"
+              BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,1,0">
+        <ScrollViewer>
+          <StackPanel Margin="12" Spacing="6">
+            <TextBlock Margin="8,8,0,4" FontSize="12" FontWeight="Bold"
+                       Foreground="{DynamicResource SecondaryTextBrush}" Text="MESSAGES" />
+            <Button x:Name="ConversationsNavButton" HorizontalContentAlignment="Left"
+                    Content="Conversations" Tag="Conversations" Click="NavigateClicked" />
+            <Button x:Name="ContactsNavButton" HorizontalContentAlignment="Left"
+                    Content="Contacts" Tag="Contacts" Click="NavigateClicked" />
+            <Button HorizontalContentAlignment="Left" Content="Announce Stream · unavailable"
+                    IsEnabled="False" ToolTip.Tip="An announce history screen is not implemented in this build." />
+            <TextBlock Margin="8,18,0,4" FontSize="12" FontWeight="Bold"
+                       Foreground="{DynamicResource SecondaryTextBrush}" Text="RETICULUM" />
+            <Button x:Name="ConnectivityNavButton" HorizontalContentAlignment="Left"
+                    Content="Connectivity" Tag="Connectivity" Click="NavigateClicked" />
+            <Button x:Name="IdentityNavButton" HorizontalContentAlignment="Left"
+                    Content="Backup &amp; Keys" Tag="Identity" Click="NavigateClicked" />
+            <Button x:Name="UtilitiesNavButton" HorizontalContentAlignment="Left"
+                    Content="Utilities" Tag="Utilities" Click="NavigateClicked" />
+            <Button HorizontalContentAlignment="Left" Content="Repository Server · unavailable"
+                    IsEnabled="False"
+                    ToolTip.Tip="The upstream LAN HTTPS software mirror is not implemented." />
+            <TextBlock Margin="8,18,0,4" FontSize="12" FontWeight="Bold"
+                       Foreground="{DynamicResource SecondaryTextBrush}" Text="APPLICATION" />
+            <Button x:Name="PreferencesNavButton" HorizontalContentAlignment="Left"
+                    Content="Preferences" Tag="Preferences" Click="NavigateClicked" />
+            <Button x:Name="GuideNavButton" HorizontalContentAlignment="Left"
+                    Content="Guide" Tag="Guide" Click="NavigateClicked" />
+            <Button HorizontalContentAlignment="Left" Content="Situation Map · unavailable"
+                    IsEnabled="False" ToolTip.Tip="Maps and telemetry are not implemented in this build." />
+            <Button HorizontalContentAlignment="Left" Content="Telemetry · unavailable"
+                    IsEnabled="False" ToolTip.Tip="Telemetry is not implemented in this build." />
+            <Button x:Name="VoiceUnavailableButton" HorizontalContentAlignment="Left" Content="Voice · unavailable"
+                    IsEnabled="False" ToolTip.Tip="This build targets LXST 0.4.5; Sideband's current voice integration requires LXST 0.5.4." />
+            <Button HorizontalContentAlignment="Left" Content="Hardware · unavailable"
+                    IsEnabled="False" ToolTip.Tip="Hardware configuration is managed by Reticulum outside this app." />
+            <Button HorizontalContentAlignment="Left" Content="Plugins · unavailable"
+                    IsEnabled="False" ToolTip.Tip="Upstream plugin support is not implemented in this build." />
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+      <Grid Grid.Column="1">
+        <ScrollViewer x:Name="ConversationsPage" IsVisible="True" Margin="24">
+          <Grid ColumnDefinitions="280,*" ColumnSpacing="20" MinHeight="560">
+            <StackPanel Grid.Column="0" Spacing="10">
+              <TextBlock FontSize="24" FontWeight="SemiBold" Text="Conversations" />
+              <TextBlock Foreground="{DynamicResource SecondaryTextBrush}"
+                         Text="Choose a contact or add an LXMF delivery address." TextWrapping="Wrap" />
+              <ListBox x:Name="ContactList" MinHeight="260"
+                       SelectionChanged="ContactSelectionChanged" />
+              <TextBox x:Name="ContactNameBox" PlaceholderText="Contact name" />
+              <TextBox x:Name="ContactHashBox" PlaceholderText="LXMF delivery address (32 hex)" />
+              <Button Content="Add contact" Click="AddContactClicked" />
+            </StackPanel>
+            <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="10">
+              <StackPanel>
+                <TextBlock FontSize="24" FontWeight="SemiBold" Text="Messages" />
+                <TextBlock x:Name="ConversationPeerText" Margin="0,4,0,0"
+                           Foreground="{DynamicResource SecondaryTextBrush}" Text="Select a contact" />
+              </StackPanel>
+              <ListBox x:Name="MessageList" Grid.Row="1" MinHeight="280" />
+              <TextBox x:Name="MessageBox" Grid.Row="2" AcceptsReturn="True" MinHeight="88"
+                       MaxLength="65536" PlaceholderText="Write a text message" />
+              <Button x:Name="SendButton" Grid.Row="3" HorizontalAlignment="Right"
+                      Content="Send securely" Click="SendClicked" />
+            </Grid>
+          </Grid>
+        </ScrollViewer>
+        <ScrollViewer x:Name="ContactsPage" IsVisible="False" Margin="24">
+          <StackPanel Spacing="12">
+            <TextBlock FontSize="26" FontWeight="SemiBold" Text="Contacts" />
+            <TextBlock Foreground="{DynamicResource SecondaryTextBrush}"
+                       Text="Contacts added here are stored locally. Discovered LXMF delivery announces are added to this list." TextWrapping="Wrap" />
+            <ListBox x:Name="ExpandedContactList" MinHeight="320" />
+            <TextBlock Text="Add a contact from the Conversations screen using its 32-character delivery address." TextWrapping="Wrap" />
+          </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="ConnectivityPage" IsVisible="False" Margin="24">
+          <StackPanel Spacing="16">
+            <TextBlock FontSize="26" FontWeight="SemiBold" Text="Configuring Connectivity" />
+            <Border Padding="18" CornerRadius="8" Background="{DynamicResource CardBackgroundBrush}">
+              <StackPanel Spacing="8">
+                <TextBlock FontSize="17" FontWeight="SemiBold" Text="Connectivity status" />
+                <TextBlock x:Name="ConnectivityStatusText" TextWrapping="Wrap"
+                           Text="Not connected to Reticulum. Connect to determine the runtime state." />
+                <TextBlock x:Name="RuntimeModeText" Foreground="{DynamicResource SecondaryTextBrush}"
+                           Text="Shared-instance state is unknown until a connection is opened." TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+            <TextBlock FontSize="17" FontWeight="SemiBold" Text="Reticulum configuration" />
+            <TextBlock Foreground="{DynamicResource SecondaryTextBrush}"
+                       Text="Sideband uses the selected Reticulum configuration. It does not create, repair, or overwrite that configuration. Interface settings are managed in Reticulum." TextWrapping="Wrap" />
+            <TextBox x:Name="ReticulumConfigBox" PlaceholderText="Reticulum config directory or config file" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="SaveConfigButton" Content="Save path" Click="SaveConfigClicked" />
+              <Button x:Name="ConnectButton" Content="Connect" Click="ConnectClicked" />
+              <Button x:Name="DisconnectButton" Content="Disconnect" IsEnabled="False" Click="DisconnectClicked" />
+            </StackPanel>
+            <TextBlock x:Name="EffectiveConfigPathText" TextWrapping="Wrap"
+                       Foreground="{DynamicResource SecondaryTextBrush}" />
+            <Border Padding="18" CornerRadius="8" Background="{DynamicResource CardBackgroundBrush}">
+              <StackPanel Spacing="8">
+                <TextBlock FontSize="17" FontWeight="SemiBold" Text="Connectivity details" />
+                <TextBlock Text="On Windows and Linux, Reticulum interfaces are configured in the config file shown above. Use the rnstatus utility with this same configuration to inspect routes and interfaces; Sideband does not claim that a daemon is healthy just because its executable or configuration exists."
+                           TextWrapping="Wrap" />
+                <TextBlock Text="When connected, the mode shown above is reported by the running Reticulum node: shared client, shared owner, or standalone. Sharing may reuse a compatible local Reticulum owner; this app does not open a second physical interface when it joins as a client."
+                           TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="IdentityPage" IsVisible="False" Margin="24">
+          <StackPanel Spacing="14">
+            <TextBlock FontSize="26" FontWeight="SemiBold" Text="Backup &amp; Keys" />
+            <TextBlock Text="The app uses the Reticulum identity stored under its selected Reticulum configuration. Private-key export and identity import are not included; this page only shows the public address after connecting."
+                       TextWrapping="Wrap" />
+            <TextBlock x:Name="IdentityHashText" Text="Identity: not available while offline" TextWrapping="Wrap" />
+            <TextBlock x:Name="DeliveryHashText" Text="LXMF address: not available while offline" TextWrapping="Wrap" />
+          </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="PreferencesPage" IsVisible="False" Margin="24">
+          <StackPanel Spacing="14">
+            <TextBlock FontSize="26" FontWeight="SemiBold" Text="Preferences" />
+            <TextBlock Text="Local application preferences are saved in Sideband's own state file; they do not alter Reticulum or upstream Sideband settings."
+                       Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" />
+            <TextBlock FontWeight="SemiBold" Text="Display name" />
+            <TextBox x:Name="DisplayNameBox" MaxLength="64" PlaceholderText="Name announced to LXMF peers" />
+            <TextBlock FontWeight="SemiBold" Text="Appearance" />
+            <ComboBox x:Name="ThemeSelector" />
+            <Button x:Name="SavePreferencesButton" HorizontalAlignment="Left"
+                    Content="Save preferences" Click="SavePreferencesClicked" />
+            <TextBlock x:Name="PreferencesStatusText" Foreground="{DynamicResource SecondaryTextBrush}"
+                       TextWrapping="Wrap" />
+          </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="UtilitiesPage" IsVisible="False" Margin="24">
+          <StackPanel Spacing="14">
+            <TextBlock FontSize="26" FontWeight="SemiBold" Text="Utilities" />
+            <TextBlock Text="Use the Connectivity screen for the effective Reticulum config path and rnstatus guidance."
+                       TextWrapping="Wrap" />
+            <TextBlock Text="The upstream local HTTPS software repository server is not implemented. The ecosystem's Reticulum-hosted rngit tools are separate and are not started or configured by Sideband."
+                       TextWrapping="Wrap" />
+            <Button Content="Open Connectivity" HorizontalAlignment="Left" Click="OpenConnectivityClicked" />
+          </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="GuidePage" IsVisible="False" Margin="24">
+          <StackPanel Spacing="14">
+            <TextBlock FontSize="26" FontWeight="SemiBold" Text="Guide" />
+            <TextBlock Text="Connect using a Reticulum configuration you control, then add a contact by LXMF delivery address. Messages are sent through the .NET Reticulum and LXMF implementations."
+                       TextWrapping="Wrap" />
+            <TextBlock Text="Before connecting, check the selected config path on the Connectivity screen. The default may point to an existing user Reticulum configuration; Sideband never repairs or resets it automatically."
+                       TextWrapping="Wrap" />
+            <TextBlock Text="This initial desktop build supports text conversations, contacts, and local history. Voice, attachment transfer, maps, telemetry, plugins, and the upstream LAN repository mirror are not available."
+                       TextWrapping="Wrap" />
+            <Button Content="Open Connectivity" HorizontalAlignment="Left" Click="OpenConnectivityClicked" />
+          </StackPanel>
+        </ScrollViewer>
       </Grid>
     </Grid>
+    <TextBlock x:Name="StatusText" Grid.Row="1" VerticalAlignment="Bottom" Margin="260,0,12,8"
+               Foreground="{DynamicResource SecondaryTextBrush}" IsHitTestVisible="False" />
   </Grid>
 </Window>

@@ -61,6 +61,44 @@ public sealed class SidebandStateStoreTests
         finally { DeleteOwnedDirectory(root); }
     }
 
+    [Fact]
+    public async Task ExistingVersionOneStateWithoutUiPreferencesLoadsWithDefaults()
+    {
+        var root = CreateOwnedDirectory();
+        try
+        {
+            var store = new SidebandStateStore(root);
+            await File.WriteAllTextAsync(store.StatePath,
+                "{\"SchemaVersion\":1,\"ReticulumConfigDirectory\":\"isolated-rns\",\"OwnDeliveryHash\":null,\"Contacts\":[],\"Messages\":[]}",
+                TestContext.Current.CancellationToken);
+
+            var loaded = await new SidebandStateStore(root).LoadAsync(cancellationToken: TestContext.Current.CancellationToken);
+            Assert.Equal("Sideband", loaded.DisplayName);
+            Assert.Equal("Dark", loaded.Theme);
+        }
+        finally { DeleteOwnedDirectory(root); }
+    }
+
+    [Fact]
+    public async Task PreferencesPersistAndValidateThemeAndDisplayName()
+    {
+        var root = CreateOwnedDirectory();
+        try
+        {
+            var store = new SidebandStateStore(root);
+            await store.LoadAsync(Path.Combine(root, "isolated-rns"), TestContext.Current.CancellationToken);
+            await store.SetPreferencesAsync("  Alice  ", "Light", TestContext.Current.CancellationToken);
+            var loaded = await new SidebandStateStore(root).LoadAsync(cancellationToken: TestContext.Current.CancellationToken);
+            Assert.Equal("Alice", loaded.DisplayName);
+            Assert.Equal("Light", loaded.Theme);
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                store.SetPreferencesAsync("Alice", "System", TestContext.Current.CancellationToken));
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                store.SetPreferencesAsync("", "Dark", TestContext.Current.CancellationToken));
+        }
+        finally { DeleteOwnedDirectory(root); }
+    }
+
     private static string CreateOwnedDirectory()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "sideband-test-" + Guid.NewGuid().ToString("N"));

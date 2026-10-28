@@ -14,7 +14,9 @@ public sealed record SidebandState(
     string ReticulumConfigDirectory,
     string? OwnDeliveryHash,
     IReadOnlyList<SidebandContact> Contacts,
-    IReadOnlyList<SidebandChatMessage> Messages)
+    IReadOnlyList<SidebandChatMessage> Messages,
+    string DisplayName = "Sideband",
+    string Theme = "Dark")
 {
     public const int CurrentSchemaVersion = 1;
 

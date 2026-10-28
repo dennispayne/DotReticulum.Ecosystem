@@ -1,8 +1,20 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Sideband.Desktop.App"
-             x:CompileBindings="True">
+             x:CompileBindings="True"
+             RequestedThemeVariant="Dark">
   <Application.Styles>
     <FluentTheme />
   </Application.Styles>
+  <Application.Resources>
+    <ResourceDictionary>
+      <SolidColorBrush x:Key="AppBackgroundBrush">#0D161A</SolidColorBrush>
+      <SolidColorBrush x:Key="NavigationBackgroundBrush">#111F24</SolidColorBrush>
+      <SolidColorBrush x:Key="CardBackgroundBrush">#17272C</SolidColorBrush>
+      <SolidColorBrush x:Key="DividerBrush">#284046</SolidColorBrush>
+      <SolidColorBrush x:Key="AccentBrush">#008F95</SolidColorBrush>
+      <SolidColorBrush x:Key="PrimaryTextBrush">#EAF2F3</SolidColorBrush>
+      <SolidColorBrush x:Key="SecondaryTextBrush">#A5B9BC</SolidColorBrush>
+    </ResourceDictionary>
+  </Application.Resources>
 </Application>

@@ -6,6 +6,8 @@ namespace Sideband.Desktop;
 internal static class Program
 {
     internal static string DataDirectory { get; private set; } = SidebandStateStore.DefaultDataDirectory();
+    internal static string? ReticulumConfigDirectory { get; private set; }
+    internal static bool SmokeUiMode { get; private set; }
 
     [STAThread]
     private static int Main(string[] args)
@@ -26,10 +28,13 @@ internal static class Program
             }
 
             DataDirectory = options.DataDirectory ?? DataDirectory;
+            ReticulumConfigDirectory = options.ReticulumConfigDirectory;
+            SmokeUiMode = options.SmokeUi;
             if (options.Initialize || options.Check)
                 return RunMaintenanceAsync(options).GetAwaiter().GetResult();
 
-            return BuildAvaloniaApp().StartWithClassicDesktopLifetime([]);
+            var exitCode = BuildAvaloniaApp().StartWithClassicDesktopLifetime([]);
+            return SmokeUiMode && !MainWindow.SmokeUiSucceeded && exitCode == 0 ? 2 : exitCode;
         }
         catch (Exception ex) when (ex is ArgumentException or IOException or InvalidOperationException or UnauthorizedAccessException)
         {
@@ -63,12 +68,14 @@ internal static class Program
         var check = false;
         var help = false;
         var version = false;
+        var smokeUi = false;
         for (var index = 0; index < args.Length; index++)
         {
             switch (args[index])
             {
                 case "-h" or "--help": help = true; break;
                 case "--version": version = true; break;
+                case "--smoke-ui": smokeUi = true; break;
                 case "--init": initialize = true; break;
                 case "--check": check = true; break;
                 case "--data-dir": dataDirectory = NextValue(args, ref index); break;
@@ -84,8 +91,12 @@ internal static class Program
             dataDirectory = Path.GetFullPath(dataDirectory ?? SidebandStateStore.DefaultDataDirectory());
             if (rnsConfig is not null) rnsConfig = Path.GetFullPath(rnsConfig);
         }
+        else if (rnsConfig is not null)
+        {
+            rnsConfig = Path.GetFullPath(rnsConfig);
+        }
 
-        return new Options(dataDirectory, rnsConfig, initialize, check, help, version);
+        return new Options(dataDirectory, rnsConfig, initialize, check, help, version, smokeUi);
     }
 
     private static string NextValue(string[] args, ref int index)
@@ -102,16 +113,18 @@ internal static class Program
         sideband - experimental Reticulum messaging desktop client
 
         Usage:
-          sideband [--data-dir <path>]
+            sideband [--data-dir <path>] [--rnsconfig <path>]
           sideband --init [--data-dir <path>] [--rnsconfig <path>]
           sideband --check [--data-dir <path>] [--rnsconfig <path>]
+          sideband --smoke-ui [--data-dir <path>] [--rnsconfig <path>]
           sideband --help | --version
 
         --init       Initialize durable application state and the local identity.
         --check      Validate local state and report the existing identity.
         --data-dir   Select the Sideband data directory.
         --rnsconfig  Select a Reticulum configuration directory or file.
+        --smoke-ui   Open the normal desktop window and report actual render events for GUI acceptance.
         """;
 
-    private sealed record Options(string? DataDirectory, string? ReticulumConfigDirectory, bool Initialize, bool Check, bool Help, bool Version);
+    private sealed record Options(string? DataDirectory, string? ReticulumConfigDirectory, bool Initialize, bool Check, bool Help, bool Version, bool SmokeUi);
 }

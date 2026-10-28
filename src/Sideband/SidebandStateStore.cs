@@ -104,6 +104,17 @@ public sealed class SidebandStateStore
         await MutateAsync(state => state with { ReticulumConfigDirectory = fullPath }, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task SetPreferencesAsync(string displayName, string theme, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        var normalizedName = displayName.Trim();
+        if (normalizedName.Length > 64 || normalizedName.Any(char.IsControl))
+            throw new ArgumentException("Display names must contain at most 64 non-control characters.", nameof(displayName));
+        if (theme is not ("Dark" or "Light"))
+            throw new ArgumentException("Theme must be Dark or Light.", nameof(theme));
+        await MutateAsync(state => state with { DisplayName = normalizedName, Theme = theme }, cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<SidebandChatMessage>> GetMessagesAsync(string peerHash, CancellationToken cancellationToken = default)
     {
         if (!SidebandContact.TryNormalizeDeliveryHash(peerHash, out var normalized))
@@ -209,6 +220,10 @@ public sealed class SidebandStateStore
             throw new InvalidDataException("Sideband state is missing its contact or message collections.");
         if (state.Contacts.Count > 1_000 || state.Messages.Count > MaximumMessages)
             throw new InvalidDataException("Sideband state exceeds its contact or message count limit.");
+        if (string.IsNullOrWhiteSpace(state.DisplayName) || state.DisplayName.Length > 64 || state.DisplayName.Any(char.IsControl))
+            throw new InvalidDataException("Sideband display name is missing or invalid.");
+        if (state.Theme is not ("Dark" or "Light"))
+            throw new InvalidDataException("Sideband theme is unsupported.");
         if (state.OwnDeliveryHash is not null && !SidebandContact.TryNormalizeDeliveryHash(state.OwnDeliveryHash, out _))
             throw new InvalidDataException("The saved local LXMF delivery address is invalid.");
         foreach (var contact in state.Contacts)

@@ -1,0 +1,35 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Sideband.Desktop.MainWindow"
+        x:CompileBindings="True"
+        Title="Sideband"
+        Width="1000"
+        Height="700"
+        MinWidth="760"
+        MinHeight="520">
+  <Grid RowDefinitions="Auto,Auto,*" Margin="12">
+    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+      <TextBox x:Name="ReticulumConfigBox" PlaceholderText="Reticulum config directory (blank uses default)" />
+      <Button x:Name="ConnectButton" Grid.Column="1" Content="Connect" Click="ConnectClicked" />
+      <Button x:Name="VoiceButton" Grid.Column="2" Content="Voice calls unavailable" IsEnabled="False"
+              ToolTip.Tip="This build targets LXST 0.4.5; Sideband's current voice integration requires LXST 0.5.4." />
+    </Grid>
+    <TextBlock x:Name="StatusText" Grid.Row="1" Margin="0,8" Text="Not connected" />
+    <Grid Grid.Row="2" ColumnDefinitions="280,*" ColumnSpacing="12">
+      <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" RowSpacing="6">
+        <TextBlock FontSize="18" FontWeight="SemiBold" Text="Contacts" />
+        <ListBox x:Name="ContactList" Grid.Row="1" SelectionChanged="ContactSelectionChanged" />
+        <TextBox x:Name="ContactNameBox" Grid.Row="2" PlaceholderText="Contact name" />
+        <TextBox x:Name="ContactHashBox" Grid.Row="3" PlaceholderText="LXMF delivery address (32 hex)" />
+        <Button Grid.Row="4" Content="Add contact" Click="AddContactClicked" />
+      </Grid>
+      <Grid Grid.Column="1" RowDefinitions="*,Auto,Auto" RowSpacing="8">
+        <ListBox x:Name="MessageList" />
+        <TextBox x:Name="MessageBox" Grid.Row="1" AcceptsReturn="True" MinHeight="70"
+                 MaxLength="65536" PlaceholderText="Write a text message" />
+        <Button x:Name="SendButton" Grid.Row="2" HorizontalAlignment="Right"
+                Content="Send securely" Click="SendClicked" />
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>

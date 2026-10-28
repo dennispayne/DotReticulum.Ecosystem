@@ -2,12 +2,16 @@
 
 ## Status
 
-**Not implemented in DotReticulum.Ecosystem.** This document records an upstream
-source inventory and integration boundaries; it is not an implementation or a
-claim of Sideband compatibility. No Sideband project, application tests, UI,
-platform adapters, packaging or live application interoperability exist here.
-All application-level contracts below are therefore `missing`; a partial status
-means only that a lower-level protocol library exists, not that Sideband works.
+**Initial Windows/Linux desktop client implemented; upstream application parity
+is not claimed.** The current native C# application provides a small contacts
+and text-conversation workflow over the repository's .NET Reticulum and LXMF
+libraries, with bounded local JSON persistence. Windows NativeAOT publishing,
+CLI maintenance modes, a headless UI workflow, and native Pester acceptance
+have been exercised. Live direct-peer interoperability against the pinned
+Python RNS/LXMF node has passed in both messaging directions over a real
+Reticulum TCP interface. Attachments, voice, telemetry,
+plugins, mobile operation, broad upstream configuration, and upstream database
+migration remain absent.
 
 ## Reference provenance
 
@@ -70,19 +74,19 @@ runtime evidence.
 
 | Contract | Status | Upstream contract and source |
 |---|---|---|
-| App shell and interaction | missing | One Kivy/KivyMD application with conversation, message, announce, telemetry, voice, hardware, keys, object-detail, guide, layout and utility screens; `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`, `README.md`. |
-| Contacts, discovery and conversation types | missing | Delivery/peer announces, names and trust, per-peer appearance and controls; conversation types include P2P, group, broadcast and voice; `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
-| LXMF messaging and propagation UI | partial | The existing `LXMF` library implements protocol-level messaging/propagation separately, but Sideband's inbox, conversation lifecycle, announce directory, peer policy and user controls are absent; `sbapp/sideband/core.py`, `sbapp/ui/messages.py`, `docs/lxmf.md`. |
-| Text, image/file and audio messages | partial | Upstream offers LXMF text, image/file attachment flows and Codec2/Opus audio messages for constrained links; compose/receive, file selection, persistence and playback UI are absent; `README.md`, `sbapp/ui/messages.py`, `sbapp/sideband/core.py`, `sbapp/sideband/audioproc.py`. |
-| Paper messages and `lxm://` imports | partial | Encrypted QR/paper message and message URI flows are advertised; only lower-level LXMF formats exist here, not Sideband's identity import, camera/QR, export or link handling; `README.md`, `sbapp/main.py`, `sbapp/ui/keys.py`. |
-| LXST calls and push-to-talk | partial | Sideband adds contact authorization, call UI, half/full-duplex modes, audio device selection and call history around LXST; no Sideband telephony integration exists. `setup.py` requires `lxst>=0.5.4`, while this repository's LXST target is 0.4.5, so a source/API compatibility audit and upstream-version decision are required before reuse; `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`, `docs/lxst.md`. |
+| App shell and interaction | partial | Native Avalonia desktop app has a contact panel, conversation list, connect status, and text composer; upstream's announces, telemetry, voice, hardware, keys, object-detail, guide, layouts and utility screens are absent; `src/Sideband.Desktop/MainWindow.axaml`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
+| Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Trust controls, peer appearance/settings, groups, broadcasts and voice conversations are absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
+| LXMF messaging and propagation UI | partial | C# client wires the app to `LxmRouter` for text send/receive and delivery state; direct-peer interoperability passed both ways against pinned Python LXMF. Propagation-node selection, inbox controls, full peer policy and restart synchronization are not app features; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py`, `docs/lxmf.md`. |
+| Text, image/file and audio messages | partial | Text composition, receipt and durable conversation history are implemented. The current UI does not send files; non-text incoming content is represented as a placeholder. Upstream image/file/audio composition and playback remain absent; `src/Sideband.Desktop/MainWindow.axaml.cs`, `src/Sideband/SidebandClient.cs`, `README.md`, `sbapp/ui/messages.py`, `sbapp/sideband/audioproc.py`. |
+| Paper messages and `lxm://` imports | missing | No paper-message/QR creation or import flow, identity import, camera/QR, export or URI handling; `README.md`, `sbapp/main.py`, `sbapp/ui/keys.py`. |
+| LXST calls and push-to-talk | missing | A disabled UI button explicitly reports voice unavailability. No audio devices, call authorization, duplex modes or call history are implemented. Sideband 2.2.0 requires `lxst>=0.5.4`, while this repository targets LXST 0.4.5; `src/Sideband.Desktop/MainWindow.axaml`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`, `docs/lxst.md`. |
 | Telemetry, location and situational awareness | missing | Sensor streams include time, identity/information, battery, location, physical link, environment, motion, resource, Reticulum transport, LXMF propagation, connections and interfaces; peer telemetry, tracking, live/offline maps and geospatial calculations are app behavior; `sbapp/sideband/sense.py`, `sbapp/sideband/geo.py`, `sbapp/ui/telemetry.py`, `README.md`. |
 | Remote commands, queries and plugins | missing | Command, service and telemetry plugin base types; built-in ping/echo/signal/telemetry request behavior; custom telemetry sensors; configurable plugin loading and example plugins. This is an application extension contract, not part of the existing .NET `Telemetry` tool; `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`, `README.md`. |
-| Reticulum setup and interfaces | partial | DotReticulum supplies the lower-level RNS stack, but Sideband's settings, custom interface configuration, discovery/management UI and Android custom-interface loading are absent; `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
-| Long-lived service and OS integration | missing | Android uses a foreground Python service, Android notification/location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power handling; the app and service share state and RPC. No mobile service adapter or verified Android support exists here; `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
-| Persistence, restart and migration | missing | App config, identity, SQLite message/conversation/announce/telemetry/state tables, LXMF storage, logs, caches, exports, audio and web-share state; no Sideband schema, migration or restart behavior exists in this repository; `sbapp/sideband/core.py`, `sbapp/sideband/voice.py`. |
-| CLI and headless operation | missing | `sideband` is primarily a GUI entry point; observed options are `-v/--verbose`, `-c/--config`, `-r/--rnsconfig`, `-d/--daemon`, `-i/--interactive`, `--export-settings`, `--import-settings`, and `--version`. Daemon/interactive modes share the application core; `setup.py`, `sbapp/main.py`, `sbapp/sideband/console.py`. |
-| Native packaging and upgrades | missing | Upstream documents Android APK, Linux AppImage/PyPI, macOS DMG and Windows ZIP, plus in-app repository/update flows. No Sideband package, signing, migration or native dependency matrix is implemented or verified here; `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
+| Reticulum setup and interfaces | partial | The app connects through `ReticulumNode.Open` using a user-selected or default Reticulum configuration directory. It does not expose custom interface editing, discovery/management UI or Android custom-interface loading; `src/Sideband/SidebandClient.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
+| Long-lived service and OS integration | missing | The desktop app owns a live client while its window runs. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are not implemented or validated; `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
+| Persistence, restart and migration | partial | Contacts, local delivery hash, Reticulum config path, and bounded chat history are stored in source-generated JSON with atomic replacement. There is no import/migration of upstream SQLite, telemetry/announce schemas, export/audio state or full LXMF recovery contract; `src/Sideband/SidebandStateStore.cs`, `src/Sideband/SidebandStateJsonContext.cs`, `sbapp/sideband/core.py`, `sbapp/sideband/voice.py`. |
+| CLI and headless operation | partial | Native `sideband --help`, `--version`, `--init`, `--check`, `--data-dir` and `--rnsconfig` are implemented and covered by Pester. Upstream verbose, daemon, interactive and settings import/export options are absent; `src/Sideband.Desktop/Program.cs`, `tests/Pester/Sideband.Tests.ps1`, `setup.py`, `sbapp/main.py`, `sbapp/sideband/console.py`. |
+| Native packaging and upgrades | partial | Windows and Linux NativeAOT publishes succeed with trimming/linker warnings treated as errors. Windows output needs `sideband.exe`, `av_libglesv2.dll`, `libHarfBuzzSharp.dll` and `libSkiaSharp.dll`; Linux output needs `sideband`, `libHarfBuzzSharp.so`, `libSkiaSharp.so` and `libSystem.IO.Ports.Native.so`. Installer/signing, self-upgrade and other upstream package formats remain absent; `src/Sideband.Desktop/Sideband.Desktop.csproj`, `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
 
 ## Upstream architecture and platform facts
 
@@ -119,23 +123,69 @@ runtime evidence.
 ## DotReticulum.Ecosystem integration boundary
 
 `DotReticulum`, `LXMF` and `LXST` are reusable protocol-layer candidates, not a
-drop-in Sideband application. RNS is pinned to 1.5.7 here, matching the
-Sideband package's declared minimum; LXMF 1.2.1 exceeds its declared minimum.
-LXST's target is older than Sideband's declared minimum and needs explicit
-compatibility work. Sideband's sensor model, peer/conversation state, local
-database, service, extension surface, UI, update flow and platform integrations
-remain separate work.
+drop-in Sideband application. The selected initial scope is Windows/Linux
+desktop with native C# and Avalonia 12.1.4; the app references `LXMF` and
+`DotReticulum.Applications`, and intentionally does not reference LXST. RNS is
+pinned to 1.5.7, matching Sideband 2.2.0's declared minimum; LXMF 1.2.1 exceeds
+its declared minimum. LXST 0.4.5 is older than Sideband's 0.5.4 minimum, so
+voice remains disabled rather than implying compatibility.
 
-A future implementation should keep protocol/domain services testable without
-UI or devices, then place persistence and OS-specific services behind explicit
-interfaces. Android background execution, permission/location/notification
-handling, audio devices and desktop integration need dedicated platform adapters
-and platform tests. Upstream's Python-module plugin loading and custom RNS
-interface imports are not directly compatible with trimming/NativeAOT-safe
-design; whether and how to preserve those extension contracts is unresolved.
-No GUI toolkit or supported-platform subset is selected by this inventory.
+The app project is `src/Sideband.Desktop/Sideband.Desktop.csproj` (assembly and
+executable name `sideband`); its protocol/application library is `src/Sideband`
+(assembly `Sideband.Core`, namespace `Sideband`). The library uses source-
+generated JSON rather than reflection serialization. Native plugins, upstream
+SQLite migration, mobile services and platform-specific sensors/audio are not
+implemented. The current native client is an initial desktop app, not an
+upstream replacement.
 
-Before implementation, confirm the required first-release platforms (desktop
-only, Android, macOS, or some combination), required background/service behavior,
-whether NativeAOT is mandatory for each target, and whether third-party plugin
-loading is a required compatibility contract.
+## Current implementation evidence
+
+The implementation targets the upstream 2.2.0 release tag
+`cba73130287f0d8b9deb7da4d20ceec09b7fe394` (the primary default branch inspected
+for the inventory remains three commits beyond that release tag). The version
+label is a target, not a parity claim. The upstream source is not committed.
+
+Validated commands and outcomes:
+
+| Command | Result |
+|---|---|
+| `dotnet build src\Sideband\Sideband.csproj -c Release --artifacts-path artifacts\sideband-build` | Passed, zero warnings/errors |
+| `dotnet build src\Sideband.Desktop\Sideband.Desktop.csproj -c Release --artifacts-path artifacts\sideband-build` | Passed, zero warnings/errors |
+| `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path artifacts\sideband-build --filter "Category=Unit"` | Passed: 4 unit tests |
+| `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path artifacts\sideband-build` | Passed: 5 tests, including one headless UI test; live test skipped unless opted in |
+| `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path artifacts\sideband-build --filter "Category=Live"` with the pinned Python environment and `DOTRETICULUM_LIVE=1` | Passed: direct .NET/Python LXMF messaging both directions |
+| `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path artifacts\sideband-build` with pinned reference variables and `DOTRETICULUM_LIVE=1` | Passed: all 6 unit, headless UI, and live tests; no skips |
+| `dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r win-x64 --artifacts-path artifacts\sideband-build -p:RuntimeIdentifiers=win-x64 -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` | Passed; strict Windows NativeAOT |
+| `dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r linux-x64 --artifacts-path artifacts\sideband-build -p:RuntimeIdentifiers=linux-x64 -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` via the local .NET 10 SDK in WSL | Passed; strict Linux NativeAOT |
+| Published `sideband.exe --help` and `--version` | Passed |
+| Published Linux `sideband --help`, `--version`, `--init`, and `--check` | Passed; created and reloaded the same persisted identity |
+| `Invoke-Pester tests\Pester\Sideband.Tests.ps1 -Tag Native -Output Detailed` with `DOTRETICULUM_SIDEBAND_BINARY` set to the published binary | Passed: init, check, saved state and stable identity |
+
+The Windows output contains `sideband.exe` and native GUI dependencies
+`av_libglesv2.dll`, `libHarfBuzzSharp.dll`, and `libSkiaSharp.dll`; package all
+three with the executable. PDBs are debug artifacts. Linux output contains the
+native `sideband` executable plus `libHarfBuzzSharp.so`, `libSkiaSharp.so`, and
+`libSystem.IO.Ports.Native.so`; package all three libraries with the executable.
+`ldd` on the executable reported `libc`, `libm` and the dynamic loader.
+`libSkiaSharp.so` additionally loads system `fontconfig`, `freetype`, `expat`,
+`zlib`, `bzip2`, `libpng`, and Brotli libraries; `libHarfBuzzSharp.so` uses
+`libpthread`, `libm`, `libc` and the loader. No `xvfb-run` was available, so
+Linux graphical window startup/rendering remains unverified despite successful
+Linux CLI execution and Windows headless UI coverage.
+
+The live app test used reference RNS revision
+`a29bfb51c468945c96a1ee22cae0114e993e2391` (1.5.7) and LXMF revision
+`e8ba02483217af43be284a72f1c059c730b7d047` (1.2.1), verified by
+`tests/Interop/reference_environment.py`. One Python TCP server and one .NET
+TCP client formed a direct single-hop topology; a Python-to-.NET incoming
+message was persisted, and a .NET-to-Python outgoing message was received with
+the expected content digest. Multi-hop routing, propagation, loss/retry and
+other peer topologies are not covered by this app-level test. No Android,
+macOS, audio-device, voice, telemetry or plugin behavior is claimed.
+
+The native state store currently persists contacts, chat messages and the local
+configuration/delivery address in `state.json`; it is not wire- or schema-
+compatible with upstream's SQLite database. The GUI currently supports
+manually entering a 32-hex LXMF delivery hash, connecting to a Reticulum
+configuration, sending and receiving text, and viewing message state. Incoming
+non-text content is a placeholder, not an attachment implementation.

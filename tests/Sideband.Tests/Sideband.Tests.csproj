@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Compile Include="..\Interop\PyLinkNode.cs" Link="PyLinkNode.cs" />
+    <None Include="..\Interop\live_lxmf_node.py" Link="Interop\live_lxmf_node.py" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Interop\sideband_live_node.py" Link="Interop\sideband_live_node.py" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Interop\reference_environment.py" Link="Interop\reference_environment.py" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Sideband.Desktop\Sideband.Desktop.csproj" />
+    <ProjectReference Include="..\..\src\Sideband\Sideband.csproj" />
+  </ItemGroup>
+
+</Project>

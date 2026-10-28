@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Sideband.Core</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Sideband</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LXMF\LXMF.csproj" />
+    <ProjectReference Include="..\..\external\DotReticulum\src\DotReticulum.Applications\DotReticulum.Applications.csproj" />
+  </ItemGroup>
+
+</Project>

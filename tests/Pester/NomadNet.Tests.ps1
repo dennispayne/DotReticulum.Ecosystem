@@ -236,17 +236,28 @@ Describe 'NomadNet live LXMF interoperability' -Tag 'Live' {
             $peerProcess.StandardInput.Flush()
             $deadline = [DateTime]::UtcNow.AddSeconds(90)
             $replySeen = $false
+            $pendingOutputLine = $null
             while ([DateTime]::UtcNow -lt $deadline -and -not $replySeen) {
                 $appProcess.StandardInput.WriteLine("messages $peerHash")
                 $appProcess.StandardInput.Flush()
                 $pollDeadline = [DateTime]::UtcNow.AddSeconds(2)
                 while ([DateTime]::UtcNow -lt $pollDeadline -and -not $replySeen) {
-                    $line = $appProcess.StandardOutput.ReadLineAsync().WaitAsync([TimeSpan]::FromSeconds(5)).GetAwaiter().GetResult()
+                    if ($null -eq $pendingOutputLine) {
+                        $pendingOutputLine = $appProcess.StandardOutput.ReadLineAsync()
+                    }
+                    try {
+                        $line = $pendingOutputLine.WaitAsync([TimeSpan]::FromSeconds(1)).GetAwaiter().GetResult()
+                        $pendingOutputLine = $null
+                    }
+                    catch [TimeoutException] {
+                        $line = ''
+                    }
                     if ($null -eq $line) { throw 'NomadNet exited while receiving the Python message.' }
                     if ($line.Contains('python-to-native')) { $replySeen = $true }
                     elseif ($line.Contains('No stored messages.')) { break }
                 }
             }
+
             $replySeen | Should -BeTrue
         }
         finally {
@@ -255,6 +266,299 @@ Describe 'NomadNet live LXMF interoperability' -Tag 'Live' {
                     if (-not $process.HasExited) {
                         try { $process.StandardInput.WriteLine('quit'); $process.StandardInput.Flush() } catch {}
                         if (-not $process.WaitForExit(5000)) { Stop-Process -Id $process.Id -Force }
+                    }
+                    $process.Dispose()
+                }
+            }
+            if (Test-Path $work) { Remove-Item $work -Recurse -Force }
+        }
+    }
+}
+
+Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
+    It 'browses and downloads from upstream NomadNet, exchanges LXMF, and reloads durable history' {
+        $readNomadNetLine = {
+            param([System.IO.StreamReader] $Reader, [ref] $PendingLine, [int] $WaitMilliseconds)
+            if ($null -eq $PendingLine.Value) {
+                $PendingLine.Value = $Reader.ReadLineAsync()
+            }
+            try {
+                $line = $PendingLine.Value.WaitAsync([TimeSpan]::FromMilliseconds($WaitMilliseconds)).GetAwaiter().GetResult()
+                $PendingLine.Value = $null
+                return [PSCustomObject]@{ Completed = $true; Line = $line }
+            }
+            catch [TimeoutException] {
+                return [PSCustomObject]@{ Completed = $false; Line = $null }
+            }
+        }.GetNewClosure()
+        $waitNomadNetOutput = {
+            param([System.IO.StreamReader] $Reader, [ref] $PendingLine, [string] $Pattern, [int] $TimeoutSeconds, [string] $Description)
+            $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+            while ([DateTime]::UtcNow -lt $deadline) {
+                $result = & $readNomadNetLine $Reader $PendingLine 500
+                if (-not $result.Completed) { continue }
+                if ($null -eq $result.Line) { throw "${Description}: process closed its output before the expected event." }
+                if ($result.Line -match $Pattern) { return $result.Line }
+            }
+            throw "${Description}: timed out waiting for '$Pattern'."
+        }.GetNewClosure()
+
+        if (-not [OperatingSystem]::IsLinux() -or
+            $env:DOTRETICULUM_NOMADNET_NODE_LIVE -ne '1' -or
+            [string]::IsNullOrWhiteSpace($env:DOTRETICULUM_PYTHON) -or
+            [string]::IsNullOrWhiteSpace($env:DOTRETICULUM_UPSTREAM) -or
+            [string]::IsNullOrWhiteSpace($env:DOTRETICULUM_LXMF_UPSTREAM) -or
+            [string]::IsNullOrWhiteSpace($env:DOTRETICULUM_NOMADNET_BINARY)) {
+            Set-ItResult -Skipped -Because 'Enable the Linux upstream test with DOTRETICULUM_NOMADNET_NODE_LIVE=1 and the pinned Python and native binary paths.'
+            return
+        }
+
+        $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        $source = if ([string]::IsNullOrWhiteSpace($env:DOTRETICULUM_NOMADNET_SOURCE)) {
+            Join-Path $root 'artifacts\nomadnet\nomadnet-source'
+        } else {
+            $env:DOTRETICULUM_NOMADNET_SOURCE
+        }
+        $interop = Join-Path $root 'tests\Interop\nomadnet_live_node.py'
+        $python = [IO.Path]::GetFullPath($env:DOTRETICULUM_PYTHON)
+        $binary = [IO.Path]::GetFullPath($env:DOTRETICULUM_NOMADNET_BINARY)
+        if (-not (Test-Path $source) -or -not (Test-Path $interop) -or -not (Test-Path $binary)) {
+            throw 'The primary NomadNet source, adapter, or Linux NativeAOT executable is missing.'
+        }
+
+        $work = if ([string]::IsNullOrWhiteSpace($env:DOTRETICULUM_NOMADNET_WORK)) {
+            Join-Path $root 'artifacts\nomadnet-upstream-live'
+        } else {
+            [IO.Path]::GetFullPath($env:DOTRETICULUM_NOMADNET_WORK)
+        }
+        if (Test-Path $work) { Remove-Item $work -Recurse -Force }
+        $nodeConfig = Join-Path $work 'upstream'
+        $nodeRns = Join-Path $work 'upstream-rns'
+        $nativeData = Join-Path $work 'native'
+        $nativeRns = Join-Path $work 'native-rns'
+        $null = New-Item $nodeConfig -ItemType Directory -Force
+        $null = New-Item $nodeRns -ItemType Directory -Force
+        $null = New-Item $nativeData -ItemType Directory -Force
+        $null = New-Item $nativeRns -ItemType Directory -Force
+
+        $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+        $listener.Start()
+        $port = $listener.LocalEndpoint.Port
+        $listener.Stop()
+        @(
+            '[reticulum]'
+            '  enable_transport = No'
+            '  share_instance = No'
+            ''
+            '[interfaces]'
+            '  [[NomadNetUpstreamServer]]'
+            '    type = TCPServerInterface'
+            '    enabled = Yes'
+            '    listen_ip = 127.0.0.1'
+            "    listen_port = $port"
+        ) | Set-Content -Path (Join-Path $nodeRns 'config') -Encoding utf8
+        @(
+            '[reticulum]'
+            '  enable_transport = No'
+            '  share_instance = No'
+            ''
+            '[interfaces]'
+            '  [[NomadNetUpstreamClient]]'
+            '    type = TCPClientInterface'
+            '    enabled = Yes'
+            '    target_host = 127.0.0.1'
+            "    target_port = $port"
+        ) | Set-Content -Path (Join-Path $nativeRns 'config') -Encoding utf8
+
+        $pythonPath = "$source`:$($env:DOTRETICULUM_UPSTREAM)`:$($env:DOTRETICULUM_LXMF_UPSTREAM)`:$root/tests/Interop"
+        $environment = @{
+            DOTRETICULUM_UPSTREAM = $env:DOTRETICULUM_UPSTREAM
+            DOTRETICULUM_LXMF_UPSTREAM = $env:DOTRETICULUM_LXMF_UPSTREAM
+            DOTRETICULUM_NOMADNET_SOURCE = $source
+            PYTHONPATH = $pythonPath
+        }
+        $bootstrap = $null
+        $upstream = $null
+        $client = $null
+        try {
+            $bootstrapStart = [Diagnostics.ProcessStartInfo]::new()
+            $bootstrapStart.FileName = $python
+            $bootstrapStart.WorkingDirectory = $root
+            $bootstrapStart.UseShellExecute = $false
+            foreach ($argument in @('-u', '-m', 'nomadnet.nomadnet', '--daemon', '--console',
+                '--config', $nodeConfig, '--rnsconfig', $nodeRns)) {
+                $bootstrapStart.ArgumentList.Add($argument)
+            }
+            foreach ($entry in $environment.GetEnumerator()) { $bootstrapStart.Environment[$entry.Key] = $entry.Value }
+            $bootstrap = [Diagnostics.Process]::new()
+            $bootstrap.StartInfo = $bootstrapStart
+            $null = $bootstrap.Start()
+            $identityPath = Join-Path $nodeConfig 'storage\identity'
+            $nodeAppConfig = Join-Path $nodeConfig 'config'
+            $deadline = [DateTime]::UtcNow.AddSeconds(60)
+            while ([DateTime]::UtcNow -lt $deadline -and
+                (-not (Test-Path $identityPath) -or -not (Test-Path $nodeAppConfig))) {
+                if ($bootstrap.HasExited) { throw 'Upstream NomadNet exited before creating its initial configuration.' }
+                Start-Sleep -Milliseconds 100
+            }
+            (Test-Path $identityPath) | Should -BeTrue
+            (Test-Path $nodeAppConfig) | Should -BeTrue
+            Start-Sleep -Seconds 1
+            $bootstrap.Kill()
+            $bootstrap.WaitForExit()
+            $bootstrap.Dispose()
+            $bootstrap = $null
+
+            $configuration = [IO.File]::ReadAllText($nodeAppConfig)
+            if (-not $configuration.Contains('enable_node = no')) {
+                throw 'Expected the unmodified upstream default node setting was not found.'
+            }
+            $configuration = $configuration.Replace('enable_node = no', 'enable_node = yes')
+            [IO.File]::WriteAllText($nodeAppConfig, $configuration, [Text.UTF8Encoding]::new($false))
+            $pages = Join-Path $nodeConfig 'storage\pages'
+            $files = Join-Path $nodeConfig 'storage\files'
+            $null = New-Item $pages -ItemType Directory -Force
+            $null = New-Item $files -ItemType Directory -Force
+            [IO.File]::WriteAllText((Join-Path $pages 'readme.mu'), "# Live page`n`nNOMADNET_UPSTREAM_PAGE_OK", [Text.UTF8Encoding]::new($false))
+            [IO.File]::WriteAllText((Join-Path $files 'live.txt'), 'UPSTREAM_FILE_012345', [Text.UTF8Encoding]::new($false))
+
+            $upstreamStart = [Diagnostics.ProcessStartInfo]::new()
+            $upstreamStart.FileName = $python
+            $upstreamStart.WorkingDirectory = $root
+            $upstreamStart.UseShellExecute = $false
+            $upstreamStart.RedirectStandardInput = $true
+            $upstreamStart.RedirectStandardOutput = $true
+            foreach ($argument in @('-u', $interop, '--config', $nodeConfig, '--rnsconfig', $nodeRns)) {
+                $upstreamStart.ArgumentList.Add($argument)
+            }
+            foreach ($entry in $environment.GetEnumerator()) { $upstreamStart.Environment[$entry.Key] = $entry.Value }
+            $upstream = [Diagnostics.Process]::new()
+            $upstream.StartInfo = $upstreamStart
+            $null = $upstream.Start()
+            $upstreamPending = $null
+            $readyLine = & $waitNomadNetOutput $upstream.StandardOutput ([ref]$upstreamPending) `
+                '"event"\s*:\s*"ready"' 60 'Upstream NomadNet'
+            $ready = $readyLine.Substring(2) | ConvertFrom-Json
+            $ready.version | Should -Be '1.4.4'
+            $ready.module | Should -Match ([regex]::Escape($source))
+            $ready.node | Should -Match '^[0-9a-f]{32}$'
+            $ready.delivery | Should -Match '^[0-9a-f]{32}$'
+            Start-Sleep -Seconds 8
+
+            $startNative = {
+                param([string[]] $commands)
+                $start = [Diagnostics.ProcessStartInfo]::new()
+                $start.FileName = $binary
+                $start.WorkingDirectory = $root
+                $start.UseShellExecute = $false
+                $start.RedirectStandardInput = $true
+                $start.RedirectStandardOutput = $true
+                foreach ($argument in @('--config', $nativeData, '--rnsconfig', $nativeRns)) {
+                    $start.ArgumentList.Add($argument)
+                }
+                $process = [Diagnostics.Process]::new()
+                $process.StartInfo = $start
+                $null = $process.Start()
+                $pending = $null
+                $addressLine = & $waitNomadNetOutput $process.StandardOutput ([ref]$pending) `
+                    'LXMF delivery address:\s*([0-9a-f]{32})' 60 'Native NomadNet'
+                $address = [regex]::Match($addressLine, 'LXMF delivery address:\s*([0-9a-f]{32})').Groups[1].Value
+                foreach ($command in $commands) { $process.StandardInput.WriteLine($command) }
+                $process.StandardInput.Flush()
+                $outputTask = $process.StandardOutput.ReadToEndAsync()
+                if (-not $process.WaitForExit(180000)) { throw 'Native NomadNet did not exit after its terminal commands.' }
+                $output = $outputTask.GetAwaiter().GetResult()
+                return [PSCustomObject]@{ Address = $address; Output = $output }
+            }.GetNewClosure()
+
+            $firstRun = & $startNative @(
+                "browse $($ready.node) /page/readme.mu",
+                "fetch $($ready.node) /file/live.txt live.txt",
+                "send $($ready.delivery) native-to-upstream-nomadnet",
+                'quit'
+            )
+            $upstream.StandardInput.WriteLine('stats')
+            $upstream.StandardInput.Flush()
+            $statsLine = & $waitNomadNetOutput $upstream.StandardOutput ([ref]$upstreamPending) `
+                '"event"\s*:\s*"stats"' 10 'Upstream NomadNet request counters'
+            $stats = $statsLine.Substring(2) | ConvertFrom-Json
+            $stats.served_pages | Should -Be 1
+            $stats.served_files | Should -Be 1
+            if ($firstRun.Output -notmatch 'NOMADNET_UPSTREAM_PAGE_OK') {
+                $logPath = Join-Path $nodeConfig 'logfile'
+                $log = if (Test-Path $logPath) { Get-Content $logPath -Tail 30 | Out-String } else { '(no upstream log file)' }
+                throw "The upstream page response was not rendered. Node state: $($stats | ConvertTo-Json -Compress). Log: $log Client output: $($firstRun.Output)"
+            }
+            $firstRun.Output | Should -Match 'NOMADNET_UPSTREAM_PAGE_OK'
+            $firstRun.Output | Should -Match 'Saved 20 bytes'
+            [IO.File]::ReadAllText((Join-Path $nativeData 'downloads\live.txt')) | Should -Be 'UPSTREAM_FILE_012345'
+
+            $upstreamConversation = Join-Path (Join-Path $nodeConfig 'storage\conversations') $firstRun.Address
+            $deadline = [DateTime]::UtcNow.AddSeconds(60)
+            while ([DateTime]::UtcNow -lt $deadline -and
+                (-not (Test-Path $upstreamConversation) -or
+                    (Get-ChildItem $upstreamConversation -File | Where-Object { $_.Name -notin @('unread', '.index') }).Count -eq 0)) {
+                Start-Sleep -Milliseconds 250
+            }
+            (Get-ChildItem $upstreamConversation -File | Where-Object { $_.Name -notin @('unread', '.index') }).Count | Should -BeGreaterThan 0
+
+            $clientStart = [Diagnostics.ProcessStartInfo]::new()
+            $clientStart.FileName = $binary
+            $clientStart.WorkingDirectory = $root
+            $clientStart.UseShellExecute = $false
+            $clientStart.RedirectStandardInput = $true
+            $clientStart.RedirectStandardOutput = $true
+            foreach ($argument in @('--config', $nativeData, '--rnsconfig', $nativeRns)) { $clientStart.ArgumentList.Add($argument) }
+            $client = [Diagnostics.Process]::new()
+            $client.StartInfo = $clientStart
+            $null = $client.Start()
+            $clientPending = $null
+            $secondAddressLine = & $waitNomadNetOutput $client.StandardOutput ([ref]$clientPending) `
+                'LXMF delivery address:\s*([0-9a-f]{32})' 60 'Restarted native NomadNet'
+            $secondAddress = [regex]::Match($secondAddressLine, 'LXMF delivery address:\s*([0-9a-f]{32})').Groups[1].Value
+            $secondAddress | Should -Be $firstRun.Address
+
+            $upstream.StandardInput.WriteLine("send $secondAddress upstream-to-native-durable")
+            $upstream.StandardInput.Flush()
+            $queuedLine = & $waitNomadNetOutput $upstream.StandardOutput ([ref]$upstreamPending) `
+                '"event"\s*:\s*"queued"' 30 'Upstream LXMF send'
+            (($queuedLine.Substring(2) | ConvertFrom-Json).event) | Should -Be 'queued'
+            $null = & $waitNomadNetOutput $upstream.StandardOutput ([ref]$upstreamPending) `
+                '"event"\s*:\s*"delivered"' 90 'Upstream LXMF delivery'
+            $messagePath = Join-Path $nativeData 'state.json'
+            $deadline = [DateTime]::UtcNow.AddSeconds(60)
+            $persisted = $false
+            while ([DateTime]::UtcNow -lt $deadline -and -not $persisted) {
+                if (Test-Path $messagePath) {
+                    $state = [IO.File]::ReadAllText($messagePath) | ConvertFrom-Json
+                    $persisted = @($state.messages | Where-Object { $_.content -eq 'upstream-to-native-durable' }).Count -gt 0
+                }
+                if (-not $persisted) { Start-Sleep -Milliseconds 250 }
+            }
+            $persisted | Should -BeTrue
+
+            $client.StandardInput.WriteLine('quit')
+            $client.StandardInput.Flush()
+            $clientOutputTask = $client.StandardOutput.ReadToEndAsync()
+            $client.WaitForExit(30000) | Should -BeTrue
+            $client.Dispose()
+            $client = $null
+            $clientOutputTask.GetAwaiter().GetResult() | Out-Null
+
+            $reloaded = & $startNative @("messages $($ready.delivery)", 'quit')
+            $reloaded.Address | Should -Be $firstRun.Address
+            $reloaded.Output | Should -Match 'upstream-to-native-durable'
+            $upstream.StandardInput.WriteLine('quit')
+            $upstream.StandardInput.Flush()
+            $upstream.WaitForExit(10000) | Should -BeTrue
+            $upstream.Dispose()
+            $upstream = $null
+        }
+        finally {
+            foreach ($process in @($client, $upstream, $bootstrap)) {
+                if ($null -ne $process) {
+                    if (-not $process.HasExited) {
+                        try { $process.Kill(); $process.WaitForExit(5000) } catch {}
                     }
                     $process.Dispose()
                 }

@@ -96,16 +96,16 @@ inspected upstream source itself does not implement.
 
 | Contract | Upstream facts and source references | Ecosystem status |
 |---|---|---|
-| Executable and lifecycle | Native `nomadnet` executable/assembly; `--config`, `--rnsconfig`, `--init`, `--status`, `--help`, `--version`; interactive command loop and Ctrl+C cancellation. Upstream entry point and options remain `setup.py`, `nomadnet/nomadnet.py`. | partial; local CLI smoke and native-process Pester tests pass; daemon/console modes are missing |
-| Identity and delivery | Persistent Reticulum identity, `lxmf.delivery` destination, announce, known-destination listing, direct text send/receive, and delivery-state display via existing .NET `ReticulumNode` and `LxmRouter`. Upstream contracts: `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`. | partial; an opt-in bidirectional Python LXMF 1.2.1 live test exists but was not run because the pinned Python reference environment was unavailable; does not establish that Python NomadNet 1.4.4 supports older stack pins |
+| Executable and lifecycle | Native `nomadnet` executable/assembly; upstream options are `--config`, `--rnsconfig`, `--daemon`, `--console`, `--textui`, `--version`; interactive command loop and Ctrl+C cancellation. Upstream entry point: `setup.py`, `nomadnet/nomadnet.py`. The scoped .NET CLI adds `--help`, `--init`, and `--status`; upstream daemon/console/text-UI modes are not implemented. | partial; Windows/Linux NativeAOT help/version/init/status and native-process tests pass; full upstream CLI modes are missing |
+| Identity and delivery | Persistent Reticulum identity, `lxmf.delivery` destination, announce, known-destination listing, direct text send/receive, and delivery-state display via existing .NET `ReticulumNode` and `LxmRouter`. Upstream contracts: `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`. | partial; bidirectional direct-message flows pass against pinned Python LXMF 1.2.1 and the primary NomadNet 1.4.4 app on a one-hop TCP loopback |
 | Contacts, conversations, persistence | Display name settings, contacts, bounded durable text history and bookmarks are stored in the selected app data directory; state updates use versioned JSON and atomic replacement. | partial; local persistence has integration tests; attachment, paper message, propagation and upstream database/file formats are missing |
 | Peer/node discovery | Displays up to 256 recently announced Reticulum destinations and a decoded display name when available. | partial; the current public known-destination snapshot cannot reliably classify every announce as `lxmf.delivery` because it does not retain destination app/aspect |
-| Page browser | Requests `/page/index.mu` or a safe `/page/...` path over a Reticulum link; limits responses to 1 MB; follows textual Micron links and stores bookmarks. Upstream URL/link syntax: `ui/textui/Browser.py`, `MicronParser.py`. | partial; headings and bracket links are rendered; forms, images, dynamic partial refresh, full tables/styles, anchors and page cache are missing |
-| File downloads | Requests an upstream `/file/...` resource with a 16 MiB response cap and saves a validated plain filename under `downloads`. Upstream source: `Node.py`, `ui/textui/FileBrowser.py`. | partial; implementation exists; no live NomadNet page/file-server test yet |
+| Page browser | Requests `/page/index.mu` or a safe `/page/...` path over a Reticulum link; limits responses to 1 MB; follows textual Micron links and stores bookmarks. Upstream URL/link syntax: `ui/textui/Browser.py`, `MicronParser.py`. | partial; `/page/readme.mu` was live-fetched from primary NomadNet 1.4.4 on a one-hop TCP loopback; headings and bracket links render, while forms, images, dynamic partial refresh, full tables/styles, anchors and page cache are missing |
+| File downloads | Requests an upstream `/file/...` resource with a 16 MiB response cap and saves a validated plain filename under `downloads`. Upstream source: `Node.py`, `ui/textui/FileBrowser.py`. | partial; a 20-byte file was live-downloaded from the primary NomadNet 1.4.4 node and byte-checked; larger files and failure/retry cases remain unverified |
 | Hosted node | `nomadnetwork.node` announce; `/page`, `/file`, `/media`, `.allowed` authorization; optional executable page handlers and image conversion. `Node.py`. | missing |
 | Live group chat | RRC room client and persisted room history. `RRC.py`, `ui/textui/Channels.py`. | missing |
 | UI modes and platform | Upstream text/menu UI uses Urwid; `GraphicalUI` and `WebUI` explicitly abort as not implemented. `ui/__init__.py`, `TextUI.py`, `GraphicalUI.py`, `WebUI.py`. | partial: scoped command-loop UI only; upstream placeholders remain out of scope |
-| Configuration and platform | Native app data is under `--config` or the platform application-data directory; Reticulum configuration is supplied with `--rnsconfig` or standard discovery. Upstream also stores identity, pages/files, directory, caches and resources. `NomadNetworkApp.py`, `setup.py`. | partial; Windows/Linux NativeAOT publishing is not yet verified; upstream's OS-independent classifier is not .NET platform evidence |
+| Configuration and platform | Native app data is under `--config` or the platform application-data directory; Reticulum configuration is supplied with `--rnsconfig` or standard discovery. Upstream also stores identity, pages/files, directory, caches and resources. `NomadNetworkApp.py`, `setup.py`. | partial; Windows `win-x64` and WSL Ubuntu `linux-x64` NativeAOT publishes, CLI smoke, and native process flows pass; other operating systems and broader platform coverage are unverified |
 
 ### Sideband
 
@@ -144,9 +144,11 @@ version constraints for some source installs.
   `f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2` (root tree
   `223037b20cb53ec1d9e73ba9e4a66886de459ebf`). Its Python package declares
   minimum RNS 1.6.0 and LXMF 1.2.2, while this ecosystem pins RNS 1.5.7 and
-  LXMF 1.2.1. The scoped app uses existing .NET APIs and does not claim
-  compatibility with every upstream 1.4.4 feature or its minimum-version
-  runtime environment.
+  LXMF 1.2.1. The actual primary NomadNet app class and node handlers were
+  imported and exercised against those pinned older versions for direct LXMF,
+  one page, and one file. This proves only those tested contracts; it does not
+  override the package's declared minimums or establish full 1.4.4
+  compatibility.
 - Licensing remains unresolved upstream: `LICENSE` is GPLv3 while `setup.py`
   declares an MIT classifier. No source, translated source, or assets were
   copied. Resolve the upstream conflict before making distribution decisions
@@ -169,11 +171,17 @@ version constraints for some source installs.
   deciding whether the requested native .NET product includes GUI, Android,
   desktop, or only service/console scope.
 - The scoped client uses the standard console and is explicitly not full
-  upstream UI parity. Native tests cover CLI help, version and local
-  initialization. An opt-in live test is authored for bidirectional delivery
-  with pinned Python LXMF, but was skipped because reference environment
-  variables were unavailable; this is not interoperability evidence. Page/file
-  interoperability and full Micron behavior remain unverified.
+  upstream UI parity. Native Pester checks cover CLI help, version, local
+  initialization, terminal status/shutdown, and delivery-identity persistence
+  across restart on Windows and Linux.
+- Live evidence is direct TCP loopback at one Reticulum hop, not a public
+  network or multi-hop topology. The pinned Python LXMF peer and the actual
+  primary NomadNet 1.4.4 app exchanged direct messages in both directions.
+  Native-to-upstream page and file requests passed, and the .NET client
+  retained an upstream-originated message across process restart. The
+  upstream app was configured with `enable_node = yes` and a local
+  `TCPServerInterface`; its Python adapter invokes the unmodified
+  `NomadNetworkApp` and `LXMRouter` APIs and does not shim protocol behavior.
 - NativeAOT publish and `--help`, `--version`, `--init`, and `--status` were
   exercised on Windows `win-x64` and WSL Ubuntu 26.04 `linux-x64`. The Linux
   binary currently links only standard glibc/libm/loader dynamic libraries
@@ -184,8 +192,9 @@ version constraints for some source installs.
 - `dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release
   --artifacts-path artifacts\nomadnet-build` — 12 passed, 0 failed.
 - `Invoke-Pester -Path tests\Pester\NomadNet.Tests.ps1 -Tag Native` — 3 passed
-  against the published Windows `nomadnet.exe`, including clean terminal
-  shutdown and persistence of the same LXMF delivery identity across restart.
+  against the published Windows `nomadnet.exe` and 3 passed against the Linux
+  `nomadnet` binary, including clean terminal shutdown and persistence of the
+  same LXMF delivery identity across restart.
 - `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64
   --artifacts-path artifacts\nomadnet-aot
   -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` —
@@ -196,10 +205,30 @@ version constraints for some source installs.
   -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` —
   NativeAOT publish passed. Linux `--help`, `--version`, `--init`, and
   `--status` succeeded; `ldd` listed libc, libm and the ELF loader.
-- `Invoke-Pester -Path tests\Pester\NomadNet.Tests.ps1 -Tag Live` — explicitly
-  skipped because the pinned Python reference environment variables were not
-  available. No live peer topology or NomadNet page/file interoperability is
-  claimed.
+- Reference verification in WSL:
+  `PYTHONPATH=$root/rns:$root/lxmf DOTRETICULUM_UPSTREAM=$root/rns
+  DOTRETICULUM_LXMF_UPSTREAM=$root/lxmf
+  $root/reference-venv/bin/python tests/Interop/reference_environment.py
+  --require-lxmf` — passed; imports resolved to the pinned RNS commit
+  `a29bfb51c468945c96a1ee22cae0114e993e2391` (1.5.7) and LXMF commit
+  `e8ba02483217af43be284a72f1c059c730b7d047` (1.2.1).
+- `Invoke-Pester -Path tests\Pester\NomadNet.Tests.ps1 -Tag Live` in WSL,
+  with those reference paths, primary source
+  `f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`, and the Linux NativeAOT
+  executable — 2 passed, 0 failed. It verifies direct LXMF both ways against
+  Python LXMF, then against the actual upstream NomadNet app: `/page/readme.mu`
+  and `/file/live.txt` requests, .NET-to-upstream message persistence,
+  upstream-to-.NET direct delivery, and message history after restarting the
+  .NET process. The test topology is one TCP hop with no Reticulum transport
+  node, packet loss, or multi-hop path.
+- `Invoke-Pester -Path tests\Pester\NomadNet.Tests.ps1 -Tag Live` on Windows
+  with the same pinned Python reference and the Windows NativeAOT executable —
+  1 passed: direct LXMF both ways against the pinned Python peer.
+- The isolated Linux reference venv initially lacked `urwid` and `qrcode`;
+  installed declared NomadNet dependencies there (`urwid 4.2.5`, `qrcode
+  8.2`). The live test work directory is placed on the WSL Linux filesystem:
+  NomadNet executes `.mu` pages when the filesystem reports the executable
+  bit, which WSL's default `/mnt/c` mount reports for ordinary files.
 
 ## References
 

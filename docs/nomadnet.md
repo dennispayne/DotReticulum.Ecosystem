@@ -2,15 +2,17 @@
 
 ## Present state
 
-This is a source, licensing, platform, and architecture inventory for two
-proposed ecosystem applications. **Neither application has a native .NET
-implementation here.** No application interoperability is claimed. Existing
-`LXMF`, `LXST`, and DotReticulum libraries are potential building blocks, not
-evidence that either application is implemented.
+This is the present-state source, licensing, platform, and architecture
+reference for NomadNet and Sideband. **NomadNet has a scoped native .NET
+terminal client; it is not a full port or a parity implementation.** Sideband
+has no .NET implementation in this repository. Existing `LXMF`, `LXST`, and
+DotReticulum libraries are building blocks, not evidence that an application
+contract is implemented.
 
 The intended application names are **NomadNet** and **Sideband** (without a
-`Dot` prefix). This document does not select a UI framework or authorize
-implementation.
+`Dot` prefix). NomadNet's first implementation is a simple command loop with
+no third-party terminal UI toolkit. It targets Windows and Linux; platform
+and NativeAOT claims are limited to validation recorded below.
 
 ## Primary-source provenance
 
@@ -94,14 +96,16 @@ inspected upstream source itself does not implement.
 
 | Contract | Upstream facts and source references | Ecosystem status |
 |---|---|---|
-| Executable and lifecycle | `nomadnet=nomadnet.nomadnet:main`; `--config`, `--rnsconfig`, `--textui`, `--daemon`, `--console`, `--version`. `setup.py`, `nomadnet/nomadnet.py` | missing |
-| Network client and identity | Reticulum node and identity, `nomadnetwork.node` destination, peer announces/directory, path requests, and LXMF delivery/propagation settings. `nomadnet/NomadNetworkApp.py`, `Directory.py`, `Conversation.py` | missing at application layer |
-| Messaging and persistence | Direct LXMF conversations, status/history, attachments, paper output, propagation-node selection/synchronization and retry behavior. Conversation/message files, indexes and peer/directory settings persist below the configured NomadNet storage directory. `Conversation.py`, `NomadNetworkApp.py` | missing at application layer |
-| Hosted pages and files | Node announces, serves `/page`, `/file`, and `/media`, has per-file `.allowed` access rules, supports node-side executable page handlers on non-Windows systems, and converts/caches supported images as WebP. `Node.py` | missing |
-| Page/browser contract | Micron markup, node navigation, forms/fields, page cache, terminal image rendering and downloads. `ui/textui/Browser.py`, `MicronParser.py`, `FileBrowser.py`, `images/` | missing |
-| Live group chat | RRC client, room state, hub interaction and persisted history. `RRC.py`, `ui/textui/Channels.py` | missing |
-| User interface modes | Text and menu UI are implemented upstream; the text UI uses Urwid. The `GraphicalUI` and `WebUI` modules explicitly report “not implemented” and abort. `ui/__init__.py`, `TextUI.py`, `GraphicalUI.py`, `WebUI.py` | upstream-placeholder; not a required parity feature |
-| Configuration and platform | Default config location is `~/.nomadnetwork`, with `/etc/nomadnetwork` and `~/.config/nomadnetwork` discovery; state includes identity, pages/files, conversations, directory, peer settings, cache, resources and attachments. Python `>=3.8`; package requirements include RNS `>=1.6.0`, LXMF `>=1.2.2`, Urwid `>=3.0.5`, and qrcode. `NomadNetworkApp.py`, `setup.py` | missing; upstream's “OS Independent” package classifier is not a .NET platform verification |
+| Executable and lifecycle | Native `nomadnet` executable/assembly; `--config`, `--rnsconfig`, `--init`, `--status`, `--help`, `--version`; interactive command loop and Ctrl+C cancellation. Upstream entry point and options remain `setup.py`, `nomadnet/nomadnet.py`. | partial; local CLI smoke and native-process Pester tests pass; daemon/console modes are missing |
+| Identity and delivery | Persistent Reticulum identity, `lxmf.delivery` destination, announce, known-destination listing, direct text send/receive, and delivery-state display via existing .NET `ReticulumNode` and `LxmRouter`. Upstream contracts: `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`. | partial; an opt-in bidirectional Python LXMF 1.2.1 live test exists but was not run because the pinned Python reference environment was unavailable; does not establish that Python NomadNet 1.4.4 supports older stack pins |
+| Contacts, conversations, persistence | Display name settings, contacts, bounded durable text history and bookmarks are stored in the selected app data directory; state updates use versioned JSON and atomic replacement. | partial; local persistence has integration tests; attachment, paper message, propagation and upstream database/file formats are missing |
+| Peer/node discovery | Displays up to 256 recently announced Reticulum destinations and a decoded display name when available. | partial; the current public known-destination snapshot cannot reliably classify every announce as `lxmf.delivery` because it does not retain destination app/aspect |
+| Page browser | Requests `/page/index.mu` or a safe `/page/...` path over a Reticulum link; limits responses to 1 MB; follows textual Micron links and stores bookmarks. Upstream URL/link syntax: `ui/textui/Browser.py`, `MicronParser.py`. | partial; headings and bracket links are rendered; forms, images, dynamic partial refresh, full tables/styles, anchors and page cache are missing |
+| File downloads | Requests an upstream `/file/...` resource with a 16 MiB response cap and saves a validated plain filename under `downloads`. Upstream source: `Node.py`, `ui/textui/FileBrowser.py`. | partial; implementation exists; no live NomadNet page/file-server test yet |
+| Hosted node | `nomadnetwork.node` announce; `/page`, `/file`, `/media`, `.allowed` authorization; optional executable page handlers and image conversion. `Node.py`. | missing |
+| Live group chat | RRC room client and persisted room history. `RRC.py`, `ui/textui/Channels.py`. | missing |
+| UI modes and platform | Upstream text/menu UI uses Urwid; `GraphicalUI` and `WebUI` explicitly abort as not implemented. `ui/__init__.py`, `TextUI.py`, `GraphicalUI.py`, `WebUI.py`. | partial: scoped command-loop UI only; upstream placeholders remain out of scope |
+| Configuration and platform | Native app data is under `--config` or the platform application-data directory; Reticulum configuration is supplied with `--rnsconfig` or standard discovery. Upstream also stores identity, pages/files, directory, caches and resources. `NomadNetworkApp.py`, `setup.py`. | partial; Windows/Linux NativeAOT publishing is not yet verified; upstream's OS-independent classifier is not .NET platform evidence |
 
 ### Sideband
 
@@ -126,31 +130,76 @@ version constraints for some source installs.
 
 ## Architecture and compatibility findings
 
+- The native NomadNet project is `src\NomadNet\NomadNet.csproj`, with
+  assembly/executable `nomadnet`, namespace `NomadNet`, and target version
+  `1.4.4.<height>` for the inspected primary source revision. It uses
+  `ReticulumNode`, `LxmRouter`, `ClientLinks`, and the existing public link
+  request API; no stack or LXMF source was changed.
+- The initial user-visible scope is text LXMF, announced-destination listing,
+  bounded page requests/navigation/bookmarks, and bounded file downloads.
+  Incoming binary content is persisted as a non-rendered message notice.
+  Attachments, paper messages, propagation, node hosting, RRC, and full Micron
+  functionality are not claimed.
+- The app target is primary NomadNet 1.4.4 at
+  `f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2` (root tree
+  `223037b20cb53ec1d9e73ba9e4a66886de459ebf`). Its Python package declares
+  minimum RNS 1.6.0 and LXMF 1.2.2, while this ecosystem pins RNS 1.5.7 and
+  LXMF 1.2.1. The scoped app uses existing .NET APIs and does not claim
+  compatibility with every upstream 1.4.4 feature or its minimum-version
+  runtime environment.
+- Licensing remains unresolved upstream: `LICENSE` is GPLv3 while `setup.py`
+  declares an MIT classifier. No source, translated source, or assets were
+  copied. Resolve the upstream conflict before making distribution decisions
+  that depend on the upstream license.
 - Current ecosystem targets are Reticulum 1.5.7, LXMF 1.2.1, and LXST 0.4.5;
   the .NET libraries are `LXMF` and `LXST` (no `Dot` prefix). See
   `CONTRIBUTING.md`, `tests/Interop/reference_environment.py`,
   `docs/lxmf.md`, and `docs/lxst.md`.
-- The fetched NomadNet `setup.py` requires RNS 1.6.0 and LXMF 1.2.2, newer
-  than the current stack/LXMF targets. Sideband's primary source requires
-  LXST 0.5.4, newer than the current LXST target 0.4.5. Resolve whether the
-  work targets these current upstream revisions or older compatible releases
-  before claiming application parity; protocol/app version upgrades are not
-  authorized by this inventory.
+- Sideband's primary source requires LXST 0.5.4, newer than the current LXST
+  target 0.4.5. NomadNet requires RNS 1.6.0 and LXMF 1.2.2, newer than current
+  stack targets. These mismatches limit claims; they do not justify changing
+  protocol pins or claiming full application parity.
 - NomadNet has a substantial client/node split, local durable state, multiple
   Reticulum request handlers, LXMF conversation workflows, and an Urwid text
-  UI. Its graphical and web UI modules are upstream placeholders. The
-  implementation must not promise those placeholders as supported features.
+  UI. Its graphical and web UI modules are upstream placeholders. The scoped
+  client does not promise those placeholders as supported features.
 - Sideband is a broader mobile/desktop application: a network/service core
   and durable app state behind Kivy UI, with telemetry, plugins, voice and
   device integrations. A headless daemon mode exists, but does not replace
   deciding whether the requested native .NET product includes GUI, Android,
   desktop, or only service/console scope.
-- The user-facing scope is therefore still open: confirm NomadNet's initial UI
-  target (especially whether a text UI is required) and Sideband's target
-  platforms/UI before choosing UI frameworks. This inventory makes no
-  terminal-framework selection.
-- None of the source retrieval or inventory work is live application
-  interoperability, runtime testing, or .NET implementation evidence.
+- The scoped client uses the standard console and is explicitly not full
+  upstream UI parity. Native tests cover CLI help, version and local
+  initialization. An opt-in live test is authored for bidirectional delivery
+  with pinned Python LXMF, but was skipped because reference environment
+  variables were unavailable; this is not interoperability evidence. Page/file
+  interoperability and full Micron behavior remain unverified.
+- NativeAOT publish and `--help`, `--version`, `--init`, and `--status` were
+  exercised on Windows `win-x64` and WSL Ubuntu 26.04 `linux-x64`. The Linux
+  binary currently links only standard glibc/libm/loader dynamic libraries
+  (`ldd`); platform-wide Windows/Linux support beyond these hosts is unverified.
+
+## NomadNet validation evidence
+
+- `dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release
+  --artifacts-path artifacts\nomadnet-build` — 12 passed, 0 failed.
+- `Invoke-Pester -Path tests\Pester\NomadNet.Tests.ps1 -Tag Native` — 3 passed
+  against the published Windows `nomadnet.exe`, including clean terminal
+  shutdown and persistence of the same LXMF delivery identity across restart.
+- `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64
+  --artifacts-path artifacts\nomadnet-aot
+  -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` —
+  NativeAOT publish passed.
+- WSL Ubuntu 26.04 using local .NET SDK 10.0.403:
+  `dotnet publish src/NomadNet/NomadNet.csproj -c Release -r linux-x64
+  --artifacts-path artifacts/nomadnet-linux/build
+  -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` —
+  NativeAOT publish passed. Linux `--help`, `--version`, `--init`, and
+  `--status` succeeded; `ldd` listed libc, libm and the ELF loader.
+- `Invoke-Pester -Path tests\Pester\NomadNet.Tests.ps1 -Tag Live` — explicitly
+  skipped because the pinned Python reference environment variables were not
+  available. No live peer topology or NomadNet page/file interoperability is
+  claimed.
 
 ## References
 

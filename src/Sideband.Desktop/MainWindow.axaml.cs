@@ -5,6 +5,7 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Sideband;
+using System.Collections.Generic;
 
 namespace Sideband.Desktop;
 
@@ -13,13 +14,20 @@ public sealed partial class MainWindow : Window
     private readonly SidebandStateStore _store;
     private readonly SidebandClient _client;
     private readonly string? _commandLineRnsConfig;
+    private readonly CancellationTokenSource _windowCancellation = new();
+    private readonly object _operationGate = new();
+    private readonly HashSet<Task> _pendingOperations = [];
+    private readonly TaskCompletionSource _closedCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly bool _smokeUi;
+    private Task _initializationTask = Task.CompletedTask;
     private int _smokeRenderCount;
     private int _smokeStatusChanged;
     private string? _selectedContact;
     private SidebandState? _state;
     private bool _navigationVisible = true;
     private bool _closing;
+    private bool _allowClose;
+    private Task? _closeTask;
 
     internal static bool SmokeUiSucceeded { get; private set; }
 
@@ -38,6 +46,7 @@ public sealed partial class MainWindow : Window
         _client.ErrorReported += OnErrorReported;
         ThemeSelector.ItemsSource = new[] { "Dark", "Light" };
         Closed += OnClosed;
+        Closing += OnClosing;
         Opened += OnOpened;
         NavigateTo("Conversations");
         UpdateConnectivityView();
@@ -82,15 +91,22 @@ public sealed partial class MainWindow : Window
 
     private async void OnOpened(object? sender, EventArgs e)
     {
+        _initializationTask = InitializeAsync();
+        await _initializationTask;
+    }
+
+    private async Task InitializeAsync()
+    {
         try
         {
-            _state = await _store.LoadAsync(_commandLineRnsConfig);
+            _state = await _store.LoadAsync(_commandLineRnsConfig, _windowCancellation.Token);
             if (_commandLineRnsConfig is not null)
             {
-                await _store.SetReticulumConfigDirectoryAsync(_commandLineRnsConfig);
-                _state = await _client.LoadAsync();
+                await _store.SetReticulumConfigDirectoryAsync(_commandLineRnsConfig, _windowCancellation.Token);
+                _state = await _client.LoadAsync(_windowCancellation.Token);
             }
 
+            if (_closing) return;
             ReticulumConfigBox.Text = _state.ReticulumConfigDirectory;
             DisplayNameBox.Text = _state.DisplayName;
             ThemeSelector.SelectedItem = _state.Theme;
@@ -101,6 +117,7 @@ public sealed partial class MainWindow : Window
             UpdateConnectivityView();
             if (_smokeUi) Console.WriteLine("SMOKE_UI_OPENED=Sideband");
         }
+        catch (OperationCanceledException) when (_windowCancellation.IsCancellationRequested) { }
         catch (Exception ex) { ShowError("Could not load Sideband data: " + ex.Message); }
     }
 
@@ -119,17 +136,20 @@ public sealed partial class MainWindow : Window
 
     private void OpenConnectivityClicked(object? sender, RoutedEventArgs e) => NavigateTo("Connectivity");
 
-    private async void ConnectClicked(object? sender, RoutedEventArgs e)
+    private void ConnectClicked(object? sender, RoutedEventArgs e) => TrackOperation(ConnectAsync);
+
+    private async Task ConnectAsync()
     {
         ConnectButton.IsEnabled = false;
         SetStatus("Connecting to Reticulum…");
         ConnectivityStatusText.Text = "Opening the Reticulum node and resolving shared-instance ownership…";
         try
         {
-            await _client.ConnectAsync(ReticulumConfigBox.Text);
-            _state = await _client.LoadAsync();
+            await _client.ConnectAsync(ReticulumConfigBox.Text, _windowCancellation.Token);
+            _state = await _client.LoadAsync(_windowCancellation.Token);
             SetStatus("Connected · LXMF address " + (_state.OwnDeliveryHash ?? "available"));
         }
+        catch (OperationCanceledException) when (_windowCancellation.IsCancellationRequested) { }
         catch (Exception ex)
         {
             ConnectButton.IsEnabled = true;
@@ -139,7 +159,9 @@ public sealed partial class MainWindow : Window
         UpdateConnectivityView();
     }
 
-    private async void DisconnectClicked(object? sender, RoutedEventArgs e)
+    private void DisconnectClicked(object? sender, RoutedEventArgs e) => TrackOperation(DisconnectAsync);
+
+    private async Task DisconnectAsync()
     {
         DisconnectButton.IsEnabled = false;
         try
@@ -151,21 +173,25 @@ public sealed partial class MainWindow : Window
         UpdateConnectivityView();
     }
 
-    private async void SaveConfigClicked(object? sender, RoutedEventArgs e)
+    private void SaveConfigClicked(object? sender, RoutedEventArgs e) => TrackOperation(SaveConfigAsync);
+
+    private async Task SaveConfigAsync()
     {
         try
         {
             var value = ReticulumConfigBox.Text;
             if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("Select a Reticulum configuration directory or file.");
             await _store.SetReticulumConfigDirectoryAsync(value);
-            _state = await _client.LoadAsync();
+            _state = await _client.LoadAsync(_windowCancellation.Token);
             SetStatus("Saved Reticulum configuration path. This does not connect or modify the Reticulum files.");
             UpdateConnectivityView();
         }
         catch (Exception ex) { ShowError("Could not save Reticulum configuration path: " + ex.Message); }
     }
 
-    private async void SavePreferencesClicked(object? sender, RoutedEventArgs e)
+    private void SavePreferencesClicked(object? sender, RoutedEventArgs e) => TrackOperation(SavePreferencesAsync);
+
+    private async Task SavePreferencesAsync()
     {
         try
         {
@@ -173,7 +199,7 @@ public sealed partial class MainWindow : Window
             var theme = ThemeSelector.SelectedItem as string;
             if (theme is null) throw new ArgumentException("Choose Dark or Light appearance.");
             await _store.SetPreferencesAsync(name, theme);
-            _state = await _client.LoadAsync();
+            _state = await _client.LoadAsync(_windowCancellation.Token);
             ApplyTheme(theme);
             var message = _client.IsConnected
                 ? "Preferences saved. The announced display name takes effect next time Sideband connects."
@@ -193,7 +219,9 @@ public sealed partial class MainWindow : Window
         if (Application.Current is App app) app.SetTheme(theme);
     }
 
-    private async void AddContactClicked(object? sender, RoutedEventArgs e)
+    private void AddContactClicked(object? sender, RoutedEventArgs e) => TrackOperation(AddContactAsync);
+
+    private async Task AddContactAsync()
     {
         try
         {
@@ -207,7 +235,9 @@ public sealed partial class MainWindow : Window
         catch (Exception ex) { ShowError("Could not add contact: " + ex.Message); }
     }
 
-    private async void SendClicked(object? sender, RoutedEventArgs e)
+    private void SendClicked(object? sender, RoutedEventArgs e) => TrackOperation(SendAsync);
+
+    private async Task SendAsync()
     {
         if (_selectedContact is null)
         {
@@ -219,7 +249,7 @@ public sealed partial class MainWindow : Window
         SendButton.IsEnabled = false;
         try
         {
-            await _client.SendTextAsync(_selectedContact, content);
+            await _client.SendTextAsync(_selectedContact, content, _windowCancellation.Token);
             MessageBox.Text = string.Empty;
             await RefreshMessagesAsync();
             SetStatus("Message queued for LXMF delivery.");
@@ -228,31 +258,38 @@ public sealed partial class MainWindow : Window
         finally { SendButton.IsEnabled = true; }
     }
 
-    private async void ContactSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private void ContactSelectionChanged(object? sender, SelectionChangedEventArgs e) =>
+        TrackOperation(ContactSelectionChangedAsync);
+
+    private async Task ContactSelectionChangedAsync()
     {
         if (ContactList.SelectedIndex < 0 || _state is null || ContactList.SelectedIndex >= _state.Contacts.Count) return;
         _selectedContact = _state.Contacts[ContactList.SelectedIndex].DeliveryHash;
         ConversationPeerText.Text = _state.Contacts[ContactList.SelectedIndex].DisplayName + " · " + _selectedContact;
-        await RefreshMessagesAsync();
+        await RefreshMessagesAsync(_windowCancellation.Token);
     }
 
     private void OnStateChanged(SidebandState state)
     {
         Dispatcher.UIThread.Post(() =>
         {
+            if (_closing) return;
             var selected = _selectedContact;
             _state = state;
             RefreshContacts();
             RefreshExpandedContacts();
             if (selected is not null) _selectedContact = selected;
-            if (_selectedContact is not null) _ = RefreshMessagesAsync();
+            if (_selectedContact is not null) TrackOperation(() => RefreshMessagesAsync(_windowCancellation.Token));
             if (_client.IsConnected)
                 SetStatus($"Connected · LXMF address {state.OwnDeliveryHash}");
             UpdateConnectivityView();
         });
     }
 
-    private void OnErrorReported(string message) => Dispatcher.UIThread.Post(() => ShowError(message));
+    private void OnErrorReported(string message) => Dispatcher.UIThread.Post(() =>
+    {
+        if (!_closing) ShowError(message);
+    });
 
     private void RefreshContacts()
     {
@@ -275,17 +312,18 @@ public sealed partial class MainWindow : Window
             .ToArray();
     }
 
-    private async Task RefreshMessagesAsync()
+    private async Task RefreshMessagesAsync(CancellationToken cancellationToken = default)
     {
         if (_selectedContact is null) return;
         try
         {
-            var messages = await _client.GetMessagesAsync(_selectedContact);
+            var messages = await _client.GetMessagesAsync(_selectedContact, cancellationToken);
             MessageList.ItemsSource = messages.Select(message =>
                 $"{message.Timestamp.LocalDateTime:g}  {(message.Incoming ? "Received" : message.DeliveryState)}\n{message.Content}")
                 .ToArray();
             if (messages.Count > 0) MessageList.ScrollIntoView(messages.Count - 1);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (Exception ex) { ShowError("Could not load conversation: " + ex.Message); }
     }
 
@@ -340,6 +378,7 @@ public sealed partial class MainWindow : Window
 
     private void ShowError(string message)
     {
+        if (_closing) return;
         SetStatus(message);
         System.Diagnostics.Trace.TraceError("Sideband UI: {0}", message);
     }
@@ -348,14 +387,81 @@ public sealed partial class MainWindow : Window
     {
         await Task.Delay(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
         await Dispatcher.UIThread.InvokeAsync(Close);
+        await _closedCompletion.Task.ConfigureAwait(false);
     }
 
-    private async void OnClosed(object? sender, EventArgs e)
+    public async Task CloseAndWaitAsync()
+    {
+        if (_closedCompletion.Task.IsCompleted) return;
+
+        await Dispatcher.UIThread.InvokeAsync(Close);
+        await _closedCompletion.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+    }
+
+    private void OnClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_allowClose) return;
+        e.Cancel = true;
+        _closing = true;
+        IsEnabled = false;
+        _closeTask ??= CompleteCloseAsync();
+    }
+
+    private async Task CompleteCloseAsync()
+    {
+        try
+        {
+            await _windowCancellation.CancelAsync().ConfigureAwait(false);
+            try { await _initializationTask.ConfigureAwait(false); }
+            catch (Exception ex) { System.Diagnostics.Trace.TraceError("Sideband startup did not complete cleanly: {0}", ex); }
+            await DrainPendingOperationsAsync().ConfigureAwait(false);
+            _client.StateChanged -= OnStateChanged;
+            _client.ErrorReported -= OnErrorReported;
+            await _client.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError("Sideband shutdown did not complete cleanly: {0}", ex);
+        }
+        finally
+        {
+            _windowCancellation.Dispose();
+            _allowClose = true;
+            await Dispatcher.UIThread.InvokeAsync(Close);
+        }
+    }
+
+    private void TrackOperation(Func<Task> operationFactory)
     {
         if (_closing) return;
-        _closing = true;
-        _client.StateChanged -= OnStateChanged;
-        _client.ErrorReported -= OnErrorReported;
-        await _client.DisposeAsync();
+        var operation = operationFactory();
+        lock (_operationGate) _pendingOperations.Add(operation);
+        _ = operation.ContinueWith(
+            completed =>
+            {
+                lock (_operationGate) _pendingOperations.Remove(completed);
+                if (completed.IsFaulted)
+                    System.Diagnostics.Trace.TraceError("Sideband UI operation failed: {0}", completed.Exception);
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private async Task DrainPendingOperationsAsync()
+    {
+        while (true)
+        {
+            Task[] pending;
+            lock (_operationGate) pending = [.. _pendingOperations];
+            if (pending.Length == 0) return;
+            try { await Task.WhenAll(pending).ConfigureAwait(false); }
+            catch (Exception ex) { System.Diagnostics.Trace.TraceError("A Sideband UI operation did not stop cleanly: {0}", ex); }
+        }
+    }
+
+    private void OnClosed(object? sender, EventArgs e)
+    {
+        _closedCompletion.TrySetResult();
     }
 }

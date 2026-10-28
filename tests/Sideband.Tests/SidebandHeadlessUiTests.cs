@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Sideband.Desktop;
+using System.Text.Json;
 
 [assembly: AvaloniaTestApplication(typeof(Sideband.Tests.TestAppBuilder))]
 
@@ -25,12 +26,13 @@ public sealed class SidebandHeadlessUiTests
     {
         var path = Path.Combine(AppContext.BaseDirectory, "sideband-ui-test-" + Guid.NewGuid().ToString("N"));
         var rnsConfig = Path.Combine(path, "isolated-rns");
+        MainWindow? window = null;
         try
         {
             Directory.CreateDirectory(rnsConfig);
             await File.WriteAllTextAsync(Path.Combine(rnsConfig, "config"),
                 "[reticulum]\n  enable_transport = no\n  share_instance = no\n\n[logging]\n  loglevel = 4\n");
-            var window = new MainWindow(path, rnsConfig);
+            window = new MainWindow(path, rnsConfig);
             window.Show();
             await WaitForAsync(() => window.FindControl<TextBox>("DisplayNameBox")?.Text == "Sideband");
 
@@ -74,31 +76,104 @@ public sealed class SidebandHeadlessUiTests
             await WaitForAsync(() => window.FindControl<TextBlock>("PreferencesStatusText")?.Text?.Contains("displayName") == true);
             Assert.Contains("Could not save preferences", window.FindControl<TextBlock>("StatusText")!.Text);
 
-            window.Close();
+            await window.CloseAndWaitAsync();
         }
         finally
         {
+            if (window?.IsVisible == true) await window.CloseAndWaitAsync();
             if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
         }
     }
 
     [AvaloniaFact]
-    public void WindowPresentsChatControlsAndReportsSendWithoutSelection()
+    public async Task WindowPresentsChatControlsAndReportsSendWithoutSelection()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "sideband-ui-test-" + Guid.NewGuid().ToString("N"));
+        MainWindow? window = null;
         try
         {
-            var window = new MainWindow(path, Path.Combine(path, "isolated-rns"));
+            window = new MainWindow(path, Path.Combine(path, "isolated-rns"));
             window.Show();
             var status = window.FindControl<TextBlock>("StatusText")!;
             var send = window.FindControl<Button>("SendButton")!;
             send.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
             Assert.Equal("Select a contact before sending.", status.Text);
-            window.Close();
+            await window.CloseAndWaitAsync();
         }
         finally
         {
+            if (window?.IsVisible == true) await window.CloseAndWaitAsync();
+            if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ClosingDuringInitialStateSaveWaitsForStartupAndLeavesNoTemporaryFile()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "sideband-ui-test-" + Guid.NewGuid().ToString("N"));
+        MainWindow? window = null;
+        try
+        {
+            window = new MainWindow(path, Path.Combine(path, "isolated-rns"));
+            window.Show();
+            await window.CloseAndWaitAsync();
+
+            Assert.False(window.IsVisible);
+            Assert.Empty(Directory.GetFiles(path, "*.tmp", SearchOption.AllDirectories));
+        }
+        finally
+        {
+            if (window?.IsVisible == true) await window.CloseAndWaitAsync();
+            if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ClosingWaitsForAnInFlightPreferencesSave()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "sideband-ui-test-" + Guid.NewGuid().ToString("N"));
+        var rnsConfig = Path.Combine(path, "isolated-rns");
+        MainWindow? window = null;
+        try
+        {
+            Directory.CreateDirectory(path);
+            var messages = Enumerable.Range(0, 120)
+                .Select(index => new Sideband.SidebandChatMessage(
+                    Guid.NewGuid(),
+                    "aabbccddeeff00112233445566778899",
+                    false,
+                    "",
+                    new string('x', 50_000),
+                    DateTimeOffset.UnixEpoch.AddSeconds(index),
+                    "Delivered"))
+                .ToArray();
+            var state = new Sideband.SidebandState(
+                Sideband.SidebandState.CurrentSchemaVersion,
+                rnsConfig,
+                null,
+                [],
+                messages);
+            var stateStore = new Sideband.SidebandStateStore(path);
+            await File.WriteAllTextAsync(stateStore.StatePath, JsonSerializer.Serialize(state));
+
+            window = new MainWindow(path, rnsConfig);
+            window.Show();
+            await WaitForAsync(() => window.FindControl<TextBox>("DisplayNameBox")?.Text == "Sideband");
+            window.FindControl<TextBox>("DisplayNameBox")!.Text = "Alice";
+            window.FindControl<ComboBox>("ThemeSelector")!.SelectedItem = "Light";
+            window.FindControl<Button>("SavePreferencesButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+            await window.CloseAndWaitAsync();
+
+            var persisted = await new Sideband.SidebandStateStore(path).LoadAsync();
+            Assert.Equal("Alice", persisted.DisplayName);
+            Assert.Equal("Light", persisted.Theme);
+            Assert.Empty(Directory.GetFiles(path, "*.tmp", SearchOption.AllDirectories));
+        }
+        finally
+        {
+            if (window?.IsVisible == true) await window.CloseAndWaitAsync();
             if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
         }
     }

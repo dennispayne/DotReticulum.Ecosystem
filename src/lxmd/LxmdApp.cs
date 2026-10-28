@@ -1,5 +1,5 @@
 using System.Globalization;
-using DotLXMF;
+using LXMF;
 using DotReticulum.Applications;
 using DotReticulum.Applications.Rnsd;
 using DotReticulum.Core;

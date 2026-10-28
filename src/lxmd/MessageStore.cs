@@ -1,4 +1,4 @@
-using DotLXMF;
+using LXMF;
 
 namespace Lxmd;
 

@@ -20,7 +20,7 @@ $ErrorActionPreference = 'Stop'
 
 if (!$Project) {
     $Project = if ($Application -eq 'telemetry') {
-        'src/DotTelemetry/DotTelemetry.csproj'
+        'src/Telemetry/Telemetry.csproj'
     } elseif ($Application -eq 'lxmd') {
         'src/lxmd/lxmd.csproj'
     } else {

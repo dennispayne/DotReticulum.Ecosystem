@@ -12,7 +12,9 @@ dotnet build DotReticulum.Ecosystem.slnx -c Release
 dotnet test DotReticulum.Ecosystem.slnx -c Release
 ```
 
-Every behavior change needs tests, including malformed inputs, boundary lengths and failure paths. Protocol changes require independently generated reference vectors produced by executing the upstream Python implementation, with the exact upstream revision and generation method recorded in the test (see `tests/DotLXMF.Tests/GenerateLxmfVectors.py`). Round-trip tests alone are not interoperability evidence. Do not commit real private keys, captured private traffic, or credentials.
+Every behavior change needs tests, including malformed inputs, boundary lengths and failure paths. Protocol changes require independently generated reference vectors produced by executing the upstream Python implementation, with the exact upstream revision and generation method recorded in the test (see `tests/LXMF.Tests/GenerateLxmfVectors.py`). Round-trip tests alone are not interoperability evidence. Do not commit real private keys, captured private traffic, or credentials.
+
+The ecosystem projects and namespaces are `LXMF`, `LXST` and `Telemetry`, with matching test-project names. Consumers of the former `Dot`-prefixed projects must update project references and namespace imports and rebuild; no compatibility assemblies are supplied. The `telemetry` executable retains its lowercase assembly name. Existing `DOTLXST_*` environment variables, executable names, persisted formats and wire identifiers are unchanged.
 
 ## The DotReticulum dependency
 
@@ -45,7 +47,7 @@ LXST targets primary-host revision `3b596f48ddd252ddc9c315ef8f3020cfd3688223` (0
 
 Set `DOTRETICULUM_LXST_UPSTREAM` to the clean primary checkout and install its declared dependencies into the isolated reference venv. `--require-lxst` verifies the actual imported checkout, revision and version. The verifier allows upstream's generated `filterlib` extension and CFFI cache C file, but no tracked modifications or additional source modules. These are native build outputs, not reference-side behavior shims. Object consistency is not publisher authentication.
 
-The LXST source has a different license (CC BY-NC-ND 4.0); do not copy, translate, redistribute or assume the root Reticulum License applies to it. DotLXST must remain independently authored from factual protocol contracts and observed reference behavior. Native codec dependencies have their own licenses; see `docs/lxst.md`.
+The LXST source has a different license (CC BY-NC-ND 4.0); do not copy, translate, redistribute or assume the root Reticulum License applies to it. LXST must remain independently authored from factual protocol contracts and observed reference behavior. Native codec dependencies have their own licenses; see `docs/lxst.md`.
 
 Obtain RNS updates with DotReticulum's `rngit fetch` and verify the objects; the GitHub mirror is only a secondary comparison source. Disclose reference-side shims and non-default peer limits (for example an `lxmd` transfer-size limit). Unsupported test modes must explicitly skip rather than return a false pass.
 
@@ -79,7 +81,7 @@ complete provisioned Linux suite:
 $env:DOTLXST_LIVE = '1'
 $env:DOTLXST_NATIVE = '1'
 $env:DOTLXST_VIRTUAL_AUDIO = '1'
-dotnet test tests\DotLXST.Tests\DotLXST.Tests.csproj -c Release --artifacts-path <linux-output-directory>
+dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path <linux-output-directory>
 ```
 
 Use distinct `--artifacts-path` directories for Windows, Linux and concurrent
@@ -102,12 +104,12 @@ C# implements and verifies our solution. PowerShell 7 builds and operates the de
 
 ## Moving to a new upstream release
 
-Each project targets one upstream release, recorded in its own `version.json` (`src/DotLXMF/version.json` is the LXMF version). To move `DotLXMF` to a newer LXMF release:
+Each project targets one upstream release, recorded in its own `version.json` (`src/LXMF/version.json` is the LXMF version). To move `LXMF` to a newer LXMF release:
 
 1. Update the LXMF version pin (and the RNS pin, if it changed) in `tests/Interop/reference_environment.py`.
 2. Regenerate the vectors by executing the new upstream and record the revision. Do not relabel older vectors.
 3. Review upstream changes since the old release, update the code and `docs/lxmf.md`, and run the live tests.
-4. Edit `src/DotLXMF/version.json` to the new upstream number; the build height resets.
+4. Edit `src/LXMF/version.json` to the new upstream number; the build height resets.
 
 ## Licensing
 

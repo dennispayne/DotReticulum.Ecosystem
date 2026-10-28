@@ -1,5 +1,5 @@
 using System.Security.Cryptography;
-using DotLXST;
+using LXST;
 using DotReticulum.Applications;
 using DotReticulum.Core;
 
@@ -86,7 +86,7 @@ public static class PhoneApp
             await using var sink = new DeviceAudioSink(devices, settings.Speaker, () => output.WriteLine("Audio receive ready"));
             await using var toneSink = new DeviceAudioSink(devices, settings.Speaker);
             await using var ringerSink = new DeviceAudioSink(devices, settings.Ringer);
-            await using var playback = new DotLXST.Audio.BufferedAudioSink(sink, 48000, 2)
+            await using var playback = new LXST.Audio.BufferedAudioSink(sink, 48000, 2)
             {
                 Error = (context, exception) => error.WriteLine($"{context} {exception?.Message}"),
             };
@@ -126,7 +126,7 @@ public static class PhoneApp
                                 previousStop?.Dispose();
                                 toneToken.ThrowIfCancellationRequested();
                                 await foreach (var frame in new TelephoneToneSource(tone).CaptureAsync(toneToken))
-                                    await toneSink.WriteAsync(DotLXST.Audio.AudioMixer.ApplyGain(frame,
+                                    await toneSink.WriteAsync(LXST.Audio.AudioMixer.ApplyGain(frame,
                                         telephone.ReceiveGainDb, telephone.ReceiveMuted), toneToken);
                             }
                             catch (OperationCanceledException) when (toneToken.IsCancellationRequested) { }
@@ -348,7 +348,7 @@ public static class PhoneApp
     }
 
     private static IAudioDeviceBackend CreateDeviceBackend() => OperatingSystem.IsWindows()
-        ? new DotLXST.Devices.WindowsWaveAudioBackend()
+        ? new LXST.Devices.WindowsWaveAudioBackend()
         : OperatingSystem.IsLinux() ? new PulseAudioDeviceBackend()
         : throw new PlatformNotSupportedException("Audio devices are implemented for Linux and Windows only.");
 

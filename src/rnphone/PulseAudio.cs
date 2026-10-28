@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
-using DotLXST;
-using DotLXST.Audio;
+using LXST;
+using LXST.Audio;
 
 namespace Rnphone;
 

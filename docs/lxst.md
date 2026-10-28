@@ -1,8 +1,8 @@
-# DotLXST reference audit
+# LXST reference audit
 
 ## Status and scope
 
-**Partial, independently authored interoperability implementation.** `DotLXST`
+**Partial, independently authored interoperability implementation.** `LXST`
 implements bounded stream envelopes, portable raw audio, native Opus/Codec2 ABI
 adapters, asynchronous stream sessions and device-independent telephony.
 `rnphone` provides a partial executable with Linux PulseAudio capture/playback,
@@ -296,7 +296,7 @@ providers may support a narrower set. These are explicit resource limits.
 These original interfaces replace Python backend-object shapes rather than
 claiming Python class-layout compatibility.
 
-`DotLXST.Audio` supplies a separately tested managed processor, mixer, generator
+`LXST.Audio` supplies a separately tested managed processor, mixer, generator
 and pipeline layer; the stream/session interfaces do not silently apply it.
 Endpoint AGC/band-pass processing is shared by the CLI. Hardware software is
 wired behind explicit providers; physical peripherals and all
@@ -411,7 +411,7 @@ extension. Hardware setting changes require process restart instead of silently
 opening duplicate primary driver instances during reload. Call-duration display
 formatting is original .NET text, not a byte-identical Python terminal claim.
 
-`DotLXST.Devices.WindowsWaveAudioBackend` is an independently authored WinMM
+`LXST.Devices.WindowsWaveAudioBackend` is an independently authored WinMM
 PCM16 backend, **not** a translation of the reference SoundCard/WASAPI bindings.
 It accepts mono/stereo formats up to 192 kHz and default or enumerated numeric
 device identifiers. Capture has two native buffers and a four-frame bounded
@@ -451,7 +451,7 @@ Other Windows codec/file DLLs have not been verified by this headless Opus gate.
 
 ## Evidence and reproduction
 
-`tests/DotLXST.Tests/GenerateLxstVectors.py` executes the real pinned Raw, Opus,
+`tests/LXST.Tests/GenerateLxstVectors.py` executes the real pinned Raw, Opus,
 Codec2, Packetizer and SignallingReceiver APIs. It records source digests,
 actual module location, Python/NumPy/pycodec2 versions, libopus version and the
 pycodec2 native-library digest in `Fixtures/lxst-vectors.json`. The packet-byte
@@ -470,15 +470,15 @@ library passed the strict sample comparisons.
 Commands (PowerShell on Windows; use native paths and the installed SDK in WSL):
 
 ```powershell
-dotnet test tests\DotLXST.Tests\DotLXST.Tests.csproj -c Release --filter "Category=Unit"
+dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --filter "Category=Unit"
 # Set DOTRETICULUM_UPSTREAM and DOTRETICULUM_LXST_UPSTREAM to the clean pinned
 # checkouts, DOTRETICULUM_PYTHON to the isolated interpreter; construct PYTHONPATH
 # from those roots and optional DOTRETICULUM_LXMF_UPSTREAM only.
-python tests\DotLXST.Tests\GenerateLxstVectors.py --output tests\DotLXST.Tests\Fixtures\lxst-vectors.json
+python tests\LXST.Tests\GenerateLxstVectors.py --output tests\LXST.Tests\Fixtures\lxst-vectors.json
 $env:DOTLXST_NATIVE = "1"
 $env:DOTLXST_LIVE = "1"
 $env:DOTLXST_VIRTUAL_AUDIO = "1"
-dotnet test tests\DotLXST.Tests\DotLXST.Tests.csproj -c Release
+dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release
 dotnet publish src\rnphone\rnphone.csproj -c Release -r linux-x64 -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true
 # On Linux use a native-filesystem working directory for owner-only identity tests.
 $env:DOTLXST_RNPHONE_BINARY = "<published rnphone>"

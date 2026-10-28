@@ -1,4 +1,4 @@
-"""Opens DotLXMF-produced LXMF messages with upstream LXMF (unpack_from_bytes, signature validation, stamps, announce app_data).
+"""Opens LXMF-produced LXMF messages with upstream LXMF (unpack_from_bytes, signature validation, stamps, announce app_data).
 
 Usage: python verify_dotnet_lxmf.py dotnet-lxmf.json   (written by LxmfDotNetToPythonTests; PYTHONPATH = pinned upstream RNS checkout, lxmf installed)
 Exits non-zero on the first mismatch.

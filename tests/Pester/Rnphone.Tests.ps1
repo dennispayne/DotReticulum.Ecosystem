@@ -274,7 +274,7 @@ Describe 'Native rnphone configuration and phonebook persistence' -Tag Integrati
         New-Item -ItemType Directory -Force $phoneConfig, $rnsConfig | Out-Null
         $phone = $null
         try {
-            $fixturePath = Join-Path $script:phoneRoot 'tests/DotLXST.Tests/Fixtures/rnphone-config-vectors.json'
+            $fixturePath = Join-Path $script:phoneRoot 'tests/LXST.Tests/Fixtures/rnphone-config-vectors.json'
             $fixture = Get-Content -LiteralPath $fixturePath -Raw | ConvertFrom-Json
             $path = Join-Path $phoneConfig 'config'
             $fixture.config | Set-Content -LiteralPath $path
@@ -327,7 +327,7 @@ Describe 'Native rnphone configuration and phonebook persistence' -Tag Integrati
             Wait-PhoneLine $phone '^12 Updated:' | Out-Null
             Send-PhoneLine $phone 'q'
             Wait-PhoneLine $phone '^Phonebook closed' | Out-Null
-            $single = Get-Content -Raw (Join-Path $script:phoneRoot 'tests/DotLXST.Tests/Fixtures/rnphone-config-single-list.json') | ConvertFrom-Json
+            $single = Get-Content -Raw (Join-Path $script:phoneRoot 'tests/LXST.Tests/Fixtures/rnphone-config-single-list.json') | ConvertFrom-Json
             $single.config | Set-Content -LiteralPath $path
             Send-PhoneLine $phone 'reload'
             Wait-PhoneLine $phone '^Configuration reloaded' | Out-Null
@@ -518,7 +518,7 @@ set-default-source lxst_input
             foreach ($directory in @($firstConfig, $secondConfig)) {
                 "[telephone]`nspeaker = lxst_output`nmicrophone = lxst_input`nallowed_callers = all`nringer = lxst_ringer`nringtone = ringtone.opus`n" |
                     Set-Content (Join-Path $directory 'config')
-                $fixture = Get-Content -Raw (Join-Path $script:phoneRoot 'tests/DotLXST.Tests/Fixtures/lxst-file-vectors.json') | ConvertFrom-Json
+                $fixture = Get-Content -Raw (Join-Path $script:phoneRoot 'tests/LXST.Tests/Fixtures/lxst-file-vectors.json') | ConvertFrom-Json
                 [IO.File]::WriteAllBytes((Join-Path $directory 'ringtone.opus'), [Convert]::FromBase64String($fixture.file_base64))
             }
             $port = Get-PhonePort

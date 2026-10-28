@@ -1,7 +1,7 @@
-"""Live Python LXMF node (upstream LXMF 1.2.1 LXMRouter) for the DotLXMF interop checks.
+"""Live Python LXMF node (upstream LXMF 1.2.1 LXMRouter) for the LXMF interop checks.
 
 Upstream: Reticulum-hosted snapshot pinned by reference_environment.py (PYTHONPATH) + the pinned "lxmf" package from PyPI.
-Driven by tests/Interop/PyLinkNode.cs from DOTRETICULUM_LIVE=1 xUnit tests (DotLXMF.Tests/LiveLxmfTests.cs); not a unit test.
+Driven by tests/Interop/PyLinkNode.cs from DOTRETICULUM_LIVE=1 xUnit tests (LXMF.Tests/LiveLxmfTests.cs); not a unit test.
 
 Interfaces: --tcp-server-port opens a TCPServerInterface on 127.0.0.1 (the .NET side connects to it), --rnsd-port a TCPClientInterface to a .NET rnsd.
 One LXMRouter with one delivery destination "lxmf.delivery" (display name "PyLxmf").

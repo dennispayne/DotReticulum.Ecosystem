@@ -1,14 +1,14 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/DotLXMF/DotLXMF.csproj" />
-    <Project Path="src/DotLXST/DotLXST.csproj" />
-    <Project Path="src/DotTelemetry/DotTelemetry.csproj" />
+    <Project Path="src/LXMF/LXMF.csproj" />
+    <Project Path="src/LXST/LXST.csproj" />
+    <Project Path="src/Telemetry/Telemetry.csproj" />
     <Project Path="src/lxmd/lxmd.csproj" />
     <Project Path="src/rnphone/rnphone.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/DotLXMF.Tests/DotLXMF.Tests.csproj" />
-    <Project Path="tests/DotLXST.Tests/DotLXST.Tests.csproj" />
-    <Project Path="tests/DotTelemetry.Tests/DotTelemetry.Tests.csproj" />
+    <Project Path="tests/LXMF.Tests/LXMF.Tests.csproj" />
+    <Project Path="tests/LXST.Tests/LXST.Tests.csproj" />
+    <Project Path="tests/Telemetry.Tests/Telemetry.Tests.csproj" />
   </Folder>
 </Solution>

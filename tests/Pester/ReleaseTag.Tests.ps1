@@ -2,9 +2,9 @@
 BeforeAll {
     $script:repository = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     $script:helper = Join-Path $script:repository 'tools\new-release-tag.ps1'
-    $script:telemetry = Join-Path $script:repository 'src\DotTelemetry\DotTelemetry.csproj'
-    $script:lxmf = Join-Path $script:repository 'src\DotLXMF\DotLXMF.csproj'
-    $script:lxst = Join-Path $script:repository 'src\DotLXST\DotLXST.csproj'
+    $script:telemetry = Join-Path $script:repository 'src\Telemetry\Telemetry.csproj'
+    $script:lxmf = Join-Path $script:repository 'src\LXMF\LXMF.csproj'
+    $script:lxst = Join-Path $script:repository 'src\LXST\LXST.csproj'
 
     function Invoke-TagHelper {
         param([string] $Application, [string] $Project)
@@ -151,6 +151,10 @@ Describe 'Release platform selection' -Tag Integration {
         $selected.application | Should -Be $Application
         $matrix = $selected.matrix | ConvertFrom-Json
         @($matrix.include).Count | Should -Be $PlatformCount
+        if ($Application -eq 'telemetry') {
+            $selected.project | Should -Be 'src/Telemetry/Telemetry.csproj'
+            $selected.package | Should -Be 'Telemetry'
+        }
         if ($Application -eq 'rnphone') {
             $matrix.include[0].rid | Should -Be 'linux-x64'
             $matrix.include[1].rid | Should -Be 'win-x64'

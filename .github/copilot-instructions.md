@@ -2,10 +2,10 @@
 
 You are building the **Reticulum-ecosystem layer** in native C# 13 / .NET 10, on top of [DotReticulum](https://github.com/dennispayne/DotReticulum) (the .NET Reticulum Network Stack, included here as the git submodule `external/DotReticulum`). The two current goals are:
 
-1. **DotLXMF**: bring the existing partial LXMF implementation to high-fidelity feature and wire parity with upstream LXMF **1.2.1**.
-2. **DotLXST**: implement LXST (Mark Qvist's Reticulum signal/voice transport) from scratch, with the same standard of parity against its pinned upstream.
+1. **LXMF**: bring the existing partial LXMF implementation to high-fidelity feature and wire parity with upstream LXMF **1.2.1**.
+2. **LXST**: implement LXST (Mark Qvist's Reticulum signal/voice transport) from scratch, with the same standard of parity against its pinned upstream.
 
-Work **autonomously and continuously within the requested scope**. Complete the requested project without milestone confirmation prompts, then stop before unrequested work. Ask the user only when blocked on something that cannot be resolved from the repo, the web, or the upstream source (for example, missing credentials or hardware). A request to "do DotLXMF and DotLXST" means finish both with evidence, not to hand back after an intermediate milestone.
+Work **autonomously and continuously within the requested scope**. Complete the requested project without milestone confirmation prompts, then stop before unrequested work. Ask the user only when blocked on something that cannot be resolved from the repo, the web, or the upstream source (for example, missing credentials or hardware). A request to "do LXMF and LXST" means finish both with evidence, not to hand back after an intermediate milestone.
 
 ## Project framing and disclosure
 
@@ -23,18 +23,18 @@ The target is wire and behavioral parity with the pinned Python reference, not a
 ## Repository layout and rules
 
 ```
-src\DotLXMF            library (AssemblyName/namespace conventions as present)
-src\DotLXST            library (create)
-src\DotTelemetry       .NET-only tool; out of scope here, keep it building and passing
-tests\DotLXMF.Tests    xUnit
-tests\DotLXST.Tests    xUnit (create)
+src\LXMF            library (AssemblyName/namespace conventions as present)
+src\LXST            library (create)
+src\Telemetry       .NET-only tool; out of scope here, keep it building and passing
+tests\LXMF.Tests    xUnit
+tests\LXST.Tests    xUnit (create)
 tests\Interop          reference_environment.py (pins), thin Python adapters
 docs\<project>.md      one reference doc per project (present-state, not history)
 external\DotReticulum  submodule; the Reticulum stack
 ```
 
 - Solution file is **`DotReticulum.Ecosystem.slnx`**. **Edit it by hand to list only this repo's projects.** `dotnet sln add` pulls the submodule's projects into the file; remove any such entries.
-- Each project has its own `version.json` (Nerdbank.GitVersioning): `<upstream release>.<height>` (for example `DotLXMF` is `1.2.1.<height>`). The first three components are the upstream release, set by hand, and change only when the target upstream changes. Set `DotLXST` to the upstream release actually targeted. A version names the target, not completed parity.
+- Each project has its own `version.json` (Nerdbank.GitVersioning): `<upstream release>.<height>` (for example `LXMF` is `1.2.1.<height>`). The first three components are the upstream release, set by hand, and change only when the target upstream changes. Set `LXST` to the upstream release actually targeted. A version names the target, not completed parity.
 - `.editorconfig`, nullable warnings as errors, file-scoped namespaces, 4-space indent. `IsAotCompatible`/`IsTrimmable` stay true for non-test projects. Executables set `PublishAot=true`; library projects must still pass the trim/AOT analyzers.
 - **Do not edit files under `external\DotReticulum` in place.** If the stack lacks something you need (a transport behavior, a link/resource option, an API), implement it in the DotReticulum repository with its own tests, commit and push it there, then bump the pin here (see CONTRIBUTING). If you can use the existing public API, prefer that. Record any stack gap you hit in the project's doc.
 - Language ownership: C# implements and verifies; PowerShell 7 operates the workflow and CLI end-to-end tests; Python only bridges to the upstream reference (thin adapters for actual API calls, callback observations, actual-import checks, independent vector generation, disclosed shims). Never replace the reference with our own implementation, and never embed Python in PowerShell strings.
@@ -64,7 +64,7 @@ Use `/fleet` only for genuinely independent workstreams (for example fixture gen
 
 Every test class carries `[Trait("Category", "Unit" | "Integration")]`; individual live methods carry `[Trait("Category", "Live")]` and skip unless live mode is enabled. `Unit` means in-process and deterministic (no sockets, subprocesses or external tools); `Integration` uses real OS resources. Filter with `--filter "Category=Unit"`. Partial classes need the trait on one declaration. Put each case in one place; do not duplicate cases across projects.
 
-## Goal 1: DotLXMF to LXMF 1.2.1 parity
+## Goal 1: LXMF to LXMF 1.2.1 parity
 
 Current state (see `docs\lxmf.md`): message format, signing, stamps, opportunistic and direct delivery, delivery proofs, retry and duplicate suppression are implemented and live-verified against Python `LXMRouter` and a real `lxmd` delivery destination. **Not implemented**: propagation-node client and synchronization, propagation delivery/peering, tickets, `lxmf.delivery` ratchets, an `lxmd` equivalent, and several public behaviors not yet inventoried.
 
@@ -77,14 +77,14 @@ Do this in order:
 
 Definition of done: every inventoried contract has a status with evidence or an explicit documented deferral; live interop passes in both directions for delivery, propagation sync and `lxmd`; the README and `docs\lxmf.md` state exactly what is and is not verified.
 
-## Goal 2: DotLXST from scratch
+## Goal 2: LXST from scratch
 
 LXST is **not yet read or inventoried here, and nothing about its wire format, codecs or API may be assumed from memory**. Start by reading upstream (`https://github.com/markqvist/LXST`; also check whether the Reticulum network hosts a primary copy, and say which you used). Pin the exact commit you read.
 
 Do this in order:
 
 1. **Inventory** upstream's public behavior: signalling and call setup over Reticulum, packet/frame formats, codecs and their parameters, mixing/filters/pipelines, sources/sinks, profiles, network transport details (links, packets, resources, quality/latency adaptation), command-line utilities and examples, platform/audio-device assumptions, and external native dependencies. Write it to `docs\lxst.md` with status per contract and source references, and mark upstream placeholders as such rather than inventing behavior.
-2. **Architecture**: put signalling, framing, codec contracts and the network session logic in a platform-independent `DotLXST` library that is testable with no audio hardware. Put audio devices, codecs requiring native libraries, and any capture/playback behind small interfaces so they can be faked in tests. Decide codec strategy from the inventory: prefer a managed or well-maintained AOT-friendly implementation that reproduces the codec's bitstream exactly; if a native library is unavoidable, isolate it, document the platform matrix and its trimming/AOT impact, and do not claim platform support that is not verified. A decoder that does not match the reference bitstream is not parity.
+2. **Architecture**: put signalling, framing, codec contracts and the network session logic in a platform-independent `LXST` library that is testable with no audio hardware. Put audio devices, codecs requiring native libraries, and any capture/playback behind small interfaces so they can be faked in tests. Decide codec strategy from the inventory: prefer a managed or well-maintained AOT-friendly implementation that reproduces the codec's bitstream exactly; if a native library is unavoidable, isolate it, document the platform matrix and its trimming/AOT impact, and do not claim platform support that is not verified. A decoder that does not match the reference bitstream is not parity.
 3. Implement vectors first (frames/codec round trips generated by running the upstream codecs), then the library, then the session layer, then any executables upstream ships (keep upstream executable names).
 4. Live-verify against the actual Python LXST: call setup and teardown, audio frames in both directions with the real codecs, loss and latency, and behavior across a transport hop. Audio quality or device I/O that cannot be verified without hardware must be documented as unverified, not assumed.
 

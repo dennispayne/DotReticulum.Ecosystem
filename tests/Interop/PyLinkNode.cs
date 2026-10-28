@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 
-namespace DotLXMF.Tests.Interop;
+namespace LXMF.Tests.Interop;
 
 /// <summary>A real upstream Python RNS/LXMF node (a harness under tests/Interop) driven over stdin/stdout.</summary>
 public sealed class PyLinkNode : IAsyncDisposable

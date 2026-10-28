@@ -1,6 +1,6 @@
 # Telemetry
 
-`telemetry` (DotTelemetry) publishes periodic system and node metrics from one [DotReticulum](https://github.com/dennispayne/DotReticulum) node and lets another node watch or retrieve reports. This MessagePack format is DotReticulum-specific; it is not part of upstream Reticulum or LXMF, and Python Reticulum nodes do not implement it.
+`telemetry` (Telemetry) publishes periodic system and node metrics from one [DotReticulum](https://github.com/dennispayne/DotReticulum) node and lets another node watch or retrieve reports. This MessagePack format is DotReticulum-specific; it is not part of upstream Reticulum or LXMF, and Python Reticulum nodes do not implement it.
 
 ## Usage
 
@@ -51,4 +51,4 @@ This application-specific format has no upstream equivalent or Python interopera
 
 ## Verification
 
-`tests/DotTelemetry.Tests/TelemetryTests.cs` covers MessagePack round trips, unknown-version rejection, direct publishing, and delivery through a .NET `rnsd` transport hop. These tests establish DotReticulum node behavior, not compatibility with a Python telemetry service.
+`tests/Telemetry.Tests/TelemetryTests.cs` covers MessagePack round trips, unknown-version rejection, direct publishing, and delivery through a .NET `rnsd` transport hop. These tests establish DotReticulum node behavior, not compatibility with a Python telemetry service.

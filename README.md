@@ -15,13 +15,15 @@ Native C# / .NET 10 implementations of the applications and protocols layered on
 
 | Project | Upstream | Status |
 | --- | --- | --- |
-| [`DotLXMF`](src/DotLXMF) | [LXMF](https://github.com/markqvist/LXMF) 1.2.1 | Required software contracts implemented and Windows/Linux live-verified, including NativeAOT `lxmd`, mixed-node propagation and recovery. Optional omissions, safety differences and unverified physical/platform boundaries remain. See [docs/lxmf.md](docs/lxmf.md) |
-| [`DotTelemetry`](src/DotTelemetry) | None: a DotReticulum-specific format, not part of upstream Reticulum or LXMF | Implemented: `telemetry` daemon and viewer. No Python interoperability target. See [docs/telemetry.md](docs/telemetry.md) |
-| [`DotLXST`](src/DotLXST) | [LXST](https://github.com/markqvist/LXST) 0.4.5 | Partial: framing, native Opus/Codec2, audio processing, stream sessions, telephony and Linux/Windows `rnphone`. Full API/utility/platform parity is not complete. See [docs/lxst.md](docs/lxst.md) |
-| DotSideband | [Sideband](https://github.com/markqvist/Sideband) | Not started. Sideband depends on RNS, LXMF and LXST, so it would need DotLXST for voice calls |
+| [`LXMF`](src/LXMF) | [LXMF](https://github.com/markqvist/LXMF) 1.2.1 | Required software contracts implemented and Windows/Linux live-verified, including NativeAOT `lxmd`, mixed-node propagation and recovery. Optional omissions, safety differences and unverified physical/platform boundaries remain. See [docs/lxmf.md](docs/lxmf.md) |
+| [`Telemetry`](src/Telemetry) | None: a DotReticulum-specific format, not part of upstream Reticulum or LXMF | Implemented: `telemetry` daemon and viewer. No Python interoperability target. See [docs/telemetry.md](docs/telemetry.md) |
+| [`LXST`](src/LXST) | [LXST](https://github.com/markqvist/LXST) 0.4.5 | Partial: framing, native Opus/Codec2, audio processing, stream sessions, telephony and Linux/Windows `rnphone`. Full API/utility/platform parity is not complete. See [docs/lxst.md](docs/lxst.md) |
+| DotSideband | [Sideband](https://github.com/markqvist/Sideband) | Not started. Sideband depends on RNS, LXMF and LXST, so it would need LXST for voice calls |
 | DotNomad | [NomadNet](https://github.com/markqvist/NomadNet) | Not started |
 
 A project listed as not started is an idea, not a commitment.
+
+Project folders and namespaces use `LXMF`, `LXST` and `Telemetry`; the library assemblies are `LXMF` and `LXST`. Executable names remain `lxmd`, `rnphone` and `telemetry`, including the lowercase `telemetry` assembly name. These names do not imply upstream affiliation.
 
 ## Upstream
 
@@ -29,7 +31,7 @@ Reticulum, LXMF, LXST, Sideband and NomadNet are separate projects by Mark Qvist
 
 Targets pinned in `tests/Interop/reference_environment.py`: RNS 1.5.7 (`a29bfb51c468945c96a1ee22cae0114e993e2391`), LXMF 1.2.1 (`e8ba02483217af43be284a72f1c059c730b7d047`) and LXST 0.4.5 (`3b596f48ddd252ddc9c315ef8f3020cfd3688223`). Newer observed upstream releases do not change these targets.
 
-LXST's reference source is CC BY-NC-ND 4.0, not Reticulum-licensed. DotLXST is independently authored from factual protocol contracts and observed reference outputs; upstream source, sounds and native codec libraries are not bundled. Native dependencies require separate installation and retain their own licenses. See [docs/lxst.md](docs/lxst.md).
+LXST's reference source is CC BY-NC-ND 4.0, not Reticulum-licensed. This repository's C# LXST implementation is independently authored from factual protocol contracts and observed reference outputs; upstream source, sounds and native codec libraries are not bundled. Native dependencies require separate installation and retain their own licenses. See [docs/lxst.md](docs/lxst.md).
 
 ## Getting the code
 
@@ -69,7 +71,7 @@ The Reticulum stack's own compatibility status and platform support are document
 
 ## Versioning
 
-Each project carries the **upstream release it targets, plus a build number**, like DotReticulum does. `DotLXMF` and `lxmd` target `1.2.1.<height>`; `DotLXST` and `rnphone` target `0.4.5.<height>`. The first three components are the upstream release, entered by hand in each project's `version.json`; the last is the git height from [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning), which resets when the upstream number changes. A version names the target, not completed parity. `DotTelemetry` has no upstream, so it uses its own `0.1.<height>` number.
+Each project carries the **upstream release it targets, plus a build number**, like DotReticulum does. `LXMF` and `lxmd` target `1.2.1.<height>`; `LXST` and `rnphone` target `0.4.5.<height>`. The first three components are the upstream release, entered by hand in each project's `version.json`; the last is the git height from [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning), which resets when the upstream number changes. A version names the target, not completed parity. `Telemetry` has no upstream, so it uses its own `0.1.<height>` number.
 
 ### Releases
 

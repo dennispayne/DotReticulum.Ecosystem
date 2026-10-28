@@ -51,7 +51,7 @@ jobs:
             $env:REQUESTED_APPLICATION
           }
           $targets = @{
-            telemetry = @{ Project = 'src/DotTelemetry/DotTelemetry.csproj'; Package = 'DotTelemetry' }
+            telemetry = @{ Project = 'src/Telemetry/Telemetry.csproj'; Package = 'Telemetry' }
             lxmd = @{ Project = 'src/lxmd/lxmd.csproj'; Package = 'lxmd' }
             rnphone = @{ Project = 'src/rnphone/rnphone.csproj'; Package = 'rnphone' }
           }

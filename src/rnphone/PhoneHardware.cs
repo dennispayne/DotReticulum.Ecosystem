@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Threading.Channels;
-using DotLXST;
-using DotLXST.Hardware;
+using LXST;
+using LXST.Hardware;
 
 namespace Rnphone;
 

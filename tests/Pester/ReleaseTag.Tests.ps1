@@ -5,6 +5,8 @@ BeforeAll {
     $script:telemetry = Join-Path $script:repository 'src\Telemetry\Telemetry.csproj'
     $script:lxmf = Join-Path $script:repository 'src\LXMF\LXMF.csproj'
     $script:lxst = Join-Path $script:repository 'src\LXST\LXST.csproj'
+    $script:nomadnet = Join-Path $script:repository 'src\NomadNet\NomadNet.csproj'
+    $script:sideband = Join-Path $script:repository 'src\Sideband.Desktop\Sideband.Desktop.csproj'
 
     function Invoke-TagHelper {
         param([string] $Application, [string] $Project)
@@ -59,6 +61,19 @@ Describe 'Executable release tags' -Tag Integration {
         $result.ExitCode | Should -Be 0 -Because $result.Output
         $tag = git -C $script:fixture tag --list
         $tag | Should -Match '^rnphone-v0\.4\.5\.\d+$'
+        git -C $script:fixture cat-file -t "refs/tags/$tag" | Should -Be 'tag'
+    }
+
+    It 'uses the targeted upstream release and assembly height for <Application>' -TestCases @(
+        @{ Application = 'nomadnet'; Upstream = '1.4.4' }
+        @{ Application = 'sideband'; Upstream = '2.2.0' }
+    ) {
+        param($Application, $Upstream)
+        $project = if ($Application -eq 'nomadnet') { $script:nomadnet } else { $script:sideband }
+        $result = Invoke-TagHelper -Application $Application -Project $project
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $tag = git -C $script:fixture tag --list
+        $tag | Should -Match ('^' + $Application + '-v' + [regex]::Escape($Upstream) + '\.\d+$')
         git -C $script:fixture cat-file -t "refs/tags/$tag" | Should -Be 'tag'
     }
 
@@ -126,6 +141,10 @@ Describe 'Release platform selection' -Tag Integration {
         @{ Application = 'lxmd'; RefType = 'branch'; RefName = 'main'; PlatformCount = 3 }
         @{ Application = 'rnphone'; RefType = 'branch'; RefName = 'main'; PlatformCount = 2 }
         @{ Application = 'rnphone'; RefType = 'tag'; RefName = 'rnphone-v0.4.5.12'; PlatformCount = 2 }
+        @{ Application = 'nomadnet'; RefType = 'branch'; RefName = 'main'; PlatformCount = 2 }
+        @{ Application = 'nomadnet'; RefType = 'tag'; RefName = 'nomadnet-v1.2.3.12'; PlatformCount = 2 }
+        @{ Application = 'sideband'; RefType = 'branch'; RefName = 'main'; PlatformCount = 2 }
+        @{ Application = 'sideband'; RefType = 'tag'; RefName = 'sideband-v1.2.3.12'; PlatformCount = 2 }
     ) {
         param($Application, $RefType, $RefName, $PlatformCount)
         $outputPath = Join-Path $TestDrive ([Guid]::NewGuid().ToString('N'))
@@ -155,12 +174,73 @@ Describe 'Release platform selection' -Tag Integration {
             $selected.project | Should -Be 'src/Telemetry/Telemetry.csproj'
             $selected.package | Should -Be 'Telemetry'
         }
-        if ($Application -eq 'rnphone') {
+        if ($Application -in @('rnphone', 'nomadnet', 'sideband')) {
             $matrix.include[0].rid | Should -Be 'linux-x64'
             $matrix.include[1].rid | Should -Be 'win-x64'
-            $selected.project | Should -Be 'src/rnphone/rnphone.csproj'
+            $expected = switch ($Application) {
+                'rnphone' { @{ Project = 'src/rnphone/rnphone.csproj'; Package = 'rnphone' } }
+                'nomadnet' { @{ Project = 'src/NomadNet/NomadNet.csproj'; Package = 'NomadNet' } }
+                'sideband' { @{ Project = 'src/Sideband.Desktop/Sideband.Desktop.csproj'; Package = 'Sideband' } }
+            }
+            $selected.project | Should -Be $expected.Project
+            $selected.package | Should -Be $expected.Package
         }
-        if ($RefType -eq 'tag') { $selected.version | Should -Be '0.4.5.12' }
+        if ($RefType -eq 'tag') { $selected.version | Should -Be ($RefName -replace "^$Application-v", '') }
+    }
+}
+
+Describe 'Desktop release package contents' -Tag Integration {
+    BeforeAll {
+        $workflow = Get-Content -Raw -LiteralPath (Join-Path $script:repository '.github\workflows\release.yml')
+        $stage = [regex]::Match($workflow, '(?ms)      - name: Stage package and create zip.*?        run: \|\r?\n(?<body>.*?)(?=^      - name: Upload release files)')
+        if (!$stage.Success) { throw 'Release staging step was not found.' }
+        $script:stageBody = ($stage.Groups['body'].Value -replace '(?m)^          ', '').
+            Replace('${{ matrix.rid }}', 'win-x64')
+    }
+
+    It 'retains native dependencies and notices for <Application> without debug symbols' -TestCases @(
+        @{ Application = 'nomadnet'; Package = 'NomadNet' }
+        @{ Application = 'sideband'; Package = 'Sideband' }
+    ) {
+        param($Application, $Package)
+        $fixture = Join-Path $TestDrive ([Guid]::NewGuid().ToString('N'))
+        $native = Join-Path $fixture 'artifacts\native'
+        $docs = Join-Path $fixture 'docs'
+        New-Item -ItemType Directory -Path $native, $docs | Out-Null
+        $exe = $Application + $(if ($IsWindows) { '.exe' } else { '' })
+        'executable fixture' | Set-Content -LiteralPath (Join-Path $native $exe)
+        'dependency fixture' | Set-Content -LiteralPath (Join-Path $native 'libSystem.IO.Ports.Native.so')
+        'third-party notice fixture' | Set-Content -LiteralPath (Join-Path $native 'THIRD-PARTY-NOTICES.txt')
+        'debug fixture' | Set-Content -LiteralPath (Join-Path $native 'symbols.pdb')
+        'license fixture' | Set-Content -LiteralPath (Join-Path $fixture 'LICENSE')
+        'reference fixture' | Set-Content -LiteralPath (Join-Path $docs "$Application.md")
+        $stagePath = Join-Path $fixture 'stage.ps1'
+        $script:stageBody | Set-Content -LiteralPath $stagePath
+        $start = [Diagnostics.ProcessStartInfo]::new('pwsh')
+        $start.UseShellExecute = $false
+        $start.WorkingDirectory = $fixture
+        foreach ($argument in @('-NoProfile', '-File', $stagePath)) { $start.ArgumentList.Add($argument) }
+        $start.Environment['RELEASE_APPLICATION'] = $Application
+        $start.Environment['RELEASE_PACKAGE'] = $Package
+        $start.Environment['RELEASE_VERSION'] = 'fixture'
+        $process = [Diagnostics.Process]::Start($start)
+        try {
+            $process.WaitForExit(30000) | Should -BeTrue
+            $process.ExitCode | Should -Be 0
+        } finally {
+            if (!$process.HasExited) { $process.Kill($true) }
+            $process.Dispose()
+        }
+        $archive = Join-Path $fixture "artifacts\release\$Package-fixture-win-x64.zip"
+        $expanded = Join-Path $fixture 'expanded'
+        Expand-Archive -LiteralPath $archive -DestinationPath $expanded
+        Test-Path -LiteralPath (Join-Path $expanded $exe) | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $expanded 'libSystem.IO.Ports.Native.so') | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $expanded 'THIRD-PARTY-NOTICES.txt') | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $expanded "$Application.md") | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $expanded 'LICENSE') | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $expanded 'symbols.pdb') | Should -BeFalse
+        Test-Path -LiteralPath "$archive.sha256" | Should -BeTrue
     }
 }
 

@@ -3,6 +3,9 @@
     <Project Path="src/LXMF/LXMF.csproj" />
     <Project Path="src/LXST/LXST.csproj" />
     <Project Path="src/Telemetry/Telemetry.csproj" />
+    <Project Path="src/NomadNet/NomadNet.csproj" />
+    <Project Path="src/Sideband/Sideband.csproj" />
+    <Project Path="src/Sideband.Desktop/Sideband.Desktop.csproj" />
     <Project Path="src/lxmd/lxmd.csproj" />
     <Project Path="src/rnphone/rnphone.csproj" />
   </Folder>
@@ -10,5 +13,7 @@
     <Project Path="tests/LXMF.Tests/LXMF.Tests.csproj" />
     <Project Path="tests/LXST.Tests/LXST.Tests.csproj" />
     <Project Path="tests/Telemetry.Tests/Telemetry.Tests.csproj" />
+    <Project Path="tests/NomadNet.Tests/NomadNet.Tests.csproj" />
+    <Project Path="tests/Sideband.Tests/Sideband.Tests.csproj" />
   </Folder>
 </Solution>

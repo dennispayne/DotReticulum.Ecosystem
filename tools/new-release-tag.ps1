@@ -10,7 +10,7 @@ unless -Push is given.
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('telemetry', 'lxmd', 'rnphone')]
+    [ValidateSet('telemetry', 'lxmd', 'rnphone', 'nomadnet', 'sideband')]
     [string] $Application = 'telemetry',
     [string] $Project,
     [switch] $Push
@@ -19,12 +19,12 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if (!$Project) {
-    $Project = if ($Application -eq 'telemetry') {
-        'src/Telemetry/Telemetry.csproj'
-    } elseif ($Application -eq 'lxmd') {
-        'src/lxmd/lxmd.csproj'
-    } else {
-        'src/rnphone/rnphone.csproj'
+    $Project = switch ($Application) {
+        'telemetry' { 'src/Telemetry/Telemetry.csproj' }
+        'lxmd' { 'src/lxmd/lxmd.csproj' }
+        'rnphone' { 'src/rnphone/rnphone.csproj' }
+        'nomadnet' { 'src/NomadNet/NomadNet.csproj' }
+        'sideband' { 'src/Sideband.Desktop/Sideband.Desktop.csproj' }
     }
 }
 

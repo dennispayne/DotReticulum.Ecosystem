@@ -16,6 +16,8 @@ Every behavior change needs tests, including malformed inputs, boundary lengths 
 
 The ecosystem projects and namespaces are `LXMF`, `LXST` and `Telemetry`, with matching test-project names. Consumers of the former `Dot`-prefixed projects must update project references and namespace imports and rebuild; no compatibility assemblies are supplied. The `telemetry` executable retains its lowercase assembly name. Existing `DOTLXST_*` environment variables, executable names, persisted formats and wire identifiers are unchanged.
 
+The desktop applications add `src/NomadNet` (the `nomadnet` terminal executable), `src/Sideband` (the application core) and `src/Sideband.Desktop` (the Avalonia `sideband` executable), with tests in `tests/NomadNet.Tests` and `tests/Sideband.Tests`. Their upstream inventories, provenance, scope and reproduction commands are in `docs/nomadnet.md` and `docs/sideband.md`. Do not copy upstream UI source or assets; licensing and observed protocol compatibility are separate concerns.
+
 ## The DotReticulum dependency
 
 DotReticulum is a git submodule at `external/DotReticulum`, referenced by project. Its commit is the version of the Reticulum stack this repository is built and tested against. To move to a newer DotReticulum:

@@ -7,6 +7,8 @@ on:
       - 'telemetry-v[0-9]+.[0-9]+.[0-9]+'
       - 'lxmd-v[0-9]+.[0-9]+.[0-9]+.[0-9]+'
       - 'rnphone-v[0-9]+.[0-9]+.[0-9]+.[0-9]+'
+      - 'nomadnet-v[0-9]+.[0-9]+.[0-9]+.[0-9]+'
+      - 'sideband-v[0-9]+.[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
     inputs:
       application:
@@ -16,6 +18,8 @@ on:
           - telemetry
           - lxmd
           - rnphone
+          - nomadnet
+          - sideband
         default: telemetry
 
 permissions:
@@ -43,7 +47,7 @@ jobs:
           REQUESTED_APPLICATION: ${{ inputs.application }}
         run: |
           $application = if ($env:GITHUB_REF_TYPE -eq 'tag') {
-            if ($env:GITHUB_REF_NAME -notmatch '^(telemetry|lxmd|rnphone)-v(\d+\.\d+\.\d+(?:\.\d+)?)$') {
+            if ($env:GITHUB_REF_NAME -notmatch '^(telemetry|lxmd|rnphone|nomadnet|sideband)-v(\d+\.\d+\.\d+(?:\.\d+)?)$') {
               throw "Unexpected release tag $env:GITHUB_REF_NAME"
             }
             $Matches[1]
@@ -54,6 +58,8 @@ jobs:
             telemetry = @{ Project = 'src/Telemetry/Telemetry.csproj'; Package = 'Telemetry' }
             lxmd = @{ Project = 'src/lxmd/lxmd.csproj'; Package = 'lxmd' }
             rnphone = @{ Project = 'src/rnphone/rnphone.csproj'; Package = 'rnphone' }
+            nomadnet = @{ Project = 'src/NomadNet/NomadNet.csproj'; Package = 'NomadNet' }
+            sideband = @{ Project = 'src/Sideband.Desktop/Sideband.Desktop.csproj'; Package = 'Sideband' }
           }
           if (!$targets.ContainsKey($application)) { throw "Unknown executable $application" }
           $version = if ($env:GITHUB_REF_TYPE -eq 'tag') {
@@ -65,7 +71,7 @@ jobs:
           "project=$($targets[$application].Project)" >> $env:GITHUB_OUTPUT
           "package=$($targets[$application].Package)" >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
-          $platforms = if ($application -eq 'rnphone') {
+          $platforms = if ($application -in @('rnphone', 'nomadnet', 'sideband')) {
             @(
               @{ os = 'ubuntu-latest'; rid = 'linux-x64' }
               @{ os = 'windows-latest'; rid = 'win-x64' }
@@ -122,7 +128,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          sudo apt-get install -y clang zlib1g-dev
+          sudo apt-get install -y clang zlib1g-dev zip
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Install Linux phone runtime dependencies
@@ -227,6 +233,21 @@ jobs:
           }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Verify native desktop application
+        if: needs.select.outputs.application == 'nomadnet' || needs.select.outputs.application == 'sideband'
+        run: |
+          $exe = $env:RELEASE_APPLICATION + $(if ($IsWindows) { '.exe' } else { '' })
+          $binary = Join-Path $PWD "artifacts/native/$exe"
+          if ($env:RELEASE_APPLICATION -eq 'nomadnet') {
+            $env:DOTRETICULUM_NOMADNET_BINARY = $binary
+            $script = './tests/Pester/NomadNet.Tests.ps1'
+          } else {
+            $env:DOTRETICULUM_SIDEBAND_BINARY = $binary
+            $script = './tests/Pester/Sideband.Tests.ps1'
+          }
+          & ./tests/run-pester.ps1 -Path $script -Tag Native
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Stage package and create zip
         run: |
           $name = "$env:RELEASE_PACKAGE-$env:RELEASE_VERSION-${{ matrix.rid }}"
@@ -235,6 +256,17 @@ jobs:
           Copy-Item "artifacts/native/$exe", LICENSE -Destination "artifacts/$name"
           if ($env:RELEASE_APPLICATION -eq 'rnphone') {
             Copy-Item docs/lxst.md -Destination "artifacts/$name"
+          }
+          if ($env:RELEASE_APPLICATION -eq 'nomadnet') {
+            Copy-Item docs/nomadnet.md -Destination "artifacts/$name"
+          }
+          if ($env:RELEASE_APPLICATION -in @('nomadnet', 'sideband')) {
+            Get-ChildItem -LiteralPath artifacts/native |
+              Where-Object { $_.Extension -notin @('.pdb', '.dbg', '.dSYM') } |
+              Copy-Item -Destination "artifacts/$name" -Recurse -Force
+          }
+          if ($env:RELEASE_APPLICATION -eq 'sideband') {
+            Copy-Item docs/sideband.md -Destination "artifacts/$name"
           }
           $zip = Join-Path $PWD "artifacts/release/$name.zip"
           if ($IsWindows) {

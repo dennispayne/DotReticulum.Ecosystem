@@ -22,8 +22,9 @@ internal sealed class LxmfPair : IAsyncDisposable
     public LxmRouter Client { get; private set; } = null!;
     public List<ReceivedMessage> ServerInbox { get; } = [];
     public List<ReceivedMessage> ClientInbox { get; } = [];
+    public ResourceDataGate? ClientResourceGate { get; }
 
-    private LxmfPair(TimeProvider? timeProvider)
+    private LxmfPair(TimeProvider? timeProvider, bool pauseResourceData)
     {
         int port;
         using (var l = new TcpListener(IPAddress.Loopback, 0))
@@ -33,15 +34,17 @@ internal sealed class LxmfPair : IAsyncDisposable
         }
 
         _serverManager = new PacketInterfaceManager([new TcpServerPacketInterface(new IPEndPoint(IPAddress.Loopback, port), perClientInterfaces: true)]);
-        _clientManager = new PacketInterfaceManager([new TcpClientPacketInterface("127.0.0.1", port)]);
+        IPacketInterface clientInterface = new TcpClientPacketInterface("127.0.0.1", port);
+        if (pauseResourceData) clientInterface = ClientResourceGate = new ResourceDataGate(clientInterface);
+        _clientManager = new PacketInterfaceManager([clientInterface]);
         ServerRouter = new TransportRouter(_serverManager, new TransportRouterOptions { TimeProvider = timeProvider });
         ClientRouter = new TransportRouter(_clientManager, new TransportRouterOptions { TimeProvider = timeProvider });
     }
 
     public static async Task<LxmfPair> CreateAsync(LxmRouterOptions? serverOptions = null, LxmRouterOptions? clientOptions = null,
-        TimeProvider? transportTimeProvider = null)
+        TimeProvider? transportTimeProvider = null, bool pauseResourceData = false)
     {
-        var pair = new LxmfPair(transportTimeProvider);
+        var pair = new LxmfPair(transportTimeProvider, pauseResourceData);
         await pair._serverManager.StartAsync(pair._cts.Token);
         await pair._clientManager.StartAsync(pair._cts.Token);
         pair._runs.Add(Task.Run(() => pair.ServerRouter.RunAsync(pair._cts.Token)));
@@ -79,6 +82,31 @@ internal sealed class LxmfPair : IAsyncDisposable
         catch (Exception ex) when (ex is OperationCanceledException or TimeoutException) { }
         await _serverManager.DisposeAsync();
         await _clientManager.DisposeAsync();
+    }
+
+    internal sealed class ResourceDataGate(IPacketInterface inner) : IPacketInterface
+    {
+        private readonly TaskCompletionSource _blocked = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _resume = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task Blocked => _blocked.Task;
+        public long Bitrate => inner.Bitrate;
+        public int HardwareMtu => inner.HardwareMtu;
+        public bool SupportsMtuDiscovery => inner.SupportsMtuDiscovery;
+        public void Resume() => _resume.TrySetResult();
+        public ValueTask StartAsync(CancellationToken cancellationToken) => inner.StartAsync(cancellationToken);
+        public IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveAsync(CancellationToken cancellationToken) => inner.ReceiveAsync(cancellationToken);
+        public ValueTask DisposeAsync() => inner.DisposeAsync();
+
+        public async ValueTask SendAsync(ReadOnlyMemory<byte> packet, CancellationToken cancellationToken)
+        {
+            if (Packet.TryParse(packet, out var parsed, HardwareMtu) &&
+                parsed.DestinationType == DestinationType.Link && parsed.Context == LinkContext.Resource)
+            {
+                _blocked.TrySetResult();
+                await _resume.Task.WaitAsync(cancellationToken);
+            }
+            await inner.SendAsync(packet, cancellationToken);
+        }
     }
 }
 
@@ -553,22 +581,19 @@ public class LxmRouterTests
     public async Task InboundResourceCancellation_ReleasesTrackingAndContinuesService(bool cancelAll)
     {
         await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions
-        { DeliveryPerTransferLimit = 4_000_000, ProcessingInterval = TimeSpan.FromMilliseconds(50) });
+        { DeliveryPerTransferLimit = 4_000_000, ProcessingInterval = TimeSpan.FromMilliseconds(50) }, pauseResourceData: true);
         var content = new byte[2_200_000];
         System.Security.Cryptography.RandomNumberGenerator.Fill(content);
         var message = LxMessage.CreateBinary(pair.Server.DeliveryHash, pair.ClientIdentity, content);
         await pair.Client.SendAsync(message);
-        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-        DotReticulum.Transport.Resource? incoming = null;
-        while (incoming is null)
-        {
-            incoming = pair.Server.InboundResources.FirstOrDefault(resource => resource.Status < DotReticulum.Transport.ResourceStatus.Complete);
-            if (incoming is null) await Task.Delay(5, limit.Token);
-        }
+        var gate = Assert.IsType<LxmfPair.ResourceDataGate>(pair.ClientResourceGate);
+        await gate.Blocked.WaitAsync(TimeSpan.FromSeconds(20));
+        var incoming = Assert.Single(pair.Server.InboundResources);
         Assert.False(pair.Server.CancelInbound(new byte[32]));
         if (cancelAll) Assert.Equal(1, pair.Server.CancelAllInbound());
         else Assert.True(pair.Server.CancelInbound(incoming.Hash));
         pair.Client.Cancel(message);
+        gate.Resume();
         Assert.Contains(await message.Completion.WaitAsync(TimeSpan.FromSeconds(10)),
             new[] { LxmState.Cancelled, LxmState.Rejected });
         await pair.WaitAsync(() => pair.Server.InboundResources.Count == 0);

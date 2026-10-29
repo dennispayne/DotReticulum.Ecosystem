@@ -83,6 +83,7 @@ public sealed class WindowsWaveAudioBackend : IAudioDeviceBackend
                     stop.Token.ThrowIfCancellationRequested();
                     yield return frame;
                 }
+                stopToken.ThrowIfCancellationRequested();
             }
             finally { await DisposeAsync().ConfigureAwait(false); }
         }

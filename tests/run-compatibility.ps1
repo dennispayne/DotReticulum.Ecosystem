@@ -110,7 +110,9 @@ try {
     if (!@($cases | Where-Object Runner -eq 'xunit').Count) { $failures.Add('No xUnit test results were produced.') }
 
     if ($Pester) {
-        Import-Module Pester -MinimumVersion 5.7.1 -ErrorAction Stop
+        if (!(Get-Module Pester | Where-Object Version -GE ([version]'5.7.1'))) {
+            Import-Module Pester -MinimumVersion 5.7.1 -ErrorAction Stop
+        }
         $executed.Add('pester')
         foreach ($suite in @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'Pester') -Filter '*.Tests.ps1' -File | Select-Object -ExpandProperty Name)) {
             $requiredBinary = switch ($suite) {

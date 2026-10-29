@@ -61,6 +61,11 @@ coverage of all eight production assemblies. Run
 checks remain distinct from local coverage. Skipped or uncovered evidence never
 becomes a passing compatibility claim.
 
+[Build and test CI](.github/workflows/ci-build-test.yml) builds NativeAOT release
+targets and runs Windows/Linux coverage and native acceptance using the exact
+build artifacts. Python-peer, GUI and hardware checks remain separate opt-in
+evidence; a green CI run does not mean full upstream parity.
+
 | Area | Status |
 | --- | --- |
 | LXMF message format, signing, hashing, stamps | Reference-generated vectors; messages opened by upstream LXMF both ways |

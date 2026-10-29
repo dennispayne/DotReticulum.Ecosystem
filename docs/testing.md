@@ -191,4 +191,70 @@ passed both native CLI boundary cases and the live six-case suite above. Test
 code is granted internal access only to verify CLI argument rejection before
 network or identity creation; no production behavior was changed.
 
-No always-on CI or release dispatch is added by these entry points.
+## Continuous integration
+
+`.github\workflows\ci-build-test.yml` adapts DotReticulum's build-once/native
+artifact handoff. Relevant pushes and pull requests to `main`, or a manual
+dispatch, run the workflow. Documentation-only changes do not trigger it;
+submodule-pin and build-configuration changes do.
+
+The Build matrix restores and builds the Release solution, then publishes
+NativeAOT with trim/AOT warnings as errors. Windows and Linux publish all five
+executables; macOS ARM64 publishes only `telemetry` and `lxmd`, matching their
+release matrix. Each executable must run `--help`. A manifest records the source
+commit, RID and SHA-256 of every non-debug runtime file; full native runtime
+directories are retained, not just executables.
+
+Windows/Linux Test jobs download and verify those exact artifacts, restore Unix
+executable permissions, and select them through the native acceptance variables.
+They run `tests\run-tests.ps1 -Coverage -Pester`, combining managed unit/integration
+checks, existing native CLI/state/restart checks, tooling regressions, scoped
+compatibility reporting and unioned coverage. The native telemetry binary also
+runs its identity flow. Pester is pinned to 5.7.1 using the stack's installer.
+Linux provisions the phone's runtime libraries and `zip` for packaging tests.
+
+Tests and compatibility share one job/run per host instead of rerunning the full
+ecosystem suite in a separate compatibility job. JSON/Markdown, TRX, Pester XML,
+coverage and logs are retained for 14 days, including after failures; summaries
+are appended to the Actions run. Superseded runs on the same ref are cancelled.
+Workflow permissions are read-only and actions are pinned to commit SHAs.
+
+CI does **not** provision actual Python reference checkouts, virtual telephone
+audio/calls, physical devices or a desktop display. Corresponding claims remain
+skipped/unselected, and `-RequireComplete` is intentionally not used. macOS is a
+build/help gate only, not ecosystem feature acceptance. The recorded live and
+hardware evidence requirements still apply to protocol changes.
+
+This workflow neither creates releases nor dispatches the separate tag-driven
+release workflow.
+
+### Local CI acceptance
+
+The CI working tree based on `c4e2b8c` was exercised locally with Pester 5.7.1
+and verified native artifacts selected before the runner. Windows used a
+runtime-only ZIP handoff; Linux used a native WSL checkout and removed executable
+permissions before verifying their restoration. Run artifact preparation and
+test execution in separate PowerShell processes, as the workflow steps do.
+Pester 5.7.1 skip handling can inherit a caller's `$File` variable: a manifest-file
+loop left in that scope stalled skip reporting. Removing that caller variable
+or starting a fresh process restored the expected passes and explicit skips.
+
+| Host | Exact runner invocation | Result |
+|---|---|---|
+| Windows | `& .\tests\run-tests.ps1 -Coverage -Pester -OutputDirectory TestResults\ci-local-windows-clean` | Passed: 239 xUnit cases, 45 skips; 46 Pester cases, 21 skips |
+| WSL/Linux | `& .\tests\run-tests.ps1 -Coverage -Pester -OutputDirectory .\TestResults\ci-local-linux-clean` | Passed: 238 xUnit cases, 46 skips; 49 Pester cases, 18 skips |
+
+Each run also excluded one GUI case. All eight production modules were covered:
+Windows 5,400/8,558 lines and 2,866/5,922 branches; Linux 5,404/8,558 lines and
+2,869/5,922 branches. NativeAOT publication with trim/AOT warnings as errors and
+help checks passed for all five applications on both hosts. The downloaded
+applications passed their selected native gates, and
+`& $env:DOTRETICULUM_TELEMETRY_BINARY -p --config <isolated-directory>` passed on
+each host. `dotnet build DotReticulum.Ecosystem.slnx -c Release --no-restore --verbosity quiet`
+passed with zero warnings/errors on both hosts; actionlint accepted the workflow.
+
+The gate exposed and corrected a capture-disposal cancellation race covered by
+the existing fake-driver regression; this adds no physical-audio claim. The
+runners now preserve an explicitly loaded supported Pester version rather than
+trying to load a newer incompatible assembly. Hosted Actions execution and
+macOS publication remain unverified.

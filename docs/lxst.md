@@ -416,7 +416,10 @@ PCM16 backend, **not** a translation of the reference SoundCard/WASAPI bindings.
 It accepts mono/stereo formats up to 192 kHz and default or enumerated numeric
 device identifiers. Capture has two native buffers and a four-frame bounded
 managed queue; cancellation resets devices and cleanup unprepares buffers before
-freeing memory. The parent-provided acceptance executed actual Windows endpoint
+freeing memory. Disposing blocked capture reports cancellation even if channel
+completion races the linked-token callback; fake-driver lifecycle regressions
+run without hardware on Windows and Linux.
+The parent-provided acceptance executed actual Windows endpoint
 enumeration and synthetic-silence default output cancellation/buffer reuse,
 including strict NativeAOT `--help`/`--silence` probes (six input/six output
 entries including defaults). `DOTLXST_WINDOWS_AUDIO=1` opts into silent output

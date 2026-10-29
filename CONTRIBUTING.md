@@ -21,6 +21,12 @@ Release, compatibility-report and production-coverage gate. See
 boundaries. Every xUnit class needs a `Unit` or `Integration` category;
 live methods additionally carry `Live` and skip explicitly when not enabled.
 
+The [Build and test workflow](.github/workflows/ci-build-test.yml) runs on relevant
+pushes/PRs to `main`: NativeAOT builds on release platforms and Windows/Linux
+coverage, native acceptance and scoped compatibility reports. It reuses verified
+build artifacts; it does not provision live Python peers or hardware. See the
+testing document for the precise CI boundaries.
+
 The ecosystem projects and namespaces are `LXMF`, `LXST` and `Telemetry`, with matching test-project names. Consumers of the former `Dot`-prefixed projects must update project references and namespace imports and rebuild; no compatibility assemblies are supplied. The `telemetry` executable retains its lowercase assembly name. Existing `DOTLXST_*` environment variables, executable names, persisted formats and wire identifiers are unchanged.
 
 The desktop applications add `src/NomadNet` (the `nomadnet` terminal executable), `src/Sideband` (the application core) and `src/Sideband.Desktop` (the Avalonia `sideband` executable), with tests in `tests/NomadNet.Tests` and `tests/Sideband.Tests`. Their upstream inventories, provenance, scope and reproduction commands are in `docs/nomadnet.md` and `docs/sideband.md`. Do not copy upstream UI source or assets; licensing and observed protocol compatibility are separate concerns.

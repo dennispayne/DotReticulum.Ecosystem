@@ -6,7 +6,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-Import-Module Pester -MinimumVersion 5.7.1 -ErrorAction Stop
+if (!(Get-Module Pester | Where-Object Version -GE ([version]'5.7.1'))) {
+    Import-Module Pester -MinimumVersion 5.7.1 -ErrorAction Stop
+}
 $configuration = New-PesterConfiguration
 $configuration.Run.Path = $Path
 $configuration.Run.PassThru = $true

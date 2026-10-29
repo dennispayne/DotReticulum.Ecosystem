@@ -1,0 +1,203 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/**'
+      - '.github/workflows/**'
+      - 'external/DotReticulum'
+      - '.gitmodules'
+      - 'DotReticulum.Ecosystem.slnx'
+      - 'Directory.*.props'
+      - 'Directory.*.targets'
+      - '*NuGet*.Config'
+      - 'global.json'
+      - '.editorconfig'
+      - '!**/*.md'
+      - '!docs/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/**'
+      - '.github/workflows/**'
+      - 'external/DotReticulum'
+      - '.gitmodules'
+      - 'DotReticulum.Ecosystem.slnx'
+      - 'Directory.*.props'
+      - 'Directory.*.targets'
+      - '*NuGet*.Config'
+      - 'global.json'
+      - '.editorconfig'
+      - '!**/*.md'
+      - '!docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+
+jobs:
+  build:
+    name: Native build / ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+          - os: macos-latest
+            rid: osx-arm64
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout pinned dependency
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Install Linux NativeAOT prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          sudo apt-get install -y clang zlib1g-dev
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Restore
+        run: dotnet restore DotReticulum.Ecosystem.slnx
+
+      - name: Build
+        run: dotnet build DotReticulum.Ecosystem.slnx -c Release --no-restore
+
+      - name: Publish and verify native applications
+        run: |
+          & ./tests/publish-ci-native.ps1 -Rid '${{ matrix.rid }}'
+          "### Native build (${{ matrix.rid }})`n`nWarnings-as-errors NativeAOT builds and help checks passed. Manifest records source commit and runtime-file SHA-256 hashes. macOS builds only telemetry/lxmd; no macOS feature-parity claim." |
+            Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload native build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-${{ matrix.rid }}
+          path: |
+            artifacts/native/
+            !artifacts/native/**/*.pdb
+            !artifacts/native/**/*.dbg
+            !artifacts/native/**/*.dSYM/**
+          if-no-files-found: error
+          retention-days: 14
+
+  test:
+    name: Tests and compatibility / ${{ matrix.rid }}
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      RESULTS_DIRECTORY: TestResults/ci-${{ github.run_id }}-${{ github.run_attempt }}
+      DOTRETICULUM_LIVE: '0'
+      DOTLXST_LIVE: '0'
+    steps:
+      - name: Checkout pinned dependency
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Install Linux test prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          sudo apt-get install -y zip libopus0 libcodec2-1.2 libopusfile0 libopusenc0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Download exact native build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: native-${{ matrix.rid }}
+          path: artifacts/native
+
+      - name: Verify native source and runtime-file hashes
+        run: ./tests/use-ci-native.ps1 -Directory artifacts/native -Rid '${{ matrix.rid }}'
+
+      - name: Install Pester
+        run: ./external/DotReticulum/tests/install-pester.ps1
+
+      - name: Run Release tests, native acceptance, coverage and scoped compatibility
+        run: |
+          Import-Module Pester -RequiredVersion 5.7.1
+          & ./tests/run-tests.ps1 -Coverage -Pester -OutputDirectory $env:RESULTS_DIRECTORY
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify native telemetry identity flow
+        run: |
+          & $env:DOTRETICULUM_TELEMETRY_BINARY --help
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:DOTRETICULUM_TELEMETRY_BINARY -p --config (Join-Path $env:RUNNER_TEMP 'telemetry-ci')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Summarize evidence
+        if: ${{ !cancelled() }}
+        run: |
+          $report = Join-Path $env:RESULTS_DIRECTORY 'compatibility.md'
+          if (Test-Path -LiteralPath $report) {
+            Get-Content -LiteralPath $report | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
+          $coverage = Join-Path $env:RESULTS_DIRECTORY 'coverage.md'
+          if (Test-Path -LiteralPath $coverage) {
+            Get-Content -LiteralPath $coverage | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
+          $summary = & ./external/DotReticulum/tests/test_summary.ps1 -Path $env:RESULTS_DIRECTORY -Title 'Test results (${{ matrix.rid }})'
+          $summary | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          'CI does not provision pinned Python peers, physical RF/audio, virtual phone calls or a desktop display. Their skipped/unselected claims are not compatibility passes.' |
+            Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
+      - name: Retain diagnostics and compatibility evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results-${{ matrix.rid }}-${{ github.run_attempt }}
+          path: TestResults/
+          if-no-files-found: warn
+          retention-days: 14

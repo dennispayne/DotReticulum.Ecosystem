@@ -25,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\lxmd\lxmd.csproj" />
     <ProjectReference Include="..\..\src\LXMF\LXMF.csproj" />
     <ProjectReference Include="..\..\external\DotReticulum\src\DotReticulum.Interfaces\DotReticulum.Interfaces.csproj" />
   </ItemGroup>

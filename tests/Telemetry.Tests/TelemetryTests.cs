@@ -3,6 +3,7 @@ using DotReticulum.Applications;
 
 namespace Telemetry.Tests;
 
+[Trait("Category", "Integration")]
 public class TelemetryTests
 {
     [Fact]

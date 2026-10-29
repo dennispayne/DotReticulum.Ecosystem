@@ -54,6 +54,13 @@ Live interoperability tests are opt-in and need the pinned Python reference: set
 
 "Live" means a real, unmodified Python reference node in the pinned environment; vectors and loopback tests are not live interoperability.
 
+The [testing standard](docs/testing.md) provides a scoped compatibility catalog
+with short `ClaimId`/`TestId` mappings, per-case JSON/Markdown evidence and merged
+coverage of all eight production assemblies. Run
+`pwsh -NoProfile -File tests\run-tests.ps1 -Coverage -Pester`; opt-in live/native
+checks remain distinct from local coverage. Skipped or uncovered evidence never
+becomes a passing compatibility claim.
+
 | Area | Status |
 | --- | --- |
 | LXMF message format, signing, hashing, stamps | Reference-generated vectors; messages opened by upstream LXMF both ways |

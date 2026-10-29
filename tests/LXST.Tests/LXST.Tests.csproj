@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\rnphone\rnphone.csproj" />
     <ProjectReference Include="..\..\src\LXST\LXST.csproj" />
     <ProjectReference Include="..\..\external\DotReticulum\src\DotReticulum.Interfaces\DotReticulum.Interfaces.csproj" />
     <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />

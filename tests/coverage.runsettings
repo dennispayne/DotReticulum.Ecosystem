@@ -1,0 +1,14 @@
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>opencover</Format>
+          <Include>[LXMF]*,[LXST]*,[telemetry]*,[lxmd]*,[rnphone]*,[nomadnet]*,[Sideband.Core]*,[sideband]*</Include>
+          <Exclude>[*.Tests]*</Exclude>
+          <ExcludeByFile>**/obj/**</ExcludeByFile>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

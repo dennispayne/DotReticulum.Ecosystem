@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="LXMF.Tests" />
     <ProjectReference Include="..\LXMF\LXMF.csproj" />
     <ProjectReference Include="..\..\external\DotReticulum\src\DotReticulum.Applications\DotReticulum.Applications.csproj" />
   </ItemGroup>

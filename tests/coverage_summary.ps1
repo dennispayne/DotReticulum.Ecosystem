@@ -1,6 +1,6 @@
 #Requires -Version 7.0
 [CmdletBinding()]
-param([Parameter(Mandatory, Position = 0)] [string] $Results)
+param([Parameter(Mandatory, Position = 0)] [string[]] $Results)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'Coverage.psm1') -Force

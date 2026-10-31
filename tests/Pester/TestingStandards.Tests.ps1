@@ -87,8 +87,8 @@ Describe 'Compatibility catalog and aggregation' -Tag 'Tooling' {
         @'
 <TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
 <TestDefinitions>
-<UnitTest id="a"><TestMethod className="LXMF.Tests.Example" name="Theory" codeBase="LXMF.Tests.dll" /></UnitTest>
-<UnitTest id="b"><TestMethod className="LXMF.Tests.Example" name="Theory" codeBase="LXMF.Tests.dll" /></UnitTest>
+<UnitTest id="a"><TestMethod className="LXMF.Tests.Example" name="Theory" codeBase="C:\checkout\tests\LXMF.Tests.dll" /></UnitTest>
+<UnitTest id="b"><TestMethod className="LXMF.Tests.Example" name="Theory" codeBase="/home/runner/checkout/tests/LXMF.Tests.dll" /></UnitTest>
 <UnitTest id="c"><TestMethod className="LXMF.Tests.Example" name="Broken" codeBase="LXMF.Tests.dll" /></UnitTest>
 </TestDefinitions>
 <Results><UnitTestResult testId="a" testName="Theory(1)" outcome="Passed" />
@@ -99,6 +99,7 @@ Describe 'Compatibility catalog and aggregation' -Tag 'Tooling' {
         $cases.Count | Should -Be 3
         $cases[0].Name | Should -Be 'LXMF.Tests.Example.Theory'
         $cases[0].Suite | Should -Be 'LXMF.Tests'
+        $cases[1].Suite | Should -Be 'LXMF.Tests'
         $cases[1].Detail | Should -Be 'Requires reference'
         $cases[2].Status | Should -Be 'Fail'
         Get-CompatibilityStatus @($cases.Status) | Should -Be 'Fail'

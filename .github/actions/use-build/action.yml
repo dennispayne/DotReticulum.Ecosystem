@@ -1,0 +1,68 @@
+name: Use exact ecosystem Build
+description: Downloads one producing run and verifies trusted main provenance before execution.
+inputs:
+  run-id:
+    description: Exact successful Build run ID.
+    required: true
+  commit:
+    description: Exact producing checkout commit.
+    required: true
+  rid:
+    description: Runtime identifier of the consuming runner.
+    required: true
+  attested:
+    description: Whether this main Build requires signed provenance.
+    required: true
+  native:
+    description: Download and export the platform's native applications.
+    default: 'false'
+  managed:
+    description: Download the managed test archive and coverage collector.
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Download exact native build
+      if: inputs.native == 'true'
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        github-token: ${{ github.token }}
+        run-id: ${{ inputs.run-id }}
+        name: native-${{ inputs.rid }}
+        path: artifacts/native
+
+    - name: Download exact managed build
+      if: inputs.managed == 'true'
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        github-token: ${{ github.token }}
+        run-id: ${{ inputs.run-id }}
+        name: managed-${{ inputs.rid }}
+        path: artifacts/managed
+
+    - name: Verify signed main Build provenance
+      if: inputs.attested == 'true'
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+        BUILD_COMMIT: ${{ inputs.commit }}
+        USE_NATIVE: ${{ inputs.native }}
+        USE_MANAGED: ${{ inputs.managed }}
+      run: |
+        $subjects = @()
+        if ($env:USE_NATIVE -eq 'true') { $subjects += 'artifacts/native/build-manifest.json' }
+        if ($env:USE_MANAGED -eq 'true') {
+          $subjects += 'artifacts/managed/managed.tar', 'artifacts/managed/managed-manifest.json'
+        }
+        foreach ($subject in $subjects) {
+          gh attestation verify $subject --repo $env:GITHUB_REPOSITORY --source-digest $env:BUILD_COMMIT --source-ref refs/heads/main --signer-workflow "$env:GITHUB_REPOSITORY/.github/workflows/build.yml" --deny-self-hosted-runners
+          if ($LASTEXITCODE -ne 0) { throw "Build provenance verification failed for $subject." }
+        }
+
+    - name: Verify native manifest and runtime-file digests
+      if: inputs.native == 'true'
+      shell: pwsh
+      env:
+        BUILD_COMMIT: ${{ inputs.commit }}
+        BUILD_RID: ${{ inputs.rid }}
+      run: ./tests/use-ci-native.ps1 -Directory artifacts/native -Rid $env:BUILD_RID -Commit $env:BUILD_COMMIT

@@ -1,0 +1,191 @@
+name: Static analysis
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.cs'
+      - '**.csproj'
+      - '**.props'
+      - '**.targets'
+      - '**.py'
+      - '**.ps1'
+      - '**.psm1'
+      - '**.psd1'
+      - '.github/workflows/**'
+      - '.github/actions/**'
+      - 'external/DotReticulum'
+      - '.gitmodules'
+      - 'global.json'
+      - 'DotReticulum.Ecosystem.slnx'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.cs'
+      - '**.csproj'
+      - '**.props'
+      - '**.targets'
+      - '**.py'
+      - '**.ps1'
+      - '**.psm1'
+      - '**.psd1'
+      - '.github/workflows/**'
+      - '.github/actions/**'
+      - 'external/DotReticulum'
+      - '.gitmodules'
+      - 'global.json'
+      - 'DotReticulum.Ecosystem.slnx'
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: static-analysis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            build-mode: none
+          - language: csharp
+            build-mode: manual
+          - language: python
+            build-mode: none
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout pinned stack and analysis source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Set up .NET
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        env:
+          CODEQL_OVERLAY_DATABASE_MODE: ${{ matrix.language == 'csharp' && 'none' || '' }}
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Build C# for analysis
+        if: matrix.language == 'csharp'
+        run: dotnet build DotReticulum.Ecosystem.slnx -c Release --nologo
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          category: /language:${{ matrix.language }}
+          output: TestResults/analysis
+          upload: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && 'always' || 'never' }}
+
+      - name: Retain SARIF
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: analysis-codeql-${{ matrix.language }}-${{ github.run_attempt }}
+          path: TestResults/analysis/*.sarif
+          if-no-files-found: warn
+          retention-days: 14
+
+  powershell:
+    name: PSScriptAnalyzer
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install pinned PSScriptAnalyzer
+        run: Install-Module PSScriptAnalyzer -RequiredVersion 1.24.0 -Scope CurrentUser -Repository PSGallery -Force -ErrorAction Stop
+
+      - name: Analyze tracked PowerShell
+        run: ./tools/Invoke-PowerShellAnalysis.ps1
+
+      - name: Verify analysis reporting
+        if: ${{ !cancelled() }}
+        run: |
+          ./external/DotReticulum/tests/install-pester.ps1
+          Import-Module Pester -RequiredVersion 5.7.1
+          $configuration = New-PesterConfiguration
+          $configuration.Run.Path = 'tests/Pester/BuildArtifacts.Tests.ps1'
+          $configuration.Run.PassThru = $true
+          $configuration.Filter.Tag = @('Analysis')
+          $result = Invoke-Pester -Configuration $configuration
+          if ($result.FailedCount -gt 0 -or $result.SkippedCount -gt 0 -or $result.PassedCount -ne 1) { exit 1 }
+
+      - name: Upload code scanning results
+        if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          sarif_file: TestResults/analysis/powershell.sarif
+          category: /language:powershell
+
+      - name: Retain SARIF
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: analysis-powershell-${{ github.run_attempt }}
+          path: TestResults/analysis/*.sarif
+          if-no-files-found: warn
+          retention-days: 14
+
+  summary:
+    name: Summarize Static analysis
+    needs: [codeql, powershell]
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout report controls
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download analysis reports
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: analysis-*-${{ github.run_attempt }}
+          path: TestResults/analysis
+
+      - name: Summarize actual findings and analysis completion
+        env:
+          CODEQL_STATUS: ${{ needs.codeql.result }}
+          POWERSHELL_STATUS: ${{ needs.powershell.result }}
+        run: |
+          $null = New-Item -ItemType Directory -Force -Path TestResults/analysis
+          ./tools/Get-StaticAnalysisSummary.ps1 -ReportsDirectory TestResults/analysis -CodeQLStatus $env:CODEQL_STATUS -PowerShellStatus $env:POWERSHELL_STATUS |
+            Tee-Object -FilePath TestResults/analysis/summary.md | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY

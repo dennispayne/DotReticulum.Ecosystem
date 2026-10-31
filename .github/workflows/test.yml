@@ -1,0 +1,236 @@
+name: Test
+run-name: Test / ${{ github.event.workflow_run.head_sha || inputs.build_run_id || github.event_name }}
+
+on:
+  workflow_run:
+    workflows: [Build]
+    types: [completed]
+  schedule:
+    - cron: '0 6 * * 2'
+    - cron: '0 6 * * 6'
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful main Build run ID (blank selects newest successful main Build)
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  actions: read
+  attestations: read
+
+concurrency:
+  group: test-${{ github.event.workflow_run.head_repository.full_name || github.repository }}-${{ github.event.workflow_run.head_branch || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTRETICULUM_LIVE: '0'
+  DOTLXST_LIVE: '0'
+
+jobs:
+  source:
+    name: Select exact Build
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run-id: ${{ steps.source.outputs.run-id }}
+      commit: ${{ steps.checkout.outputs.commit }}
+      attested: ${{ steps.source.outputs.attested }}
+    steps:
+      - name: Checkout trusted workflow controls
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate producing run and complete artifact inventory
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_BUILD: ${{ inputs.build_run_id }}
+        run: ./tests/Resolve-TestBuild.ps1 -RunId $env:REQUESTED_BUILD
+
+      - name: Read producing checkout manifest without executing artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.source.outputs.run-id }}
+          name: native-linux-x64
+          path: artifacts/source
+
+      - name: Preserve exact main or PR merge checkout
+        id: checkout
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRODUCING_RUN: ${{ steps.source.outputs.run-id }}
+        run: ./tests/Resolve-TestBuild.ps1 -RunId $env:PRODUCING_RUN -NativeManifest artifacts/source/build-manifest.json
+
+  managed:
+    name: ${{ matrix.suite }} (${{ matrix.rid }})
+    needs: source
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: Unit
+            os: ubuntu-latest
+            rid: linux-x64
+          - suite: Unit
+            os: windows-latest
+            rid: win-x64
+          - suite: Integration
+            os: ubuntu-latest
+            rid: linux-x64
+          - suite: Integration
+            os: windows-latest
+            rid: win-x64
+    steps:
+      - name: Checkout exact producing source and pinned stack
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.source.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Verify and use managed Build
+        uses: ./.github/actions/use-build
+        with:
+          run-id: ${{ needs.source.outputs.run-id }}
+          commit: ${{ needs.source.outputs.commit }}
+          attested: ${{ needs.source.outputs.attested }}
+          rid: ${{ matrix.rid }}
+          managed: 'true'
+
+      - name: Run built tests with production coverage
+        env:
+          BUILD_COMMIT: ${{ needs.source.outputs.commit }}
+          TEST_SUITE: ${{ matrix.suite }}
+          BUILD_RID: ${{ matrix.rid }}
+        run: |
+          $filter = if ($env:TEST_SUITE -eq 'Unit') { 'Category=Unit' } else { 'Category!=Unit' }
+          ./tests/Invoke-BuiltTests.ps1 -Directory artifacts/managed -Rid $env:BUILD_RID -Commit $env:BUILD_COMMIT -Filter $filter -ResultsDirectory "TestResults/$env:TEST_SUITE" -Coverage
+
+      - name: Retain independent suite evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results-${{ matrix.suite }}-${{ matrix.rid }}-${{ github.run_attempt }}
+          path: TestResults/
+          if-no-files-found: warn
+          retention-days: 14
+          overwrite: true
+
+  compatibility:
+    name: Compatibility (${{ matrix.rid }})
+    needs: source
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+    steps:
+      - name: Checkout exact producing source and pinned stack
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.source.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Set up .NET for tooling fixtures
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Install Linux native test prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          sudo apt-get install -y zip libopus0 libcodec2-1.2 libopusfile0 libopusenc0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify and use native Build
+        uses: ./.github/actions/use-build
+        with:
+          run-id: ${{ needs.source.outputs.run-id }}
+          commit: ${{ needs.source.outputs.commit }}
+          attested: ${{ needs.source.outputs.attested }}
+          rid: ${{ matrix.rid }}
+          native: 'true'
+
+      - name: Run native acceptance and tooling with scoped compatibility
+        run: |
+          ./external/DotReticulum/tests/install-pester.ps1
+          Import-Module Pester -RequiredVersion 5.7.1
+          ./tests/run-compatibility.ps1 -SkipManaged -Pester -OutputDirectory TestResults/compatibility
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:DOTRETICULUM_TELEMETRY_BINARY -p --config (Join-Path $env:RUNNER_TEMP 'telemetry-ci')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Retain native and compatibility evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: compatibility-${{ matrix.rid }}-${{ github.run_attempt }}
+          path: TestResults/
+          if-no-files-found: warn
+          retention-days: 14
+          overwrite: true
+
+  summary:
+    name: Summarize Unit, Integration and Compatibility
+    needs: [source, managed, compatibility]
+    if: ${{ always() && !cancelled() && needs.source.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact producing report controls
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.source.outputs.commit }}
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Download independent evidence
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: '*-${{ github.run_attempt }}'
+          path: TestResults/platforms
+
+      - name: Consolidate actual outcomes and union production coverage
+        env:
+          BUILD_COMMIT: ${{ needs.source.outputs.commit }}
+          MANAGED_STATUS: ${{ needs.managed.result }}
+          COMPATIBILITY_STATUS: ${{ needs.compatibility.result }}
+        run: ./tests/Get-CiSummary.ps1 -Directory TestResults/platforms -Commit $env:BUILD_COMMIT -Attempt '${{ github.run_attempt }}' -ManagedStatus $env:MANAGED_STATUS -CompatibilityStatus $env:COMPATIBILITY_STATUS
+
+      - name: Retain consolidated reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-summary-${{ github.run_attempt }}
+          path: TestResults/platforms/summary/
+          if-no-files-found: warn
+          retention-days: 14
+          overwrite: true

@@ -18,7 +18,7 @@ function New-CiNativeManifest {
     $root = (Resolve-Path -LiteralPath $Directory).Path
     $files = @(
         foreach ($target in Get-CiNativeTargets $Rid) {
-            foreach ($file in Get-ChildItem -LiteralPath (Join-Path $root $target.Name) -Recurse -File) {
+            foreach ($file in Get-ChildItem -LiteralPath (Join-Path $root $target.Name) -Recurse -File -Force) {
                 if ($file.Extension -in @('.pdb', '.dbg') -or $file.FullName -match '\.dSYM[\\/]') { continue }
                 [ordered]@{
                     path = [IO.Path]::GetRelativePath($root, $file.FullName)
@@ -52,6 +52,11 @@ function Get-VerifiedCiNativeBuild {
             (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -cne $file.sha256) {
             throw "Native artifact file is missing or changed: $($file.path)"
         }
+    }
+    foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File -Force) {
+        if ($file.FullName -eq (Join-Path $root 'build-manifest.json') -or
+            $file.Extension -in '.pdb', '.dbg' -or $file.FullName -match '\.dSYM[\\/]') { continue }
+        if (!$seen.ContainsKey($file.FullName)) { throw "Unverified native runtime file: $($file.FullName)" }
     }
     foreach ($target in Get-CiNativeTargets $Rid) {
         $name = $target.Name + $(if ($Rid -eq 'win-x64') { '.exe' } else { '' })

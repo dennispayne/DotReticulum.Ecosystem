@@ -61,10 +61,12 @@ coverage of all eight production assemblies. Run
 checks remain distinct from local coverage. Skipped or uncovered evidence never
 becomes a passing compatibility claim.
 
-[Build and test CI](.github/workflows/ci-build-test.yml) builds NativeAOT release
-targets and runs Windows/Linux coverage and native acceptance using the exact
-build artifacts. Python-peer, GUI and hardware checks remain separate opt-in
-evidence; a green CI run does not mean full upstream parity.
+[Build](.github/workflows/build.yml) produces managed test archives and NativeAOT
+release targets once. [Test](.github/workflows/test.yml) reuses those exact
+artifacts for independent Windows/Linux Unit, Integration and Compatibility
+jobs, with consolidated coverage and evidence. [Static analysis](.github/workflows/codeql.yml)
+runs CodeQL and PSScriptAnalyzer. Python-peer, GUI and hardware checks remain
+separate opt-in evidence; green Actions do not mean full upstream parity.
 
 | Area | Status |
 | --- | --- |

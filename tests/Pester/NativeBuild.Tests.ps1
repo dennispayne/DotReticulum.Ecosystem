@@ -62,7 +62,7 @@ Describe 'CI native artifact handoff' -Tag 'Tooling' {
         Edit-Manifest $directory { param($manifest)
             $manifest.files = @($manifest.files | Where-Object path -NotLike '*lxmd.exe')
         }
-        { Get-VerifiedCiNativeBuild $directory win-x64 $script:commit } | Should -Throw '*no verified executable for lxmd*'
+        { Get-VerifiedCiNativeBuild $directory win-x64 $script:commit } | Should -Throw '*Unverified native runtime file*'
     }
 
     It 'rejects escaping, absolute and duplicate paths in downloaded manifests' {
@@ -75,5 +75,13 @@ Describe 'CI native artifact handoff' -Tag 'Tooling' {
         $directory = New-Fixture
         Edit-Manifest $directory { param($manifest) $manifest.files += $manifest.files[0] }
         { Get-VerifiedCiNativeBuild $directory win-x64 $script:commit } | Should -Throw '*duplicate*'
+    }
+
+    It 'rejects additional runtime dependencies, including hidden files, before exporting applications' {
+        foreach ($name in 'extra-library.dll', '.hidden-library') {
+            $directory = New-Fixture
+            Set-Content -LiteralPath (Join-Path $directory "sideband\$name") -Value 'not covered by signed manifest'
+            { Get-VerifiedCiNativeBuild $directory win-x64 $script:commit } | Should -Throw '*Unverified native runtime file*'
+        }
     }
 }

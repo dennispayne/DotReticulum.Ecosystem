@@ -65,7 +65,7 @@ function Read-TrxCases {
             $method = $definition.SelectSingleNode("*[local-name()='TestMethod']")
             $definitions[$definition.GetAttribute('id')] = @{
                 Name = $method.GetAttribute('className') + '.' + $method.GetAttribute('name')
-                Suite = [IO.Path]::GetFileNameWithoutExtension($method.GetAttribute('codeBase'))
+                Suite = [IO.Path]::GetFileNameWithoutExtension($method.GetAttribute('codeBase').Replace('\', '/'))
             }
         }
         foreach ($test in $xml.SelectNodes("//*[local-name()='UnitTestResult']")) {

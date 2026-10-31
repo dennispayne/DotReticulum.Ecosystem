@@ -193,9 +193,10 @@ network or identity creation; no production behavior was changed.
 
 ## Continuous integration
 
-`.github\workflows\ci-build-test.yml` adapts DotReticulum's build-once/native
-artifact handoff. Relevant pushes and pull requests to `main`, or a manual
-dispatch, run the workflow. Documentation-only changes do not trigger it;
+The Actions layout follows DotReticulum's workflow controls at
+`c8d36a8b9f97b4f1bc08f0d1a9b533391d5940e3`, adapted without changing the stack pin.
+`.github\workflows\build.yml` runs on relevant pushes and pull requests to `main`,
+or manual dispatch. Documentation-only changes do not trigger Build;
 submodule-pin and build-configuration changes do.
 
 The Build matrix restores and builds the Release solution, then publishes
@@ -205,19 +206,46 @@ release matrix. Each executable must run `--help`. A manifest records the source
 commit, RID and SHA-256 of every non-debug runtime file; full native runtime
 directories are retained, not just executables.
 
-Windows/Linux Test jobs download and verify those exact artifacts, restore Unix
-executable permissions, and select them through the native acceptance variables.
-They run `tests\run-tests.ps1 -Coverage -Pester`, combining managed unit/integration
-checks, existing native CLI/state/restart checks, tooling regressions, scoped
-compatibility reporting and unioned coverage. The native telemetry binary also
-runs its identity flow. Pester is pinned to 5.7.1 using the stack's installer.
-Linux provisions the phone's runtime libraries and `zip` for packaging tests.
+Build additionally packages its actual Release test outputs and restored
+coverage collector into `managed.tar`, with a commit/RID/archive-digest manifest.
+Trusted main builds attest both managed subjects and the native manifest in a
+separate job that never executes downloaded artifacts. Signing the native
+manifest binds every declared runtime-file digest; additional runtime files are
+rejected. PR builds have no signing permissions.
 
-Tests and compatibility share one job/run per host instead of rerunning the full
-ecosystem suite in a separate compatibility job. JSON/Markdown, TRX, Pester XML,
-coverage and logs are retained for 14 days, including after failures; summaries
-are appended to the Actions run. Superseded runs on the same ref are cancelled.
-Workflow permissions are read-only and actions are pinned to commit SHAs.
+`.github\workflows\test.yml` follows a successful Build automatically. Manual
+dispatch accepts `build_run_id` or selects the newest successful main Build.
+Tuesday/Saturday at 06:00 UTC rerun the same bounded gates against that newest
+main Build. These scheduled runs are not longer live soak tests. Selection
+validates the producing repository/workflow/event, successful conclusion and
+complete unexpired native/managed artifact inventory. Main manifests must match
+the producer SHA; PR merge checkouts must have the producer head as their second
+parent. There is no rebuild or artifact fallback. The shared `use-build` action
+verifies signed main provenance before execution and verifies native runtime
+digests before exporting executable paths.
+
+Windows/Linux Unit and Integration jobs run the packaged assemblies with
+`tests\Invoke-BuiltTests.ps1`, not project restore/build. Unit selects
+`Category=Unit`; Integration selects `Category!=Unit`, retaining actual opt-in
+skips. The archive verifier rejects traversal, duplicate entries and links, and
+requires every expected test assembly and the coverage collector.
+Compatibility jobs use `tests\run-compatibility.ps1 -SkipManaged -Pester` for
+existing native CLI/state/restart checks and tooling regressions. Tooling tests
+may restore or build their own tiny fixtures, not the ecosystem candidate.
+Native telemetry additionally runs its identity flow. Pester is pinned to 5.7.1;
+Linux provisions phone runtime libraries and packaging `zip`.
+
+The summary job combines both managed suites with native Pester cases using the
+existing scoped catalog. Missing reports, failed dependencies and unmatched
+selectors fail explicitly; skipped evidence never turns into Pass. Coverage is
+unioned per platform across Unit/Integration, not across different platforms.
+JSON/Markdown, TRX, Pester XML and coverage are retained for 14 days, including
+after failures. Superseded runs are cancelled; actions are SHA-pinned.
+The exact solution-derived test report inventory is required. Consolidation
+normalizes Windows/Linux TRX assembly paths and accepts only the LF or CRLF
+representation of the producing catalog; changed contents or commits fail.
+The original native catalog hash, mode flags and dirty-worktree disclosure
+remain in each platform's consolidated JSON.
 
 CI does **not** provision actual Python reference checkouts, virtual telephone
 audio/calls, physical devices or a desktop display. Corresponding claims remain
@@ -225,8 +253,19 @@ skipped/unselected, and `-RequireComplete` is intentionally not used. macOS is a
 build/help gate only, not ecosystem feature acceptance. The recorded live and
 hardware evidence requirements still apply to protocol changes.
 
-This workflow neither creates releases nor dispatches the separate tag-driven
-release workflow.
+`.github\workflows\codeql.yml` independently analyzes Actions, C# (manual Release
+build with the pinned stack) and Python using CodeQL, plus tracked repository
+PowerShell using PSScriptAnalyzer 1.24.0. It runs on relevant changes, manual
+dispatch and Mondays at 05:00 UTC. PowerShell correctness/security findings fail
+after SARIF is written; existing command names are not subjected to a style
+rewrite. Reports distinguish analysis completion from findings. Fork PRs retain
+SARIF without uploading it to Code Scanning. C# analysis necessarily includes
+its compiled stack dependencies; coverage still excludes them.
+
+`.github\workflows\stale.yml` sends 90-day inactivity reminders on Mondays at
+05:30 UTC, never closes issues/PRs or deletes branches, and exempts assigned,
+milestoned, draft or explicitly protected work. Manual runs default to preview.
+Release remains separately tag-driven; none of this dispatches a release.
 
 ### Local CI acceptance
 
@@ -256,5 +295,49 @@ passed with zero warnings/errors on both hosts; actionlint accepted the workflow
 The gate exposed and corrected a capture-disposal cancellation race covered by
 the existing fake-driver regression; this adds no physical-audio claim. The
 runners now preserve an explicitly loaded supported Pester version rather than
-trying to load a newer incompatible assembly. Hosted Actions execution and
-macOS publication remain unverified.
+trying to load a newer incompatible assembly. The original combined workflow
+passed all five hosted jobs at `f7fa7fc` in
+[run 40990893298](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/40990893298),
+including macOS ARM64 publication/help. That run does not verify the new split
+workflows, signing, scheduled selection or CodeQL execution.
+
+### Split gate acceptance
+
+The split helpers were exercised from a dirty working tree based on
+`f7fa7fcc44e70eef1683bd4372f51d1ffbacbfb0`. Both platforms packaged and ran their
+actual Release assemblies and restored collector without rebuilding in the
+test runner. Native-only checks used the exact runtime artifacts downloaded
+from the hosted run above, not newly built substitutes.
+
+| Host | Unit | Integration | Native/tooling |
+|---|---:|---:|---:|
+| Windows | 157 passed | 82 passed, 45 skipped | 58 passed, 21 skipped |
+| WSL/Linux | 157 passed | 81 passed, 46 skipped | 60 passed, 19 skipped |
+
+Each native run also retained one unselected GUI case. Linux's native/tooling
+skips include the analyzer-module regression because PSScriptAnalyzer was not
+installed there; the separate Static analysis job provisions its pinned version.
+The managed commands were `tests\Invoke-BuiltTests.ps1 -Directory <verified-managed-artifact> -Rid <host-rid> -Commit f7fa7fcc44e70eef1683bd4372f51d1ffbacbfb0 -Filter 'Category=Unit' -ResultsDirectory <Unit-directory> -Coverage`
+and the same invocation with `-Filter 'Category!=Unit'` and its Integration
+directory. Windows used `artifacts\actions-managed-win` and
+`TestResults\actions-built-win`; Linux used `artifacts/managed` and
+`TestResults/built`.
+
+`tests\run-compatibility.ps1 -SkipManaged -Pester -OutputDirectory TestResults\actions-native-win-complete`
+passed on Windows; the Linux invocation used `TestResults/native-complete`.
+`tests\Get-CiSummary.ps1 -Directory <actions-platforms-directory> -Commit f7fa7fcc44e70eef1683bd4372f51d1ffbacbfb0 -Attempt 1 -ManagedStatus success -CompatibilityStatus success`
+passed on the Linux summary host with both platforms' real inputs: 364 discovered
+cases per platform, zero execution/discovery failures, and the dirty flag intact.
+All eight production modules were represented; Windows unioned 5,410/8,558 lines
+(63.22%) and 2,872/5,922 branches (48.50%), Linux 5,405/8,558 lines (63.16%) and
+2,869/5,922 branches (48.45%). Missing evidence and changed commit/catalog
+regressions failed explicitly.
+
+`dotnet build DotReticulum.Ecosystem.slnx -c Release --verbosity quiet` passed with
+zero warnings/errors; `dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build --verbosity quiet`
+passed 239 cases with 45 skips on Windows.
+`tests\run-pester.ps1 -Path tests\Pester\BuildArtifacts.Tests.ps1,tests\Pester\NativeBuild.Tests.ps1,tests\Pester\TestingStandards.Tests.ps1`
+passed 27 cases on Windows and 26 with one explicit analyzer-module skip on Linux.
+`tools\Invoke-PowerShellAnalysis.ps1` analyzed 27 tracked scripts with zero
+findings, and actionlint 1.7.7 accepted all workflows. Signed-main selection,
+the new macOS managed archive and CodeQL execution remain hosted-unverified.

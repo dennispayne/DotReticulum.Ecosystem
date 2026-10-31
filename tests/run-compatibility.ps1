@@ -8,6 +8,7 @@ param(
     [switch] $NomadNetLive,
     [switch] $Coverage,
     [switch] $RequireComplete,
+    [switch] $SkipManaged,
     [string] $Python = $env:DOTRETICULUM_PYTHON,
     [string] $Upstream = $env:DOTRETICULUM_UPSTREAM,
     [string] $LxmfUpstream = $env:DOTRETICULUM_LXMF_UPSTREAM,
@@ -45,6 +46,7 @@ function Format-Command([string] $Executable, [string[]] $Arguments) {
 Push-Location $root
 try {
     if ($Gui -and !$Pester) { throw '-Gui requires -Pester.' }
+    if ($SkipManaged -and (!$Pester -or $Coverage)) { throw '-SkipManaged requires -Pester and cannot collect managed coverage.' }
     foreach ($name in @('DOTRETICULUM_LXMD_BINARY', 'DOTLXST_RNPHONE_BINARY', 'DOTRETICULUM_RNPHONE_BINARY',
         'DOTRETICULUM_NOMADNET_BINARY', 'DOTRETICULUM_SIDEBAND_BINARY')) {
         $binary = [Environment]::GetEnvironmentVariable($name, 'Process')
@@ -95,19 +97,21 @@ try {
         $provenance = ($verified -join "`n") | ConvertFrom-Json
     }
 
-    $arguments = @('test', (Join-Path $root 'DotReticulum.Ecosystem.slnx'), '-c', 'Release',
-        '--logger', 'trx', '--results-directory', (Join-Path $OutputDirectory 'xunit'), '--verbosity', 'quiet')
-    if ($ArtifactsPath) { $arguments += @('--artifacts-path', $ArtifactsPath) }
-    if ($Coverage) {
-        $arguments += @('--settings', (Join-Path $PSScriptRoot 'coverage.runsettings'), '--collect:XPlat Code Coverage',
-            '-m:1', '--', 'xUnit.ParallelizeTestCollections=false')
+    if (!$SkipManaged) {
+        $arguments = @('test', (Join-Path $root 'DotReticulum.Ecosystem.slnx'), '-c', 'Release',
+            '--logger', 'trx', '--results-directory', (Join-Path $OutputDirectory 'xunit'), '--verbosity', 'quiet')
+        if ($ArtifactsPath) { $arguments += @('--artifacts-path', $ArtifactsPath) }
+        if ($Coverage) {
+            $arguments += @('--settings', (Join-Path $PSScriptRoot 'coverage.runsettings'), '--collect:XPlat Code Coverage',
+                '-m:1', '--', 'xUnit.ParallelizeTestCollections=false')
+        }
+        $commands.Add((Format-Command 'dotnet' $arguments))
+        & dotnet @arguments 2>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'dotnet.log') | Out-Host
+        if ($LASTEXITCODE -ne 0) { $failures.Add('The .NET build or tests failed; inspect dotnet.log and TRX.') }
+        $executed.Add('xunit')
+        foreach ($case in @(Read-TrxCases (Join-Path $OutputDirectory 'xunit'))) { $cases.Add($case) }
+        if (!@($cases | Where-Object Runner -eq 'xunit').Count) { $failures.Add('No xUnit test results were produced.') }
     }
-    $commands.Add((Format-Command 'dotnet' $arguments))
-    & dotnet @arguments 2>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'dotnet.log') | Out-Host
-    if ($LASTEXITCODE -ne 0) { $failures.Add('The .NET build or tests failed; inspect dotnet.log and TRX.') }
-    $executed.Add('xunit')
-    foreach ($case in @(Read-TrxCases (Join-Path $OutputDirectory 'xunit'))) { $cases.Add($case) }
-    if (!@($cases | Where-Object Runner -eq 'xunit').Count) { $failures.Add('No xUnit test results were produced.') }
 
     if ($Pester) {
         if (!(Get-Module Pester | Where-Object Version -GE ([version]'5.7.1'))) {

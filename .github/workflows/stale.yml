@@ -1,0 +1,52 @@
+name: Inactivity reminders
+
+on:
+  schedule:
+    - cron: '30 5 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview reminders without modifying issues or pull requests
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: inactivity-reminders
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Mark inactive unassigned work without closing it
+        uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          debug-only: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          days-before-stale: 90
+          days-before-close: -1
+          stale-issue-label: stale
+          stale-pr-label: stale
+          stale-issue-message: >-
+            This issue has had no activity for 90 days. Please add an update if it
+            still needs attention. This reminder does not close the issue;
+            commenting removes the stale label.
+          stale-pr-message: >-
+            This pull request has had no activity for 90 days. Please add an
+            update if it still needs attention. This reminder does not close the
+            pull request; commenting removes the stale label.
+          exempt-issue-labels: pinned,security,never-stale
+          exempt-pr-labels: pinned,security,never-stale
+          exempt-all-assignees: true
+          exempt-all-milestones: true
+          exempt-draft-pr: true
+          remove-stale-when-updated: true
+          delete-branch: false
+          operations-per-run: 30

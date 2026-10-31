@@ -21,11 +21,13 @@ Release, compatibility-report and production-coverage gate. See
 boundaries. Every xUnit class needs a `Unit` or `Integration` category;
 live methods additionally carry `Live` and skip explicitly when not enabled.
 
-The [Build and test workflow](.github/workflows/ci-build-test.yml) runs on relevant
-pushes/PRs to `main`: NativeAOT builds on release platforms and Windows/Linux
-coverage, native acceptance and scoped compatibility reports. It reuses verified
-build artifacts; it does not provision live Python peers or hardware. See the
-testing document for the precise CI boundaries.
+The separate [Build](.github/workflows/build.yml) and [Test](.github/workflows/test.yml)
+workflows run on relevant pushes/PRs and reuse verified managed/native artifacts.
+Test also supports scheduled or manual reuse of an exact successful main Build;
+its independent suites consolidate coverage and scoped compatibility reports.
+[Static analysis](.github/workflows/codeql.yml) checks C#, Python, Actions and
+tracked PowerShell. Neither workflow provisions live Python peers or hardware.
+See the testing document for cadence, provenance and precise CI boundaries.
 
 The ecosystem projects and namespaces are `LXMF`, `LXST` and `Telemetry`, with matching test-project names. Consumers of the former `Dot`-prefixed projects must update project references and namespace imports and rebuild; no compatibility assemblies are supplied. The `telemetry` executable retains its lowercase assembly name. Existing `DOTLXST_*` environment variables, executable names, persisted formats and wire identifiers are unchanged.
 

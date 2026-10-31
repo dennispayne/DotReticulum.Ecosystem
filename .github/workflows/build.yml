@@ -49,6 +49,7 @@ concurrency:
 env:
   DOTNET_NOLOGO: 'true'
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  NBGV_SetCloudBuildVersionVars: 'false'
 
 jobs:
   build:

@@ -49,7 +49,7 @@ Describe 'Compatibility catalog and aggregation' -Tag 'Tooling' {
         @'
 Describe 'Isolated test execution' {
     It 'cannot publish fixture output to the owning workflow' {
-        foreach ($name in 'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE') {
+        foreach ($name in 'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE', 'GITHUB_ACTIONS') {
             [Environment]::GetEnvironmentVariable($name, 'Process') | Should -BeNullOrEmpty
         }
         if (EXPECTED_FAILURE) { throw 'Intentional fixture failure.' }
@@ -68,9 +68,11 @@ foreach ($name in 'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_
     [Environment]::SetEnvironmentVariable($name, $path, 'Process')
 }
 Import-Module Pester -RequiredVersion 5.7.1
+$env:GITHUB_ACTIONS = 'true'
 $global:LASTEXITCODE = 0
 & $Runner -Path $Fixture
 if ($LASTEXITCODE -ne $ExpectedFailure) { throw 'Unexpected fixture result.' }
+if ($env:GITHUB_ACTIONS -cne 'true') { throw 'GitHub Actions detection flag was not restored.' }
 foreach ($name in $saved.Keys) {
     if ([Environment]::GetEnvironmentVariable($name, 'Process') -cne $saved[$name] -or
         (Get-Content -Raw -LiteralPath $saved[$name]).Trim() -cne 'sentinel') {

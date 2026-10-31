@@ -23,7 +23,7 @@ $collector = (Resolve-Path -LiteralPath (Join-Path $Directory 'collector')).Path
 $failed = $false
 $discovered = 0
 $saved = @{}
-foreach ($variable in 'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE') {
+foreach ($variable in 'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE', 'GITHUB_ACTIONS') {
     $saved[$variable] = [Environment]::GetEnvironmentVariable($variable)
     [Environment]::SetEnvironmentVariable($variable, $null)
 }

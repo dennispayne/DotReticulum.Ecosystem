@@ -245,7 +245,8 @@ The consolidated Actions summary compares Windows/Linux suites, claims, test
 mappings and coverage side-by-side instead of repeating whole platform reports.
 macOS cells explicitly say not run/not collected. Detailed per-platform
 JSON/Markdown remains in the artifacts; test mappings are collapsed in the UI.
-Test runners clear and restore GitHub command-file variables during execution,
+Test runners clear and restore GitHub command-file variables and the
+`GITHUB_ACTIONS` detection flag during execution,
 preventing intentional failure fixtures from publishing misleading job summaries.
 The exact solution-derived test report inventory is required. Consolidation
 normalizes Windows/Linux TRX assembly paths and accepts only the LF or CRLF

@@ -31,7 +31,7 @@ $saved = @{}
 $names = @('DOTRETICULUM_LIVE', 'DOTLXST_LIVE', 'DOTRETICULUM_NOMADNET_LIVE',
     'DOTRETICULUM_NOMADNET_NODE_LIVE', 'DOTRETICULUM_PYTHON', 'DOTRETICULUM_UPSTREAM',
     'DOTRETICULUM_LXMF_UPSTREAM', 'DOTRETICULUM_LXST_UPSTREAM', 'DOTRETICULUM_NOMADNET_SOURCE', 'PYTHONPATH',
-    'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE')
+    'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE', 'GITHUB_ACTIONS')
 foreach ($name in $names) { $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
 $failures = [Collections.Generic.List[string]]::new()
 $commands = [Collections.Generic.List[string]]::new()
@@ -46,7 +46,7 @@ function Format-Command([string] $Executable, [string[]] $Arguments) {
 
 Push-Location $root
 try {
-    foreach ($name in 'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE') {
+    foreach ($name in 'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE', 'GITHUB_ACTIONS') {
         [Environment]::SetEnvironmentVariable($name, $null, 'Process')
     }
     if ($Gui -and !$Pester) { throw '-Gui requires -Pester.' }

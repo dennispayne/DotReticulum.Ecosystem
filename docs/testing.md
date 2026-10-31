@@ -362,24 +362,36 @@ findings, and actionlint 1.7.7 accepted all workflows.
 
 ### Hosted split gate acceptance
 
-At `1b67b77`, all jobs passed in
-[Build 41225935515](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/41225935515),
+At `3ab9cfd`, all jobs passed in
+[Build 41243731068](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/41243731068),
 the automatically triggered
-[Test 41226363108](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/41226363108)
+[Test 41244383455](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/41244383455)
 and
-[Static analysis 41225935527](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/41225935527).
+[Static analysis 41243730917](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/41243730917).
 This verifies all three managed/native build targets, trusted-main artifact
 attestation and consumer verification, exact workflow-run handoff, six independent
 Windows/Linux test jobs, consolidated evidence/coverage, and CodeQL/PSScriptAnalyzer
 execution and report uploads.
 
 Windows passed 157 Unit and 82 Integration cases with 45 Integration skips;
-native/tooling passed 58 cases with 23 skipped/unselected records. Linux passed
+native/tooling passed 61 cases with 23 skipped/unselected records. Linux passed
 157 Unit and 81 Integration cases with 46 Integration skips; native/tooling
-passed 61 cases with 20 skipped/unselected records. Each consolidated report
-retained 365 cases, zero execution/discovery failures and a clean working tree.
-Coverage represented all eight modules: Windows 5,402/8,558 lines and 2,869/5,922
-branches; Linux 5,407/8,558 lines and 2,871/5,922 branches.
+passed 64 cases with 20 skipped/unselected records. Each consolidated report
+retained 368 cases, zero execution/discovery failures and a clean working tree.
+Coverage represented all eight modules: Windows 5,398/8,558 lines and 2,865/5,922
+branches; Linux 5,404/8,558 lines and 2,867/5,922 branches.
+
+The hosted summary uses shared platform columns for suites, compatibility and
+coverage. [Coverage badges 41244624568](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/41244624568)
+validated this Test and updated endpoint data plus its source-run metadata.
+Windows is 63.08% line coverage, Linux 63.15%, macOS explicitly not collected.
+Local `tests\run-pester.ps1 -Path tests\Pester\TestingStandards.Tests.ps1,tests\Pester\BuildArtifacts.Tests.ps1`
+passed 25 cases on Windows and 24 with one explicit analyzer-module skip on Linux.
+The complete native/tooling runner also passed with simulated GitHub detection,
+including a detached Linux checkout; sentinel GitHub command files remained
+unchanged and restored. Both passing and failing subprocess regressions verify
+that isolation does not hide test failures or alter cloud version semantics.
+PSScriptAnalyzer analyzed all 28 tracked scripts with zero findings.
 
 The first hosted attempts exposed concurrent unused version-variable exports
 corrupting macOS's GitHub environment file and a successful coverage helper

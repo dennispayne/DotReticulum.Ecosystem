@@ -299,7 +299,7 @@ trying to load a newer incompatible assembly. The original combined workflow
 passed all five hosted jobs at `f7fa7fc` in
 [run 40990893298](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/40990893298),
 including macOS ARM64 publication/help. That run does not verify the new split
-workflows, signing, scheduled selection or CodeQL execution.
+workflows; their hosted evidence is recorded below.
 
 ### Split gate acceptance
 
@@ -339,5 +339,34 @@ passed 239 cases with 45 skips on Windows.
 `tests\run-pester.ps1 -Path tests\Pester\BuildArtifacts.Tests.ps1,tests\Pester\NativeBuild.Tests.ps1,tests\Pester\TestingStandards.Tests.ps1`
 passed 27 cases on Windows and 26 with one explicit analyzer-module skip on Linux.
 `tools\Invoke-PowerShellAnalysis.ps1` analyzed 27 tracked scripts with zero
-findings, and actionlint 1.7.7 accepted all workflows. Signed-main selection,
-the new macOS managed archive and CodeQL execution remain hosted-unverified.
+findings, and actionlint 1.7.7 accepted all workflows.
+
+### Hosted split gate acceptance
+
+At `1b67b77`, all jobs passed in
+[Build 41225935515](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/41225935515),
+the automatically triggered
+[Test 41226363108](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/41226363108)
+and
+[Static analysis 41225935527](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/41225935527).
+This verifies all three managed/native build targets, trusted-main artifact
+attestation and consumer verification, exact workflow-run handoff, six independent
+Windows/Linux test jobs, consolidated evidence/coverage, and CodeQL/PSScriptAnalyzer
+execution and report uploads.
+
+Windows passed 157 Unit and 82 Integration cases with 45 Integration skips;
+native/tooling passed 58 cases with 23 skipped/unselected records. Linux passed
+157 Unit and 81 Integration cases with 46 Integration skips; native/tooling
+passed 61 cases with 20 skipped/unselected records. Each consolidated report
+retained 365 cases, zero execution/discovery failures and a clean working tree.
+Coverage represented all eight modules: Windows 5,402/8,558 lines and 2,869/5,922
+branches; Linux 5,407/8,558 lines and 2,871/5,922 branches.
+
+The first hosted attempts exposed concurrent unused version-variable exports
+corrupting macOS's GitHub environment file and a successful coverage helper
+inheriting an unset exit code. Build disables only the environment exports,
+preserving assembly version computation; coverage now explicitly returns
+success, with a regression covering a preceding failed command.
+PR merge selection, manual/scheduled reuse and inactivity reminders have not
+been exercised on GitHub. macOS remains build/help-only, and the live/GUI/hardware
+boundaries above remain unchanged.

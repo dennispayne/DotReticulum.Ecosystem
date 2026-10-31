@@ -151,6 +151,20 @@ Describe 'Compatibility catalog and aggregation' -Tag 'Tooling' {
 }
 
 Describe 'Production coverage union' -Tag 'Tooling' {
+    It 'sets a successful coverage exit code independently of preceding native commands' {
+        $directory = Join-Path $TestDrive 'complete-coverage'
+        foreach ($name in Get-ProductionModules (Split-Path $testsRoot -Parent)) {
+            $target = Join-Path $directory $name
+            $null = New-Item -ItemType Directory -Path $target -Force
+            $fixture = Write-Coverage "$name.xml" 1 0
+            (Get-Content -Raw -LiteralPath $fixture.FullName).Replace('<ModuleName>production</ModuleName>', "<ModuleName>$name</ModuleName>") |
+                Set-Content -LiteralPath (Join-Path $target 'coverage.opencover.xml')
+        }
+        $global:LASTEXITCODE = 1
+        & (Join-Path $testsRoot 'coverage_summary.ps1') -Results $directory *> $null
+        $LASTEXITCODE | Should -Be 0
+    }
+
     It 'unions hits across suites and counts shared lines and distinct branch paths once' {
         $reports = @((Write-Coverage 'one.xml' 1 0), (Write-Coverage 'two.xml' 0 1))
         $modules = Merge-ProductionCoverage $reports @('production')

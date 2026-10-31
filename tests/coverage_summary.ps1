@@ -28,6 +28,7 @@ try {
     }
     "| **Overall** | $(Format-Coverage $totals.Lines[0] $totals.Lines[1]) | $(Format-Coverage $totals.Branches[0] $totals.Branches[1]) |"
     "`nMerged $($reports.Count) reports by source line and branch identity, not averaged suite percentages. Excludes DotReticulum submodule and third-party code."
+    exit 0
 }
 catch {
     [Console]::Error.WriteLine($_.Exception.Message)

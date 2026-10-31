@@ -16,7 +16,17 @@ $configuration.Output.Verbosity = 'Detailed'
 if ($Tag.Count) {
     $configuration.Filter.Tag = $Tag
 }
-$result = Invoke-Pester -Configuration $configuration
+$saved = @{}
+foreach ($name in 'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE') {
+    $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+    [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+}
+try {
+    $result = Invoke-Pester -Configuration $configuration
+}
+finally {
+    foreach ($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process') }
+}
 if ($null -eq $result -or $result.FailedCount -gt 0 -or $result.Result -eq 'Failed' -or
     ($result.PassedCount + $result.FailedCount + $result.SkippedCount) -eq 0) {
     exit 1

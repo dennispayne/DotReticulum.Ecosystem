@@ -1,3 +1,10 @@
+[![Build](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/workflows/build.yml/badge.svg)](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/workflows/build.yml)
+[![Test](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/workflows/test.yml/badge.svg)](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/workflows/test.yml)
+[![Static analysis / CodeQL](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/workflows/codeql.yml/badge.svg)](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/workflows/codeql.yml)
+[![Linux coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdennispayne%2FDotReticulum.Ecosystem%2Fmain%2Fassets%2Fcoverage%2Flinux-x64.json)](docs/testing.md#hosted-split-gate-acceptance)
+[![macOS coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdennispayne%2FDotReticulum.Ecosystem%2Fmain%2Fassets%2Fcoverage%2Fosx-arm64.json)](docs/testing.md#continuous-integration)
+[![Windows coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdennispayne%2FDotReticulum.Ecosystem%2Fmain%2Fassets%2Fcoverage%2Fwin-x64.json)](docs/testing.md#hosted-split-gate-acceptance)
+
 # DotReticulum.Ecosystem
 
 Native C# / .NET 10 implementations of the applications and protocols layered on top of [Reticulum](https://reticulum.network): LXMF and LXST libraries, initial NomadNet and Sideband desktop clients, and a .NET-specific telemetry tool. Everything here is built on [DotReticulum](https://github.com/dennispayne/DotReticulum), the .NET implementation of the Reticulum Network Stack itself.

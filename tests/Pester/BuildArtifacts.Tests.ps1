@@ -187,7 +187,10 @@ Describe 'Static analysis evidence' -Tag Tooling {
         & $script:pwsh -NoProfile -File (Join-Path $script:root 'tests\Get-CiSummary.ps1') -Directory $directory `
             -Commit $script:commit -Attempt 1 -ManagedStatus failure -CompatibilityStatus failure *> $null
         $LASTEXITCODE | Should -Be 1
-        Get-Content -Raw -LiteralPath (Join-Path $directory 'summary\tests.md') | Should -Match 'Unavailable'
+        $summary = Get-Content -Raw -LiteralPath (Join-Path $directory 'summary\tests.md')
+        $summary | Should -Match '\| Suite \| Windows x64 \| Linux x64 \| macOS ARM64 \|'
+        $summary | Should -Match '\| Unit \| Unavailable \| Unavailable \| Not run \|'
+        ([regex]::Matches($summary, '## Compatibility claims')).Count | Should -Be 1
     }
 
     It 'accepts the same catalog from LF and CRLF checkouts without accepting incomplete evidence' -TestCases @(
@@ -216,6 +219,8 @@ Describe 'Static analysis evidence' -Tag Tooling {
         $report.RunStatus | Should -Be 'Failed or incomplete'
         $report.CatalogSha256 | Should -BeExactly $digest
         $report.Modes.Live | Should -BeFalse
+        $summary = Get-Content -Raw -LiteralPath (Join-Path $directory 'summary\tests.md')
+        $summary | Should -Match '\| C1 \|.*\| Not covered \| Not covered \| Not run \|'
 
         foreach ($invalid in @(
             @{ Commit = $script:commit; CatalogSha256 = '0' * 64 }

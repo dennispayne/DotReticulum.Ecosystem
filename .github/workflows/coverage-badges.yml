@@ -1,0 +1,97 @@
+name: Coverage badges
+
+on:
+  workflow_run:
+    workflows: [Test]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      test_run_id:
+        description: Successful automatic main Test run ID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: coverage-badges
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout trusted badge generator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Validate main Test and publish measured coverage
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST_RUN_ID: ${{ github.event.workflow_run.id || inputs.test_run_id }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Invoke-GitHub([string] $Endpoint, $Body, [string] $Method = 'POST') {
+            if ($null -eq $Body) { $json = gh api $Endpoint }
+            else { $json = $Body | ConvertTo-Json -Depth 10 -Compress | gh api $Endpoint --method $Method --input - }
+            if ($LASTEXITCODE -ne 0) { throw "GitHub API failed: $Endpoint" }
+            $json | ConvertFrom-Json
+          }
+          $repo = $env:GITHUB_REPOSITORY
+          $run = Invoke-GitHub "repos/$repo/actions/runs/$env:TEST_RUN_ID" $null
+          if ($run.path -cne '.github/workflows/test.yml' -or $run.conclusion -ne 'success' -or
+              $run.event -ne 'workflow_run' -or $run.head_branch -ne 'main' -or
+              $run.display_title -cnotmatch '^Test / (?<source>[0-9a-f]{40})$' -or
+              $run.head_repository.full_name -cne $repo -or $run.repository.full_name -cne $repo) {
+            throw 'Badge publication requires a successful automatic main Test.'
+          }
+          $sourceCommit = $Matches.source
+          $builds = Invoke-GitHub "repos/$repo/actions/workflows/build.yml/runs?head_sha=$sourceCommit&branch=main&status=success&per_page=100" $null
+          if (!@($builds.workflow_runs | Where-Object {
+              $_.head_sha -ceq $sourceCommit -and $_.head_repository.full_name -ceq $repo -and
+              $_.head_branch -eq 'main' -and $_.event -in 'push', 'workflow_dispatch'
+          }).Count) { throw 'Test does not identify a successful trusted main Build.' }
+          gh run download $run.id --repo $repo --name "test-summary-$($run.run_attempt)" --dir artifacts/coverage
+          if ($LASTEXITCODE -ne 0) { throw 'Coverage artifact download failed.' }
+          $head = Invoke-GitHub "repos/$repo/git/ref/heads/main" $null
+          $commit = Invoke-GitHub "repos/$repo/git/commits/$($head.object.sha)" $null
+          $previous = Invoke-GitHub "repos/$repo/contents/assets/coverage/source.json?ref=$($head.object.sha)" $null
+          $metadata = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($previous.content)) | ConvertFrom-Json
+          if ([long]$metadata.runId -gt [long]$run.id -or
+              ([long]$metadata.runId -eq [long]$run.id -and [int]$metadata.attempt -ge [int]$run.run_attempt)) {
+            Write-Host 'Badge already represents this or a newer Test.'
+            exit 0
+          }
+          $entries = @(foreach ($platform in @(
+              @{ Rid = 'linux-x64'; Label = 'Linux' }, @{ Rid = 'win-x64'; Label = 'Windows' }
+          )) {
+            $directory = "artifacts/coverage/$($platform.Rid)"
+            $evidence = Get-Content -Raw -LiteralPath "$directory/compatibility.json" | ConvertFrom-Json
+            if ($evidence.Commit -cne $sourceCommit -or $evidence.Platform -cne $platform.Rid -or
+                $evidence.WorkingTreeDirty -ne $false -or $evidence.RunStatus -ne 'Passed selected checks' -or
+                @($evidence.Failures).Count) { throw 'Coverage evidence does not match the trusted Test.' }
+            $output = "$directory/badge.json"
+            ./tests/New-CoverageBadge.ps1 -Report "$directory/coverage.json" -Output $output -Label "$($platform.Label) line coverage"
+            @{ path = "assets/coverage/$($platform.Rid).json"; mode = '100644'; type = 'blob'; content = (Get-Content -Raw -LiteralPath $output) }
+          })
+          ./tests/New-CoverageBadge.ps1 -NotCollected -Output artifacts/coverage/macos.json -Label 'macOS line coverage'
+          $entries += @{ path = 'assets/coverage/osx-arm64.json'; mode = '100644'; type = 'blob'; content = (Get-Content -Raw -LiteralPath artifacts/coverage/macos.json) }
+          $entries += @{ path = 'assets/coverage/source.json'; mode = '100644'; type = 'blob'; content = (@{
+            runId = $run.id; attempt = $run.run_attempt; commit = $sourceCommit; url = $run.html_url
+          } | ConvertTo-Json) }
+          $newTree = Invoke-GitHub "repos/$repo/git/trees" @{ base_tree = $commit.tree.sha; tree = $entries }
+          $newCommit = Invoke-GitHub "repos/$repo/git/commits" @{
+            message = "Update coverage badges from Test $($run.id) attempt $($run.run_attempt)`n`nCo-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`nCopilot-Session: acfd3d43-fbd3-41f2-b4d5-f670c527895d"
+            tree = $newTree.sha; parents = @($head.object.sha)
+          }
+          $null = Invoke-GitHub "repos/$repo/git/refs/heads/main" @{ sha = $newCommit.sha; force = $false } PATCH

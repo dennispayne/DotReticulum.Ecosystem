@@ -38,6 +38,52 @@ BeforeAll {
 }
 
 Describe 'Compatibility catalog and aggregation' -Tag 'Tooling' {
+    It 'isolates and restores GitHub command files around passing and failing Pester runs' -TestCases @(
+        @{ ExpectedFailure = 0 }
+        @{ ExpectedFailure = 1 }
+    ) {
+        param($ExpectedFailure)
+        $directory = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+        $null = New-Item -ItemType Directory -Path $directory
+        $fixture = Join-Path $directory 'Isolation.Tests.ps1'
+        @'
+Describe 'Isolated test execution' {
+    It 'cannot publish fixture output to the owning workflow' {
+        foreach ($name in 'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE') {
+            [Environment]::GetEnvironmentVariable($name, 'Process') | Should -BeNullOrEmpty
+        }
+        if (EXPECTED_FAILURE) { throw 'Intentional fixture failure.' }
+    }
+}
+'@.Replace('EXPECTED_FAILURE', [string]$ExpectedFailure) | Set-Content -LiteralPath $fixture
+        $wrapper = Join-Path $directory 'Invoke-Isolation.ps1'
+        @'
+param($Runner, $Fixture, [int]$ExpectedFailure)
+$ErrorActionPreference = 'Stop'
+$saved = @{}
+foreach ($name in 'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE') {
+    $path = Join-Path $PSScriptRoot $name
+    Set-Content -LiteralPath $path -Value 'sentinel'
+    $saved[$name] = $path
+    [Environment]::SetEnvironmentVariable($name, $path, 'Process')
+}
+Import-Module Pester -RequiredVersion 5.7.1
+$global:LASTEXITCODE = 0
+& $Runner -Path $Fixture
+if ($LASTEXITCODE -ne $ExpectedFailure) { throw 'Unexpected fixture result.' }
+foreach ($name in $saved.Keys) {
+    if ([Environment]::GetEnvironmentVariable($name, 'Process') -cne $saved[$name] -or
+        (Get-Content -Raw -LiteralPath $saved[$name]).Trim() -cne 'sentinel') {
+        throw "Workflow command file was modified or not restored: $name"
+    }
+}
+exit 0
+'@ | Set-Content -LiteralPath $wrapper
+        & (Join-Path $PSHOME 'pwsh') -NoProfile -File $wrapper -Runner (Join-Path $testsRoot 'run-pester.ps1') `
+            -Fixture $fixture -ExpectedFailure $ExpectedFailure *> (Join-Path $directory 'execution.log')
+        $LASTEXITCODE | Should -Be 0 -Because (Get-Content -Raw -LiteralPath (Join-Path $directory 'execution.log'))
+    }
+
     It 'rejects duplicate IDs, dangling claims, unknown references and invalid revisions' {
         $catalog = New-Catalog
         $catalog.tests += $catalog.tests[0]
@@ -161,8 +207,12 @@ Describe 'Production coverage union' -Tag 'Tooling' {
                 Set-Content -LiteralPath (Join-Path $target 'coverage.opencover.xml')
         }
         $global:LASTEXITCODE = 1
-        & (Join-Path $testsRoot 'coverage_summary.ps1') -Results $directory *> $null
+        $json = Join-Path $directory 'coverage.json'
+        & (Join-Path $testsRoot 'coverage_summary.ps1') -Results $directory -JsonPath $json *> $null
         $LASTEXITCODE | Should -Be 0
+        $coverage = Get-Content -Raw -LiteralPath $json | ConvertFrom-Json
+        $coverage.lines.covered | Should -Be 8
+        $coverage.lines.total | Should -Be 16
     }
 
     It 'unions hits across suites and counts shared lines and distinct branch paths once' {
@@ -187,5 +237,25 @@ Describe 'Production coverage union' -Tag 'Tooling' {
         $expected | Should -Contain 'sideband'
         $expected | Should -Contain 'lxmd'
         $expected | Should -Contain 'rnphone'
+    }
+
+    It 'generates measured badges from counts and keeps uncollected coverage distinct from zero' {
+        $generator = Join-Path $testsRoot 'New-CoverageBadge.ps1'
+        $report = Join-Path $TestDrive 'badge-coverage.json'
+        $output = Join-Path $TestDrive 'badge.json'
+        @{ schemaVersion = 1; lines = @{ covered = 3; total = 8 } } |
+            ConvertTo-Json | Set-Content -LiteralPath $report
+        & $generator -Report $report -Output $output -Label 'Test line coverage'
+        (Get-Content -Raw -LiteralPath $output | ConvertFrom-Json).message | Should -Be '37.50%'
+        & $generator -NotCollected -Output $output -Label 'macOS line coverage'
+        (Get-Content -Raw -LiteralPath $output | ConvertFrom-Json).message | Should -Be 'not collected'
+        foreach ($invalid in @(
+            @{ covered = 1; total = 0 }, @{ covered = 9; total = 8 },
+            @{ covered = -1; total = 8 }, @{ covered = 1.5; total = 8 }
+        )) {
+            @{ schemaVersion = 1; lines = $invalid } | ConvertTo-Json | Set-Content -LiteralPath $report
+            { & $generator -Report $report -Output $output -Label 'Invalid' } | Should -Throw '*Invalid measured coverage*'
+        }
+        { & $generator -NotCollected -Report $report -Output $output -Label 'Invalid' } | Should -Throw
     }
 }

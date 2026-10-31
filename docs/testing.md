@@ -241,6 +241,12 @@ selectors fail explicitly; skipped evidence never turns into Pass. Coverage is
 unioned per platform across Unit/Integration, not across different platforms.
 JSON/Markdown, TRX, Pester XML and coverage are retained for 14 days, including
 after failures. Superseded runs are cancelled; actions are SHA-pinned.
+The consolidated Actions summary compares Windows/Linux suites, claims, test
+mappings and coverage side-by-side instead of repeating whole platform reports.
+macOS cells explicitly say not run/not collected. Detailed per-platform
+JSON/Markdown remains in the artifacts; test mappings are collapsed in the UI.
+Test runners clear and restore GitHub command-file variables during execution,
+preventing intentional failure fixtures from publishing misleading job summaries.
 The exact solution-derived test report inventory is required. Consolidation
 normalizes Windows/Linux TRX assembly paths and accepts only the LF or CRLF
 representation of the producing catalog; changed contents or commits fail.
@@ -266,6 +272,17 @@ its compiled stack dependencies; coverage still excludes them.
 05:30 UTC, never closes issues/PRs or deletes branches, and exempts assigned,
 milestoned, draft or explicitly protected work. Manual runs default to preview.
 Release remains separately tag-driven; none of this dispatches a release.
+
+README badges link to Build, Test and Static analysis (which includes CodeQL);
+there is no separate default CodeQL workflow in this repository.
+`assets\coverage` contains Shields endpoint data and source-run provenance.
+The `coverage-badges.yml` workflow updates these files only from a successful
+automatic main Test, after validating the main Build, summary commit, clean
+worktree and measured coverage counts. It never executes downloaded artifacts.
+Older runs cannot overwrite newer badge data, and the branch update is
+non-forced. Badge-only commits do not trigger Build/Test. macOS is explicitly
+not collected, not zero percent. Manual badge dispatch accepts an automatic
+main Test run ID; scheduled/manual Test reuse does not publish badges.
 
 ### Local CI acceptance
 

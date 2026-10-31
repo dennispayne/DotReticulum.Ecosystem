@@ -1,6 +1,9 @@
 #Requires -Version 7.0
 [CmdletBinding()]
-param([Parameter(Mandatory, Position = 0)] [string[]] $Results)
+param(
+    [Parameter(Mandatory, Position = 0)] [string[]] $Results,
+    [string] $JsonPath
+)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'Coverage.psm1') -Force
@@ -27,6 +30,13 @@ try {
         "| $name | $($cells -join ' | ') |"
     }
     "| **Overall** | $(Format-Coverage $totals.Lines[0] $totals.Lines[1]) | $(Format-Coverage $totals.Branches[0] $totals.Branches[1]) |"
+    if ($JsonPath) {
+        @{
+            schemaVersion = 1
+            lines = @{ covered = $totals.Lines[0]; total = $totals.Lines[1] }
+            branches = @{ covered = $totals.Branches[0]; total = $totals.Branches[1] }
+        } | ConvertTo-Json | Set-Content -LiteralPath $JsonPath -Encoding utf8
+    }
     "`nMerged $($reports.Count) reports by source line and branch identity, not averaged suite percentages. Excludes DotReticulum submodule and third-party code."
     exit 0
 }

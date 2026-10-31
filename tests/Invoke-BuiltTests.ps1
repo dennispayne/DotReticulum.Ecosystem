@@ -23,11 +23,13 @@ $collector = (Resolve-Path -LiteralPath (Join-Path $Directory 'collector')).Path
 $failed = $false
 $discovered = 0
 $saved = @{}
-foreach ($variable in 'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE', 'GITHUB_ACTIONS') {
+foreach ($variable in 'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE', 'NBGV_SetCloudBuildVersionVars', 'NO_COLOR') {
     $saved[$variable] = [Environment]::GetEnvironmentVariable($variable)
     [Environment]::SetEnvironmentVariable($variable, $null)
 }
 try {
+    $env:NBGV_SetCloudBuildVersionVars = 'false'
+    $env:NO_COLOR = '1'
     foreach ($assembly in $build.Assemblies) {
         $name = [IO.Path]::GetFileNameWithoutExtension($assembly)
         $reportsBefore = @(Get-ChildItem -LiteralPath $ResultsDirectory -Recurse -Filter coverage.opencover.xml).Count

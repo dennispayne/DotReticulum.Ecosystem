@@ -17,11 +17,13 @@ if ($Tag.Count) {
     $configuration.Filter.Tag = $Tag
 }
 $saved = @{}
-foreach ($name in 'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE', 'GITHUB_ACTIONS') {
+foreach ($name in 'GITHUB_ENV', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_PATH', 'GITHUB_STATE', 'NBGV_SetCloudBuildVersionVars', 'NO_COLOR') {
     $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     [Environment]::SetEnvironmentVariable($name, $null, 'Process')
 }
 try {
+    $env:NBGV_SetCloudBuildVersionVars = 'false'
+    $env:NO_COLOR = '1'
     $result = Invoke-Pester -Configuration $configuration
 }
 finally {

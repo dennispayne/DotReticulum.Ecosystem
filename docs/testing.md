@@ -93,7 +93,7 @@ flags, commands, platform, repository commit and dirty-worktree status.
 
 ## Real references and native modes
 
-Use the isolated reference environments described in `CONTRIBUTING.md`. Retrieve
+Use the isolated reference environments described in `.github/CONTRIBUTING.md`. Retrieve
 upstream source using native `rngit` from the primary `rns://` locators in the
 catalog; retain provenance and any seed disclosure. Local tests do not fetch or
 change those checkouts. Git object consistency is not publisher authentication.

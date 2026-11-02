@@ -16,16 +16,16 @@ Every behavior change needs tests, including malformed inputs, boundary lengths 
 
 Use `pwsh -NoProfile -File tests\run-tests.ps1 -Coverage -Pester` for the unified
 Release, compatibility-report and production-coverage gate. See
-[Testing and compatibility evidence](docs/testing.md) for stable short
+[Testing and compatibility evidence](../docs/testing.md) for stable short
 `ClaimId`/`TestId` mappings, live/native modes, strict aggregation and evidence
 boundaries. Every xUnit class needs a `Unit` or `Integration` category;
 live methods additionally carry `Live` and skip explicitly when not enabled.
 
-The separate [Build](.github/workflows/build.yml) and [Test](.github/workflows/test.yml)
+The separate [Build](workflows/build.yml) and [Test](.github/workflows/test.yml)
 workflows run on relevant pushes/PRs and reuse verified managed/native artifacts.
 Test also supports scheduled or manual reuse of an exact successful main Build;
 its independent suites consolidate coverage and scoped compatibility reports.
-[Static analysis](.github/workflows/codeql.yml) checks C#, Python, Actions and
+[Static analysis](workflows/codeql.yml) checks C#, Python, Actions and
 tracked PowerShell. Neither workflow provisions live Python peers or hardware.
 See the testing document for cadence, provenance and precise CI boundaries.
 

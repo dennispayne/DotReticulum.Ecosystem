@@ -155,7 +155,7 @@ version constraints for some source installs.
   that depend on the upstream license.
 - Current ecosystem targets are Reticulum 1.5.7, LXMF 1.2.1, and LXST 0.4.5;
   the .NET libraries are `LXMF` and `LXST` (no `Dot` prefix). See
-  `CONTRIBUTING.md`, `tests/Interop/reference_environment.py`,
+  `.github/CONTRIBUTING.md`, `tests/Interop/reference_environment.py`,
   `docs/lxmf.md`, and `docs/lxst.md`.
 - Sideband's primary source requires LXST 0.5.4, newer than the current LXST
   target 0.4.5. NomadNet requires RNS 1.6.0 and LXMF 1.2.2, newer than current

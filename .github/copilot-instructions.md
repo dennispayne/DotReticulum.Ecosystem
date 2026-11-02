@@ -15,7 +15,7 @@ The target is wire and behavioral parity with the pinned Python reference, not a
 
 ## Start / resume protocol (every session)
 
-1. `git status`, `git log --oneline -20`, read `README.md`, `CONTRIBUTING.md`, `docs\*.md` and the existing code. Finish or fix uncommitted work, then commit it.
+1. `git status`, `git log --oneline -20`, read `README.md`, `.github\CONTRIBUTING.md`, `docs\*.md` and the existing code. Finish or fix uncommitted work, then commit it.
 2. Run `git submodule update --init`, then `dotnet build DotReticulum.Ecosystem.slnx -c Release` and `dotnet test DotReticulum.Ecosystem.slnx -c Release`. Fix any red baseline before adding features.
 3. Never trust a checkbox, doc claim or README table over code and tests. If they disagree, fix the claim.
 4. Re-run this protocol after any interruption, context compaction or new session.
@@ -93,7 +93,7 @@ Definition of done: documented inventory with statuses and evidence; a library t
 ## Docs, README and versioning
 
 - Keep `README.md` (project table, Compatibility table, Versioning) and `docs\<project>.md` as **present-state reference**, not chronology. Update them in the same commit as the behavior. When later work resolves a limitation, replace the stale statement.
-- Contributor docs stay in sync with reality; `CONTRIBUTING.md` already describes the submodule bump and live-test environment.
+- Contributor docs stay in sync with reality; `.github\CONTRIBUTING.md` already describes the submodule bump and live-test environment.
 - Do not maintain duplicate trackers or notes files. Do not create planning markdown unless asked.
 
 ## Commands

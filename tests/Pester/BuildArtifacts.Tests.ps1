@@ -158,7 +158,7 @@ Describe 'Static analysis evidence' -Tag Tooling {
         if ($LASTEXITCODE -ne 0) { throw 'Cannot stage analyzer fixture.' }
         $report = Join-Path $directory 'analysis.sarif'
         & $script:pwsh -NoProfile -File (Join-Path $script:root 'tools\Invoke-PowerShellAnalysis.ps1') -Repository $directory `
-            -Settings (Join-Path $script:root 'PSScriptAnalyzerSettings.psd1') -Report $report *> $null
+            -Settings (Join-Path $script:root 'tools/PSScriptAnalyzerSettings.psd1') -Report $report *> $null
         $LASTEXITCODE | Should -Be 1
         $sarif = Get-Content -Raw -LiteralPath $report | ConvertFrom-Json
         $sarif.runs[0].results.ruleId | Should -Contain 'PSAvoidUsingInvokeExpression'

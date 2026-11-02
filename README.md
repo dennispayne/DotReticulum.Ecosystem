@@ -34,7 +34,7 @@ Project folders and namespaces use `LXMF`, `LXST`, `Telemetry`, `NomadNet` and `
 
 ## Upstream
 
-Reticulum, LXMF, LXST, Sideband and NomadNet are separate projects by Mark Qvist; the Python code of each is its reference implementation. The links above are public GitHub mirrors. RNS, LXMF and LXST source histories were also retrieved with native .NET `rngit` from Reticulum host `7649a50d84610232d1416b41d2896aff`, repositories `reticulum/reticulum`, `reticulum/lxmf` and `reticulum/lxst`. Source-object verification is not publisher authentication; see [CONTRIBUTING.md](CONTRIBUTING.md) for seed disclosure and provenance.
+Reticulum, LXMF, LXST, Sideband and NomadNet are separate projects by Mark Qvist; the Python code of each is its reference implementation. The links above are public GitHub mirrors. RNS, LXMF and LXST source histories were also retrieved with native .NET `rngit` from Reticulum host `7649a50d84610232d1416b41d2896aff`, repositories `reticulum/reticulum`, `reticulum/lxmf` and `reticulum/lxst`. Source-object verification is not publisher authentication; see [CONTRIBUTING.md](.github/CONTRIBUTING.md) for seed disclosure and provenance.
 
 Targets pinned in `tests/Interop/reference_environment.py`: RNS 1.5.7 (`a29bfb51c468945c96a1ee22cae0114e993e2391`), LXMF 1.2.1 (`e8ba02483217af43be284a72f1c059c730b7d047`) and LXST 0.4.5 (`3b596f48ddd252ddc9c315ef8f3020cfd3688223`). Newer observed upstream releases do not change these targets.
 
@@ -55,7 +55,7 @@ dotnet test DotReticulum.Ecosystem.slnx -c Release
 
 If you cloned without `--recurse-submodules`, run `git submodule update --init`. Building requires the .NET 10 SDK (pinned in `global.json`).
 
-Live interoperability tests are opt-in and need the pinned Python reference: set `DOTRETICULUM_LIVE=1`, `DOTRETICULUM_PYTHON` (a venv with `lxmf` 1.2.1) and `DOTRETICULUM_UPSTREAM` (a checkout of the pinned RNS revision). Without them those tests are skipped. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Live interoperability tests are opt-in and need the pinned Python reference: set `DOTRETICULUM_LIVE=1`, `DOTRETICULUM_PYTHON` (a venv with `lxmf` 1.2.1) and `DOTRETICULUM_UPSTREAM` (a checkout of the pinned RNS revision). Without them those tests are skipped. See [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
 ## Compatibility
 
@@ -110,7 +110,7 @@ Releases are tag-driven NativeAOT executable packages with SHA-256 checksums. Us
 
 ## Contributing
 
-Contributions are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome; read [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
 ## License
 

@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [string] $Repository = (Split-Path $PSScriptRoot -Parent),
-    [string] $Settings = (Join-Path $PSScriptRoot '..\PSScriptAnalyzerSettings.psd1'),
+    [string] $Settings = (Join-Path $PSScriptRoot 'PSScriptAnalyzerSettings.psd1'),
     [string] $Report = (Join-Path $PSScriptRoot '..\TestResults\analysis\powershell.sarif')
 )
 $ErrorActionPreference = 'Stop'

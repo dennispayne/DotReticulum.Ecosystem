@@ -140,22 +140,22 @@ jobs:
       - name: Build Windows phone acceptance Opus dependency
         if: needs.select.outputs.application == 'rnphone' && runner.os == 'Windows'
         run: |
-          git clone --quiet --filter=blob:none --no-checkout https://github.com/xiph/opus.git artifacts/opus-source
+          git clone --quiet --filter=blob:none --no-checkout https://github.com/xiph/opus.git artifacts/builds/opus-source
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git -C artifacts/opus-source checkout --quiet 22244de5a79bd1d6d623c32e72bf1954b56235be
+          git -C artifacts/builds/opus-source checkout --quiet 22244de5a79bd1d6d623c32e72bf1954b56235be
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cmake -S artifacts/opus-source -B artifacts/opus-build -A x64 -DBUILD_SHARED_LIBS=ON -DOPUS_BUILD_TESTING=OFF -DOPUS_BUILD_PROGRAMS=OFF
+          cmake -S artifacts/builds/opus-source -B artifacts/builds/opus-build -A x64 -DBUILD_SHARED_LIBS=ON -DOPUS_BUILD_TESTING=OFF -DOPUS_BUILD_PROGRAMS=OFF
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cmake --build artifacts/opus-build --config Release --parallel 2
+          cmake --build artifacts/builds/opus-build --config Release --parallel 2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run tests
-        run: dotnet test DotReticulum.Ecosystem.slnx -c Release --logger trx --results-directory TestResults/release
+        run: dotnet test DotReticulum.Ecosystem.slnx -c Release --logger trx --results-directory artifacts/tests/release
 
       - name: Summarize test results
         if: ${{ !cancelled() }}
         run: |
-          $summary = & ./external/DotReticulum/tests/test_summary.ps1 -Path TestResults/release -Title 'Release tests (${{ matrix.rid }})'
+          $summary = & ./external/DotReticulum/tests/test_summary.ps1 -Path artifacts/tests/release -Title 'Release tests (${{ matrix.rid }})'
           $summary
           $summary | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
 
@@ -164,7 +164,7 @@ jobs:
           $publish = @('publish', $env:RELEASE_PROJECT,
             '-c', 'Release', '-r', '${{ matrix.rid }}', '--self-contained', 'true',
             '-p:ILLinkTreatWarningsAsErrors=true', '-p:IlcTreatWarningsAsErrors=true',
-            '-o', 'artifacts/native')
+            '-o', 'artifacts/builds/native')
           if ($IsWindows) {
             $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer'
             $env:PATH = "$installer;$env:PATH"
@@ -180,28 +180,28 @@ jobs:
       - name: Smoke-test the native binary
         run: |
           $exe = $env:RELEASE_APPLICATION + $(if ($IsWindows) { '.exe' } else { '' })
-          $binary = Join-Path $PWD "artifacts/native/$exe"
+          $binary = Join-Path $PWD "artifacts/builds/native/$exe"
           & $binary --help
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Prepare pinned Python delivery reference
         if: needs.select.outputs.application == 'lxmd'
         run: |
-          python -m venv artifacts/reference-venv
+          python -m venv artifacts/builds/reference-venv
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $python = Join-Path $PWD $(if ($IsWindows) {
-            'artifacts/reference-venv/Scripts/python.exe'
+            'artifacts/builds/reference-venv/Scripts/python.exe'
           } else {
-            'artifacts/reference-venv/bin/python'
+            'artifacts/builds/reference-venv/bin/python'
           })
           & $python -m pip install 'lxmf==1.2.1'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git clone --quiet --filter=blob:none --no-checkout https://github.com/markqvist/Reticulum.git artifacts/reference-rns
+          git clone --quiet --filter=blob:none --no-checkout https://github.com/markqvist/Reticulum.git artifacts/builds/reference-rns
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git -C artifacts/reference-rns checkout --quiet a29bfb51c468945c96a1ee22cae0114e993e2391
+          git -C artifacts/builds/reference-rns checkout --quiet a29bfb51c468945c96a1ee22cae0114e993e2391
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "DOTRETICULUM_PYTHON=$python" >> $env:GITHUB_ENV
-          "DOTRETICULUM_UPSTREAM=$(Join-Path $PWD 'artifacts/reference-rns')" >> $env:GITHUB_ENV
+          "DOTRETICULUM_UPSTREAM=$(Join-Path $PWD 'artifacts/builds/reference-rns')" >> $env:GITHUB_ENV
           'DOTRETICULUM_LIVE=1' >> $env:GITHUB_ENV
 
       - name: Install executable acceptance runner
@@ -213,7 +213,7 @@ jobs:
         if: needs.select.outputs.application == 'lxmd'
         run: |
           $exe = if ($IsWindows) { 'lxmd.exe' } else { 'lxmd' }
-          $env:DOTRETICULUM_LXMD_BINARY = Join-Path $PWD "artifacts/native/$exe"
+          $env:DOTRETICULUM_LXMD_BINARY = Join-Path $PWD "artifacts/builds/native/$exe"
           & ./tests/run-pester.ps1 -Path ./tests/Pester/Lxmd.Tests.ps1 -Tag Native
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -221,10 +221,10 @@ jobs:
         if: needs.select.outputs.application == 'rnphone'
         run: |
           $exe = if ($IsWindows) { 'rnphone.exe' } else { 'rnphone' }
-          $env:DOTLXST_RNPHONE_BINARY = Join-Path $PWD "artifacts/native/$exe"
+          $env:DOTLXST_RNPHONE_BINARY = Join-Path $PWD "artifacts/builds/native/$exe"
           if ($IsWindows) {
             # Acceptance-only dependency; packages require separately installed native libraries.
-            Copy-Item artifacts/opus-build/Release/opus.dll artifacts/native/
+            Copy-Item artifacts/builds/opus-build/Release/opus.dll artifacts/builds/native/
             $env:DOTLXST_WINDOWS_AUDIO = '1'
             & ./tests/run-pester.ps1 -Path ./tests/Pester/Rnphone.Tests.ps1 -Tag NativeWindows
           } else {
@@ -237,7 +237,7 @@ jobs:
         if: needs.select.outputs.application == 'nomadnet' || needs.select.outputs.application == 'sideband'
         run: |
           $exe = $env:RELEASE_APPLICATION + $(if ($IsWindows) { '.exe' } else { '' })
-          $binary = Join-Path $PWD "artifacts/native/$exe"
+          $binary = Join-Path $PWD "artifacts/builds/native/$exe"
           if ($env:RELEASE_APPLICATION -eq 'nomadnet') {
             $env:DOTRETICULUM_NOMADNET_BINARY = $binary
             $script = './tests/Pester/NomadNet.Tests.ps1'
@@ -252,27 +252,27 @@ jobs:
         run: |
           $name = "$env:RELEASE_PACKAGE-$env:RELEASE_VERSION-${{ matrix.rid }}"
           $exe = $env:RELEASE_APPLICATION + $(if ($IsWindows) { '.exe' } else { '' })
-          New-Item -ItemType Directory -Path "artifacts/$name", artifacts/release | Out-Null
-          Copy-Item "artifacts/native/$exe", LICENSE -Destination "artifacts/$name"
+          New-Item -ItemType Directory -Path "artifacts/builds/$name", artifacts/builds/release | Out-Null
+          Copy-Item "artifacts/builds/native/$exe", LICENSE -Destination "artifacts/builds/$name"
           if ($env:RELEASE_APPLICATION -eq 'rnphone') {
-            Copy-Item docs/lxst.md -Destination "artifacts/$name"
+            Copy-Item docs/lxst.md -Destination "artifacts/builds/$name"
           }
           if ($env:RELEASE_APPLICATION -eq 'nomadnet') {
-            Copy-Item docs/nomadnet.md -Destination "artifacts/$name"
+            Copy-Item docs/nomadnet.md -Destination "artifacts/builds/$name"
           }
           if ($env:RELEASE_APPLICATION -in @('nomadnet', 'sideband')) {
-            Get-ChildItem -LiteralPath artifacts/native |
+            Get-ChildItem -LiteralPath artifacts/builds/native |
               Where-Object { $_.Extension -notin @('.pdb', '.dbg', '.dSYM') } |
-              Copy-Item -Destination "artifacts/$name" -Recurse -Force
+              Copy-Item -Destination "artifacts/builds/$name" -Recurse -Force
           }
           if ($env:RELEASE_APPLICATION -eq 'sideband') {
-            Copy-Item docs/sideband.md -Destination "artifacts/$name"
+            Copy-Item docs/sideband.md -Destination "artifacts/builds/$name"
           }
-          $zip = Join-Path $PWD "artifacts/release/$name.zip"
+          $zip = Join-Path $PWD "artifacts/builds/release/$name.zip"
           if ($IsWindows) {
-            Compress-Archive -Path "artifacts/$name/*" -DestinationPath $zip
+            Compress-Archive -Path "artifacts/builds/$name/*" -DestinationPath $zip
           } else {
-            Push-Location "artifacts/$name"
+            Push-Location "artifacts/builds/$name"
             zip -r -y -q $zip .
             $code = $LASTEXITCODE
             Pop-Location
@@ -285,7 +285,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-${{ matrix.rid }}
-          path: artifacts/release/
+          path: artifacts/builds/release/
           if-no-files-found: error
           retention-days: 14
 

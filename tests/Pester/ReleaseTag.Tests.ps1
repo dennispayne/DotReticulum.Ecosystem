@@ -204,7 +204,7 @@ Describe 'Desktop release package contents' -Tag Integration {
     ) {
         param($Application, $Package)
         $fixture = Join-Path $TestDrive ([Guid]::NewGuid().ToString('N'))
-        $native = Join-Path $fixture 'artifacts\native'
+        $native = Join-Path $fixture 'artifacts\builds\native'
         $docs = Join-Path $fixture 'docs'
         New-Item -ItemType Directory -Path $native, $docs | Out-Null
         $exe = $Application + $(if ($IsWindows) { '.exe' } else { '' })
@@ -231,7 +231,7 @@ Describe 'Desktop release package contents' -Tag Integration {
             if (!$process.HasExited) { $process.Kill($true) }
             $process.Dispose()
         }
-        $archive = Join-Path $fixture "artifacts\release\$Package-fixture-win-x64.zip"
+        $archive = Join-Path $fixture "artifacts\builds\release\$Package-fixture-win-x64.zip"
         $expanded = Join-Path $fixture 'expanded'
         Expand-Archive -LiteralPath $archive -DestinationPath $expanded
         Test-Path -LiteralPath (Join-Path $expanded $exe) | Should -BeTrue

@@ -31,7 +31,7 @@ Describe 'NomadNet native executable' -Tag 'Native' {
             return
         }
 
-        $directory = Join-Path (Get-Location) 'artifacts\nomadnet-pester'
+        $directory = Join-Path (Get-Location) 'artifacts\tests\nomadnet-pester'
         if (Test-Path $directory) { Remove-Item $directory -Recurse -Force }
         try {
             & $script:NomadNetBinary --init --config $directory
@@ -55,7 +55,7 @@ Describe 'NomadNet native executable' -Tag 'Native' {
             return
         }
 
-        $work = Join-Path (Get-Location) 'artifacts\nomadnet-terminal-pester'
+        $work = Join-Path (Get-Location) 'artifacts\tests\nomadnet-terminal-pester'
         if (Test-Path $work) { Remove-Item $work -Recurse -Force }
         $data = Join-Path $work 'data'
         $rns = Join-Path $work 'rns'
@@ -135,7 +135,7 @@ Describe 'NomadNet live LXMF interoperability' -Tag 'Live' {
             throw 'The NomadNet live adapter or native executable is missing.'
         }
 
-        $work = Join-Path $root 'artifacts\nomadnet-live-pester'
+        $work = Join-Path $root 'artifacts\tests\nomadnet-live-pester'
         if (Test-Path $work) { Remove-Item $work -Recurse -Force }
         $pythonConfig = Join-Path $work 'python'
         $appConfig = Join-Path $work 'app-rns'
@@ -315,7 +315,7 @@ Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
 
         $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
         $source = if ([string]::IsNullOrWhiteSpace($env:DOTRETICULUM_NOMADNET_SOURCE)) {
-            Join-Path $root 'artifacts\nomadnet\nomadnet-source'
+            Join-Path $root 'artifacts\builds\nomadnet\nomadnet-source'
         } else {
             $env:DOTRETICULUM_NOMADNET_SOURCE
         }
@@ -327,7 +327,7 @@ Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
         }
 
         $work = if ([string]::IsNullOrWhiteSpace($env:DOTRETICULUM_NOMADNET_WORK)) {
-            Join-Path $root 'artifacts\nomadnet-upstream-live'
+            Join-Path $root 'artifacts\tests\nomadnet-upstream-live'
         } else {
             [IO.Path]::GetFullPath($env:DOTRETICULUM_NOMADNET_WORK)
         }

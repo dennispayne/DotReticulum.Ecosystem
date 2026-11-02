@@ -63,14 +63,14 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ steps.source.outputs.run-id }}
           name: native-linux-x64
-          path: artifacts/source
+          path: artifacts/builds/source
 
       - name: Preserve exact main or PR merge checkout
         id: checkout
         env:
           GH_TOKEN: ${{ github.token }}
           PRODUCING_RUN: ${{ steps.source.outputs.run-id }}
-        run: ./tests/Resolve-TestBuild.ps1 -RunId $env:PRODUCING_RUN -NativeManifest artifacts/source/build-manifest.json
+        run: ./tests/Resolve-TestBuild.ps1 -RunId $env:PRODUCING_RUN -NativeManifest artifacts/builds/source/build-manifest.json
 
   managed:
     name: ${{ matrix.suite }} (${{ matrix.rid }})
@@ -123,14 +123,14 @@ jobs:
           BUILD_RID: ${{ matrix.rid }}
         run: |
           $filter = if ($env:TEST_SUITE -eq 'Unit') { 'Category=Unit' } else { 'Category!=Unit' }
-          ./tests/Invoke-BuiltTests.ps1 -Directory artifacts/managed -Rid $env:BUILD_RID -Commit $env:BUILD_COMMIT -Filter $filter -ResultsDirectory "TestResults/$env:TEST_SUITE" -Coverage
+          ./tests/Invoke-BuiltTests.ps1 -Directory artifacts/builds/managed -Rid $env:BUILD_RID -Commit $env:BUILD_COMMIT -Filter $filter -ResultsDirectory "artifacts/tests/$env:TEST_SUITE" -Coverage
 
       - name: Retain independent suite evidence
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results-${{ matrix.suite }}-${{ matrix.rid }}-${{ github.run_attempt }}
-          path: TestResults/
+          path: artifacts/tests/
           if-no-files-found: warn
           retention-days: 14
           overwrite: true
@@ -183,7 +183,7 @@ jobs:
         run: |
           ./external/DotReticulum/tests/install-pester.ps1
           Import-Module Pester -RequiredVersion 5.7.1
-          ./tests/run-compatibility.ps1 -SkipManaged -Pester -OutputDirectory TestResults/compatibility
+          ./tests/run-compatibility.ps1 -SkipManaged -Pester -OutputDirectory artifacts/tests/compatibility
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & $env:DOTRETICULUM_TELEMETRY_BINARY -p --config (Join-Path $env:RUNNER_TEMP 'telemetry-ci')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -193,7 +193,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: compatibility-${{ matrix.rid }}-${{ github.run_attempt }}
-          path: TestResults/
+          path: artifacts/tests/
           if-no-files-found: warn
           retention-days: 14
           overwrite: true
@@ -216,21 +216,21 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: '*-${{ github.run_attempt }}'
-          path: TestResults/platforms
+          path: artifacts/tests/platforms
 
       - name: Consolidate actual outcomes and union production coverage
         env:
           BUILD_COMMIT: ${{ needs.source.outputs.commit }}
           MANAGED_STATUS: ${{ needs.managed.result }}
           COMPATIBILITY_STATUS: ${{ needs.compatibility.result }}
-        run: ./tests/Get-CiSummary.ps1 -Directory TestResults/platforms -Commit $env:BUILD_COMMIT -Attempt '${{ github.run_attempt }}' -ManagedStatus $env:MANAGED_STATUS -CompatibilityStatus $env:COMPATIBILITY_STATUS
+        run: ./tests/Get-CiSummary.ps1 -Directory artifacts/tests/platforms -Commit $env:BUILD_COMMIT -Attempt '${{ github.run_attempt }}' -ManagedStatus $env:MANAGED_STATUS -CompatibilityStatus $env:COMPATIBILITY_STATUS
 
       - name: Retain consolidated reports
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-summary-${{ github.run_attempt }}
-          path: TestResults/platforms/summary/
+          path: artifacts/tests/platforms/summary/
           if-no-files-found: warn
           retention-days: 14
           overwrite: true

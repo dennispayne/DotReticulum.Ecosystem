@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [ValidateSet('linux-x64', 'win-x64', 'osx-arm64')] [string] $Rid,
-    [string] $Directory = 'artifacts\native',
+    [string] $Directory = 'artifacts\builds\native',
     [string] $ArtifactsPath,
     [string] $Commit = $env:GITHUB_SHA
 )

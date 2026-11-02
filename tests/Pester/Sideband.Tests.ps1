@@ -5,7 +5,7 @@ Describe 'sideband native acceptance' -Tag 'Native' {
             throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
         }
 
-        $root = Join-Path (Join-Path (Get-Location) 'artifacts') "sideband-pester-$PID"
+        $root = Join-Path (Join-Path (Get-Location) 'artifacts\tests') "sideband-pester-$PID"
         $data = Join-Path $root 'data'
         $rns = Join-Path $root 'rns'
         New-Item -ItemType Directory -Force -Path $root | Out-Null
@@ -39,7 +39,7 @@ Describe 'sideband desktop GUI acceptance' -Tag 'GUI' {
             throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
         }
 
-        $guiRoot = Join-Path (Join-Path (Get-Location) 'artifacts') "sideband-gui-pester-$PID"
+        $guiRoot = Join-Path (Join-Path (Get-Location) 'artifacts\tests') "sideband-gui-pester-$PID"
         $guiData = Join-Path $guiRoot 'data'
         $guiRns = Join-Path $guiRoot 'rns'
         New-Item -ItemType Directory -Force -Path $guiRoot | Out-Null

@@ -18,11 +18,15 @@ pwsh -NoProfile -File tests\run-tests.ps1 -Live -LxstLive -NomadNetLive -Pester 
 
 `run-tests.ps1` delegates to `run-compatibility.ps1`. Both run the complete
 Release solution, write TRX, and generate `compatibility.json` and
-`compatibility.md` in a fresh `TestResults\compatibility-<unique-id>` directory.
+`compatibility.md` in a fresh `artifacts\tests\compatibility-<unique-id>` directory.
 Use `-OutputDirectory <new-path>` to choose another directory; existing
 directories are rejected to prevent stale results being mixed into a new run.
 `-ArtifactsPath <path>` isolates build outputs, particularly between Windows and
-WSL. Do not share intermediate build outputs between operating systems.
+WSL. Put these build outputs under `artifacts\builds`; do not share intermediate
+build outputs between operating systems. Language-server caches remain separate
+under `artifacts\lsp`. Historical commands below retain their original paths;
+old root `TestResults` evidence is now at `artifacts\tests`, and old direct
+`artifacts\<run>` outputs are at `artifacts\builds\<run>`.
 
 `-Pester` runs all ecosystem Pester suites, including release-tooling and testing
 infrastructure regressions. It requires PowerShell 7 and Pester 5.7.1 or later.
@@ -145,7 +149,7 @@ and common code exercised by several test projects are not double-counted.
 Percentages are **not** averaged. Zero branch points are `n/a`, not 100%.
 
 ```powershell
-pwsh -NoProfile -File tests\coverage_summary.ps1 TestResults\<run-directory>
+pwsh -NoProfile -File tests\coverage_summary.ps1 artifacts\tests\<run-directory>
 ```
 
 Process-only native acceptance is not instrumented by the managed collector.

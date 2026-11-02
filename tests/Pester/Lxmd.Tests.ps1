@@ -177,7 +177,7 @@ Describe 'Published lxmd command line' -Tag Integration, Native -Skip:(!$env:DOT
         $example.Output | Should -Match '\[lxmf\]'
         $example.Output | Should -Match 'delivery_transfer_max_accepted_size'
 
-        $missing = Invoke-Lxmd @('--status', '--config', (Join-Path $script:repository ('artifacts\absent-' + [Guid]::NewGuid().ToString('N'))))
+        $missing = Invoke-Lxmd @('--status', '--config', (Join-Path $script:repository ('artifacts\tests\absent-' + [Guid]::NewGuid().ToString('N'))))
         $missing.ExitCode | Should -Be 201
         $missing.Error | Should -Match 'configuration directory does not exist'
         (Invoke-Lxmd @('--timeout=NaN')).ExitCode | Should -Be 2
@@ -186,7 +186,7 @@ Describe 'Published lxmd command line' -Tag Integration, Native -Skip:(!$env:DOT
     }
 
     It 'rejects malformed configuration and unresolved interpolation before creating an identity' {
-        $root = Join-Path (Join-Path $script:repository 'artifacts') ('lxmd-invalid-' + [Guid]::NewGuid().ToString('N'))
+        $root = Join-Path (Join-Path $script:repository 'artifacts\tests') ('lxmd-invalid-' + [Guid]::NewGuid().ToString('N'))
         $null = New-Item -ItemType Directory -Force -Path $root
         try {
             "[lxmf]`nstamp_cost = NaN" | Set-Content -LiteralPath (Join-Path $root 'config') -Encoding utf8
@@ -218,7 +218,7 @@ Describe 'Published lxmd command line' -Tag Integration, Native -Skip:(!$env:DOT
 
 Describe 'Native lxmd delivery and restart' -Tag Integration, Native -Skip:(!$env:DOTRETICULUM_LXMD_BINARY -or !$script:liveEnabled -or !$env:DOTRETICULUM_PYTHON -or !$env:DOTRETICULUM_UPSTREAM) {
     It 'receives and persists a Python LXMF message, then retains it across daemon restart' {
-        $root = Join-Path (Join-Path $script:repository 'artifacts') ('lxmd-pester-' + [Guid]::NewGuid().ToString('N'))
+        $root = Join-Path (Join-Path $script:repository 'artifacts\tests') ('lxmd-pester-' + [Guid]::NewGuid().ToString('N'))
         $pythonConfig = Join-Path $root 'python-rns'
         $daemonConfig = Join-Path $root 'lxmd'
         $rnsConfig = Join-Path $root 'daemon-rns'
@@ -368,7 +368,7 @@ target_port = $port
     }
 
     It 'persists a Python propagated message over restart and serves it back to its authenticated owner' {
-            $root = Join-Path (Join-Path $script:repository 'artifacts') ('lxmd-propagation-' + [Guid]::NewGuid().ToString('N'))
+            $root = Join-Path (Join-Path $script:repository 'artifacts\tests') ('lxmd-propagation-' + [Guid]::NewGuid().ToString('N'))
             $daemonConfig = Join-Path $root 'lxmd'
             $rnsConfig = Join-Path $root 'daemon-rns'
             $pythonConfig = Join-Path $root 'python-rns'
@@ -480,7 +480,7 @@ target_port = $port
     }
 
     It 'queries Python node control from the native CLI and native node control from Python lxmd' {
-        $root = Join-Path (Join-Path $script:repository 'artifacts') ('lxmd-control-' + [Guid]::NewGuid().ToString('N'))
+        $root = Join-Path (Join-Path $script:repository 'artifacts\tests') ('lxmd-control-' + [Guid]::NewGuid().ToString('N'))
         $pythonConfig = Join-Path $root 'python-rns'
         $daemonConfig = Join-Path $root 'lxmd'
         $rnsConfig = Join-Path $root 'daemon-rns'
@@ -631,7 +631,7 @@ loglevel = 6
     }
 
     It 'automatically synchronizes two native daemons with Python and recovers after a failed peer and restart' {
-        $root = Join-Path (Join-Path $script:repository 'artifacts') ('lxmd-peering-' + [Guid]::NewGuid().ToString('N'))
+        $root = Join-Path (Join-Path $script:repository 'artifacts\tests') ('lxmd-peering-' + [Guid]::NewGuid().ToString('N'))
         $pythonConfig = Join-Path $root 'python-rns'
         $clientConfig = Join-Path $root 'control-rns'
         $identity = Join-Path $root 'reference-identity'

@@ -47,6 +47,17 @@ YAML LSP is intentionally omitted to avoid a Node dependency.
 
 ### Tests and conventions
 
+Generated build/package files belong under `artifacts\builds`, test evidence
+and analysis under `artifacts\tests`, and language servers under `artifacts\lsp`.
+The whole `artifacts` directory is ignored. Prefer these roots when specifying
+`--artifacts-path`, `--results-directory` or `-OutputDirectory`; normal SDK
+`bin`/`obj` directories remain project-local. Previously recorded commands keep
+their original paths as historical evidence: local legacy `artifacts\<run>`
+outputs now live at `artifacts\builds\<run>`, and the old root `TestResults`
+contents are under `artifacts\tests`. Moving a build cache or Python venv can
+invalidate embedded absolute paths; regenerate it before reuse rather than
+treating old build intermediates as portable.
+
 Use `pwsh -NoProfile -File tests\run-tests.ps1 -Coverage -Pester` for the unified
 Release, compatibility-report and production-coverage gate. See
 [Testing and compatibility evidence](../docs/testing.md) for stable short

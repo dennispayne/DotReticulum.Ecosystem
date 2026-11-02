@@ -2,7 +2,7 @@
 BeforeAll {
     $script:phoneRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     $script:phoneBinary = if ($env:DOTLXST_RNPHONE_BINARY) { $env:DOTLXST_RNPHONE_BINARY } else { $env:DOTRETICULUM_RNPHONE_BINARY }
-    $script:phoneArtifacts = Join-Path (Get-Location).Path 'artifacts'
+    $script:phoneArtifacts = Join-Path (Get-Location).Path 'artifacts\tests'
 
     function Start-PhoneProcess {
         param([string] $File, [string[]] $Arguments, [hashtable] $Environment = @{})

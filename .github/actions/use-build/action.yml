@@ -29,7 +29,7 @@ runs:
         github-token: ${{ github.token }}
         run-id: ${{ inputs.run-id }}
         name: native-${{ inputs.rid }}
-        path: artifacts/native
+        path: artifacts/builds/native
 
     - name: Download exact managed build
       if: inputs.managed == 'true'
@@ -38,7 +38,7 @@ runs:
         github-token: ${{ github.token }}
         run-id: ${{ inputs.run-id }}
         name: managed-${{ inputs.rid }}
-        path: artifacts/managed
+        path: artifacts/builds/managed
 
     - name: Verify signed main Build provenance
       if: inputs.attested == 'true'
@@ -50,9 +50,9 @@ runs:
         USE_MANAGED: ${{ inputs.managed }}
       run: |
         $subjects = @()
-        if ($env:USE_NATIVE -eq 'true') { $subjects += 'artifacts/native/build-manifest.json' }
+        if ($env:USE_NATIVE -eq 'true') { $subjects += 'artifacts/builds/native/build-manifest.json' }
         if ($env:USE_MANAGED -eq 'true') {
-          $subjects += 'artifacts/managed/managed.tar', 'artifacts/managed/managed-manifest.json'
+          $subjects += 'artifacts/builds/managed/managed.tar', 'artifacts/builds/managed/managed-manifest.json'
         }
         foreach ($subject in $subjects) {
           gh attestation verify $subject --repo $env:GITHUB_REPOSITORY --source-digest $env:BUILD_COMMIT --source-ref refs/heads/main --signer-workflow "$env:GITHUB_REPOSITORY/.github/workflows/build.yml" --deny-self-hosted-runners
@@ -65,4 +65,4 @@ runs:
       env:
         BUILD_COMMIT: ${{ inputs.commit }}
         BUILD_RID: ${{ inputs.rid }}
-      run: ./tests/use-ci-native.ps1 -Directory artifacts/native -Rid $env:BUILD_RID -Commit $env:BUILD_COMMIT
+      run: ./tests/use-ci-native.ps1 -Directory artifacts/builds/native -Rid $env:BUILD_RID -Commit $env:BUILD_COMMIT

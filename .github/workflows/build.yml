@@ -95,7 +95,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet build DotReticulum.Ecosystem.slnx -c Release --no-restore
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./tests/New-TestBuild.ps1 -Directory artifacts/managed -Rid '${{ matrix.rid }}' -Commit (git rev-parse HEAD)
+          ./tests/New-TestBuild.ps1 -Directory artifacts/builds/managed -Rid '${{ matrix.rid }}' -Commit (git rev-parse HEAD)
 
       - name: Publish and verify native applications
         run: ./tests/publish-ci-native.ps1 -Rid '${{ matrix.rid }}' -Commit (git rev-parse HEAD)
@@ -105,10 +105,10 @@ jobs:
         with:
           name: native-${{ matrix.rid }}
           path: |
-            artifacts/native/
-            !artifacts/native/**/*.pdb
-            !artifacts/native/**/*.dbg
-            !artifacts/native/**/*.dSYM/**
+            artifacts/builds/native/
+            !artifacts/builds/native/**/*.pdb
+            !artifacts/builds/native/**/*.dbg
+            !artifacts/builds/native/**/*.dSYM/**
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
@@ -119,8 +119,8 @@ jobs:
         with:
           name: managed-${{ matrix.rid }}
           path: |
-            artifacts/managed/managed.tar
-            artifacts/managed/managed-manifest.json
+            artifacts/builds/managed/managed.tar
+            artifacts/builds/managed/managed-manifest.json
           if-no-files-found: error
           retention-days: 14
           overwrite: true
@@ -140,11 +140,11 @@ jobs:
       - name: Download this Build's artifacts without executing them
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          path: artifacts
+          path: artifacts/builds
 
       - name: Attest native manifests and portable managed builds
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: |
-            artifacts/native-*/build-manifest.json
-            artifacts/managed-*/managed*
+            artifacts/builds/native-*/build-manifest.json
+            artifacts/builds/managed-*/managed*

@@ -23,7 +23,7 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'Compatibility\Reporting.psm1') -Force
 $root = Split-Path $PSScriptRoot -Parent
 $catalog = Read-CompatibilityCatalog (Join-Path $PSScriptRoot 'Compatibility\catalog.json')
-if (!$OutputDirectory) { $OutputDirectory = Join-Path $root "TestResults\compatibility-$([guid]::NewGuid().ToString('N'))" }
+if (!$OutputDirectory) { $OutputDirectory = Join-Path $root "artifacts\tests\compatibility-$([guid]::NewGuid().ToString('N'))" }
 if (Test-Path -LiteralPath $OutputDirectory) { throw "Use a fresh results directory: $OutputDirectory" }
 $null = New-Item -ItemType Directory -Path $OutputDirectory
 $OutputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path

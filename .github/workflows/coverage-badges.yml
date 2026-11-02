@@ -61,7 +61,7 @@ jobs:
               $_.head_sha -ceq $sourceCommit -and $_.head_repository.full_name -ceq $repo -and
               $_.head_branch -eq 'main' -and $_.event -in 'push', 'workflow_dispatch'
           }).Count) { throw 'Test does not identify a successful trusted main Build.' }
-          gh run download $run.id --repo $repo --name "test-summary-$($run.run_attempt)" --dir artifacts/coverage
+          gh run download $run.id --repo $repo --name "test-summary-$($run.run_attempt)" --dir artifacts/tests/coverage
           if ($LASTEXITCODE -ne 0) { throw 'Coverage artifact download failed.' }
           $head = Invoke-GitHub "repos/$repo/git/ref/heads/main" $null
           $commit = Invoke-GitHub "repos/$repo/git/commits/$($head.object.sha)" $null
@@ -75,7 +75,7 @@ jobs:
           $entries = @(foreach ($platform in @(
               @{ Rid = 'linux-x64'; Label = 'Linux' }, @{ Rid = 'win-x64'; Label = 'Windows' }
           )) {
-            $directory = "artifacts/coverage/$($platform.Rid)"
+            $directory = "artifacts/tests/coverage/$($platform.Rid)"
             $evidence = Get-Content -Raw -LiteralPath "$directory/compatibility.json" | ConvertFrom-Json
             if ($evidence.Commit -cne $sourceCommit -or $evidence.Platform -cne $platform.Rid -or
                 $evidence.WorkingTreeDirty -ne $false -or $evidence.RunStatus -ne 'Passed selected checks' -or
@@ -84,8 +84,8 @@ jobs:
             ./tests/New-CoverageBadge.ps1 -Report "$directory/coverage.json" -Output $output -Label "$($platform.Label) line coverage"
             @{ path = "assets/coverage/$($platform.Rid).json"; mode = '100644'; type = 'blob'; content = (Get-Content -Raw -LiteralPath $output) }
           })
-          ./tests/New-CoverageBadge.ps1 -NotCollected -Output artifacts/coverage/macos.json -Label 'macOS line coverage'
-          $entries += @{ path = 'assets/coverage/osx-arm64.json'; mode = '100644'; type = 'blob'; content = (Get-Content -Raw -LiteralPath artifacts/coverage/macos.json) }
+          ./tests/New-CoverageBadge.ps1 -NotCollected -Output artifacts/tests/coverage/macos.json -Label 'macOS line coverage'
+          $entries += @{ path = 'assets/coverage/osx-arm64.json'; mode = '100644'; type = 'blob'; content = (Get-Content -Raw -LiteralPath artifacts/tests/coverage/macos.json) }
           $entries += @{ path = 'assets/coverage/source.json'; mode = '100644'; type = 'blob'; content = (@{
             runId = $run.id; attempt = $run.run_attempt; commit = $sourceCommit; url = $run.html_url
           } | ConvertTo-Json) }

@@ -7,3 +7,7 @@ updates:
       day: monday
       time: '04:00'
       timezone: Etc/UTC
+    # Keep the headless adapter on its compatible discovery API until Avalonia supports xUnit 4.
+    ignore:
+      - dependency-name: xunit.v3
+        versions: [">=4.0.0"]

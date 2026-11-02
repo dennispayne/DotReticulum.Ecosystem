@@ -1,0 +1,3 @@
+- description: GitHub default Python code-scanning queries
+- import: codeql-suites/python-code-scanning.qls
+  from: codeql/python-queries

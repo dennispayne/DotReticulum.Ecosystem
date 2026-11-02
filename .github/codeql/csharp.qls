@@ -1,0 +1,3 @@
+- description: GitHub default C# code-scanning queries
+- import: codeql-suites/csharp-code-scanning.qls
+  from: codeql/csharp-queries

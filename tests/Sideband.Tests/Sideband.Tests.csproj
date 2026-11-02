@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="10.1.0" />
-    <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.5" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <!-- Avalonia.Headless.XUnit 12.1.4 uses the xUnit 3.x discovery API removed in 4.x. -->
     <PackageReference Include="xunit.v3" Version="3.2.2" />

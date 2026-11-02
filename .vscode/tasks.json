@@ -1,0 +1,82 @@
+{
+  "version": "2.0.0",
+  "options": {
+    "cwd": "${workspaceFolder}"
+  },
+  "tasks": [
+    {
+      "label": "Build: Release",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "DotReticulum.Ecosystem.slnx", "-c", "Release"],
+      "problemMatcher": "$msCompile",
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "Test: Unit",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["test", "DotReticulum.Ecosystem.slnx", "-c", "Release", "--filter", "Category=Unit", "--logger", "trx", "--results-directory", "artifacts\\tests\\vscode-unit"],
+      "problemMatcher": "$msCompile",
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "Test: Full",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoLogo", "-NoProfile", "-File", "tests\\run-tests.ps1"],
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    },
+    {
+      "label": "Test: Pester",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoLogo", "-NoProfile", "-File", "tests\\run-pester.ps1"],
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "Test: Coverage and Pester",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoLogo", "-NoProfile", "-File", "tests\\run-tests.ps1", "-Coverage", "-Pester"],
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    },
+    {
+      "label": "Analyze: PowerShell",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoLogo", "-NoProfile", "-File", "tools\\Invoke-PowerShellAnalysis.ps1"],
+      "problemMatcher": []
+    },
+    {
+      "label": "LSP: Restore",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoLogo", "-NoProfile", "-Command", "foreach ($server in 'csharp', 'powershell', 'python') { & .\\tools\\Start-LanguageServer.ps1 -Server $server -RestoreOnly }"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Debug: Build",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "DotReticulum.Ecosystem.slnx", "-c", "Debug", "-p:PublishAot=false"],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Debug: Isolate state",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoLogo", "-NoProfile", "-File", "tools\\Initialize-DebugWorkspace.ps1"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Debug: Prepare",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Debug: Build", "Debug: Isolate state"],
+      "problemMatcher": []
+    }
+  ]
+}

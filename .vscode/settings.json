@@ -1,0 +1,27 @@
+{
+  "dotnet.defaultSolution": "DotReticulum.Ecosystem.slnx",
+  "editor.detectIndentation": false,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 4,
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "search.exclude": {
+    "**/artifacts/**": true,
+    "**/bin/**": true,
+    "**/obj/**": true,
+    "**/__pycache__/**": true,
+    "**/.venv/**": true
+  },
+  "files.watcherExclude": {
+    "**/artifacts/**": true,
+    "**/bin/**": true,
+    "**/obj/**": true,
+    "**/__pycache__/**": true,
+    "**/.venv/**": true
+  },
+  "powershell.scriptAnalysis.settingsPath": "tools/PSScriptAnalyzerSettings.psd1",
+  "python.terminal.activateEnvironment": false,
+  "[json][jsonc][yaml][xml]": {
+    "editor.tabSize": 2
+  }
+}

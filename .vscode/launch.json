@@ -1,0 +1,55 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Sideband: isolated desktop",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Debug: Prepare",
+      "program": "${workspaceFolder}\\src\\Sideband.Desktop\\bin\\Debug\\net10.0\\sideband.dll",
+      "args": ["--data-dir", "${workspaceFolder}\\artifacts\\debug\\sideband\\data", "--rnsconfig", "${workspaceFolder}\\artifacts\\debug\\sideband\\rns"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "NomadNet: isolated terminal",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Debug: Prepare",
+      "program": "${workspaceFolder}\\src\\NomadNet\\bin\\Debug\\net10.0\\nomadnet.dll",
+      "args": ["--config", "${workspaceFolder}\\artifacts\\debug\\nomadnet\\data", "--rnsconfig", "${workspaceFolder}\\artifacts\\debug\\nomadnet\\rns"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Telemetry: isolated daemon",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Debug: Prepare",
+      "program": "${workspaceFolder}\\src\\Telemetry\\bin\\Debug\\net10.0\\telemetry.dll",
+      "args": ["daemon", "--config", "${workspaceFolder}\\artifacts\\debug\\telemetry\\rns", "--identity", "${workspaceFolder}\\artifacts\\debug\\telemetry\\data\\identity"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "lxmd: isolated daemon",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Debug: Prepare",
+      "program": "${workspaceFolder}\\src\\lxmd\\bin\\Debug\\net10.0\\lxmd.dll",
+      "args": ["--config", "${workspaceFolder}\\artifacts\\debug\\lxmd\\data", "--rnsconfig", "${workspaceFolder}\\artifacts\\debug\\lxmd\\rns"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "rnphone: isolated headless audio",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Debug: Prepare",
+      "program": "${workspaceFolder}\\src\\rnphone\\bin\\Debug\\net10.0\\rnphone.dll",
+      "args": ["--headless-audio", "--config", "${workspaceFolder}\\artifacts\\debug\\rnphone\\data", "--rnsconfig", "${workspaceFolder}\\artifacts\\debug\\rnphone\\rns"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    }
+  ]
+}

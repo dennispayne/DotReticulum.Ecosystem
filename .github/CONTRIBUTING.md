@@ -14,6 +14,33 @@ dotnet test DotReticulum.Ecosystem.slnx -c Release
 
 Every behavior change needs tests, including malformed inputs, boundary lengths and failure paths. Protocol changes require independently generated reference vectors produced by executing the upstream Python implementation, with the exact upstream revision and generation method recorded in the test (see `tests/LXMF.Tests/GenerateLxmfVectors.py`). Round-trip tests alone are not interoperability evidence. Do not commit real private keys, captured private traffic, or credentials.
 
+### Visual Studio Code
+
+Open the repository folder to use the shared `.vscode` settings, recommended
+extensions, tasks and managed debugger profiles. Recommendations include the
+official Avalonia extension (`AvaloniaTeam.vscode-avalonia`) for Sideband's
+`.axaml` files; some extension features require a separate license. Extensions
+are optional developer tools, not application dependencies. Existing C#,
+PowerShell and Python extensions provide VS Code's language services separately
+from Copilot CLI's LSP configuration below.
+
+Tasks reuse the repository's build, test and analysis commands. Full test and
+coverage reports go beneath `artifacts\tests`; explicit LSP restore is available
+as `LSP: Restore`. No task runs automatically on folder open. Select the pinned
+reference interpreter locally when Python upstream navigation is needed;
+machine-specific Python paths and live environment variables are not committed.
+
+Debug profiles build managed Debug binaries with `PublishAot=false`, then reset
+each application's dedicated RNS configuration under `artifacts\debug` to have
+no network interfaces, no transport and no shared instance. Application state
+and identities in that directory survive launches; normal user state is not
+used. The phone profile uses synthetic/discard audio rather than microphones
+or speakers; real codecs may still require separately installed native libraries.
+Do not use these isolated configurations for live interoperability acceptance.
+The checked-in task and launch paths target Windows; use VS Code in WSL with
+platform-appropriate local overrides for Linux development. Search and watchers
+exclude generated outputs but not the stack submodule; Explorer still shows them.
+
 ### Copilot CLI language servers
 
 `.github/lsp.json` configures Node-free C#, PowerShell and Python language servers.

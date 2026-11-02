@@ -1,0 +1,15 @@
+{
+  "recommendations": [
+    "ms-dotnettools.csharp",
+    "ms-dotnettools.csdevkit",
+    "ms-vscode.powershell",
+    "ms-python.python",
+    "ms-python.debugpy",
+    "editorconfig.editorconfig",
+    "AvaloniaTeam.vscode-avalonia",
+    "github.vscode-github-actions",
+    "github.vscode-codeql",
+    "redhat.vscode-yaml",
+    "ryanluker.vscode-coverage-gutters"
+  ]
+}

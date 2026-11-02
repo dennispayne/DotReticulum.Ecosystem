@@ -93,7 +93,8 @@ switch ($Server) {
     }
     'powershell' {
         $start.FileName = (Get-Command pwsh -CommandType Application | Select-Object -First 1).Source
-        foreach ($argument in @('-NoLogo', '-NoProfile', '-File', $executable, '-Stdio', '-LogLevel', 'Error')) {
+        foreach ($argument in @('-NoLogo', '-NoProfile', '-File', $executable, '-Stdio', '-LogLevel', 'Error',
+                '-SessionDetailsPath', (Join-Path $directory "session-$PID.json"))) {
             $start.ArgumentList.Add($argument)
         }
     }
@@ -108,5 +109,11 @@ try {
     $process.WaitForExit()
     $exitCode = $process.ExitCode
 }
-finally { $process.Dispose() }
+finally {
+    $process.Dispose()
+    if ($Server -eq 'powershell') {
+        $session = Join-Path $directory "session-$PID.json"
+        if (Test-Path -LiteralPath $session) { Remove-Item -LiteralPath $session }
+    }
+}
 exit $exitCode

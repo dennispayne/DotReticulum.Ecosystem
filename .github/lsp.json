@@ -1,0 +1,31 @@
+{
+  "lspServers": {
+    "csharp": {
+      "command": "pwsh",
+      "args": ["-NoLogo", "-NoProfile", "-File", "tools\\Start-LanguageServer.ps1", "-Server", "csharp"],
+      "fileExtensions": {
+        ".cs": "csharp"
+      },
+      "initializationTimeoutMs": 300000
+    },
+    "powershell": {
+      "command": "pwsh",
+      "args": ["-NoLogo", "-NoProfile", "-File", "tools\\Start-LanguageServer.ps1", "-Server", "powershell"],
+      "fileExtensions": {
+        ".ps1": "powershell",
+        ".psm1": "powershell",
+        ".psd1": "powershell"
+      },
+      "initializationTimeoutMs": 300000
+    },
+    "python": {
+      "command": "pwsh",
+      "args": ["-NoLogo", "-NoProfile", "-File", "tools\\Start-LanguageServer.ps1", "-Server", "python"],
+      "fileExtensions": {
+        ".py": "python",
+        ".pyi": "python"
+      },
+      "initializationTimeoutMs": 300000
+    }
+  }
+}

@@ -14,6 +14,39 @@ dotnet test DotReticulum.Ecosystem.slnx -c Release
 
 Every behavior change needs tests, including malformed inputs, boundary lengths and failure paths. Protocol changes require independently generated reference vectors produced by executing the upstream Python implementation, with the exact upstream revision and generation method recorded in the test (see `tests/LXMF.Tests/GenerateLxmfVectors.py`). Round-trip tests alone are not interoperability evidence. Do not commit real private keys, captured private traffic, or credentials.
 
+### Copilot CLI language servers
+
+`.github/lsp.json` configures Node-free C#, PowerShell and Python language servers.
+Install PowerShell 7.4+, the .NET 10 SDK and Python 3.9+ on PATH. When Copilot
+starts a server, `tools/Start-LanguageServer.ps1` restores its pinned version
+into the ignored `artifacts/lsp/<platform>/<server>/<version>` cache. No global
+tools, user configuration or reference Python environments are modified.
+The first launch needs network access to NuGet, GitHub releases or PyPI;
+subsequent launches reuse the cache. Python's transitive dependencies are
+resolved by pip, not fully locked. PowerShell's release archive is SHA-256 checked.
+Concurrent restores of the same server are serialized, and restore output goes
+to stderr so it cannot corrupt LSP frames.
+
+Prewarm the caches explicitly if desired:
+
+```powershell
+foreach ($server in 'csharp', 'powershell', 'python') {
+    pwsh -NoProfile -File tools\Start-LanguageServer.ps1 -Server $server -RestoreOnly
+    if ($LASTEXITCODE -ne 0) { throw "LSP restore failed: $server" }
+}
+```
+
+In Copilot CLI, run `/lsp reload`, then `/lsp test csharp`,
+`/lsp test powershell` and `/lsp test python`. The configuration permits five
+minutes for first-start restoration. Use `/lsp logs` to diagnose failures.
+The Python server is Jedi-based `pylsp`, not Pyright; its isolated tooling venv
+does not automatically resolve the pinned reference packages. Configure Jedi's
+`environment` setting to the reference interpreter when upstream import
+navigation is needed. This is editor tooling, not interoperability evidence.
+YAML LSP is intentionally omitted to avoid a Node dependency.
+
+### Tests and conventions
+
 Use `pwsh -NoProfile -File tests\run-tests.ps1 -Coverage -Pester` for the unified
 Release, compatibility-report and production-coverage gate. See
 [Testing and compatibility evidence](../docs/testing.md) for stable short

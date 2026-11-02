@@ -1,7 +1,7 @@
 {
-  "label": "Linux line coverage",
-  "color": "yellow",
   "message": "63.04%",
-  "schemaVersion": 1,
-  "cacheSeconds": 300
+  "color": "yellow",
+  "cacheSeconds": 300,
+  "label": "Linux line coverage",
+  "schemaVersion": 1
 }

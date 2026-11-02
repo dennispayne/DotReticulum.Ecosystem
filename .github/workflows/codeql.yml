@@ -14,7 +14,6 @@ on:
       - '**.psd1'
       - '.github/workflows/**'
       - '.github/actions/**'
-      - '.github/codeql/**'
       - 'external/DotReticulum'
       - '.gitmodules'
       - 'global.json'
@@ -32,7 +31,6 @@ on:
       - '**.psd1'
       - '.github/workflows/**'
       - '.github/actions/**'
-      - '.github/codeql/**'
       - 'external/DotReticulum'
       - '.gitmodules'
       - 'global.json'
@@ -90,8 +88,6 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-          config-file: .github/codeql/config.yml
-          queries: ./.github/codeql/${{ matrix.language }}.qls
 
       - name: Build C# for analysis
         if: matrix.language == 'csharp'

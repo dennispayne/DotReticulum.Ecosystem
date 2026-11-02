@@ -1,3 +1,0 @@
-- description: GitHub default Actions code-scanning queries
-- import: codeql-suites/actions-code-scanning.qls
-  from: codeql/actions-queries

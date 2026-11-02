@@ -48,6 +48,9 @@ Databases contain extracted code, not the queries to analyze it. The shared
 select GitHub's default code-scanning queries. The Static analysis workflow
 uses the same files; it does not switch to `security-extended` or
 `security-and-quality`. PowerShell still uses PSScriptAnalyzer, not CodeQL.
+The VS Code extension does not automatically consume the Actions configuration
+or run these suites when the folder opens. Its GitHub database download prompt
+is independent of query selection.
 
 In the VS Code command palette, run **CodeQL: Download Packs** and download
 `codeql/csharp-queries`, `codeql/python-queries` and `codeql/actions-queries`.
@@ -58,10 +61,21 @@ source or the LSP cache. With the CodeQL CLI on PATH, the equivalent is:
 codeql pack download .github\codeql\csharp.qls .github\codeql\python.qls .github\codeql\actions.qls
 ```
 
-Select the matching language database in the CodeQL sidebar, then right-click
-the corresponding `.qls` file and choose **CodeQL: Run Selected Query Suite**.
-Individual queries are available through the extension's Queries view after
-downloading the packs. A database's extracted source revision, CLI version and
+In extension version 1.17.8, **CodeQL: Run Selected Query Suite** is experimental:
+enable `codeQL.canary` in your local user settings to expose it, select the
+matching language database, then right-click the corresponding `.qls` file in
+Explorer. This repository does not enable experimental features for everyone.
+Without that setting, use the CodeQL CLI to analyze an existing database:
+
+```powershell
+codeql database analyze <database-directory> .github\codeql\csharp.qls --format=sarif-latest --output=artifacts\tests\analysis\codeql-csharp.sarif
+```
+
+Create the output directory first and substitute the matching database, suite
+and output filename for other languages. The extension's Queries view discovers
+`.ql` files in open workspace folders, not suites or packs downloaded only into
+the user-level cache; downloading packs alone does not populate that view.
+A database's extracted source revision, CLI version and
 query-pack versions affect results: matching the suite selection alone does
 not reproduce a hosted run. The workflow's CodeQL bundle and local downloads
 can contain different pack versions; neither is pinned by these suite files.

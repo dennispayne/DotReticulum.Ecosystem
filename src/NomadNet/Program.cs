@@ -4,6 +4,7 @@ using DotReticulum.Core;
 using DotReticulum.Transport;
 using LXMF;
 using System.Threading.Channels;
+using System.Runtime.InteropServices;
 
 namespace NomadNet;
 
@@ -39,6 +40,8 @@ internal static class Program
             }
 
             using var shutdown = new CancellationTokenSource();
+            using var terminate = OperatingSystem.IsWindows() ? null : PosixSignalRegistration.Create(PosixSignal.SIGTERM,
+                context => { context.Cancel = true; shutdown.Cancel(); });
             Console.CancelKeyPress += CancelOnCtrlC;
             void CancelOnCtrlC(object? _, ConsoleCancelEventArgs eventArgs)
             {
@@ -73,6 +76,7 @@ internal static class Program
         string? rnsConfig = null;
         var initialize = false;
         var showStatus = false;
+        var daemon = false;
         for (var index = 0; index < args.Length; index++)
         {
             switch (args[index])
@@ -89,13 +93,19 @@ internal static class Program
                 case "--status":
                     showStatus = true;
                     break;
+                case "--daemon":
+                    daemon = true;
+                    break;
+                case "--console":
+                case "--textui":
+                    break;
                 default:
                     throw new ArgumentException($"Unknown argument: {args[index]} (use --help).");
             }
         }
         dataDirectory ??= Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "nomadnet");
         dataDirectory = Path.GetFullPath(dataDirectory);
-        return new Options(dataDirectory, rnsConfig, initialize, showStatus);
+        return new Options(dataDirectory, rnsConfig, initialize, showStatus, daemon);
     }
 
     private static string ValueAfter(string[] args, ref int index)
@@ -134,7 +144,11 @@ internal static class Program
         var identity = node.LoadOrCreateIdentity("nomadnet_identity");
         await node.StartAsync(cancellationToken).ConfigureAwait(false);
         await using var router = new LxmRouter(node.Router, identity, settings.DisplayName,
-            new LxmRouterOptions { StoragePath = Path.Combine(options.DataDirectory, "storage") })
+            new LxmRouterOptions
+            {
+                StoragePath = Path.Combine(options.DataDirectory, "storage"),
+                DeliveryPerTransferLimit = settings.DeliveryTransferLimitBytes,
+            })
         {
             Log = message => Console.Error.WriteLine($"LXMF: {message}"),
         };
@@ -151,13 +165,31 @@ internal static class Program
             catch (ChannelClosedException) { }
         };
         router.Start();
+        if (settings.PropagationNode is not null) router.OutboundPropagationNode = Convert.FromHexString(settings.PropagationNode);
+        var propagation = settings.EnablePropagation ? router.EnablePropagationNode() : null;
+        await using var host = settings.EnableNode ? new NomadNetHost(node.Router, identity, options.DataDirectory, settings)
+        {
+            Log = message => Console.Error.WriteLine(message),
+        } : null;
+        host?.Start();
         await router.AnnounceAsync(cancellationToken).ConfigureAwait(false);
-        var receiver = PersistIncomingAsync(inbox.Reader, state, cancellationToken);
-        var session = new TerminalSession(node, identity, router, state, options.DataDirectory);
+        if (propagation is not null) await propagation.AnnounceAsync(cancellationToken).ConfigureAwait(false);
+        var receiver = PersistIncomingAsync(inbox.Reader, state, options.DataDirectory, cancellationToken);
+        var session = new TerminalSession(node, identity, router, state, options.DataDirectory, settings, host);
 
         Console.WriteLine("NomadNet .NET client (scoped native implementation; type help for commands)");
         Console.WriteLine($"LXMF delivery address: {router.DeliveryHashHex}");
-        try { await session.RunAsync(cancellationToken).ConfigureAwait(false); }
+        if (host is not null) Console.WriteLine($"Hosted node address: {host.DestinationHash}");
+        if (propagation is not null) Console.WriteLine($"Propagation node address: {Convert.ToHexStringLower(propagation.DestinationHash)}");
+        try
+        {
+            if (options.Daemon)
+            {
+                Console.WriteLine("Daemon ready.");
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
+            }
+            else await session.RunAsync(cancellationToken).ConfigureAwait(false);
+        }
         finally
         {
             inbox.Writer.TryComplete();
@@ -166,17 +198,28 @@ internal static class Program
         }
     }
 
-    private static async Task PersistIncomingAsync(ChannelReader<ReceivedMessage> reader, NomadNetStore store, CancellationToken cancellationToken)
+    private static async Task PersistIncomingAsync(ChannelReader<ReceivedMessage> reader, NomadNetStore store, string directory, CancellationToken cancellationToken)
     {
         try
         {
             await foreach (var received in reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
                 var message = received.Message;
-                var content = message.Content ?? "[non-text LXMF content; attachments are not rendered]";
+                var content = message.Content ?? "[non-text LXMF content]";
                 var id = message.Hash is { Length: > 0 } hash ? Convert.ToHexStringLower(hash) : Guid.NewGuid().ToString("N");
                 try
                 {
+                    try
+                    {
+                        await NomadNetAttachments.SaveAsync(directory, id, message.Fields, cancellationToken).ConfigureAwait(false);
+                        var attachments = NomadNetAttachments.Extract(message.Fields);
+                        if (attachments.Count > 0) content += "\nAttachments: " + string.Join(", ", attachments.Select(attachment => attachment.Name));
+                    }
+                    catch (Exception exception) when (exception is not OperationCanceledException)
+                    {
+                        Console.Error.WriteLine($"Could not save incoming attachments for {id}: {exception.Message}");
+                        content += "\n[attachments could not be saved]";
+                    }
                     await store.SaveMessageAsync(new NomadNetMessage(id, Convert.ToHexStringLower(message.SourceHash), "inbound",
                         DateTimeOffset.FromUnixTimeMilliseconds((long)(message.Timestamp * 1000)), message.Title, content, "received"),
                         cancellationToken).ConfigureAwait(false);
@@ -196,7 +239,8 @@ internal static class Program
     {
         Console.WriteLine("""
             NomadNet .NET client 1.4.4
-            Usage: nomadnet [--config <directory>] [--rnsconfig <directory>] [--init | --status]
+            Usage: nomadnet [--config <directory>] [--rnsconfig <directory>] [--init | --status | --daemon]
+                   nomadnet [--console] [--textui]
                    nomadnet --help | --version
 
             Interactive commands:
@@ -205,21 +249,33 @@ internal static class Program
               contact add <hash> <name>      Save a known LXMF destination
               contacts | contact remove <hash>
               send <hash> <message>          Send a text LXMF message
+              send-propagated <hash> <text>  Send through selected propagation node
+              attach <hash> <file>           Send a file attachment
+              image|audio <hash> <file>      Send encoded image/audio (no transcoding)
+              paper <hash> <message>         Generate an encrypted lxm:// URI
+              ingest <lxm://uri>             Ingest a paper URI for this identity
+              propagation <hash|off>         Select and persist propagation node
+              sync                           Retrieve messages from selected node
               messages [hash]                 Show durable conversation history
               browse <hash> [page-path]       Fetch a bounded Nomad Network page
               links | open <number>            Follow a displayed Micron link
+              reload                          Fetch current page without cache
               bookmark [title] | bookmarks | open-bookmark <number>
               fetch <hash> <file-path> <name> Download a bounded /file response
+              node refresh | node announce    Refresh or announce hosted content
               help | quit
 
             The app stores its identity, contacts, conversations, and bookmarks below --config.
             """);
     }
 
-    private sealed record Options(string DataDirectory, string? RnsConfig, bool Initialize, bool ShowStatus);
+    private sealed record Options(string DataDirectory, string? RnsConfig, bool Initialize, bool ShowStatus, bool Daemon);
 
-    private sealed class TerminalSession(ReticulumNode node, Identity identity, LxmRouter router, NomadNetStore store, string dataDirectory)
+    private sealed class TerminalSession(ReticulumNode node, Identity identity, LxmRouter router, NomadNetStore store,
+        string dataDirectory, NomadNetSettings settings, NomadNetHost? host)
     {
+        private NomadNetSettings _settings = settings;
+        private readonly NomadNetPageCache _cache = new(dataDirectory);
         private readonly List<NomadNetPageLink> _lastLinks = [];
         private string? _currentNode;
         private string _currentPath = NomadNetAddress.DefaultPagePath;
@@ -266,6 +322,77 @@ internal static class Program
                 return false;
             }
             if (command.Equals("peers", StringComparison.OrdinalIgnoreCase)) { await ShowPeersAsync(cancellationToken).ConfigureAwait(false); return false; }
+            if (command.Equals("node refresh", StringComparison.OrdinalIgnoreCase))
+            {
+                (host ?? throw new InvalidOperationException("Enable node hosting in settings.json.")).Refresh();
+                Console.WriteLine("Hosted content refreshed.");
+                return false;
+            }
+            if (command.Equals("node announce", StringComparison.OrdinalIgnoreCase))
+            {
+                await (host ?? throw new InvalidOperationException("Enable node hosting in settings.json.")).AnnounceAsync(cancellationToken).ConfigureAwait(false);
+                Console.WriteLine("Hosted node announced.");
+                return false;
+            }
+            if (command.StartsWith("propagation ", StringComparison.OrdinalIgnoreCase))
+            {
+                var value = command["propagation ".Length..].Trim();
+                var hash = value.Equals("off", StringComparison.OrdinalIgnoreCase) ? null : NomadNetAddress.NormalizeHash(value);
+                var changed = _settings with { PropagationNode = hash };
+                await changed.SaveAsync(dataDirectory, cancellationToken).ConfigureAwait(false);
+                router.OutboundPropagationNode = hash is null ? null : Convert.FromHexString(hash);
+                _settings = changed;
+                Console.WriteLine("Propagation selection saved.");
+                return false;
+            }
+            if (command.Equals("sync", StringComparison.OrdinalIgnoreCase))
+            {
+                var count = await router.RequestMessagesFromPropagationNodeAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                Console.WriteLine($"Propagation sync: {count} messages ({router.PropagationTransferState}).");
+                return false;
+            }
+            if (command.StartsWith("ingest ", StringComparison.OrdinalIgnoreCase))
+            {
+                var result = await router.IngestPaperUriAsync(command["ingest ".Length..].Trim(), cancellationToken: cancellationToken).ConfigureAwait(false);
+                Console.WriteLine($"Paper ingest: {result}");
+                return false;
+            }
+            if (command.StartsWith("paper ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = Split(command, 3);
+                if (parts.Length != 3) throw new ArgumentException("Usage: paper <hash> <message>");
+                var destination = Convert.FromHexString(NomadNetAddress.NormalizeHash(parts[1]));
+                var remote = await RecallAsync(destination, cancellationToken).ConfigureAwait(false);
+                var message = LxMessage.Create(destination, identity, parts[2], method: LxmMethod.Paper);
+                message.Pack(destinationIdentity: remote);
+                Console.WriteLine(message.AsUri());
+                return false;
+            }
+            if (command.StartsWith("send-propagated ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = Split(command, 3);
+                if (parts.Length != 3) throw new ArgumentException("Usage: send-propagated <hash> <message>");
+                if (router.OutboundPropagationNode is null) throw new InvalidOperationException("Select a propagation node first.");
+                await SendAsync(parts[1], parts[2], cancellationToken, method: LxmMethod.Propagated).ConfigureAwait(false);
+                return false;
+            }
+            if (command.StartsWith("attach ", StringComparison.OrdinalIgnoreCase) ||
+                command.StartsWith("image ", StringComparison.OrdinalIgnoreCase) || command.StartsWith("audio ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = Split(command, 3);
+                if (parts.Length != 3) throw new ArgumentException("Usage: attach|image|audio <hash> <file>");
+                await using var input = File.OpenRead(parts[2]);
+                if (input.Length > NomadNetAttachments.MaximumBytes) throw new InvalidDataException("Attachment exceeds 16 MiB.");
+                var bytes = new byte[checked((int)input.Length)];
+                await input.ReadExactlyAsync(bytes, cancellationToken).ConfigureAwait(false);
+                var kind = parts[0].ToLowerInvariant();
+                var name = NomadNetAttachments.SafeName(Path.GetFileName(parts[2]));
+                Dictionary<object, object?> fields = kind == "attach"
+                    ? new() { [LxmField.FileAttachments] = new object?[] { new object?[] { name, bytes } } }
+                    : new() { [kind == "image" ? LxmField.Image : LxmField.Audio] = new object?[] { Path.GetExtension(name).TrimStart('.'), bytes } };
+                await SendAsync(parts[1], "", cancellationToken, fields).ConfigureAwait(false);
+                return false;
+            }
             if (command.Equals("contacts", StringComparison.OrdinalIgnoreCase) || command.Equals("contact list", StringComparison.OrdinalIgnoreCase))
             {
                 foreach (var contact in await store.ContactsAsync(cancellationToken).ConfigureAwait(false))
@@ -316,7 +443,13 @@ internal static class Program
                 await BrowseAsync(destination.DestinationHash, destination.Path, cancellationToken).ConfigureAwait(false);
                 return false;
             }
-            if (command.StartsWith("bookmark", StringComparison.OrdinalIgnoreCase))
+            if (command.Equals("reload", StringComparison.OrdinalIgnoreCase))
+            {
+                if (_currentNode is null) throw new InvalidOperationException("Browse a page first.");
+                await BrowseAsync(_currentNode, _currentPath, cancellationToken, reload: true).ConfigureAwait(false);
+                return false;
+            }
+            if (command.Equals("bookmark", StringComparison.OrdinalIgnoreCase) || command.StartsWith("bookmark ", StringComparison.OrdinalIgnoreCase))
             {
                 var title = command.Length > "bookmark".Length ? command["bookmark".Length..].Trim() : $"{_currentNode}:{_currentPath}";
                 if (_currentNode is null) throw new InvalidOperationException("Browse a page before bookmarking it.");
@@ -348,10 +481,11 @@ internal static class Program
             throw new ArgumentException("Unknown command. Type help for available commands.");
         }
 
-        private async Task SendAsync(string destinationText, string content, CancellationToken cancellationToken)
+        private async Task SendAsync(string destinationText, string content, CancellationToken cancellationToken,
+            Dictionary<object, object?>? fields = null, LxmMethod method = LxmMethod.Direct)
         {
             var destination = Convert.FromHexString(NomadNetAddress.NormalizeHash(destinationText));
-            var message = LxMessage.Create(destination, identity, content, "");
+            var message = LxMessage.Create(destination, identity, content, "", fields, method);
             var id = Guid.NewGuid().ToString("N");
             await store.SaveMessageAsync(new NomadNetMessage(id, Convert.ToHexStringLower(destination), "outbound",
                 DateTimeOffset.UtcNow, "", content, "queued"), cancellationToken).ConfigureAwait(false);
@@ -368,10 +502,7 @@ internal static class Program
         {
             try
             {
-                var existing = (await store.MessagesAsync(cancellationToken: CancellationToken.None).ConfigureAwait(false))
-                    .FirstOrDefault(message => message.Id == id);
-                if (existing is not null)
-                    await store.SaveMessageAsync(existing with { Status = state.ToString().ToLowerInvariant() }).ConfigureAwait(false);
+                await store.UpdateMessageStatusAsync(id, state.ToString().ToLowerInvariant()).ConfigureAwait(false);
             }
             catch (Exception exception) { Console.Error.WriteLine($"Could not update delivery status: {exception.Message}"); }
         }
@@ -402,17 +533,22 @@ internal static class Program
             return Task.CompletedTask;
         }
 
-        private async Task BrowseAsync(string hashText, string pathText, CancellationToken cancellationToken)
+        private async Task BrowseAsync(string hashText, string pathText, CancellationToken cancellationToken, bool reload = false)
         {
             var hash = Convert.FromHexString(NomadNetAddress.NormalizeHash(hashText));
             var path = NomadNetAddress.NormalizePagePath(pathText);
-            var body = await RequestAsync(hash, path, null, MicronText.MaximumPageBytes, cancellationToken).ConfigureAwait(false);
+            var url = Convert.ToHexStringLower(hash) + ":" + path;
+            if (reload) _cache.Remove(url);
+            var cached = await _cache.ReadAsync(url, cancellationToken).ConfigureAwait(false);
+            var body = cached ?? await RequestAsync(hash, path, null, MicronText.MaximumPageBytes, cancellationToken).ConfigureAwait(false);
+            if (cached is null) await _cache.StoreAsync(url, body, cancellationToken).ConfigureAwait(false);
             var page = MicronText.Render(body);
             _currentNode = Convert.ToHexStringLower(hash);
             _currentPath = path;
             _lastLinks.Clear();
             _lastLinks.AddRange(page.Links);
             Console.WriteLine($"--- {_currentNode}:{_currentPath} ---");
+            if (cached is not null) Console.WriteLine("(cached page)");
             Console.WriteLine(page.Text);
             ShowLinks();
         }
@@ -448,6 +584,7 @@ internal static class Program
             var link = connected.Link;
             try
             {
+                link.Identify(identity);
                 var receipt = link.Request(path, data, timeout: 60, maxResponseSize: maximumBytes,
                     cancellationToken: cancellationToken) ?? throw new IOException("The Reticulum request could not be started.");
                 var response = await receipt.ResponseTask.WaitAsync(TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
@@ -455,6 +592,8 @@ internal static class Program
                 {
                     byte[] bytes when bytes.Length <= maximumBytes => bytes,
                     byte[] => throw new InvalidDataException("Remote response exceeds the configured bound."),
+                    FileResponse file when file.Data.Length <= maximumBytes => file.Data,
+                    FileResponse => throw new InvalidDataException("Remote file exceeds the configured bound."),
                     string text when Encoding.UTF8.GetByteCount(text) <= maximumBytes => Encoding.UTF8.GetBytes(text),
                     string => throw new InvalidDataException("Remote response exceeds the configured bound."),
                     null => throw new IOException("The remote node returned no response."),
@@ -462,6 +601,15 @@ internal static class Program
                 };
             }
             finally { link.Teardown(); }
+        }
+
+        private async Task<Identity> RecallAsync(byte[] hash, CancellationToken cancellationToken)
+        {
+            var known = node.Router.Engine.Known.Recall(hash);
+            if (known is not null) return known;
+            var connected = await ClientLinks.ConnectAsync(node, hash, TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
+            connected.Link?.Teardown();
+            return node.Router.Engine.Known.Recall(hash) ?? throw new IOException(connected.Error ?? "The destination identity is unknown.");
         }
 
         private void ShowLinks()

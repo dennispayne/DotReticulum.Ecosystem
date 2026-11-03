@@ -42,7 +42,7 @@ public sealed class MicronTextTests
     [Fact]
     public void Render_ExtractsUpstreamBracketLinksAndTextualHeadings()
     {
-        var page = MicronText.Render(">>Heading\nWelcome [next`/page/next.mu]\n".Select(character => (byte)character).ToArray());
+        var page = MicronText.Render(">>Heading\nWelcome `[next`/page/next.mu]\n".Select(character => (byte)character).ToArray());
 
         Assert.Contains("Heading", page.Text);
         Assert.Contains("[1] next", page.Text);

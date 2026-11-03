@@ -128,6 +128,19 @@ public sealed class NomadNetStore
         finally { _gate.Release(); }
     }
 
+    public async Task UpdateMessageStatusAsync(string id, string status, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var index = _state.Messages.FindIndex(message => message.Id == id);
+            if (index < 0 || _state.Messages[index].Status is "delivered" or "failed" or "rejected" or "cancelled" or "paper") return;
+            _state.Messages[index] = _state.Messages[index] with { Status = Bound(status, 40) };
+            await PersistAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally { _gate.Release(); }
+    }
+
     public async Task<IReadOnlyList<NomadNetBookmark>> BookmarksAsync(CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);

@@ -56,7 +56,7 @@ Describe 'NomadNet native executable' -Tag 'Native' {
         }
 
         $work = Join-Path (Get-Location) 'artifacts\tests\nomadnet-terminal-pester'
-        if (Test-Path $work) { Remove-Item $work -Recurse -Force }
+        if ((Test-Path $work) -and $env:DOTRETICULUM_NOMADNET_KEEP_WORK -ne '1') { Remove-Item $work -Recurse -Force }
         $data = Join-Path $work 'data'
         $rns = Join-Path $work 'rns'
         $null = New-Item $data -ItemType Directory -Force
@@ -117,6 +117,154 @@ Describe 'NomadNet native executable' -Tag 'Native' {
     }
 }
 
+Describe 'NomadNet native hosted workflows' -Tag 'Native' {
+    It 'hosts pages and resources, caches pages, transfers attachments, ingests paper and reloads state' {
+        if ([string]::IsNullOrWhiteSpace($env:DOTRETICULUM_NOMADNET_BINARY)) {
+            Set-ItResult -Skipped -Because 'Select an exact published binary with DOTRETICULUM_NOMADNET_BINARY.'
+            return
+        }
+        $binary = [IO.Path]::GetFullPath($env:DOTRETICULUM_NOMADNET_BINARY)
+        if (-not (Test-Path $binary)) { throw "Selected binary does not exist: $binary" }
+        $work = Join-Path (Get-Location) "artifacts\tests\nomadnet-functional-$([Guid]::NewGuid().ToString('N'))"
+        $server = $null
+        $client = $null
+        $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
+        $readUntil = {
+            param($process, [string] $pattern, [int] $seconds = 60)
+            $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+            while ([DateTime]::UtcNow -lt $deadline) {
+                $line = $process.StandardOutput.ReadLineAsync().WaitAsync([TimeSpan]::FromSeconds($seconds)).GetAwaiter().GetResult()
+                if ($null -eq $line) { throw "Process ended before '$pattern'." }
+                if ($line -match $pattern) { return $line }
+            }
+            throw "Expected output was not observed: $pattern"
+        }
+        $start = {
+            param([string] $name, [string[]] $extra = @())
+            $info = [Diagnostics.ProcessStartInfo]::new($binary)
+            $info.UseShellExecute = $false
+            $info.RedirectStandardInput = $true
+            $info.RedirectStandardOutput = $true
+            $info.RedirectStandardError = $true
+            foreach ($argument in @('--config', (Join-Path $work $name), '--rnsconfig', (Join-Path $work "$name-rns")) + $extra) {
+                $info.ArgumentList.Add($argument)
+            }
+            $process = [Diagnostics.Process]::new()
+            $process.StartInfo = $info
+            $null = $process.Start()
+            $process.BeginErrorReadLine()
+            $processes.Add($process)
+            return $process
+        }.GetNewClosure()
+        $send = {
+            param($process, [string] $command)
+            $process.StandardInput.WriteLine($command)
+            $process.StandardInput.Flush()
+        }
+        try {
+            $null = New-Item (Join-Path $work 'server-rns') -ItemType Directory -Force
+            $null = New-Item (Join-Path $work 'client-rns') -ItemType Directory -Force
+            $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+            $listener.Start()
+            $port = $listener.LocalEndpoint.Port
+            $listener.Stop()
+            @('[reticulum]', '  share_instance = No', '  enable_transport = No', '[interfaces]',
+                '  [[Server]]', '    type = TCPServerInterface', '    enabled = Yes',
+                '    listen_ip = 127.0.0.1', "    listen_port = $port") |
+                Set-Content (Join-Path $work 'server-rns\config') -Encoding utf8
+            @('[reticulum]', '  share_instance = No', '  enable_transport = No', '[interfaces]',
+                '  [[Client]]', '    type = TCPClientInterface', '    enabled = Yes',
+                '    target_host = 127.0.0.1', "    target_port = $port") |
+                Set-Content (Join-Path $work 'client-rns\config') -Encoding utf8
+            $null = New-Item (Join-Path $work 'server\storage\pages') -ItemType Directory -Force
+            $null = New-Item (Join-Path $work 'server\storage\files') -ItemType Directory -Force
+            '{"schemaVersion":1,"displayName":"Native host","enableNode":true,"enablePropagation":true,"deliveryTransferLimitBytes":4000000}' |
+                Set-Content (Join-Path $work 'server\settings.json') -Encoding utf8
+            [IO.File]::WriteAllText((Join-Path $work 'server\storage\pages\index.mu'), "#!c=60`n>Hosted native page`nFIRST_PAGE", [Text.UTF8Encoding]::new($false))
+            if (-not [OperatingSystem]::IsWindows()) {
+                [IO.File]::SetUnixFileMode((Join-Path $work 'server\storage\pages\index.mu'),
+                    [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite)
+            }
+            $bytes = [byte[]]::new(2200000)
+            [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+            [IO.File]::WriteAllBytes((Join-Path $work 'server\storage\files\large.bin'), $bytes)
+            $server = & $start 'server'
+            $serverDelivery = [regex]::Match((& $readUntil $server 'LXMF delivery address:\s*([0-9a-f]{32})'), '[0-9a-f]{32}').Value
+            $serverNode = [regex]::Match((& $readUntil $server 'Hosted node address:\s*([0-9a-f]{32})'), '[0-9a-f]{32}').Value
+            $propagationNode = [regex]::Match((& $readUntil $server 'Propagation node address:\s*([0-9a-f]{32})'), '[0-9a-f]{32}').Value
+            $client = & $start 'client'
+            $clientDelivery = [regex]::Match((& $readUntil $client 'LXMF delivery address:\s*([0-9a-f]{32})'), '[0-9a-f]{32}').Value
+            & $send $client "browse $serverNode"
+            $null = & $readUntil $client 'FIRST_PAGE'
+            [IO.File]::WriteAllText((Join-Path $work 'server\storage\pages\index.mu'), "#!c=60`nSECOND_PAGE", [Text.UTF8Encoding]::new($false))
+            & $send $client "browse $serverNode"
+            $null = & $readUntil $client '\(cached page\)'
+            $null = & $readUntil $client 'FIRST_PAGE'
+            & $send $client 'reload'
+            $null = & $readUntil $client 'SECOND_PAGE'
+            & $send $client "fetch $serverNode /file/large.bin downloaded.bin"
+            $null = & $readUntil $client 'Saved 2200000 bytes' 120
+            $expected = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))
+            (Get-FileHash (Join-Path $work 'client\downloads\downloaded.bin') -Algorithm SHA256).Hash | Should -Be $expected
+            & $send $client "attach $serverDelivery $(Join-Path $work 'client\downloads\downloaded.bin')"
+            $null = & $readUntil $client 'Message queued:'
+            $deadline = [DateTime]::UtcNow.AddSeconds(120)
+            $attachment = $null
+            while ([DateTime]::UtcNow -lt $deadline -and $null -eq $attachment) {
+                $attachment = Get-ChildItem (Join-Path $work 'server\attachments') -Filter '0.bin' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($null -eq $attachment) { Start-Sleep -Milliseconds 100 }
+            }
+            $attachment | Should -Not -BeNullOrEmpty
+            (Get-FileHash $attachment.FullName -Algorithm SHA256).Hash | Should -Be $expected
+            & $send $client "paper $serverDelivery native-paper-content"
+            $paperLine = & $readUntil $client 'lxm://[A-Za-z0-9_-]+'
+            $uri = [regex]::Match($paperLine, 'lxm://[A-Za-z0-9_-]+').Value
+            & $send $server "ingest $uri"
+            $null = & $readUntil $server 'Paper ingest: LocalDelivery'
+            & $send $server "ingest $uri"
+            $null = & $readUntil $server 'Paper ingest: Duplicate'
+            & $send $client "propagation $propagationNode"
+            $null = & $readUntil $client 'Propagation selection saved.'
+            & $send $client "send-propagated $clientDelivery propagated-native-content"
+            $null = & $readUntil $client 'Message queued:'
+            $deadline = [DateTime]::UtcNow.AddSeconds(90)
+            $sent = $false
+            while ([DateTime]::UtcNow -lt $deadline -and -not $sent) {
+                try { $state = [IO.File]::ReadAllText((Join-Path $work 'client\state.json')) | ConvertFrom-Json }
+                catch [IO.IOException] { Start-Sleep -Milliseconds 100; continue }
+                $sent = @($state.messages | Where-Object { $_.content -eq 'propagated-native-content' -and $_.status -eq 'sent' }).Count -gt 0
+                if (-not $sent) { Start-Sleep -Milliseconds 100 }
+            }
+            $sent | Should -BeTrue
+            & $send $client 'sync'
+            $null = & $readUntil $client 'Propagation sync: 1 messages \(Complete\)' 90
+            & $send $client 'sync'
+            $null = & $readUntil $client 'Propagation sync: 0 messages \(Complete\)' 30
+            & $send $server 'quit'
+            $server.WaitForExit(30000) | Should -BeTrue
+            $server.ExitCode | Should -Be 0
+            $server = & $start 'server'
+            $restarted = [regex]::Match((& $readUntil $server 'LXMF delivery address:\s*([0-9a-f]{32})'), '[0-9a-f]{32}').Value
+            $restarted | Should -Be $serverDelivery
+            & $send $server 'messages'
+            $null = & $readUntil $server 'native-paper-content'
+            & $send $server 'quit'
+            & $send $client 'quit'
+            $server.WaitForExit(30000) | Should -BeTrue
+            $client.WaitForExit(30000) | Should -BeTrue
+            $server.ExitCode | Should -Be 0
+            $client.ExitCode | Should -Be 0
+        }
+        finally {
+            foreach ($process in $processes) {
+                if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+                $process.Dispose()
+            }
+            if (Test-Path $work) { Remove-Item $work -Recurse -Force }
+        }
+    }
+}
+
 Describe 'NomadNet live LXMF interoperability' -Tag 'Live' {
     It 'exchanges direct messages with the pinned Python LXMF peer' {
         if ($env:DOTRETICULUM_NOMADNET_LIVE -ne '1' -or
@@ -135,7 +283,7 @@ Describe 'NomadNet live LXMF interoperability' -Tag 'Live' {
             throw 'The NomadNet live adapter or native executable is missing.'
         }
 
-        $work = Join-Path $root 'artifacts\tests\nomadnet-live-pester'
+        $work = Join-Path (Get-Location) "artifacts\tests\nomadnet-live-$([Guid]::NewGuid().ToString('N'))"
         if (Test-Path $work) { Remove-Item $work -Recurse -Force }
         $pythonConfig = Join-Path $work 'python'
         $appConfig = Join-Path $work 'app-rns'
@@ -298,6 +446,7 @@ Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
                 $result = & $readNomadNetLine $Reader $PendingLine 500
                 if (-not $result.Completed) { continue }
                 if ($null -eq $result.Line) { throw "${Description}: process closed its output before the expected event." }
+                if ($result.Line -match '"event"\s*:\s*"(error|failed|request-failed)"') { throw "${Description}: $($result.Line)" }
                 if ($result.Line -match $Pattern) { return $result.Line }
             }
             throw "${Description}: timed out waiting for '$Pattern'."
@@ -345,6 +494,24 @@ Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
         $listener.Start()
         $port = $listener.LocalEndpoint.Port
         $listener.Stop()
+        $topology = if ([string]::IsNullOrWhiteSpace($env:DOTRETICULUM_NOMADNET_TRANSPORT)) { 'direct' } else { $env:DOTRETICULUM_NOMADNET_TRANSPORT }
+        if ($topology -notin @('direct', 'python', 'native')) { throw "Unsupported NomadNet topology: $topology" }
+        $nativeTargetPort = $port
+        $transport = $null
+        $transportConfig = Join-Path $work 'transport-rns'
+        if ($topology -ne 'direct') {
+            $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+            $listener.Start()
+            $nativeTargetPort = $listener.LocalEndpoint.Port
+            $listener.Stop()
+            $null = New-Item $transportConfig -ItemType Directory -Force
+            @('[reticulum]', '  share_instance = No', '  enable_transport = Yes', '[interfaces]',
+                '  [[Upstream]]', '    type = TCPClientInterface', '    enabled = Yes',
+                '    target_host = 127.0.0.1', "    target_port = $port",
+                '  [[Native]]', '    type = TCPServerInterface', '    enabled = Yes',
+                '    listen_ip = 127.0.0.1', "    listen_port = $nativeTargetPort") |
+                Set-Content (Join-Path $transportConfig 'config') -Encoding utf8
+        }
         @(
             '[reticulum]'
             '  enable_transport = No'
@@ -367,7 +534,7 @@ Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
             '    type = TCPClientInterface'
             '    enabled = Yes'
             '    target_host = 127.0.0.1'
-            "    target_port = $port"
+            "    target_port = $nativeTargetPort"
         ) | Set-Content -Path (Join-Path $nativeRns 'config') -Encoding utf8
 
         $pythonPath = "$source`:$($env:DOTRETICULUM_UPSTREAM)`:$($env:DOTRETICULUM_LXMF_UPSTREAM)`:$root/tests/Interop"
@@ -414,6 +581,7 @@ Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
                 throw 'Expected the unmodified upstream default node setting was not found.'
             }
             $configuration = $configuration.Replace('enable_node = no', 'enable_node = yes')
+            $configuration = $configuration.Replace('max_accepted_size = 500', 'max_accepted_size = 4000')
             [IO.File]::WriteAllText($nodeAppConfig, $configuration, [Text.UTF8Encoding]::new($false))
             $pages = Join-Path $nodeConfig 'storage\pages'
             $files = Join-Path $nodeConfig 'storage\files'
@@ -421,6 +589,16 @@ Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
             $null = New-Item $files -ItemType Directory -Force
             [IO.File]::WriteAllText((Join-Path $pages 'readme.mu'), "# Live page`n`nNOMADNET_UPSTREAM_PAGE_OK", [Text.UTF8Encoding]::new($false))
             [IO.File]::WriteAllText((Join-Path $files 'live.txt'), 'UPSTREAM_FILE_012345', [Text.UTF8Encoding]::new($false))
+            $large = [byte[]]::new(2200000)
+            [Security.Cryptography.RandomNumberGenerator]::Fill($large)
+            [IO.File]::WriteAllBytes((Join-Path $files 'large.bin'), $large)
+            $expectedLargeHash = (Get-FileHash (Join-Path $files 'large.bin') -Algorithm SHA256).Hash
+            '{"schemaVersion":1,"displayName":"Native app","enableNode":true,"deliveryTransferLimitBytes":4000000}' |
+                Set-Content (Join-Path $nativeData 'settings.json') -Encoding utf8
+            $null = New-Item (Join-Path $nativeData 'storage\pages') -ItemType Directory -Force
+            $null = New-Item (Join-Path $nativeData 'storage\files') -ItemType Directory -Force
+            [IO.File]::WriteAllText((Join-Path $nativeData 'storage\pages\index.mu'), "#!c=0`nNATIVE_HOST_PAGE_OK", [Text.UTF8Encoding]::new($false))
+            [IO.File]::WriteAllBytes((Join-Path $nativeData 'storage\files\large.bin'), $large)
 
             $upstreamStart = [Diagnostics.ProcessStartInfo]::new()
             $upstreamStart.FileName = $python
@@ -443,6 +621,28 @@ Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
             $ready.module | Should -Match ([regex]::Escape($source))
             $ready.node | Should -Match '^[0-9a-f]{32}$'
             $ready.delivery | Should -Match '^[0-9a-f]{32}$'
+            if ($topology -ne 'direct') {
+                $transportStart = [Diagnostics.ProcessStartInfo]::new()
+                $transportStart.FileName = if ($topology -eq 'python') { $python } else { $binary }
+                $transportStart.UseShellExecute = $false
+                $transportStart.RedirectStandardInput = $true
+                $transportStart.RedirectStandardOutput = $true
+                $transportStart.RedirectStandardError = $true
+                $arguments = if ($topology -eq 'python') {
+                    @('-u', (Join-Path $root 'tests\Interop\nomadnet_transport_peer.py'), '--config', $transportConfig)
+                } else {
+                    @('--daemon', '--config', (Join-Path $work 'transport-app'), '--rnsconfig', $transportConfig)
+                }
+                foreach ($argument in $arguments) { $transportStart.ArgumentList.Add($argument) }
+                foreach ($entry in $environment.GetEnumerator()) { $transportStart.Environment[$entry.Key] = $entry.Value }
+                $transport = [Diagnostics.Process]::new()
+                $transport.StartInfo = $transportStart
+                $null = $transport.Start()
+                $transport.BeginErrorReadLine()
+                $transportPending = $null
+                $pattern = if ($topology -eq 'python') { '"event"\s*:\s*"transport-ready"' } else { 'Daemon ready.' }
+                $null = & $waitNomadNetOutput $transport.StandardOutput ([ref]$transportPending) $pattern 30 'Transport node readiness'
+            }
             Start-Sleep -Seconds 8
 
             $startNative = {
@@ -459,21 +659,57 @@ Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
                 $process = [Diagnostics.Process]::new()
                 $process.StartInfo = $start
                 $null = $process.Start()
-                $pending = $null
-                $addressLine = & $waitNomadNetOutput $process.StandardOutput ([ref]$pending) `
-                    'LXMF delivery address:\s*([0-9a-f]{32})' 60 'Native NomadNet'
-                $address = [regex]::Match($addressLine, 'LXMF delivery address:\s*([0-9a-f]{32})').Groups[1].Value
-                foreach ($command in $commands) { $process.StandardInput.WriteLine($command) }
-                $process.StandardInput.Flush()
-                $outputTask = $process.StandardOutput.ReadToEndAsync()
-                if (-not $process.WaitForExit(180000)) { throw 'Native NomadNet did not exit after its terminal commands.' }
-                $output = $outputTask.GetAwaiter().GetResult()
-                return [PSCustomObject]@{ Address = $address; Output = $output }
+                try {
+                    $pending = $null
+                    $addressLine = & $waitNomadNetOutput $process.StandardOutput ([ref]$pending) `
+                        'LXMF delivery address:\s*([0-9a-f]{32})' 60 'Native NomadNet'
+                    $address = [regex]::Match($addressLine, 'LXMF delivery address:\s*([0-9a-f]{32})').Groups[1].Value
+                    $transcript = [Text.StringBuilder]::new()
+                    foreach ($command in $commands | Where-Object { $_ -ne 'quit' }) {
+                        $process.StandardInput.WriteLine($command)
+                        $process.StandardInput.WriteLine('status')
+                        $process.StandardInput.Flush()
+                        do {
+                            $line = $process.StandardOutput.ReadLineAsync().WaitAsync([TimeSpan]::FromSeconds(120)).GetAwaiter().GetResult()
+                            if ($null -eq $line) { throw "Native process exited during '$command'." }
+                            $null = $transcript.AppendLine($line)
+                            if ($line -match 'Error:') { throw "Native command '$command' failed: $line" }
+                        } while ($line -notmatch 'Reticulum interfaces:')
+                    }
+                    if (@($commands | Where-Object { $_ -like 'send *' }).Count -gt 0) {
+                        $deadline = [DateTime]::UtcNow.AddSeconds(90)
+                        $delivered = $false
+                        while ([DateTime]::UtcNow -lt $deadline -and -not $delivered) {
+                            try { $state = [IO.File]::ReadAllText((Join-Path $nativeData 'state.json')) | ConvertFrom-Json }
+                            catch [IO.IOException] { Start-Sleep -Milliseconds 100; continue }
+                            $delivered = @($state.messages | Where-Object {
+                                $_.content -eq 'native-to-upstream-nomadnet' -and $_.status -eq 'delivered'
+                            }).Count -gt 0
+                            if (-not $delivered) { Start-Sleep -Milliseconds 100 }
+                        }
+                        if (-not $delivered) {
+                            $statuses = @($state.messages | ForEach-Object { "$($_.direction):$($_.status)" }) -join ','
+                            throw "Native direct message did not reach delivered state before shutdown. Statuses: $statuses. Transcript: $transcript"
+                        }
+                    }
+                    $outputTask = $process.StandardOutput.ReadToEndAsync()
+                    $process.StandardInput.WriteLine('quit')
+                    $process.StandardInput.Flush()
+                    if (-not $process.WaitForExit(180000)) { throw 'Native NomadNet did not exit after its terminal commands.' }
+                    if ($process.ExitCode -ne 0) { throw "Native NomadNet exited with $($process.ExitCode)." }
+                    $output = $transcript.ToString() + $outputTask.GetAwaiter().GetResult()
+                    return [PSCustomObject]@{ Address = $address; Output = $output }
+                }
+                finally {
+                    if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+                    $process.Dispose()
+                }
             }.GetNewClosure()
 
             $firstRun = & $startNative @(
                 "browse $($ready.node) /page/readme.mu",
                 "fetch $($ready.node) /file/live.txt live.txt",
+                "fetch $($ready.node) /file/large.bin large.bin",
                 "send $($ready.delivery) native-to-upstream-nomadnet",
                 'quit'
             )
@@ -483,7 +719,7 @@ Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
                 '"event"\s*:\s*"stats"' 10 'Upstream NomadNet request counters'
             $stats = $statsLine.Substring(2) | ConvertFrom-Json
             $stats.served_pages | Should -Be 1
-            $stats.served_files | Should -Be 1
+            $stats.served_files | Should -Be 2
             if ($firstRun.Output -notmatch 'NOMADNET_UPSTREAM_PAGE_OK') {
                 $logPath = Join-Path $nodeConfig 'logfile'
                 $log = if (Test-Path $logPath) { Get-Content $logPath -Tail 30 | Out-String } else { '(no upstream log file)' }
@@ -492,6 +728,7 @@ Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
             $firstRun.Output | Should -Match 'NOMADNET_UPSTREAM_PAGE_OK'
             $firstRun.Output | Should -Match 'Saved 20 bytes'
             [IO.File]::ReadAllText((Join-Path $nativeData 'downloads\live.txt')) | Should -Be 'UPSTREAM_FILE_012345'
+            (Get-FileHash (Join-Path $nativeData 'downloads\large.bin') -Algorithm SHA256).Hash | Should -Be $expectedLargeHash
 
             $upstreamConversation = Join-Path (Join-Path $nodeConfig 'storage\conversations') $firstRun.Address
             $deadline = [DateTime]::UtcNow.AddSeconds(60)
@@ -517,6 +754,61 @@ Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
                 'LXMF delivery address:\s*([0-9a-f]{32})' 60 'Restarted native NomadNet'
             $secondAddress = [regex]::Match($secondAddressLine, 'LXMF delivery address:\s*([0-9a-f]{32})').Groups[1].Value
             $secondAddress | Should -Be $firstRun.Address
+            $hostLine = & $waitNomadNetOutput $client.StandardOutput ([ref]$clientPending) `
+                'Hosted node address:\s*([0-9a-f]{32})' 30 'Native hosted node'
+            $hostAddress = [regex]::Match($hostLine, '[0-9a-f]{32}').Value
+
+            $upstream.StandardInput.WriteLine("request $hostAddress /page/index.mu")
+            $upstream.StandardInput.Flush()
+            $responseLine = & $waitNomadNetOutput $upstream.StandardOutput ([ref]$upstreamPending) `
+                '"event"\s*:\s*"response"' 90 'Reference request to native page'
+            (($responseLine.Substring(2) | ConvertFrom-Json).text) | Should -Match 'NATIVE_HOST_PAGE_OK'
+            $upstream.StandardInput.WriteLine("request $hostAddress /file/large.bin")
+            $upstream.StandardInput.Flush()
+            $responseLine = & $waitNomadNetOutput $upstream.StandardOutput ([ref]$upstreamPending) `
+                '"event"\s*:\s*"response"' 120 'Reference request to native large file'
+            $response = $responseLine.Substring(2) | ConvertFrom-Json
+            $response.size | Should -Be 2200000
+            $response.sha256 | Should -Be $expectedLargeHash.ToLowerInvariant()
+
+            $upstream.StandardInput.WriteLine("send-file $secondAddress $(Join-Path $files 'large.bin')")
+            $upstream.StandardInput.Flush()
+            $null = & $waitNomadNetOutput $upstream.StandardOutput ([ref]$upstreamPending) `
+                '"event"\s*:\s*"delivered"' 120 'Reference attachment delivery'
+            $deadline = [DateTime]::UtcNow.AddSeconds(30)
+            $nativeAttachment = $null
+            while ([DateTime]::UtcNow -lt $deadline -and $null -eq $nativeAttachment) {
+                $nativeAttachment = Get-ChildItem (Join-Path $nativeData 'attachments') -Filter '0.bin' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($null -eq $nativeAttachment) { Start-Sleep -Milliseconds 100 }
+            }
+            $nativeAttachment | Should -Not -BeNullOrEmpty
+            (Get-FileHash $nativeAttachment.FullName -Algorithm SHA256).Hash | Should -Be $expectedLargeHash
+            $client.StandardInput.WriteLine("attach $($ready.delivery) $(Join-Path $nativeData 'downloads\large.bin')")
+            $client.StandardInput.Flush()
+            $null = & $waitNomadNetOutput $client.StandardOutput ([ref]$clientPending) 'Message queued:' 30 'Native attachment send'
+            $deadline = [DateTime]::UtcNow.AddSeconds(120)
+            $upstreamAttachment = $null
+            while ([DateTime]::UtcNow -lt $deadline -and $null -eq $upstreamAttachment) {
+                $upstreamAttachment = Get-ChildItem (Join-Path $nodeConfig 'storage\attachments') -Filter 'file_0' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($null -eq $upstreamAttachment) { Start-Sleep -Milliseconds 100 }
+            }
+            $upstreamAttachment | Should -Not -BeNullOrEmpty
+            (Get-FileHash $upstreamAttachment.FullName -Algorithm SHA256).Hash | Should -Be $expectedLargeHash
+            $client.StandardInput.WriteLine("paper $($ready.delivery) native-to-upstream-paper")
+            $client.StandardInput.Flush()
+            $paperLine = & $waitNomadNetOutput $client.StandardOutput ([ref]$clientPending) 'lxm://[A-Za-z0-9_-]+' 30 'Native paper generation'
+            $uri = [regex]::Match($paperLine, 'lxm://[A-Za-z0-9_-]+').Value
+            $upstream.StandardInput.WriteLine("ingest $uri")
+            $upstream.StandardInput.Flush()
+            $ingestedLine = & $waitNomadNetOutput $upstream.StandardOutput ([ref]$upstreamPending) '"event"\s*:\s*"ingested"' 30 'Upstream paper ingestion'
+            (($ingestedLine.Substring(2) | ConvertFrom-Json).accepted) | Should -BeTrue
+            $upstream.StandardInput.WriteLine("paper $secondAddress upstream-to-native-paper")
+            $upstream.StandardInput.Flush()
+            $paperLine = & $waitNomadNetOutput $upstream.StandardOutput ([ref]$upstreamPending) '"event"\s*:\s*"paper"' 30 'Upstream paper generation'
+            $uri = ($paperLine.Substring(2) | ConvertFrom-Json).uri
+            $client.StandardInput.WriteLine("ingest $uri")
+            $client.StandardInput.Flush()
+            $null = & $waitNomadNetOutput $client.StandardOutput ([ref]$clientPending) 'Paper ingest: LocalDelivery' 30 'Native paper ingestion'
 
             $upstream.StandardInput.WriteLine("send $secondAddress upstream-to-native-durable")
             $upstream.StandardInput.Flush()
@@ -555,7 +847,7 @@ Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
             $upstream = $null
         }
         finally {
-            foreach ($process in @($client, $upstream, $bootstrap)) {
+            foreach ($process in @($client, $transport, $upstream, $bootstrap)) {
                 if ($null -ne $process) {
                     if (-not $process.HasExited) {
                         try { $process.Kill(); $process.WaitForExit(5000) } catch {}
@@ -563,7 +855,7 @@ Describe 'NomadNet upstream node interoperability' -Tag 'Live' {
                     $process.Dispose()
                 }
             }
-            if (Test-Path $work) { Remove-Item $work -Recurse -Force }
+            if ((Test-Path $work) -and $env:DOTRETICULUM_NOMADNET_KEEP_WORK -ne '1') { Remove-Item $work -Recurse -Force }
         }
     }
 }

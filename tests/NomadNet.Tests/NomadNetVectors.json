@@ -1,0 +1,138 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "method": "ConversationMessage.safe_attachment_name and _ext_from_media_format",
+  "sourceSha256": "38c419564248cc8777669ec77a055f8dcebcdf0e94a71ee4f7970c7d76640df5",
+  "names": [
+    {
+      "input": "../../unsafe.txt",
+      "output": "unsafe.txt"
+    },
+    {
+      "input": "C:\\capture\\secret.txt",
+      "output": "secret.txt"
+    },
+    {
+      "input": "..hidden",
+      "output": "hidden"
+    },
+    {
+      "input": "\u001bhello\u0000.txt",
+      "output": "hello.txt"
+    },
+    {
+      "input": "",
+      "output": "attachment"
+    },
+    {
+      "input": null,
+      "output": "attachment"
+    },
+    {
+      "input": "abc:def:ghi",
+      "output": "ghi"
+    },
+    {
+      "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.reallylongextension",
+      "output": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.reallylongexten"
+    },
+    {
+      "input": "file.txt",
+      "output": "file.txt"
+    }
+  ],
+  "media": [
+    {
+      "format": "web/p",
+      "data": "303132333435363738393031",
+      "audio": false,
+      "extension": ".webp"
+    },
+    {
+      "format": 16,
+      "data": "303132333435363738393031",
+      "audio": true,
+      "extension": ".ogg"
+    },
+    {
+      "format": 1,
+      "data": "303132333435363738393031",
+      "audio": true,
+      "extension": ".c2"
+    },
+    {
+      "format": null,
+      "data": "89504e470d0a1a0a30303030",
+      "audio": false,
+      "extension": ".png"
+    },
+    {
+      "format": null,
+      "data": "524946463030303057454250",
+      "audio": false,
+      "extension": ".webp"
+    },
+    {
+      "format": null,
+      "data": "4f6767533030303030303030",
+      "audio": true,
+      "extension": ".ogg"
+    },
+    {
+      "format": null,
+      "data": "524946463030303057415645",
+      "audio": true,
+      "extension": ".wav"
+    },
+    {
+      "format": null,
+      "data": "74696e79",
+      "audio": false,
+      "extension": ".bin"
+    }
+  ],
+  "inlineMethod": "MicronParser.make_output(default_state(), source, None)",
+  "inlineConfiguration": "Uninitialised app instance with dark theme and 256-colour UI configuration only",
+  "inlineSourceSha256": "9932db8038b6380742e2586250dc77b2509b72d7ed8a6fdfd954f03602cf4e03",
+  "inline": [
+    {
+      "source": "plain [brackets]",
+      "text": "plain [brackets]"
+    },
+    {
+      "source": "`!bold`! and `*italic`*",
+      "text": "bold and italic"
+    },
+    {
+      "source": "`Ff00red`f normal",
+      "text": "red normal"
+    },
+    {
+      "source": "`FTff0000red`f",
+      "text": "red"
+    },
+    {
+      "source": "`B000black`b",
+      "text": "black"
+    },
+    {
+      "source": "\\`!literal",
+      "text": "`!literal"
+    },
+    {
+      "source": "`[next`:/page/next.mu]",
+      "text": "next"
+    },
+    {
+      "source": "`:anchor text",
+      "text": " text"
+    },
+    {
+      "source": "one ``two",
+      "text": "one two"
+    },
+    {
+      "source": "one\\\\two",
+      "text": "one\\two"
+    }
+  ]
+}

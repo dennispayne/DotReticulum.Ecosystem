@@ -51,6 +51,7 @@ public static class MicronText
                 else if (line.StartsWith("-", StringComparison.Ordinal)) line = new string(line.Length == 2 ? line[1] : '─', 40);
             }
             else if (line == "`=") { literal = false; continue; }
+            if (literal && line == "\\`=") line = "`=";
             output.AppendLine(RenderInline(line, links, literal));
         }
         return new NomadNetRenderedPage(output.ToString().TrimEnd(), links);
@@ -67,18 +68,26 @@ public static class MicronText
         }
         for (var index = 0; index < line.Length; index++)
         {
-            if (line[index] == '[')
+            if (line[index] == '\\' && index + 1 < line.Length)
             {
-                var close = line.IndexOf(']', index + 1);
+                var escaped = line[++index];
+                if (!char.IsControl(escaped) || escaped == '\t') output.Append(escaped);
+                continue;
+            }
+            if (line[index] == '`' && index + 1 < line.Length && line[index + 1] == '[')
+            {
+                var close = line.IndexOf(']', index + 2);
                 if (close > index)
                 {
-                    var parts = line[(index + 1)..close].Split('`');
+                    var parts = line[(index + 2)..close].Split('`');
                     var target = parts.Length switch { 1 => parts[0], 2 or 3 => parts[1], _ => "" };
                     var label = parts.Length switch { 1 => target, 2 or 3 => parts[0], _ => "" };
+                    if (label.Length == 0) label = target;
                     if (target.Length > 0 && parts.Length <= 3)
                     {
                         var fields = parts.Length == 3 ? parts[2] : "";
-                        links.Add(new NomadNetPageLink(label, target, fields));
+                        label = NomadNetTerminalText.Safe(label);
+                        links.Add(new NomadNetPageLink(label, NomadNetTerminalText.Safe(target), NomadNetTerminalText.Safe(fields)));
                         output.Append('[').Append(links.Count).Append("] ").Append(label);
                         index = close;
                         continue;
@@ -87,12 +96,21 @@ public static class MicronText
             }
             if (line[index] == '`' && index + 1 < line.Length)
             {
-                var code = line[index + 1];
-                if ("!*_=fbacrl`".Contains(code))
+                var code = line[++index];
+                if (code is 'F' or 'B')
                 {
-                    index++;
+                    var length = index + 1 < line.Length && line[index + 1] == 'T' ? 7 : 3;
+                    if (index + length < line.Length) index += length;
                     continue;
                 }
+                if (code == ':')
+                {
+                    while (index + 1 < line.Length && (char.IsLetterOrDigit(line[index + 1]) || line[index + 1] is '_' or '-')) index++;
+                    continue;
+                }
+                if ("!*_=fbacrl`".Contains(code)) continue;
+                if (code == '<') { output.Append("[form field: terminal editing not implemented]"); continue; }
+                continue;
             }
             if (!char.IsControl(line[index]) || line[index] == '\t') output.Append(line[index]);
         }

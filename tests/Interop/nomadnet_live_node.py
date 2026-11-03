@@ -5,6 +5,8 @@ import os
 import sys
 import threading
 import time
+import subprocess
+import hashlib
 
 import LXMF
 import RNS
@@ -35,6 +37,13 @@ def main():
     imported_source = os.path.realpath(os.path.dirname(nomadnet.__file__))
     if expected_source and os.path.realpath(expected_source) != os.path.realpath(os.path.dirname(imported_source)):
         raise RuntimeError(f"NomadNet imported from unexpected source path: {nomadnet.__file__}")
+    if not expected_source:
+        raise RuntimeError("DOTRETICULUM_NOMADNET_SOURCE must select the primary source")
+    revision = subprocess.check_output(["git", "-C", expected_source, "rev-parse", "HEAD"], text=True).strip()
+    if revision != "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2":
+        raise RuntimeError(f"Unexpected primary NomadNet revision: {revision}")
+    if subprocess.check_output(["git", "-C", expected_source, "status", "--porcelain"], text=True).strip():
+        raise RuntimeError("The NomadNet reference source must be clean")
     from nomadnet._version import __version__ as version
     if version != "1.4.4":
         raise RuntimeError(f"NomadNet version {version} does not match the pinned primary source")
@@ -62,6 +71,7 @@ def main():
                 module=nomadnet.__file__,
                 node=app.node.destination.hash.hex(),
                 delivery=app.lxmf_destination.hash.hex(),
+                revision=revision,
             )
 
             for raw_line in sys.stdin:
@@ -82,8 +92,12 @@ def main():
                         registered_pages=app.node.servedpages,
                     )
                     continue
-                if parts[0] != "send" or len(parts) != 3:
-                    raise ValueError("expected send <32-hex-destination> <text>, stats, or quit")
+                if parts[0] == "ingest" and len(parts) >= 2:
+                    accepted = app.message_router.ingest_lxm_uri(parts[1])
+                    emit("ingested", accepted=accepted)
+                    continue
+                if parts[0] not in ("send", "send-file", "paper", "request") or len(parts) != 3:
+                    raise ValueError("expected send, send-file, paper, request, ingest, stats, or quit")
 
                 destination_hash = bytes.fromhex(parts[1])
                 if len(destination_hash) != RNS.Reticulum.TRUNCATED_HASHLENGTH // 8:
@@ -92,23 +106,64 @@ def main():
                 if remote_identity is None:
                     RNS.Transport.request_path(destination_hash)
                     deadline = time.monotonic() + 30
+                    next_request = time.monotonic() + 1
                     while remote_identity is None and time.monotonic() < deadline:
+                        if time.monotonic() >= next_request:
+                            RNS.Transport.request_path(destination_hash)
+                            next_request = time.monotonic() + 1
                         time.sleep(0.2)
                         remote_identity = RNS.Identity.recall(destination_hash)
                 if remote_identity is None:
                     emit("failed", reason="No announced identity for destination")
                     continue
 
+                if parts[0] == "request":
+                    destination = RNS.Destination(remote_identity, RNS.Destination.OUT, RNS.Destination.SINGLE,
+                                                  "nomadnetwork", "node")
+                    link = RNS.Link(destination)
+                    deadline = time.monotonic() + 30
+                    while link.status != RNS.Link.ACTIVE and time.monotonic() < deadline:
+                        time.sleep(0.05)
+                    if link.status != RNS.Link.ACTIVE:
+                        raise RuntimeError("Native hosted node link did not establish")
+                    link.identify(app.identity)
+                    def response(receipt):
+                        data = receipt.response
+                        if hasattr(data, "read"):
+                            data = data.read()
+                        if not isinstance(data, bytes):
+                            raise RuntimeError("Expected bytes or file response")
+                        emit("response", size=len(data), sha256=hashlib.sha256(data).hexdigest(),
+                             text=data.decode("utf-8", errors="replace") if len(data) < 4096 else None)
+                        link.teardown()
+                    link.request(parts[2], response_callback=response,
+                                 failed_callback=lambda receipt: emit("request-failed", status=receipt.status))
+                    continue
+
                 destination = RNS.Destination(
                     remote_identity, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery"
                 )
+                fields = {}
+                content = parts[2]
+                if parts[0] == "send-file":
+                    with open(parts[2], "rb") as stream:
+                        attachment = stream.read(16000001)
+                    if len(attachment) > 16000000:
+                        raise ValueError("Reference attachment exceeds adapter bound")
+                    fields[LXMF.FIELD_FILE_ATTACHMENTS] = [[os.path.basename(parts[2]), attachment]]
+                    content = "upstream-attachment"
                 message = LXMF.LXMessage(
                     destination,
                     app.lxmf_destination,
-                    parts[2],
+                    content,
                     "",
-                    desired_method=LXMF.LXMessage.DIRECT,
+                    desired_method=LXMF.LXMessage.PAPER if parts[0] == "paper" else LXMF.LXMessage.DIRECT,
+                    fields=fields,
                 )
+                if parts[0] == "paper":
+                    message.pack()
+                    emit("paper", uri=message.as_uri())
+                    continue
                 message.register_delivery_callback(
                     lambda current: emit("delivered", message_hash=current.hash.hex())
                 )

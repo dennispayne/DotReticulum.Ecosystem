@@ -27,6 +27,9 @@ public sealed class NomadNetStoreTests
             Assert.Equal("alice", Assert.Single(await reloaded.ContactsAsync()).Name.ToLowerInvariant());
             Assert.Equal("world", Assert.Single(await reloaded.MessagesAsync(hash.ToLowerInvariant())).Content);
             Assert.Equal("Home", Assert.Single(await reloaded.BookmarksAsync()).Title);
+            await reloaded.UpdateMessageStatusAsync("message-1", "delivered");
+            await reloaded.UpdateMessageStatusAsync("message-1", "outbound");
+            Assert.Equal("delivered", Assert.Single(await reloaded.MessagesAsync()).Status);
         }
         finally { Directory.Delete(directory, recursive: true); }
     }

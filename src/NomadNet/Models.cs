@@ -12,6 +12,28 @@ public sealed record NomadNetSettings
 {
     public int SchemaVersion { get; init; } = 1;
     public string DisplayName { get; init; } = "NomadNet user";
+    public bool EnableNode { get; set; }
+    public string? NodeName { get; set; }
+    public int NodeAnnounceIntervalMinutes { get; set; } = 360;
+    public bool EnableExecutablePages { get; set; }
+    public bool EnablePropagation { get; set; }
+    public string? PropagationNode { get; set; }
+    public int DeliveryTransferLimitBytes { get; set; } = 1_000_000;
+
+    public async Task SaveAsync(string directory, CancellationToken cancellationToken = default)
+    {
+        Validate();
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "settings.json");
+        var staged = path + "." + Guid.NewGuid().ToString("N") + ".new";
+        try
+        {
+            await File.WriteAllBytesAsync(staged, System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(this,
+                NomadNetJsonContext.Default.NomadNetSettings), cancellationToken).ConfigureAwait(false);
+            File.Move(staged, path, overwrite: true);
+        }
+        finally { if (File.Exists(staged)) File.Delete(staged); }
+    }
 
     public static async Task<NomadNetSettings> OpenAsync(string directory, CancellationToken cancellationToken = default)
     {
@@ -38,10 +60,20 @@ public sealed record NomadNetSettings
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         var settings = await System.Text.Json.JsonSerializer.DeserializeAsync(stream, NomadNetJsonContext.Default.NomadNetSettings,
             cancellationToken).ConfigureAwait(false) ?? throw new InvalidDataException("NomadNet settings file is empty.");
-        if (settings.SchemaVersion != 1 || string.IsNullOrWhiteSpace(settings.DisplayName) ||
-            settings.DisplayName.Trim().Length > 80 || settings.DisplayName.Any(char.IsControl))
-            throw new InvalidDataException("NomadNet settings contain an invalid version or display name.");
+        settings.Validate();
         return settings with { DisplayName = settings.DisplayName.Trim() };
+    }
+
+    private void Validate()
+    {
+        if (SchemaVersion != 1 || string.IsNullOrWhiteSpace(DisplayName) ||
+            DisplayName.Trim().Length > 80 || DisplayName.Any(char.IsControl) ||
+            NodeAnnounceIntervalMinutes is < 1 or > 10080 ||
+            DeliveryTransferLimitBytes is < 1024 or > 64 * 1024 * 1024 ||
+            NodeName is { } nodeName && (string.IsNullOrWhiteSpace(nodeName) || nodeName.Length > 80 || nodeName.Any(char.IsControl)) ||
+            EnablePropagation && !EnableNode)
+            throw new InvalidDataException("NomadNet settings contain an invalid version or display name.");
+        if (PropagationNode is not null) _ = NomadNetAddress.NormalizeHash(PropagationNode);
     }
 }
 

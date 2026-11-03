@@ -17,4 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\NomadNet\NomadNet.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="NomadNetVectors.json" />
+  </ItemGroup>
 </Project>

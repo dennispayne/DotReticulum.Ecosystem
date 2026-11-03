@@ -25,4 +25,13 @@ public static class TelephoneProfiles
             if (Available[index].Profile == profile) return Available[(index + 1) % Available.Count].Profile;
         throw new ArgumentOutOfRangeException(nameof(profile));
     }
+
+    public static int BufferFrames(TelephoneProfile profile) => profile switch
+    {
+        TelephoneProfile.UltraLowBandwidth or TelephoneProfile.VeryLowBandwidth or TelephoneProfile.LowBandwidth or
+            TelephoneProfile.UltraLowLatency => 2,
+        TelephoneProfile.LowLatency => 3,
+        TelephoneProfile.MediumQuality or TelephoneProfile.HighQuality or TelephoneProfile.MaximumQuality => 5,
+        _ => throw new ArgumentOutOfRangeException(nameof(profile)),
+    };
 }

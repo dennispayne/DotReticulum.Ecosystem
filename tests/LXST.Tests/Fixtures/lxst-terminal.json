@@ -1,6 +1,6 @@
 {
-  "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
-  "source_sha256": "a0ea3cb846ec6d1b876462a0d9dd646cdceb2d84ac3c6f4028a354144b6d8664",
+  "revision": "eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f",
+  "source_sha256": "180c2a133dd490db2437d2e30c28cee97e54018f06fc438cd5d0113d3dac0be2",
   "substitutes": "Constructor bypass; fake telephone/callbacks and one-iteration input boundary. Actual main_menu and run execute.",
   "cases": [
     {

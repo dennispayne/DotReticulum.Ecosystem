@@ -28,7 +28,7 @@ from LXST.Codecs.Codec2 import Codec2
 
 
 ROOT = Path(os.environ["DOTRETICULUM_LXST_UPSTREAM"]).resolve(strict=True)
-PINNED_REVISION = "3b596f48ddd252ddc9c315ef8f3020cfd3688223"
+PINNED_REVISION = "eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f"
 SOURCE_FILES = [
     "LXST/Codecs/Codec.py",
     "LXST/Codecs/Opus.py",
@@ -356,7 +356,7 @@ def main():
     output = {
         "reference": {
             "revision": revision,
-            "version": "0.4.5",
+            "version": "0.5.4",
             "method": "Executed pinned LXST APIs in the isolated reference venv, including Null identity and Loopback sink observations; filters use the loaded upstream filter backend.",
             "filterBackend": "native" if Filters.USE_NATIVE_FILTERS else "python",
             "sourceSha256": hashes,

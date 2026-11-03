@@ -9,7 +9,7 @@ import sys
 from types import ModuleType, SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Interop"))
-from reference_environment import verify_reference
+from reference_environment import PINNED_LXST_SHA, verify_reference
 
 
 def main():
@@ -57,7 +57,7 @@ def main():
     keypad = keypad_module.Keypad(callback=lambda sender, event: events.append(list(event)))
     keypad.enable_hook()
     result = {
-        "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+        "revision": PINNED_LXST_SHA,
         "source_sha256": {name: hashlib.sha256((Path(os.environ["DOTRETICULUM_LXST_UPSTREAM"]) / "LXST" / "Primitives" / "hardware" / name).read_bytes()).hexdigest()
                           for name in ["keypad_gpio_4x4.py", "display_i2c_lcd1602.py"]},
         "substitutes": "Only GPIO/SMBus calls and wall clock/sleep are fake; actual driver constructors/scan/print/sleep/wake/close execute unchanged.",

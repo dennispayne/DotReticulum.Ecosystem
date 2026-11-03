@@ -52,6 +52,26 @@ public sealed class StreamSessionTests
     }
 
     [Fact]
+    public async Task CombinedSignalsMatchExecutedPrimary054PacketBytes()
+    {
+        using var fixture = System.Text.Json.JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-telephone-modes.json")));
+        var transport = new MemoryTransport();
+        await using var session = new StreamSession(transport, new RawFactory());
+        session.Start();
+        await session.SendSignalAsync(7L);
+        await session.SendSignalsAsync([319L, 241L]);
+        await session.SendSignalsAsync([]);
+        await session.SendSignalsAsync([new object?[] { 1L, 2L }]);
+        await session.SendSignalsAsync([null, "hello"]);
+        Assert.Equal(fixture.RootElement.GetProperty("signals").EnumerateArray().Select(value => value.GetString()),
+            transport.Sent.Select(Convert.ToHexStringLower));
+        foreach (var item in fixture.RootElement.GetProperty("buffers").EnumerateArray())
+            Assert.Equal(item.GetProperty("frames").GetInt32(),
+                TelephoneProfiles.BufferFrames((TelephoneProfile)item.GetProperty("profile").GetInt32()));
+    }
+
+    [Fact]
     public async Task ArbitrarySignalsSurviveObserverFailureAndPreserveTelephoneIntegerFiltering()
     {
         var transport = new MemoryTransport();

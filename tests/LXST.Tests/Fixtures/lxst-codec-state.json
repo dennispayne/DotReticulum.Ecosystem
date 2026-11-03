@@ -1,8 +1,8 @@
 {
-  "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+  "revision": "eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f",
   "source_sha256": {
-    "Codecs/Opus.py": "0f0e6f9ffa48e899a80220b33485226fc411d70cd07dce3ff0b7582a208deb03",
-    "Codecs/Codec2.py": "e43a0be0b3b5b66665c47f468e8b102040632652a88e73598fc8cdbad8d4819a"
+    "Codecs/Opus.py": "bd3c7b0d777bddfbfc80acd51765b3d9bf623ba02bc0f1d1a6e128a2ab5bdd48",
+    "Codecs/Codec2.py": "bb5727a4da4083ceddc0f692a12cf4aa17c8ad48c4394bcc71a61d4bdf5d572c"
   },
   "opus_channels": [
     {

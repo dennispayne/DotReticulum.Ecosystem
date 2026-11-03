@@ -13,13 +13,13 @@ public sealed class ResamplingAudioCodecTests
     public void FixtureRecordsTheExecutedPinnedReferenceAndSources()
     {
         var reference = Vectors.RootElement.GetProperty("reference");
-        Assert.Equal("3b596f48ddd252ddc9c315ef8f3020cfd3688223", reference.GetProperty("revision").GetString());
+        Assert.Equal("eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f", reference.GetProperty("revision").GetString());
         Assert.Contains("Executed pinned LXST APIs", reference.GetProperty("method").GetString());
         Assert.Equal(
-            "2bd8d637d573476099996498e649a8fa5ea88507dd3c44a4c8b261e6187b3900",
+            "85304326d004db27d8dc35de92a003534027c7ee44a7b309e266a678fe5029bc",
             reference.GetProperty("sourceSha256").GetProperty("LXST/Codecs/Codec.py").GetString());
         Assert.Equal(
-            "0f0e6f9ffa48e899a80220b33485226fc411d70cd07dce3ff0b7582a208deb03",
+            "bd3c7b0d777bddfbfc80acd51765b3d9bf623ba02bc0f1d1a6e128a2ab5bdd48",
             reference.GetProperty("sourceSha256").GetProperty("LXST/Codecs/Opus.py").GetString());
     }
 

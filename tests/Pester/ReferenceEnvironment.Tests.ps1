@@ -131,7 +131,8 @@ Describe 'Pinned LXST provenance' -Tag Integration -Skip:(!$env:DOTRETICULUM_PYT
     It 'accepts the exact imported checkout including upstream-generated native filter outputs' {
         $result = Invoke-ReferenceCheck -Lxst
         $result.ExitCode | Should -Be 0 -Because $result.Error
-        ($result.Output | ConvertFrom-Json).lxst_revision | Should -Be '3b596f48ddd252ddc9c315ef8f3020cfd3688223'
+        ($result.Output | ConvertFrom-Json).lxst_revision | Should -Be 'eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f'
+        ($result.Output | ConvertFrom-Json).lxst_version | Should -Be '0.5.4'
     }
 
     It 'rejects untracked LXST source despite allowing native filter build outputs' {

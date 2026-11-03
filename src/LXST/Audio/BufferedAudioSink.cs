@@ -19,6 +19,9 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
     private bool _disposed;
     private bool _running;
     private long _dropped;
+    private int _maximumHeight = 3;
+    private int _startFrames = 1;
+    private bool _waitingForFrames;
 
     public BufferedAudioSink(IAudioSink output, int sampleRate, int channels, bool autoStart = true,
         TimeProvider? timeProvider = null)
@@ -36,12 +39,26 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
 
     public Action<string, Exception?>? Error { get; set; }
     public int QueuedFrames { get { lock (_gate) return _frames.Count; } }
-    public bool CanReceive { get { lock (_gate) return !_disposed && _frames.Count < 3; } }
+    public bool CanReceive { get { lock (_gate) return !_disposed && _frames.Count < _maximumHeight; } }
     public bool IsRunning { get { lock (_gate) return _running; } }
     public Task Completion { get { lock (_gate) return _completion; } }
     public long DroppedFrames => Interlocked.Read(ref _dropped);
     public TimeSpan OutputLatency { get; private set; }
     public TimeSpan MaximumLatency { get; private set; }
+    public int MaximumBufferHeight { get { lock (_gate) return _maximumHeight; } }
+    public int StartFrames { get { lock (_gate) return _startFrames; } }
+
+    public void ConfigureProfile(TelephoneProfile profile)
+    {
+        var target = TelephoneProfiles.BufferFrames(profile);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_maximumHeight != target) _maximumHeight = target + 1;
+            _startFrames = Math.Max(1, target - 2);
+            _waitingForFrames = _frames.Count < _startFrames;
+        }
+    }
 
     public ValueTask WriteAsync(AudioFrame frame, CancellationToken cancellationToken = default)
     {
@@ -65,7 +82,7 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
             }
             _frames.Enqueue(new(frame.Samples.ToArray(), frame.SampleRate, frame.Channels));
             if (_available.CurrentCount == 0) _available.Release();
-            if (_autoStart) Start();
+            if (_autoStart && _frames.Count >= _startFrames) Start();
         }
         return ValueTask.CompletedTask;
     }
@@ -132,13 +149,14 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
                 AudioFrame? frame;
                 lock (_gate)
                 {
+                    if (_waitingForFrames && _frames.Count >= _startFrames) _waitingForFrames = false;
                     if (_frames.Count != 0)
                     {
                         OutputLatency = _frameTime!.Value * _frames.Count;
-                        MaximumLatency = _frameTime.Value * 3;
+                        MaximumLatency = _frameTime.Value * _maximumHeight;
                         _available.Wait(0);
                     }
-                    frame = _frames.Count == 0 ? null : _frames.Dequeue();
+                    frame = _frames.Count == 0 || _waitingForFrames ? null : _frames.Dequeue();
                 }
                 if (frame is null)
                 {
@@ -156,7 +174,7 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
                     {
                         lock (_gate)
                         {
-                            if (_frames.Count != 0) continue;
+                            if (_frames.Count != 0 && !_waitingForFrames) continue;
                             _running = false;
                             return;
                         }
@@ -176,7 +194,7 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
                 catch (Exception ex) { Report("Buffered playback sink failed; continuing with the next frame.", ex); }
                 lock (_gate)
                 {
-                    if (_frames.Count > 3)
+                    if (_frames.Count > _maximumHeight)
                     {
                         _frames.Dequeue();
                         Interlocked.Increment(ref _dropped);

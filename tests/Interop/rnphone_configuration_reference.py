@@ -11,7 +11,7 @@ import json
 import os
 from pathlib import Path
 
-from reference_environment import verify_reference
+from reference_environment import PINNED_LXST_SHA, verify_reference
 import RNS
 from RNS.vendor.configobj import ConfigObj
 from LXST.Primitives.Telephony import Telephone
@@ -43,7 +43,7 @@ def main():
         host.main_menu()
     allowed = "all" if host.allowed == Telephone.ALLOW_ALL else "none" if host.allowed == Telephone.ALLOW_NONE else "list"
     output = {
-        "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+        "revision": PINNED_LXST_SHA,
         "source_sha256": hashlib.sha256((Path(os.environ["DOTRETICULUM_LXST_UPSTREAM"]) / "LXST" / "Utilities" / "rnphone.py").read_bytes()).hexdigest(),
         "allowed": allowed,
         "allowed_hashes": [value.hex() for value in host.allowed_list],

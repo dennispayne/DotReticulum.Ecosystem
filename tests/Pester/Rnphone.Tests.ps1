@@ -99,6 +99,44 @@ BeforeAll {
         finally { $listener.Stop() }
     }
 
+    function Get-PhoneSoakSeconds {
+        if (!$env:DOTLXST_SOAK_SECONDS) { return 0 }
+        $seconds = 0
+        if (![int]::TryParse($env:DOTLXST_SOAK_SECONDS, [ref] $seconds) -or $seconds -lt 1 -or $seconds -gt 3600) {
+            throw 'DOTLXST_SOAK_SECONDS must be an integer from 1 through 3600.'
+        }
+        return $seconds
+    }
+
+    function Wait-PhoneSoak {
+        param([object[]] $Phones)
+        $seconds = Get-PhoneSoakSeconds
+        if (!$seconds) { return }
+        function Read-CallCounters($Running) {
+            $pattern = '^Call status: Established; received=(\d+); transmitted=(\d+)'
+            $occurrence = @($Running.Output | Where-Object { $_ -match $pattern }).Count + 1
+            Send-PhoneLine $Running 'status'
+            $line = Wait-PhoneLine $Running $pattern -Occurrence $occurrence
+            $match = [regex]::Match($line, $pattern)
+            @([long] $match.Groups[1].Value, [long] $match.Groups[2].Value)
+        }
+        $before = @{}
+        foreach ($running in $Phones) { $before[$running.Process.Id] = Read-CallCounters $running }
+        $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+        while ([DateTime]::UtcNow -lt $deadline) {
+            foreach ($running in $Phones) {
+                Read-PhoneProcess $running
+                $running.Process.HasExited | Should -BeFalse
+            }
+            Start-Sleep -Milliseconds 50
+        }
+        foreach ($running in $Phones) {
+            $after = Read-CallCounters $running
+            $after[0] | Should -BeGreaterThan $before[$running.Process.Id][0]
+            $after[1] | Should -BeGreaterThan $before[$running.Process.Id][1]
+        }
+    }
+
     function Wait-PhoneSinkUsage {
         param([string] $Server, [string] $Sink, [bool] $Expected = $true)
         $sinks = Invoke-PhoneCommand 'pactl' @('-s', $Server, 'list', 'short', 'sinks')
@@ -151,6 +189,7 @@ Describe 'Two Windows native rnphone processes without audio hardware' -Tag Inte
                 Wait-PhoneLine $phone '^Audio transmit ready' | Out-Null
                 Wait-PhoneLine $phone '^Audio receive ready' | Out-Null
             }
+            Wait-PhoneSoak @($first, $second)
             Send-PhoneLine $first 'profile'
             Wait-PhoneLine $first '^Profile: HighQuality' | Out-Null
             foreach ($phone in @($first, $second)) { Wait-PhoneLine $phone '^Audio transmit ready' -Occurrence 2 | Out-Null }
@@ -161,15 +200,22 @@ Describe 'Two Windows native rnphone processes without audio hardware' -Tag Inte
             Wait-PhoneLine $second '^State: Ringing' -Occurrence 2 | Out-Null
             Send-PhoneLine $second ''
             foreach ($phone in @($first, $second)) { Wait-PhoneLine $phone '^State: Established' -Occurrence 2 | Out-Null }
-            Send-PhoneLine $first ''
-            foreach ($phone in @($first, $second)) { Wait-PhoneLine $phone '^State: Available' -Occurrence 2 | Out-Null }
-            Send-PhoneLine $second 'quit'
+            $second.Process.Kill($true)
             $second.Process.WaitForExit(10000) | Should -BeTrue
-            $second.Process.ExitCode | Should -Be 0
+            Wait-PhoneLine $first '^State: Available' -Occurrence 2 -Seconds 45 | Out-Null
             Stop-PhoneProcess $second
             $second = Start-PhoneProcess $script:phoneBinary $secondArgs
             Wait-PhoneLine $second 'Reticulum Telephone ready' | Out-Null
             (Wait-PhoneLine $second '^Identity hash:') | Should -Match $secondIdentity
+            Send-PhoneLine $second 'announce'
+            Send-PhoneLine $first $secondIdentity
+            Wait-PhoneLine $second '^State: Ringing' | Out-Null
+            Send-PhoneLine $second ''
+            Wait-PhoneLine $first '^State: Established' -Occurrence 3 | Out-Null
+            Wait-PhoneLine $second '^State: Established' | Out-Null
+            Send-PhoneLine $first ''
+            Wait-PhoneLine $first '^State: Available' -Occurrence 3 | Out-Null
+            Wait-PhoneLine $second '^State: Available' | Out-Null
             foreach ($phone in @($first, $second)) {
                 Send-PhoneLine $phone 'quit'
                 $phone.Process.WaitForExit(10000) | Should -BeTrue
@@ -190,7 +236,7 @@ Describe 'Published rnphone CLI' -Tag Integration, Native -Skip:(!$env:DOTLXST_R
         $help.Output | Should -Match '--list-devices'
         $help.Output | Should -Match 'require accessible kernel devices'
         $help.Output | Should -Match 'not WASAPI parity'
-        (Invoke-PhoneCommand $script:phoneBinary @('--version')).Output | Should -Match 'rnphone 0\.4\.5'
+        (Invoke-PhoneCommand $script:phoneBinary @('--version')).Output | Should -Match 'rnphone 0\.5\.4'
         (Invoke-PhoneCommand $script:phoneBinary @('--systemd')).Output | Should -Match 'ExecStart=.*rnphone --service'
         (Invoke-PhoneCommand $script:phoneBinary @('--invalid-option')).Code | Should -Be 2
     }
@@ -251,6 +297,8 @@ Describe 'Native rnphone configuration and phonebook persistence' -Tag Integrati
             Send-PhoneLine $phone 'quit'
             $phone.Process.StandardInput.Close()
             $phone.Process.WaitForExit(200) | Should -BeFalse
+            $soakSeconds = Get-PhoneSoakSeconds
+            if ($soakSeconds) { $phone.Process.WaitForExit($soakSeconds * 1000) | Should -BeFalse }
             (Invoke-PhoneCommand '/usr/bin/kill' @('-TERM', "$($phone.Process.Id)")).Code | Should -Be 0
             $phone.Process.WaitForExit(10000) | Should -BeTrue
             $phone.Process.ExitCode | Should -Be 0
@@ -564,6 +612,7 @@ target_port = $port
                 Wait-PhoneLine $phone '^Audio receive ready' | Out-Null
             }
             Wait-PhoneSinkUsage $pulseAddress 'lxst_ringer' $false
+            Wait-PhoneSoak @($first, $second)
             $firstPath = Join-Path $firstConfig 'config'
             (Get-Content -Raw $firstPath).Replace('speaker = lxst_output', 'speaker = lxst_alternate').
                 Replace('microphone = lxst_input', 'microphone = lxst_alternate_input') | Set-Content $firstPath

@@ -24,15 +24,26 @@ public sealed class StreamPacket
         MaxDepth = 8,
     };
 
+    private IReadOnlyList<object?> _signals = [];
+    private bool _hasSignalling;
     public IReadOnlyList<EncodedFrame> Frames { get; init; } = [];
-    public IReadOnlyList<object?> Signals { get; init; } = [];
+    public IReadOnlyList<object?> Signals
+    {
+        get => _signals;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _signals = value;
+            _hasSignalling = true;
+        }
+    }
 
     public byte[] Encode()
     {
         if (Frames.Count > 256 || Signals.Count > 256)
             throw new ArgumentException("Too many frames or signals.");
         var fields = new Dictionary<object, object?>();
-        if (Signals.Count != 0) fields[0L] = Signals.ToArray();
+        if (_hasSignalling) fields[0L] = Signals.ToArray();
         if (Frames.Count != 0)
         {
             var frames = Frames.Select(frame =>
@@ -70,6 +81,6 @@ public sealed class StreamPacket
             var values = signalValue is object?[] items ? items : [signalValue];
             signals.AddRange(values);
         }
-        return new() { Frames = frames, Signals = signals };
+        return fields.ContainsKey(0L) ? new() { Frames = frames, Signals = signals } : new() { Frames = frames };
     }
 }

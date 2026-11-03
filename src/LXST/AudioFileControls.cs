@@ -13,17 +13,36 @@ public sealed class FilePlayer : IAsyncDisposable
     private CancellationTokenSource? _stop;
     private Task _completion = Task.CompletedTask;
     private Task? _disposal;
+    private double _gainDb;
+    private bool _releaseOnFinish;
 
-    public FilePlayer(IAudioSink sink, string? path = null, bool loop = false, string? libraryPath = null)
+    public FilePlayer(IAudioSink sink, string? path = null, bool loop = false, string? libraryPath = null,
+        double gainDb = 0, bool releaseOnFinish = false)
     {
         _sink = sink ?? throw new ArgumentNullException(nameof(sink));
         _libraryPath = libraryPath;
         _loop = loop;
+        GainDb = gainDb;
+        _releaseOnFinish = releaseOnFinish;
         if (path is not null) SetSource(path);
     }
 
     public bool IsPlaying { get { lock (_gate) return _playing; } }
     public Task Completion { get { lock (_gate) return _completion; } }
+    public double GainDb
+    {
+        get { lock (_gate) return _gainDb; }
+        set
+        {
+            if (!double.IsFinite(value)) throw new ArgumentOutOfRangeException(nameof(value));
+            lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); _gainDb = value; }
+        }
+    }
+    public bool ReleaseOnFinish
+    {
+        get { lock (_gate) return _releaseOnFinish; }
+        set { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); _releaseOnFinish = value; } }
+    }
     public event Action<FilePlayer>? Finished;
     public Action<string, Exception?>? Error { get; set; }
 
@@ -72,7 +91,7 @@ public sealed class FilePlayer : IAsyncDisposable
             {
                 await using var source = new OpusFileSource(path, timed: true, libraryPath: _libraryPath);
                 await foreach (var frame in source.CaptureAsync(stop).ConfigureAwait(false))
-                    await _sink.WriteAsync(frame, stop).ConfigureAwait(false);
+                    await _sink.WriteAsync(OpusFileSource.ApplyGain(frame, GainDb), stop).ConfigureAwait(false);
                 lock (_gate) if (!_loop) break;
             } while (!stop.IsCancellationRequested);
         }
@@ -84,6 +103,16 @@ public sealed class FilePlayer : IAsyncDisposable
                 foreach (Action<FilePlayer> observer in finished.GetInvocationList())
                     try { observer(this); }
                     catch (Exception ex) { Report("File playback completion observer failed.", ex); }
+            lock (_gate)
+            {
+                if (_releaseOnFinish)
+                {
+                    _disposed = true;
+                    _path = null;
+                    _stop?.Dispose();
+                    _stop = null;
+                }
+            }
         }
     }
 

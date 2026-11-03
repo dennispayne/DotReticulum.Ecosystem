@@ -18,10 +18,10 @@ from LXST.Primitives.Recorders import FileRecorder
 
 deployed = Path(__file__).resolve().parent / "Interop"
 sys.path.insert(0, str(deployed if deployed.is_dir() else Path(__file__).resolve().parents[1] / "Interop"))
-from reference_environment import verify_reference
+from reference_environment import PINNED_LXST_SHA, verify_reference
 
 
-def read_actual_file(path):
+def read_actual_file(path, gain=0.0):
     frames = []
 
     class Observer:
@@ -31,7 +31,7 @@ def read_actual_file(path):
         def handle_frame(self, frame, source):
             frames.append(frame.astype(np.float32))
 
-    playback = OpusFileSource(str(path), codec=Null(), sink=Observer(), target_frame_ms=100)
+    playback = OpusFileSource(str(path), codec=Null(), sink=Observer(), target_frame_ms=100, gain=gain)
     playback.start()
     playback.ingest_thread.join(10)
     if playback.should_run:
@@ -79,12 +79,14 @@ def main():
         time.sleep(.01)
     sink.stop()
     output = {
-        "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+        "revision": PINNED_LXST_SHA,
         "module": str(LXST.__file__),
         "source_sha256": {name: hashlib.sha256((root / "LXST" / name).read_bytes()).hexdigest()
                           for name in ["Sources.py", "Sinks.py", "Primitives/Players.py", "Primitives/Recorders.py"]},
         "file_base64": base64.b64encode(path.read_bytes()).decode(),
         **read_actual_file(path),
+        "gain_samples": [{"gain_db": gain, "samples": read_actual_file(path, gain)["decoded"][:64]}
+                        for gain in [-6.0, 6.0]],
     }
     # Bypass only device construction; invoke the actual setter with a real sink.
     recorder = FileRecorder.__new__(FileRecorder)

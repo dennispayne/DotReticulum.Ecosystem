@@ -1,6 +1,6 @@
 {
-  "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
-  "telephony_sha256": "35b2a4093368223145a548ac671504b43a4dcdac62368db754b082fe40138825",
+  "revision": "eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f",
+  "telephony_sha256": "921c603ebc189422a6949049c86c2d15704cd9d401ffd9738098a73ce41918ab",
   "policies": [
     {
       "allowed": "all",

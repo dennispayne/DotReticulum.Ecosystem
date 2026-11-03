@@ -7,6 +7,29 @@ namespace LXST.Tests.Audio;
 public sealed class BufferedAudioSinkTests
 {
     [Fact]
+    public async Task ProfileBufferTargetsMatchActual054AndWaitForTheConfiguredStartupHeight()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-telephone-modes.json")));
+        foreach (var row in fixture.RootElement.GetProperty("buffers").EnumerateArray())
+        {
+            await using var configured = new BufferedAudioSink(new RecordingSink(), 8_000, 1);
+            configured.ConfigureProfile((TelephoneProfile)row.GetProperty("profile").GetInt32());
+            Assert.Equal(row.GetProperty("maximum_height").GetInt32(), configured.MaximumBufferHeight);
+            Assert.Equal(row.GetProperty("start_frames").GetInt32(), configured.StartFrames);
+        }
+        var output = new RecordingSink();
+        await using var sink = new BufferedAudioSink(output, 8_000, 1);
+        sink.ConfigureProfile(TelephoneProfile.MediumQuality);
+        for (var index = 0; index < 2; index++) await sink.WriteAsync(new(new float[80], 8000, 1));
+        Assert.False(sink.IsRunning);
+        Assert.Empty(output.Frames);
+        await sink.WriteAsync(new(new float[80], 8000, 1));
+        await sink.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(3, output.Frames.Count);
+    }
+
+    [Fact]
     public async Task PlaybackQueueBoundsLagDropAndChannelTruncationMatchPrimary()
     {
         using var fixture = JsonDocument.Parse(File.ReadAllText(

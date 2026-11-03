@@ -8,7 +8,7 @@ import sys
 from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Interop"))
-from reference_environment import verify_reference
+from reference_environment import PINNED_LXST_SHA, verify_reference
 from LXST.Utilities import rnphone
 
 
@@ -48,7 +48,7 @@ def main():
         hangup=lambda: actions.append({"kind": "hangup"}), busy=False)
     app.dial = lambda identity: actions.append({"kind": "dial", "identity": identity})
     result = {
-        "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+        "revision": PINNED_LXST_SHA,
         "source_sha256": hashlib.sha256((Path(os.environ["DOTRETICULUM_LXST_UPSTREAM"]) / "LXST" / "Utilities" / "rnphone.py").read_bytes()).hexdigest(),
         "substitutes": "Constructor bypass; fake telephone/display/clock and dial boundary. Actual _keypad_event, became_available and _update_display execute.",
         "events": [], "sleep": [],

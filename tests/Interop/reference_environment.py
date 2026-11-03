@@ -12,8 +12,8 @@ import sysconfig
 PINNED_RNS_SHA = "a29bfb51c468945c96a1ee22cae0114e993e2391"
 PINNED_LXMF_VERSION = "1.2.1"
 PINNED_LXMF_SHA = "e8ba02483217af43be284a72f1c059c730b7d047"
-PINNED_LXST_SHA = "3b596f48ddd252ddc9c315ef8f3020cfd3688223"
-PINNED_LXST_VERSION = "0.4.5"
+PINNED_LXST_SHA = "eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f"
+PINNED_LXST_VERSION = "0.5.4"
 # PyPI wheel SHA-256: 4bd95325b00e5fae81241e28f26a5ed22b38fea941e128d1c63a33c99e931440.
 # Every file matches the primary-host commit above; the GitHub mirror lacks it.
 PINNED_LXMF_SOURCES = {

@@ -5,7 +5,7 @@ using System.Text.Json;
 
 namespace LXST.Tests;
 
-/// <summary>Actual primary LXST 0.4.5 source/sink fixture, SHA 3b596f48ddd252ddc9c315ef8f3020cfd3688223.</summary>
+/// <summary>Actual primary LXST 0.5.4 source/sink fixture, SHA eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f.</summary>
 [Trait("Category", "Integration")]
 public sealed class OpusAudioFileTests
 {
@@ -20,6 +20,39 @@ public sealed class OpusAudioFileTests
             Entered.TrySetResult();
             if (Hold is not null) await Hold.Task;
         }
+    }
+
+    [NativeCodecFact]
+    public async Task ActualReferenceFileGainAndPlayerReleaseLeaveTheExternalSinkOwnedByTheCaller()
+    {
+        using var fixture = LoadFixture();
+        var root = CreateDirectory();
+        try
+        {
+            var path = Path.Combine(root, "gain.opus");
+            await File.WriteAllBytesAsync(path, Convert.FromBase64String(fixture.RootElement.GetProperty("file_base64").GetString()!));
+            foreach (var vector in fixture.RootElement.GetProperty("gain_samples").EnumerateArray())
+            {
+                var gain = vector.GetProperty("gain_db").GetDouble();
+                await using var source = new OpusFileSource(path, gainDb: gain);
+                await using var frames = source.CaptureAsync().GetAsyncEnumerator();
+                Assert.True(await frames.MoveNextAsync());
+                Assert.Equal(vector.GetProperty("samples").EnumerateArray().Select(value => value.GetSingle()),
+                    frames.Current.Samples.Span[..64].ToArray());
+            }
+            var sink = new ControlledSink();
+            await using var player = new FilePlayer(sink, path, gainDb: -6, releaseOnFinish: true);
+            player.Play();
+            await player.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(player.IsPlaying);
+            Assert.True(player.ReleaseOnFinish);
+            Assert.Equal(-6, player.GainDb);
+            Assert.Throws<ObjectDisposedException>(() => player.Play());
+            await sink.WriteAsync(new(new float[960], 48000, 1));
+            Assert.Throws<ArgumentOutOfRangeException>(() => player.GainDb = double.NaN);
+            Assert.Throws<ArgumentOutOfRangeException>(() => new OpusFileSource(path, gainDb: double.NaN));
+        }
+        finally { Directory.Delete(root, recursive: true); }
     }
 
     [NativeCodecFact]

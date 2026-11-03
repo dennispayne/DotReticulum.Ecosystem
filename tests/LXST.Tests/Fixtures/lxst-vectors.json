@@ -1,7 +1,7 @@
 {
-  "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+  "revision": "eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f",
   "rns_revision": "a29bfb51c468945c96a1ee22cae0114e993e2391",
-  "module": "/home/dennis/dotreticulum-ecosystem-acfd3d43/lxst-primary/LXST/__init__.py",
+  "module": "/mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/builds/lxst-primary-054/LXST/__init__.py",
   "python": "3.14.4",
   "byteorder": "little",
   "numpy": "2.5.4",
@@ -11,10 +11,10 @@
     "libcodec2-30fce438.so.1.2": "3453c1cac697701e680e521d03a9d51b4868416e5a827646fdc8ac02d196249d"
   },
   "source_sha256": {
-    "Network.py": "3da8422a5c2c73f6e9c7d8e784b1e9cb307d079ebb5bf99183fc5daadfbd9701",
-    "Codecs/Raw.py": "8bda42cb8602797e7ef62dd71bac074d2ec547278ec2b0bc5bf8bcb7c100a026",
-    "Codecs/Opus.py": "0f0e6f9ffa48e899a80220b33485226fc411d70cd07dce3ff0b7582a208deb03",
-    "Codecs/Codec2.py": "e43a0be0b3b5b66665c47f468e8b102040632652a88e73598fc8cdbad8d4819a"
+    "Network.py": "1f58806a43b2eadac536e1062857493fede551688ef92414b427aaffd6492923",
+    "Codecs/Raw.py": "bce228630cf26a0c3a72b8d068eef3f9bbd099f077184b4ebf467259a42dbb0f",
+    "Codecs/Opus.py": "bd3c7b0d777bddfbfc80acd51765b3d9bf623ba02bc0f1d1a6e128a2ab5bdd48",
+    "Codecs/Codec2.py": "bb5727a4da4083ceddc0f692a12cf4aa17c8ad48c4394bcc71a61d4bdf5d572c"
   },
   "raw": [
     {

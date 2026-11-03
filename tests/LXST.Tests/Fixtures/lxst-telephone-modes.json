@@ -1,0 +1,159 @@
+{
+  "revision": "eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f",
+  "version": "0.5.4",
+  "source_sha256": {
+    "Network.py": "1f58806a43b2eadac536e1062857493fede551688ef92414b427aaffd6492923",
+    "Primitives/Telephony.py": "921c603ebc189422a6949049c86c2d15704cd9d401ffd9738098a73ce41918ab",
+    "Filters.py": "7a3279857fea9b0e09440482afd11e82da98132dac2bb437450506c6b93b60c0",
+    "Sources.py": "64c8403a95c29750321fefdfdec24aed796693499662bc5997f3d881e8c91b2d",
+    "Primitives/Players.py": "51fddc5102da64569bd9605fc0e7f507a6a1ac9f8afef3558834bcf7a565402c"
+  },
+  "substitutes": "Constructor bypass; fake active link, packetizer and AGC. Actual mode selection/switch/PTT APIs execute. RNS.Packet.send is captured only for packet vectors.",
+  "modes": [
+    {
+      "value": 1,
+      "name": "Full Duplex",
+      "abbreviation": "FDX"
+    },
+    {
+      "value": 2,
+      "name": "Half Duplex",
+      "abbreviation": "HDX"
+    }
+  ],
+  "buffers": [
+    {
+      "profile": 16,
+      "frames": 2,
+      "maximum_height": 3,
+      "start_frames": 1,
+      "streaming": true,
+      "waits": 1
+    },
+    {
+      "profile": 32,
+      "frames": 2,
+      "maximum_height": 3,
+      "start_frames": 1,
+      "streaming": true,
+      "waits": 1
+    },
+    {
+      "profile": 48,
+      "frames": 2,
+      "maximum_height": 3,
+      "start_frames": 1,
+      "streaming": true,
+      "waits": 1
+    },
+    {
+      "profile": 64,
+      "frames": 5,
+      "maximum_height": 6,
+      "start_frames": 3,
+      "streaming": true,
+      "waits": 1
+    },
+    {
+      "profile": 80,
+      "frames": 5,
+      "maximum_height": 6,
+      "start_frames": 3,
+      "streaming": true,
+      "waits": 1
+    },
+    {
+      "profile": 96,
+      "frames": 5,
+      "maximum_height": 6,
+      "start_frames": 3,
+      "streaming": true,
+      "waits": 1
+    },
+    {
+      "profile": 128,
+      "frames": 3,
+      "maximum_height": 3,
+      "start_frames": 1,
+      "streaming": true,
+      "waits": 1
+    },
+    {
+      "profile": 112,
+      "frames": 2,
+      "maximum_height": 3,
+      "start_frames": 1,
+      "streaming": true,
+      "waits": 1
+    }
+  ],
+  "signals": [
+    "81009107",
+    "810092cd013fccf1",
+    "810090",
+    "810091920102",
+    "810092c0a568656c6c6f"
+  ],
+  "steps": [
+    {
+      "name": "initial-half",
+      "mode": 2,
+      "squelched": true,
+      "agc_paused": false,
+      "signals": []
+    },
+    {
+      "name": "press",
+      "mode": 2,
+      "squelched": false,
+      "agc_paused": false,
+      "signals": []
+    },
+    {
+      "name": "release",
+      "mode": 2,
+      "squelched": true,
+      "agc_paused": true,
+      "signals": []
+    },
+    {
+      "name": "full",
+      "mode": 1,
+      "squelched": false,
+      "agc_paused": true,
+      "signals": [
+        241
+      ]
+    },
+    {
+      "name": "remote-half",
+      "mode": 2,
+      "squelched": true,
+      "agc_paused": true,
+      "signals": []
+    },
+    {
+      "name": "disable-follow",
+      "mode": 2,
+      "squelched": true,
+      "agc_paused": true,
+      "signals": []
+    },
+    {
+      "name": "ignored-remote-full",
+      "mode": 2,
+      "squelched": true,
+      "agc_paused": true,
+      "signals": []
+    },
+    {
+      "name": "local-full",
+      "mode": 1,
+      "squelched": false,
+      "agc_paused": true,
+      "signals": [
+        241
+      ]
+    }
+  ]
+}

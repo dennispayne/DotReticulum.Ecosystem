@@ -113,10 +113,10 @@ public sealed class EncodedAudioPipelineTests
         var root = Vectors.RootElement.GetProperty("pipeline");
         var sourceHashes = Vectors.RootElement.GetProperty("reference").GetProperty("sourceSha256");
         Assert.Equal(
-            "313a8abbe27735966e47b30fe55b8634e95157430e8658cf58b1f25665937293",
+            "6720c6a634f2758dae27b7b7ea006127855924a316133f343317c8219ac1d7d3",
             sourceHashes.GetProperty("LXST/Pipeline.py").GetString());
         Assert.Equal(
-            "3da8422a5c2c73f6e9c7d8e784b1e9cb307d079ebb5bf99183fc5daadfbd9701",
+            "1f58806a43b2eadac536e1062857493fede551688ef92414b427aaffd6492923",
             sourceHashes.GetProperty("LXST/Network.py").GetString());
         Assert.True(root.GetProperty("pipelineSetsSourceBackReference").GetBoolean());
         Assert.True(root.GetProperty("pipelineAssignsSinkToSource").GetBoolean());

@@ -12,7 +12,7 @@ public sealed class NativeCodecFactAttribute : FactAttribute
     }
 }
 
-/// <summary>Actual LXST vector generator, SHA 3b596f48ddd252ddc9c315ef8f3020cfd3688223; no reimplemented reference codec.</summary>
+/// <summary>Actual LXST vector generator, SHA eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f; no reimplemented reference codec.</summary>
 [Trait("Category", "Integration")]
 public sealed class NativeCodecTests
 {

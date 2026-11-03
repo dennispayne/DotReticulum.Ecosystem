@@ -3,7 +3,7 @@ namespace LXST.Tests;
 [Trait("Category", "Unit")]
 public class PhoneCommandTests
 {
-    // Executed primary LXST 0.4.5 run/main_menu, with disclosed device/input substitutes.
+    // Executed primary LXST 0.5.4 run/main_menu, with disclosed device/input substitutes.
     [Fact]
     public void TerminalStatePrecedenceMatchesActualReference()
     {

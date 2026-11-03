@@ -1,6 +1,6 @@
 {
-  "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
-  "network_sha256": "3da8422a5c2c73f6e9c7d8e784b1e9cb307d079ebb5bf99183fc5daadfbd9701",
+  "revision": "eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f",
+  "network_sha256": "1f58806a43b2eadac536e1062857493fede551688ef92414b427aaffd6492923",
   "vectors": [
     {
       "encoded": "810091c0",
@@ -48,6 +48,14 @@
       "encoded": "810091cb3ff4000000000000",
       "signals": [
         "cb3ff4000000000000"
+      ]
+    },
+    {
+      "encoded": "81009301a374776fc0",
+      "signals": [
+        "01",
+        "a374776f",
+        "c0"
       ]
     },
     {

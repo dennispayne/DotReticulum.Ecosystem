@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using LXST;
+using LXST.Devices;
 using DotReticulum.Applications;
 using DotReticulum.Core;
 
@@ -19,7 +20,7 @@ public static class PhoneApp
           -h, --help           Show this help
 
         Interactive: identity, desthash, announce, phonebook, redial, profile, quit.
-        Extensions: reload, mute-receive, mute-transmit, receive-gain DB, transmit-gain DB.
+        Extensions: status, reload, mute-receive, mute-transmit, receive-gain DB, transmit-gain DB.
         Enter a caller identity hash/name/alias to dial; Enter answers a ringing
         call or ends an active call. Requires separately installed libopus,
         libcodec2 and Linux pactl/pacat/parec for audio.
@@ -42,7 +43,7 @@ public static class PhoneApp
                 switch (args[i])
                 {
                     case "-h" or "--help": await output.WriteLineAsync(Usage); return 0;
-                    case "--version": await output.WriteLineAsync("rnphone 0.4.5"); return 0;
+                    case "--version": await output.WriteLineAsync("rnphone 0.5.4"); return 0;
                     case "--headless-audio": headlessAudio = true; break;
                     case "--config": config = Next(); break;
                     case "--rnsconfig": rnsConfig = Next(); break;
@@ -103,8 +104,11 @@ public static class PhoneApp
             Task tones = Task.CompletedTask;
             CancellationTokenSource? toneStop = null;
             var busyTone = false;
+            telephone.ProfileChanged += playback.ConfigureProfile;
             telephone.StateChanged += state =>
             {
+                if (state == CallState.Established && telephone.ActiveProfile is { } profile)
+                    playback.ConfigureProfile(profile);
                 output.WriteLine("State: " + state);
                 output.Flush();
                 lock (audioGate)
@@ -233,7 +237,11 @@ public static class PhoneApp
                     if (telephone.State == CallState.Available && TerminalCommands.IsQuit(line)) break;
                     try
                     {
-                        if (line == "reload")
+                        if (line == "status")
+                        {
+                            await output.WriteLineAsync($"Call status: {telephone.State}; received={telephone.ReceivedFrames}; transmitted={telephone.TransmittedFrames}");
+                        }
+                        else if (line == "reload")
                         {
                             var replacement = PhoneConfiguration.Load(path);
                             if ((replacement.Keypad, replacement.HookPin, replacement.Display) != (settings.Keypad, settings.HookPin, settings.Display))

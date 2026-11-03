@@ -3,15 +3,15 @@ using System.Diagnostics;
 using LXST;
 using LXST.Audio;
 
-namespace Rnphone;
+namespace LXST.Devices;
 
-internal sealed class ResamplingPlaybackSink(IAudioSink sink) : IAudioSink
+public sealed class ResamplingPlaybackSink(IAudioSink sink) : IAudioSink
 {
     public ValueTask WriteAsync(AudioFrame frame, CancellationToken cancellationToken = default) =>
         sink.WriteAsync(frame.SampleRate == 48000 ? frame : AudioResampler.Resample(frame, 48000), cancellationToken);
 }
 
-/// <summary>Linux device I/O is isolated in cancellable processes, outside the platform-independent library.</summary>
+/// <summary>Linux device I/O is isolated in cancellable processes behind the common device contracts.</summary>
 internal static class PulseAudio
 {
     public static Process Start(string program, IEnumerable<string> arguments, bool input, bool output)
@@ -47,7 +47,7 @@ internal static class PulseAudio
 
 }
 
-internal static class TelephoneAudioCapture
+public static class TelephoneAudioCapture
 {
     public static async Task CaptureAsync(IAudioDeviceBackend backend, TelephoneEndpoint telephone, Func<string?> deviceProvider, CancellationToken stop, Action? firstFrame = null)
     {
@@ -136,7 +136,7 @@ internal sealed class PulseAudioSink(string? device, Action? firstFrame = null) 
         if (_errors is not null)
         {
             var errors = await _errors.ConfigureAwait(false);
-            if (errors.Length != 0) Trace.TraceError("rnphone playback: " + errors);
+            if (errors.Length != 0) Trace.TraceError("LXST playback: " + errors);
         }
         _process.Dispose();
         _process = null;

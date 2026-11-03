@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using LXST;
 
-namespace Rnphone;
+namespace LXST.Devices;
 
 public sealed class PulseAudioDeviceBackend : IAudioDeviceBackend
 {

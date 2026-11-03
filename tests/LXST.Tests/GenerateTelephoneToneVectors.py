@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import LXST.Primitives.Telephony as telephony
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Interop"))
-from reference_environment import verify_reference
+from reference_environment import PINNED_LXST_SHA, verify_reference
 
 
 def main():
@@ -20,7 +20,7 @@ def main():
     args = parser.parse_args()
     verify_reference(require_lxst=True)
     output = {
-        "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+        "revision": PINNED_LXST_SHA,
         "source_sha256": hashlib.sha256((Path(os.environ["DOTRETICULUM_LXST_UPSTREAM"]) / "LXST" / "Primitives" / "Telephony.py").read_bytes()).hexdigest(),
         "frequency": telephony.Telephone.DIAL_TONE_FREQUENCY,
         "ease_ms": telephony.Telephone.DIAL_TONE_EASE_MS,

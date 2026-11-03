@@ -10,7 +10,7 @@ import numpy as np
 from LXST.Codecs import Raw
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Interop"))
-from reference_environment import verify_reference
+from reference_environment import PINNED_LXST_SHA, verify_reference
 
 
 def main():
@@ -21,7 +21,7 @@ def main():
     mono = np.array([[.25], [-.5]], dtype=np.float32)
     stereo = np.array([[.25, .75], [-.5, 1]], dtype=np.float32)
     result = {
-        "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+        "revision": PINNED_LXST_SHA,
         "source_sha256": hashlib.sha256((Path(os.environ["DOTRETICULUM_LXST_UPSTREAM"]) / "LXST" / "Codecs" / "Raw.py").read_bytes()).hexdigest(),
         "depths": [], "channels": [], "implicit_wide": [],
     }

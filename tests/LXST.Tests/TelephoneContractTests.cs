@@ -3,7 +3,7 @@ using DotReticulum.Core;
 
 namespace LXST.Tests;
 
-/// <summary>Executed primary 0.4.5 Telephone contracts; source digest is stored with the fixture.</summary>
+/// <summary>Executed primary 0.5.4 Telephone contracts; source digest is stored with the fixture.</summary>
 [Trait("Category", "Unit")]
 public sealed class TelephoneContractTests
 {

@@ -9,7 +9,7 @@ import sys
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Interop"))
-from reference_environment import verify_reference
+from reference_environment import PINNED_LXST_SHA, verify_reference
 
 import RNS
 from LXST.Primitives.Telephony import Profiles, Telephone
@@ -56,7 +56,7 @@ def main():
             phone.set_connect_timeout(value)
             timeouts.append({"requested": value, "stored": phone.establishment_timeout})
         output = {
-            "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+            "revision": PINNED_LXST_SHA,
             "telephony_sha256": hashlib.sha256((root / "LXST" / "Primitives" / "Telephony.py").read_bytes()).hexdigest(),
             "policies": policies, "profiles": profiles, "connect_timeouts": timeouts,
         }

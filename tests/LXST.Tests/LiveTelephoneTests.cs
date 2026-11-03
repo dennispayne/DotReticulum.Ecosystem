@@ -20,14 +20,17 @@ public sealed class VirtualAudioTheoryAttribute : TheoryAttribute
 public sealed class LiveTelephoneTests
 {
     [VirtualAudioTheory]
-    [InlineData(false, "direct")]
-    [InlineData(true, "direct")]
-    [InlineData(false, "dotnet-hop")]
-    [InlineData(true, "dotnet-hop")]
-    [InlineData(false, "python-hop")]
-    [InlineData(true, "python-hop")]
+    [InlineData(false, "direct", false)]
+    [InlineData(true, "direct", false)]
+    [InlineData(false, "dotnet-hop", false)]
+    [InlineData(true, "dotnet-hop", false)]
+    [InlineData(false, "python-hop", false)]
+    [InlineData(true, "python-hop", false)]
+    [InlineData(false, "direct", true)]
+    [InlineData(true, "direct", true)]
     [Trait("Category", "Live")]
-    public async Task ActualPythonTelephoneSetsUpBidirectionalOpusAndTearsDown(bool pythonOriginates, string topology)
+    public async Task ActualPythonTelephoneSetsUpBidirectionalOpusAndTearsDown(bool pythonOriginates, string topology,
+        bool halfDuplex)
     {
         await using var pulse = await VirtualPulseServer.StartAsync();
         var port = LiveStreamTests.FreePort();
@@ -64,11 +67,16 @@ public sealed class LiveTelephoneTests
             await LiveStreamTests.WaitForAsync(() => router.HasPath(python.Hash));
             if (relayPort != 0) Assert.True(router.HopsTo(python.Hash) >= 2, "Telephone path bypassed the configured transport.");
             if (pythonOriginates)
-                await python.CommandAsync("call " + Convert.ToHexStringLower(telephone.DestinationHash), "calling");
+                await python.CommandAsync("call " + Convert.ToHexStringLower(telephone.DestinationHash) +
+                    " 64 " + (halfDuplex ? "2" : "1"), "calling");
             else
-                await telephone.CallAsync(python.Identity, cancellationToken: stop.Token);
+                await telephone.CallAsync(python.Identity, cancellationToken: stop.Token,
+                    mode: halfDuplex ? TelephoneMode.HalfDuplex : TelephoneMode.FullDuplex);
             await python.WaitAsync("established");
-            await LiveStreamTests.WaitForAsync(() => telephone.State == CallState.Established && !audio.IsEmpty);
+            await LiveStreamTests.WaitForAsync(() => telephone.State == CallState.Established);
+            Assert.Equal(halfDuplex ? TelephoneMode.HalfDuplex : TelephoneMode.FullDuplex, telephone.ActiveMode);
+            await VerifyModesAsync(telephone, python, stop.Token);
+            await LiveStreamTests.WaitForAsync(() => !audio.IsEmpty);
             Assert.Contains(states, value => value == CallState.Ringing);
             Assert.Equal(TelephoneProfile.MediumQuality, telephone.ActiveProfile);
             var latency = await python.CommandAsync("low-latency-observation", "low-latency");
@@ -122,6 +130,33 @@ public sealed class LiveTelephoneTests
             try { await relayDispatch; }
             catch (OperationCanceledException) { }
         }
+    }
+
+    private static async Task VerifyModesAsync(TelephoneEndpoint telephone, LxstPythonNode python, CancellationToken stop)
+    {
+        await telephone.SwitchModeAsync(TelephoneMode.HalfDuplex, stop);
+        await LiveStreamTests.WaitForAsync(() => telephone.TransmitSquelched);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stop);
+        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+        while ((await python.CommandAsync("mode", "mode")).GetProperty("value").GetInt32() != 2)
+            await Task.Delay(25, timeout.Token);
+        var pressed = await python.CommandAsync("ptt on", "ptt");
+        Assert.False(pressed.GetProperty("squelched").GetBoolean());
+        Assert.False(pressed.GetProperty("paused").GetBoolean());
+        var released = await python.CommandAsync("ptt off", "ptt");
+        Assert.True(released.GetProperty("squelched").GetBoolean());
+        Assert.True(released.GetProperty("paused").GetBoolean());
+        await python.CommandAsync("mode 1", "mode");
+        await LiveStreamTests.WaitForAsync(() => telephone.ActiveMode == TelephoneMode.FullDuplex);
+        Assert.True(telephone.DisableRemoteModeFollow());
+        await python.CommandAsync("mode 2", "mode");
+        await python.CommandAsync("profile 128", "profile");
+        await LiveStreamTests.WaitForAsync(() => telephone.ActiveProfile == TelephoneProfile.LowLatency);
+        Assert.Equal(TelephoneMode.FullDuplex, telephone.ActiveMode);
+        await python.CommandAsync("mode 1", "mode");
+        await python.CommandAsync("ptt on", "ptt");
+        await python.CommandAsync("profile 64", "profile");
+        await LiveStreamTests.WaitForAsync(() => telephone.ActiveProfile == TelephoneProfile.MediumQuality);
     }
 
     private static async Task VerifyProfileSwitchesAsync(TelephoneEndpoint telephone, LxstPythonNode python,

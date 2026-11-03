@@ -118,6 +118,73 @@ public sealed class TelephoneLifecycleTests
     }
 
     [Fact]
+    public async Task ModeNegotiationPttAndRemoteFollowMatchActualPrimary054()
+    {
+        using var fixture = System.Text.Json.JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-telephone-modes.json")));
+        await using var rig = new Rig(new() { AutoAnswerDelay = TimeSpan.FromMilliseconds(20) });
+        await rig.StartAsync();
+        var signals = new System.Collections.Concurrent.ConcurrentQueue<long>();
+        await using var peer = rig.Connect(out var established, signals.Enqueue);
+        await established.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.NotNull(rig.Phone.EstablishedAt);
+        foreach (var step in fixture.RootElement.GetProperty("steps").EnumerateArray())
+        {
+            while (signals.TryDequeue(out _)) { }
+            switch (step.GetProperty("name").GetString())
+            {
+                case "initial-half":
+                case "remote-half":
+                    await peer.SendSignalAsync(242);
+                    await LiveStreamTests.WaitForAsync(() => rig.Phone.ActiveMode == TelephoneMode.HalfDuplex);
+                    break;
+                case "press": rig.Phone.SetTransmitSquelched(false); break;
+                case "release": rig.Phone.SetTransmitSquelched(true); break;
+                case "disable-follow": Assert.True(rig.Phone.DisableRemoteModeFollow()); break;
+                case "ignored-remote-full":
+                    await peer.SendSignalsAsync([241L, 383L]);
+                    await LiveStreamTests.WaitForAsync(() => rig.Phone.ActiveProfile == TelephoneProfile.LowLatency);
+                    break;
+                default: await rig.Phone.SwitchModeAsync(TelephoneMode.FullDuplex); break;
+            }
+            var expectedSignals = step.GetProperty("signals").EnumerateArray().Select(value => value.GetInt64()).ToArray();
+            if (expectedSignals.Length != 0) await LiveStreamTests.WaitForAsync(() => signals.Count == expectedSignals.Length);
+            Assert.Equal(expectedSignals, signals);
+            Assert.Equal((TelephoneMode)step.GetProperty("mode").GetInt32(), rig.Phone.ActiveMode);
+            Assert.Equal(step.GetProperty("squelched").GetBoolean(), rig.Phone.TransmitSquelched);
+            Assert.Equal(step.GetProperty("agc_paused").GetBoolean(), rig.Phone.AutomaticGainControlPaused);
+        }
+        rig.Phone.Hangup();
+        Assert.Null(rig.Phone.ActiveMode);
+        Assert.Null(rig.Phone.EstablishedAt);
+        Assert.False(rig.Phone.DisableRemoteModeFollow());
+        Assert.False(rig.Phone.TransmitSquelched);
+    }
+
+    [NativeCodecFact]
+    public async Task HalfDuplexSquelchDropsAudioRatherThanSendingSilentPacketsAndPttResumes()
+    {
+        await using var rig = new Rig(new() { AutoAnswerDelay = TimeSpan.FromMilliseconds(20) });
+        await rig.StartAsync();
+        await using var peer = rig.Connect(out var established, codecFactory: new NativeAudioCodecFactory());
+        var frames = new System.Collections.Concurrent.ConcurrentQueue<AudioFrame>();
+        peer.FrameReceived += frames.Enqueue;
+        await established.WaitAsync(TimeSpan.FromSeconds(5));
+        await rig.Phone.SwitchModeAsync(TelephoneMode.HalfDuplex);
+        var frame = new AudioFrame(new float[1440], 24000, 1);
+        for (var index = 0; index < 3; index++) await rig.Phone.SendAudioAsync(frame);
+        Assert.Empty(frames);
+        rig.Phone.SetTransmitSquelched(false);
+        await rig.Phone.SendAudioAsync(frame);
+        await LiveStreamTests.WaitForAsync(() => frames.Count == 1);
+        rig.Phone.SetTransmitSquelched(true);
+        for (var index = 0; index < 3; index++) await rig.Phone.SendAudioAsync(frame);
+        await rig.Phone.SwitchModeAsync(TelephoneMode.FullDuplex);
+        await rig.Phone.SendAudioAsync(frame);
+        await LiveStreamTests.WaitForAsync(() => frames.Count == 2);
+    }
+
+    [Fact]
     public async Task DisposalCancelsAndAwaitsPendingPathDiscoveryWithoutSubscribers()
     {
         await using var rig = new Rig(new());

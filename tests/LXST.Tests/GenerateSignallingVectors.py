@@ -8,7 +8,7 @@ import sys
 from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Interop"))
-from reference_environment import verify_reference
+from reference_environment import PINNED_LXST_SHA, verify_reference
 
 import RNS
 from RNS.vendor import umsgpack as mp
@@ -37,14 +37,14 @@ def main():
             return True
         RNS.Packet.send = capture
         for value in [None, False, True, "hello", b"\x00\xff", -2, 2**64 - 1,
-                      1.25, [1, "two", None], {"nested": [True, b"bytes"]},
+                      1.25, [1, "two", None], [[1, "two", None]], {"nested": [True, b"bytes"]},
                       {b"\xff\x01": "binary-key"},
                       mp.Ext(42, b"extension")]:
             receiver.signal(value, destination)
     finally:
         RNS.Packet.send = original_send
     output = {
-        "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+        "revision": PINNED_LXST_SHA,
         "network_sha256": hashlib.sha256((root / "LXST" / "Network.py").read_bytes()).hexdigest(),
         "vectors": vectors,
         "key_boundaries": [],

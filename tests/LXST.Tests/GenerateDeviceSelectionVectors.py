@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Interop"))
-from reference_environment import verify_reference
+from reference_environment import PINNED_LXST_SHA, verify_reference
 
 
 def main():
@@ -42,7 +42,7 @@ def main():
             item["error"] = type(error).__name__
         cases.append(item)
     Path(args.output).write_text(json.dumps({
-        "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+        "revision": PINNED_LXST_SHA,
         "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         "method": "Compiled and executed unchanged AST of actual _match_soundcard; only device enumeration input is synthetic.",
         "devices": devices, "cases": cases,

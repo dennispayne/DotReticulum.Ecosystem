@@ -127,7 +127,7 @@ def main():
                 signals.signal(int(parts[1]), connections[-1][0])
                 emit("sent")
             elif parts[0] == "signal-packed":
-                signals.signal(mp.unpackb(bytes.fromhex(parts[1])), connections[-1][0])
+                signals.signal([mp.unpackb(bytes.fromhex(parts[1]))], connections[-1][0])
                 emit("sent")
             elif parts[0] == "send":
                 kind = parts[1]
@@ -157,7 +157,8 @@ def main():
                         remote = RNS.Identity.recall(dest_hash)
                 if remote is None:
                     raise RuntimeError("No identity for remote telephone")
-                phone.call(remote, profile=int(parts[2]) if len(parts) > 2 else None)
+                phone.call(remote, profile=int(parts[2]) if len(parts) > 2 else None,
+                           mode=int(parts[3]) if len(parts) > 3 else None)
                 emit("calling")
             elif parts[0] == "allowed":
                 from LXST.Primitives.Telephony import Telephone
@@ -180,6 +181,16 @@ def main():
                 if len(parts) > 1:
                     phone.switch_profile(int(parts[1]))
                 emit("profile", value=phone.active_profile)
+            elif parts[0] == "mode":
+                if len(parts) > 1:
+                    phone.switch_mode(int(parts[1]))
+                emit("mode", value=phone.active_mode)
+            elif parts[0] == "ptt":
+                phone.unsquelch_transmit(parts[1] == "on")
+                emit("ptt", squelched=phone.active_call.packetizer.squelched,
+                     paused=getattr(phone.active_call, "filter_agc", SimpleNamespace(paused=False)).paused)
+            elif parts[0] == "mode-follow-off":
+                emit("mode-follow", disabled=phone.disable_remote_mode_follow())
             elif parts[0] == "low-latency-observation":
                 player = phone.audio_output.backend.get_player(samples_per_frame=960, low_latency=True)
                 phone.audio_output.enable_low_latency()

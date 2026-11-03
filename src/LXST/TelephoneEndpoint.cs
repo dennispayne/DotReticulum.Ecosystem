@@ -28,6 +28,12 @@ public enum TelephoneProfile
     LowLatency = 0x80,
 }
 
+public enum TelephoneMode
+{
+    FullDuplex = 1,
+    HalfDuplex = 2,
+}
+
 public sealed record TelephoneOptions
 {
     public TimeSpan RingTimeout { get; init; } = TimeSpan.FromSeconds(60);
@@ -41,6 +47,7 @@ public sealed record TelephoneOptions
     public float ReceiveGainDb { get; init; }
     public float TransmitGainDb { get; init; }
     public bool UseAutomaticGainControl { get; init; } = true;
+    public bool UseBandPass { get; init; } = true;
     public IAudioSink? Sink { get; init; }
     public IAudioCodecFactory CodecFactory { get; init; } = new NativeAudioCodecFactory();
     public string? OpusLibraryPath { get; init; }
@@ -66,6 +73,13 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         public BandPassFilter TransmitFilter { get; } = new(250, 8500);
         public AutomaticGainControl TransmitAgc { get; } = new(targetLevelDb: -15);
         public bool UseAutomaticGainControl { get; set; }
+        public bool UseBandPass { get; set; }
+        public TelephoneMode Mode { get; set; } = TelephoneMode.FullDuplex;
+        public bool TransmitSquelched { get; set; }
+        public bool AgcPaused { get; set; }
+        public bool RemoteModeFollowDisabled { get; set; }
+        public DateTimeOffset? EstablishedAt { get; set; }
+        public long TransmittedFrames;
     }
 
     private sealed class ReceiveSink(TelephoneEndpoint endpoint) : IAudioSink
@@ -94,6 +108,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     private bool _receiveMuted;
     private bool _transmitMuted;
     private bool _useAutomaticGainControl;
+    private bool _useBandPass;
     private TimeSpan _connectTimeout;
     private TaskCompletionSource? _disposeCompletion;
     private Task _announcements = Task.CompletedTask;
@@ -112,6 +127,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         _receiveGainDb = _options.ReceiveGainDb;
         _transmitGainDb = _options.TransmitGainDb;
         _useAutomaticGainControl = _options.UseAutomaticGainControl;
+        _useBandPass = _options.UseBandPass;
         _connectTimeout = _options.ConnectTimeout;
         if (_options.RingTimeout <= TimeSpan.Zero || _options.WaitTimeout <= TimeSpan.Zero ||
             _options.ConnectTimeout <= TimeSpan.Zero || _options.AnnounceInterval <= TimeSpan.Zero ||
@@ -129,6 +145,12 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     public CallState State { get { lock (_gate) return _state; } }
     public bool IsBusy { get { lock (_gate) return _externalBusy || _state != CallState.Available; } }
     public TelephoneProfile? ActiveProfile { get { lock (_gate) return _call?.Profile; } }
+    public TelephoneMode? ActiveMode { get { lock (_gate) return _call?.Mode; } }
+    public bool TransmitSquelched { get { lock (_gate) return _call?.TransmitSquelched ?? false; } }
+    public bool AutomaticGainControlPaused { get { lock (_gate) return _call?.AgcPaused ?? false; } }
+    public DateTimeOffset? EstablishedAt { get { lock (_gate) return _call?.EstablishedAt; } }
+    public long ReceivedFrames { get { lock (_gate) return _call?.Session.DecodedFrames ?? 0; } }
+    public long TransmittedFrames { get { lock (_gate) return _call is { } call ? Interlocked.Read(ref call.TransmittedFrames) : 0; } }
     public Identity? RemoteIdentity { get { lock (_gate) return _call?.Link.RemoteIdentity; } }
     public bool IsIncomingCall { get { lock (_gate) return _call is { Outgoing: false }; } }
     /// <summary>Changes future outgoing establishment deadlines; an already scheduled deadline is not rewritten.</summary>
@@ -163,7 +185,14 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         get { lock (_gate) return _useAutomaticGainControl; }
         set { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); _useAutomaticGainControl = value; } }
     }
+    public bool UseBandPass
+    {
+        get { lock (_gate) return _useBandPass; }
+        set { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); _useBandPass = value; } }
+    }
     public event Action<CallState>? StateChanged;
+    public event Action<TelephoneMode>? ModeChanged;
+    public event Action<TelephoneProfile>? ProfileChanged;
     public event Action<AudioFrame>? AudioReceived;
     public Action<string, Exception?>? Error { get; set; }
 
@@ -216,11 +245,12 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     }
 
     public async Task CallAsync(Identity remote, TelephoneProfile profile = TelephoneProfile.MediumQuality,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, TelephoneMode mode = TelephoneMode.FullDuplex)
     {
         ArgumentNullException.ThrowIfNull(remote);
         EnsureStarted();
         if (!Enum.IsDefined(profile)) throw new ArgumentOutOfRangeException(nameof(profile));
+        if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
         var destination = Destination.Create(DestinationType.Single, "lxst", ["telephony"], remote);
         var started = Stopwatch.GetTimestamp();
         TimeSpan connectTimeout;
@@ -250,6 +280,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
                 var link = _router.Links.Connect(remote, destination.Hash,
                     establishmentTimeout: Math.Max(.001, connectTimeout.TotalSeconds));
                 var call = _call = Attach(link, true, profile);
+                SelectMode(call, mode);
                 var elapsed = Stopwatch.GetElapsedTime(started);
                 call.Deadline = Task.WhenAll(
                     WatchTimeoutAsync(call, Remaining(_options.WaitTimeout, elapsed)),
@@ -278,7 +309,10 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         var transport = new ReticulumStreamTransport(link, _options.ReceiveCapacity) { Error = message => Report(message, null) };
         var sink = new ReceiveSink(this);
         var session = new StreamSession(transport, _options.CodecFactory, sink) { Error = Report };
-        var call = new Call(link, transport, session, outgoing, profile) { UseAutomaticGainControl = _useAutomaticGainControl };
+        var call = new Call(link, transport, session, outgoing, profile)
+        {
+            UseAutomaticGainControl = _useAutomaticGainControl, UseBandPass = _useBandPass,
+        };
         sink.Call = call;
         session.SignalReceived += signal => ReceiveSignal(call, signal);
         link.Closed += _ => TrackCleanup(CloseAfterIngressAsync(call));
@@ -398,7 +432,18 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
             if (signal >= 255)
             {
                 var profile = (TelephoneProfile)(signal - 255);
-                if (Enum.IsDefined(profile)) call.Profile = profile;
+                if (Enum.IsDefined(profile) && call.Profile != profile)
+                {
+                    call.Profile = profile;
+                    Notify(ProfileChanged, profile);
+                }
+                return;
+            }
+            if (signal >= 240)
+            {
+                var mode = (TelephoneMode)(signal - 240);
+                if (Enum.IsDefined(mode) && !(_state == CallState.Established && call.RemoteModeFollowDisabled))
+                    SelectMode(call, mode);
                 return;
             }
             if (!call.Outgoing && _state < CallState.Connecting) return;
@@ -415,7 +460,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
                     break;
                 case CallState.Ringing when call.Outgoing:
                     SetState(CallState.Ringing);
-                    SendSignal(call, 255 + (long)call.Profile);
+                    TrackCleanup(SendPreferencesAsync(call));
                     break;
                 case CallState.Connecting when call.Outgoing:
                     SetState(CallState.Connecting);
@@ -427,6 +472,61 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         }
     }
 
+    private async Task SendPreferencesAsync(Call call)
+    {
+        try
+        {
+            await call.Session.SendSignalsAsync([255 + (long)call.Profile, 240 + (long)call.Mode], call.Stop.Token)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (call.Stop.IsCancellationRequested) { }
+        catch (Exception ex) { Report("LXST preference signalling failed.", ex); CloseCall(call); }
+    }
+
+    private void SelectMode(Call call, TelephoneMode mode)
+    {
+        var changed = call.Mode != mode;
+        call.Mode = mode;
+        call.TransmitSquelched = mode == TelephoneMode.HalfDuplex;
+        if (changed) Notify(ModeChanged, mode);
+    }
+
+    public bool DisableRemoteModeFollow()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_call is not { } call) return false;
+            call.RemoteModeFollowDisabled = true;
+            return true;
+        }
+    }
+
+    /// <summary>PTT squelch drops encoded audio rather than transmitting silence; explicit squelch also pauses AGC.</summary>
+    public void SetTransmitSquelched(bool squelched)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_call is not { } call) return;
+            call.TransmitSquelched = squelched;
+            call.AgcPaused = squelched;
+        }
+    }
+
+    public ValueTask SwitchModeAsync(TelephoneMode mode, CancellationToken cancellationToken = default)
+    {
+        if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
+        lock (_gate)
+        {
+            EnsureStarted();
+            if (_call is not { } call || _state != CallState.Established || call.Mode == mode)
+                return ValueTask.CompletedTask;
+            SelectMode(call, mode);
+            return call.Session.SendSignalAsync(240 + (long)mode, cancellationToken);
+        }
+    }
+
     public ValueTask SwitchProfileAsync(TelephoneProfile profile, CancellationToken cancellationToken = default)
     {
         if (!Enum.IsDefined(profile)) throw new ArgumentOutOfRangeException(nameof(profile));
@@ -435,6 +535,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
             EnsureStarted();
             var call = _call ?? throw new InvalidOperationException("No active call.");
             call.Profile = profile;
+            Notify(ProfileChanged, profile);
             return call.Session.SendSignalAsync(255 + (long)profile, cancellationToken);
         }
     }
@@ -455,14 +556,16 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
             TelephoneProfile profile;
             float gain;
             bool muted;
+            bool agcPaused;
             lock (_gate)
             {
                 profile = call.Profile;
                 gain = _transmitGainDb;
                 muted = _transmitMuted;
+                agcPaused = call.AgcPaused;
             }
-            var filtered = call.TransmitFilter.Process(frame);
-            if (call.UseAutomaticGainControl) filtered = call.TransmitAgc.Process(filtered);
+            var filtered = call.UseBandPass ? call.TransmitFilter.Process(frame) : frame;
+            if (call.UseAutomaticGainControl && !agcPaused) filtered = call.TransmitAgc.Process(filtered);
             var processed = ApplyMixerGain(filtered, gain, muted);
             if (call.Encoder is null || call.EncoderProfile != profile)
             {
@@ -473,7 +576,10 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
                 try { previous?.Dispose(); }
                 catch (Exception ex) { Report("LXST previous encoder cleanup failed.", ex); }
             }
-            await call.Session.SendFrameAsync(new(call.Encoder.Kind, call.Encoder.Encode(processed)), linked.Token).ConfigureAwait(false);
+            var encoded = new EncodedFrame(call.Encoder.Kind, call.Encoder.Encode(processed));
+            lock (_gate) if (call.TransmitSquelched) return;
+            await call.Session.SendFrameAsync(encoded, linked.Token).ConfigureAwait(false);
+            Interlocked.Increment(ref call.TransmittedFrames);
         }
         finally { call.AudioLock.Release(); }
     }
@@ -587,7 +693,11 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     private void SetState(CallState state)
     {
         if (state == CallState.Established && _state != CallState.Established && _call is { } call)
+        {
             call.UseAutomaticGainControl = _useAutomaticGainControl;
+            call.UseBandPass = _useBandPass;
+            call.EstablishedAt = DateTimeOffset.UtcNow;
+        }
         _state = state;
         Notify(StateChanged, state);
     }

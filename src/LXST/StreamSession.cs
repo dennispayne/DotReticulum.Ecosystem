@@ -76,6 +76,13 @@ public sealed class StreamSession : IAsyncDisposable
     public ValueTask SendSignalAsync(object? signal, CancellationToken cancellationToken = default) =>
         SendPacketAsync(new() { Signals = [signal] }, cancellationToken);
 
+    /// <summary>Sends one combined signalling list, as the 0.5.4 reference list-valued signal API does.</summary>
+    public ValueTask SendSignalsAsync(IReadOnlyList<object?> signals, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(signals);
+        return SendPacketAsync(new() { Signals = signals.ToArray() }, cancellationToken);
+    }
+
     public ValueTask SendFrameAsync(EncodedFrame frame, CancellationToken cancellationToken = default) =>
         SendPacketAsync(new() { Frames = [frame] }, cancellationToken);
 

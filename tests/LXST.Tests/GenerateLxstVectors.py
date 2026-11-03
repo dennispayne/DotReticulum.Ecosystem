@@ -1,4 +1,4 @@
-"""Execute LXST 0.4.5 APIs; never synthesize codec output in this adapter.
+"""Execute pinned LXST APIs; never synthesize codec output in this adapter.
 
 The network observation temporarily captures RNS.Packet.send at its transport
 boundary. LXST's actual Packetizer and signalling methods still generate bytes.
@@ -23,9 +23,9 @@ from LXST.Network import Packetizer, SignallingReceiver
 from LXST.Codecs.libs.pyogg import opus as opus_bindings
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Interop"))
-from reference_environment import verify_reference
+from reference_environment import PINNED_LXST_SHA, verify_reference
 
-PIN = "3b596f48ddd252ddc9c315ef8f3020cfd3688223"
+PIN = PINNED_LXST_SHA
 
 
 def main():

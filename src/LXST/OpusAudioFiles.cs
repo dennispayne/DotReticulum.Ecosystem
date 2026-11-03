@@ -15,21 +15,40 @@ public sealed class OpusFileSource : IAudioSource, IAsyncDisposable
     private readonly bool _timed;
     private int _enumerating;
     private bool _disposed;
+    private double _gainDb;
 
     public OpusFileSource(string path, int frameDurationMilliseconds = 100, bool loop = false, bool timed = false,
-        string? libraryPath = null)
+        string? libraryPath = null, double gainDb = 0)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(frameDurationMilliseconds, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(frameDurationMilliseconds, 1000);
         _frameSamples = 48 * frameDurationMilliseconds;
         _loop = loop;
         _timed = timed;
+        GainDb = gainDb;
         _reader = new(path, libraryPath);
     }
 
     public int SampleRate => 48000;
     public int Channels => _reader.Channels;
     public long SamplesPerChannel => _reader.SamplesPerChannel;
+    public double GainDb
+    {
+        get => Volatile.Read(ref _gainDb);
+        set
+        {
+            if (!double.IsFinite(value)) throw new ArgumentOutOfRangeException(nameof(value));
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            Volatile.Write(ref _gainDb, value);
+        }
+    }
+
+    internal static AudioFrame ApplyGain(AudioFrame frame, double gainDb)
+    {
+        if (gainDb == 0) return frame;
+        var gain = Math.Pow(10, gainDb / 10);
+        return new(frame.Samples.ToArray().Select(sample => (float)(sample * gain)).ToArray(), frame.SampleRate, frame.Channels);
+    }
 
     public async IAsyncEnumerable<AudioFrame> CaptureAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -61,7 +80,7 @@ public sealed class OpusFileSource : IAudioSource, IAsyncDisposable
                 }
                 finally { _gate.Release(); }
                 if (frame is null) yield break;
-                yield return frame;
+                yield return ApplyGain(frame, GainDb);
                 if (_timed)
                     await Task.Delay(TimeSpan.FromSeconds((double)frame.SamplesPerChannel / SampleRate), linked.Token).ConfigureAwait(false);
             }

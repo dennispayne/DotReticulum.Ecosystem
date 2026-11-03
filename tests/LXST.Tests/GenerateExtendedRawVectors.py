@@ -10,7 +10,7 @@ import numpy as np
 from LXST.Codecs import Raw
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Interop"))
-from reference_environment import verify_reference
+from reference_environment import PINNED_LXST_SHA, verify_reference
 
 
 def main():
@@ -33,7 +33,7 @@ def main():
     if not np.array_equal(decoded.view(np.uint32), zero_padding_decoded.view(np.uint32)):
         raise RuntimeError("Actual reference did not accept zero padding with identical decoded values.")
     result = {
-        "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+        "revision": PINNED_LXST_SHA,
         "source_sha256": hashlib.sha256((Path(os.environ["DOTRETICULUM_LXST_UPSTREAM"]) / "LXST" / "Codecs" / "Raw.py").read_bytes()).hexdigest(),
         "format": "Linux x86 little-endian 80-bit extended precision, 16-byte slot",
         "padding": "Six native padding bytes are intentionally omitted; zero padding is separately accepted by actual Raw.decode with identical decoded float32 bits.",

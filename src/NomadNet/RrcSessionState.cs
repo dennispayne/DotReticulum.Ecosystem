@@ -19,6 +19,9 @@ public sealed class RrcSessionState(byte[] identityHash)
     private readonly List<RrcChatMessage> _history = [];
     private int _historyBytes;
     private long _roomFragmentExpires;
+    private int _silentLists;
+    private readonly HashSet<string> _silentWho = new(StringComparer.Ordinal);
+    private readonly Queue<RrcEnvelope> _automatic = new();
 
     public string Nick { get; set; } = "";
     public bool Welcomed { get; private set; }
@@ -34,6 +37,53 @@ public sealed class RrcSessionState(byte[] identityHash)
     public Dictionary<string, string> Nicks { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, string?> AvailableRooms { get; } = new(StringComparer.Ordinal);
     public IReadOnlyList<RrcChatMessage> History => _history;
+    public string? ActiveRoom { get; private set; }
+    public HashSet<string> UnreadRooms { get; } = new(StringComparer.Ordinal);
+    public HashSet<string> MentionRooms { get; } = new(StringComparer.Ordinal);
+    public int HistoryPerRoomCap { get; private set; }
+    public bool AutoList { get; set; }
+    public bool AutoWho { get; set; }
+
+    public IEnumerable<RrcEnvelope> DrainAutomaticCommands()
+    {
+        while (_automatic.TryDequeue(out var command)) yield return command;
+    }
+
+    private void QueueAutomatic(string? room, string text)
+    {
+        if (_automatic.Count >= 256) throw new InvalidDataException("Too many pending RRC automatic commands.");
+        _automatic.Enqueue(MakeMessage(room, text));
+    }
+
+    public void SetActiveRoom(string? room)
+    {
+        ActiveRoom = room is null ? null : RrcEnvelope.NormalizeRoom(room, MaximumRoomBytes);
+        if (ActiveRoom is not null) MarkRead(ActiveRoom);
+    }
+
+    public void MarkRead(string room)
+    {
+        room = RrcEnvelope.NormalizeRoom(room, MaximumRoomBytes);
+        UnreadRooms.Remove(room);
+        MentionRooms.Remove(room);
+    }
+
+    public void ClearMessages(string room)
+    {
+        room = RrcEnvelope.NormalizeRoom(room, MaximumRoomBytes);
+        _history.RemoveAll(message => message.Room == room);
+        _historyBytes = _history.Sum(message => Encoding.UTF8.GetByteCount(message.Text));
+        MarkRead(room);
+    }
+
+    public void SetHistoryPerRoomCap(int cap)
+    {
+        if (cap is < 0 or > MaximumHistory) throw new ArgumentOutOfRangeException(nameof(cap));
+        HistoryPerRoomCap = cap;
+        if (cap > 0)
+            foreach (var room in _history.Select(message => message.Room).Distinct(StringComparer.Ordinal).ToArray())
+                TrimRoom(room);
+    }
 
     public RrcEnvelope MakeHello() => RrcEnvelope.Create(1, _identityHash, body: new Dictionary<long, object?>
     {
@@ -80,6 +130,9 @@ public sealed class RrcSessionState(byte[] identityHash)
         _pendingJoins.Clear();
         _pendingParts.Clear();
         _resources.Clear();
+        _silentLists = 0;
+        _silentWho.Clear();
+        _automatic.Clear();
     }
 
     public RrcEnvelope? Apply(RrcEnvelope envelope)
@@ -102,6 +155,11 @@ public sealed class RrcSessionState(byte[] identityHash)
                     RatePerMinute = Limit(limits, 4, 240, 1_000_000);
                 }
                 Welcomed = true;
+                if (AutoList)
+                {
+                    QueueAutomatic(null, "/list");
+                    _silentLists = Math.Min(256, _silentLists + 1);
+                }
                 break;
             case 11 when room is not null:
                 if (!Rooms.Contains(room) && Rooms.Count >= 256) throw new InvalidDataException("RRC room state exceeds the local bound.");
@@ -113,7 +171,11 @@ public sealed class RrcSessionState(byte[] identityHash)
                     members.Add(member);
                 }
                 members.Add(Convert.ToHexStringLower(_identityHash));
-                _pendingJoins.Remove(room);
+                if (_pendingJoins.Remove(room) && AutoWho)
+                {
+                    QueueAutomatic(room, "/who " + room);
+                    _silentWho.Add(room);
+                }
                 LearnNick(envelope);
                 break;
             case 13 when room is not null:
@@ -121,6 +183,8 @@ public sealed class RrcSessionState(byte[] identityHash)
                 {
                     Rooms.Remove(room);
                     Members.Remove(room);
+                    MarkRead(room);
+                    if (ActiveRoom == room) ActiveRoom = null;
                 }
                 else if (Members.TryGetValue(room, out var present))
                     foreach (var member in Hashes(envelope.Body)) present.Remove(member);
@@ -132,7 +196,7 @@ public sealed class RrcSessionState(byte[] identityHash)
                 if (!string.IsNullOrEmpty(envelope.Nick) && (Nicks.Count < 4096 || Nicks.ContainsKey(source))) Nicks[source] = envelope.Nick;
                 PromotePrefix(room, source);
                 Record(new(envelope.Type == 22 ? "action" : "message", room, source, envelope.Nick, text,
-                    envelope.Timestamp, RrcEnvelope.Mentions(text, Nick)));
+                    envelope.Timestamp, RrcEnvelope.Mentions(text, Nick)), incoming: true);
                 break;
             case 21:
             case 40:
@@ -143,8 +207,9 @@ public sealed class RrcSessionState(byte[] identityHash)
                 }
                 if (envelope.Body is string notice)
                 {
-                    if (envelope.Type == 21) ProcessNotice(notice);
-                    Record(new(envelope.Type == 40 ? "error" : "notice", room, source, null, notice, envelope.Timestamp, false));
+                    if (envelope.Type == 21 && ProcessNotice(notice)) break;
+                    Record(new(envelope.Type == 40 ? "error" : "notice", room, source, null, notice, envelope.Timestamp, false),
+                        incoming: true);
                 }
                 break;
             case 50:
@@ -173,7 +238,7 @@ public sealed class RrcSessionState(byte[] identityHash)
         }
     }
 
-    private void ProcessNotice(string text)
+    private bool ProcessNotice(string text)
     {
         if (RrcDirectory.ParseWho(text) is { } who)
         {
@@ -190,6 +255,7 @@ public sealed class RrcSessionState(byte[] identityHash)
                 foreach (var full in known.Where(hash => hash.StartsWith(entry.Hash, StringComparison.Ordinal)))
                     PromotePrefix(who.Room, full);
             }
+            return _silentWho.Remove(who.Room);
         }
         else if (RrcDirectory.ParseRooms(text) is { } rooms)
         {
@@ -202,6 +268,7 @@ public sealed class RrcSessionState(byte[] identityHash)
                 AvailableRooms[name] = topic;
             }
             _roomFragmentExpires = Environment.TickCount64 + 60000;
+            if (_silentLists > 0) { _silentLists--; return true; }
         }
         else if (Environment.TickCount64 < _roomFragmentExpires && RrcDirectory.ParseRoomFragment(text) is { } fragment)
         {
@@ -211,7 +278,10 @@ public sealed class RrcSessionState(byte[] identityHash)
             if (fragment.Topic is not null && Encoding.UTF8.GetByteCount(fragment.Topic) > 4096)
                 throw new InvalidDataException("RRC room topic exceeds the local bound.");
             AvailableRooms[fragment.Name] = fragment.Topic;
+            _roomFragmentExpires = Environment.TickCount64 + 60000;
+            return true;
         }
+        return false;
     }
 
     private static IEnumerable<string> Hashes(object? body) =>
@@ -272,20 +342,43 @@ public sealed class RrcSessionState(byte[] identityHash)
             _ => throw new InvalidDataException("Unsupported RRC notice resource text encoding."),
         };
         var text = encoding.GetString(data);
-        if (expected.Kind == "notice") ProcessNotice(text);
-        Record(new("notice", expected.Room, "", null, text, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), false));
+        if (expected.Kind == "notice" && ProcessNotice(text)) return;
+        Record(new("notice", expected.Room, "", null, text, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), false),
+            incoming: true);
     }
 
-    internal void Record(RrcChatMessage message)
+    internal void Record(RrcChatMessage message, bool incoming = false)
     {
         if (Encoding.UTF8.GetByteCount(message.Text) > MaximumResourceBytes)
             throw new InvalidDataException("RRC history item exceeds 256 KiB.");
+        if (incoming && message.Room is null && message.Kind is "notice" or "error" && ActiveRoom is not null)
+            message = message with { Room = ActiveRoom };
+        if (incoming && message.Room is { } room && room != ActiveRoom)
+        {
+            if (UnreadRooms.Count >= 256 && !UnreadRooms.Contains(room))
+                throw new InvalidDataException("RRC unread room state exceeds the local bound.");
+            UnreadRooms.Add(room);
+            if (message.Mention) MentionRooms.Add(room);
+        }
         _history.Add(message);
         _historyBytes += Encoding.UTF8.GetByteCount(message.Text);
+        if (HistoryPerRoomCap > 0) TrimRoom(message.Room);
         while (_history.Count > MaximumHistory || _historyBytes > 2 * 1024 * 1024)
         {
             _historyBytes -= Encoding.UTF8.GetByteCount(_history[0].Text);
             _history.RemoveAt(0);
+        }
+    }
+
+    private void TrimRoom(string? room)
+    {
+        var excess = _history.Count(message => message.Room == room) - HistoryPerRoomCap;
+        for (var index = 0; excess > 0 && index < _history.Count;)
+        {
+            if (_history[index].Room != room) { index++; continue; }
+            _historyBytes -= Encoding.UTF8.GetByteCount(_history[index].Text);
+            _history.RemoveAt(index);
+            excess--;
         }
     }
 

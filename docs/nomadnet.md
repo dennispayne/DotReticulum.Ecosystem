@@ -63,7 +63,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Media; `Node.serve_media`, `convert_media_to_webp` | **partial**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` metadata-bearing responses. Conversion of PNG/JPEG/BMP/GIF/TIFF to WebP, conversion cache/quality/dimension settings and image display are missing, not silently substituted. |
 | Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file retrieval, identifies requests, links/bookmarks, reload, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable form and variable submission; named anchor jumps; fold toggles; manual partial requests using current fields; explicit image-byte download. Submitted requests bypass cache, an intentional safety difference. Navigation history, automatic partial refresh/in-place widget composition, visual image decode and interactive file browser remain missing. |
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
-| RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` commands and parsed directory state including fragmented list notices; manual reconnect and opt-in automatic exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange group messages/actions both directions, including hub/client restarts. Unread/active-room state, automatic list/who policy, per-room retention settings, Markdown/Micron message rendering and complete Channels UI remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
+| RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways through a Python transport, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron message rendering and complete Channels UI remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop. Urwid menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
 | Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contacts/messages/bookmarks, LXMF storage, attachment byte files, page cache and separate bounded CBOR RRC hub profiles/history; application identity/history/cache and RRC nick/rooms/history survive restart. Upstream config/directory/peer-settings/conversation/RRC file import and migration, peer-settings backup recovery and full restart policy are missing. |
 
@@ -111,7 +111,8 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   `max_accepted_resource_size`, `ephemeral_notices`, `justify_msgs`, `space_msgs`,
   `nick_colors`, `mention_color`, `color_mention_timestamps`, `nick_colors_theme`,
   `render_markdown`, `render_micron`, `show_gutters`, `enable_esoterics`
-  — **missing as configurable options**. The implemented RRC core uses the
+  — **partial**: `rrc history-limit` configures per-hub retention; other listed
+  options remain missing as configuration surfaces. The implemented RRC core uses the
   upstream 256 KiB resource default, a local 1,000-item/2 MiB aggregate history
   bound and terminal-safe plain display; these are not configuration parity.
 - `[utilities] enable_utilities`; `[printing] print_messages`, `print_command`,
@@ -199,6 +200,19 @@ Only one hub is active in the terminal; stored profiles for other hubs remain.
 The receive queue, members, nick map and resource expectations are bounded;
 observer failures are reported without disabling core processing.
 
+`rrc active <room|off>` selects a viewed room and marks it read. Remote messages
+outside that room set unread and mention flags; local sends do not. Roomless
+notices route to the viewed room; notices in other rooms mark unread but not
+mentions. `rrc read <room>` clears both flags and `rrc clear <room>` also deletes
+its durable history. View/read flags are session-local, matching the primary.
+`rrc history-limit <0-1000>` persists a per-hub room limit; zero disables that
+extra limit, not the aggregate 1,000-item/2 MiB safety bound. Primary's setting is
+global and accepts larger/unlimited histories, a disclosed configuration difference.
+`rrc auto-list on|off` and `rrc auto-who on|off` persist independent default-off
+policies: `/list` follows WELCOME; `/who` follows our own acknowledged JOIN, not
+another member's JOIN. Parsed automatic responses and room-list continuation
+fragments update directory state without appearing as unread chat.
+
 After browsing, `fields` lists controls without disclosing masked values;
 `field <number> <value>` edits text (literal `\n` inserts a newline) or selects
 checkbox/radio `on|off`. `open <link-number>` includes the link's selected
@@ -212,6 +226,36 @@ it does not decode/display or validate image quality. Forms are limited to
 128 controls and 64 KiB submitted text, independently of upstream layout sizes.
 
 ## Validation and reproduction
+
+### Selected RRC activity acceptance
+
+Strict NativeAOT publish with `--artifacts-path artifacts\builds\nomadnet-activity-win`
+(`win-x64`) and `artifacts/builds/nomadnet-activity-linux` (`linux-x64`) passed.
+Windows scoped tests passed **52**, with two explicit Linux-only skips; Linux
+passed **54**, no skips. `Invoke-Pester -Path tests\Pester\NomadNet.Tests.ps1
+-Tag Native -Output Detailed -PassThru` passed **4/4 on each host**. Selected binaries:
+
+- Windows `artifacts\builds\nomadnet-activity-win\publish\NomadNet\release_win-x64\nomadnet.exe`;
+  SHA-256 `2abbf7314e77ced8e7da707c4a72c35e4911a3a9e5cc9779dc81367fe4e298ee`.
+- Linux `artifacts/builds/nomadnet-activity-linux/publish/NomadNet/release_linux-x64/nomadnet`;
+  SHA-256 `881c1e893e4f4f8f02d19eb3a4fabbd34f6f2526911c72853bccf51f478b3a16`.
+
+The saved ignored `artifacts\tests\nomadnet-activity-acceptance.ps1` selects the
+Linux binary and exact existing reference environment, runs Linux scoped tests
+on the native filesystem, Native4/4 and actual RRC/form1/1 (17.79 seconds). Run:
+
+```powershell
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-activity-acceptance.ps1
+```
+
+The unchanged primary `f6b5604` client and supplemental actual `rrcd` `f6d7e9d`
+hub run as separate Python processes, with the hub's RNS node also forwarding
+between clients. Automatic `/who` learns Python's nickname without any manual
+roster query; active-room messages stay read, inactive mentions set both flags,
+manual read clears them, and retention/automatic policies survive native restart.
+The RRC vector generator additionally executes primary activity/retention and
+automatic-directory handlers; only disk and transport boundaries are replaced
+by observations, disclosed in the fixture. These vectors are not live UI proof.
 
 Select exact native binaries with `DOTRETICULUM_NOMADNET_BINARY`; do not infer
 that a binary on PATH is the one just built. Build outputs below are isolated

@@ -144,5 +144,372 @@
       "text": "unrelated notice",
       "result": null
     }
-  ]
+  ],
+  "activity": [
+    {
+      "operation": "active",
+      "room": "lobby",
+      "text": "",
+      "local": false,
+      "mention": false,
+      "active": "lobby",
+      "unread": [],
+      "mentions": [],
+      "messages": {}
+    },
+    {
+      "operation": "message",
+      "room": "lobby",
+      "text": "active mention @Alice",
+      "local": false,
+      "mention": true,
+      "active": "lobby",
+      "unread": [],
+      "mentions": [],
+      "messages": {
+        "lobby": [
+          "active mention @Alice"
+        ]
+      }
+    },
+    {
+      "operation": "message",
+      "room": "other",
+      "text": "unread mention @Alice",
+      "local": false,
+      "mention": true,
+      "active": "lobby",
+      "unread": [
+        "other"
+      ],
+      "mentions": [
+        "other"
+      ],
+      "messages": {
+        "lobby": [
+          "active mention @Alice"
+        ],
+        "other": [
+          "unread mention @Alice"
+        ]
+      }
+    },
+    {
+      "operation": "message",
+      "room": "quiet",
+      "text": "local",
+      "local": true,
+      "mention": false,
+      "active": "lobby",
+      "unread": [
+        "other"
+      ],
+      "mentions": [
+        "other"
+      ],
+      "messages": {
+        "lobby": [
+          "active mention @Alice"
+        ],
+        "other": [
+          "unread mention @Alice"
+        ],
+        "quiet": [
+          "local"
+        ]
+      }
+    },
+    {
+      "operation": "notice",
+      "room": null,
+      "text": "hub notice",
+      "local": false,
+      "mention": false,
+      "active": "lobby",
+      "unread": [
+        "other"
+      ],
+      "mentions": [
+        "other"
+      ],
+      "messages": {
+        "lobby": [
+          "active mention @Alice",
+          "hub notice"
+        ],
+        "other": [
+          "unread mention @Alice"
+        ],
+        "quiet": [
+          "local"
+        ]
+      }
+    },
+    {
+      "operation": "notice",
+      "room": "quiet",
+      "text": "room notice",
+      "local": false,
+      "mention": false,
+      "active": "lobby",
+      "unread": [
+        "other",
+        "quiet"
+      ],
+      "mentions": [
+        "other"
+      ],
+      "messages": {
+        "lobby": [
+          "active mention @Alice",
+          "hub notice"
+        ],
+        "other": [
+          "unread mention @Alice"
+        ],
+        "quiet": [
+          "local",
+          "room notice"
+        ]
+      }
+    },
+    {
+      "operation": "active",
+      "room": "other",
+      "text": "",
+      "local": false,
+      "mention": false,
+      "active": "other",
+      "unread": [
+        "quiet"
+      ],
+      "mentions": [],
+      "messages": {
+        "lobby": [
+          "active mention @Alice",
+          "hub notice"
+        ],
+        "other": [
+          "unread mention @Alice"
+        ],
+        "quiet": [
+          "local",
+          "room notice"
+        ]
+      }
+    },
+    {
+      "operation": "read",
+      "room": "quiet",
+      "text": "",
+      "local": false,
+      "mention": false,
+      "active": "other",
+      "unread": [],
+      "mentions": [],
+      "messages": {
+        "lobby": [
+          "active mention @Alice",
+          "hub notice"
+        ],
+        "other": [
+          "unread mention @Alice"
+        ],
+        "quiet": [
+          "local",
+          "room notice"
+        ]
+      }
+    },
+    {
+      "operation": "message",
+      "room": "other",
+      "text": "next",
+      "local": false,
+      "mention": false,
+      "active": "other",
+      "unread": [],
+      "mentions": [],
+      "messages": {
+        "lobby": [
+          "active mention @Alice",
+          "hub notice"
+        ],
+        "other": [
+          "unread mention @Alice",
+          "next"
+        ],
+        "quiet": [
+          "local",
+          "room notice"
+        ]
+      }
+    },
+    {
+      "operation": "message",
+      "room": "other",
+      "text": "newest",
+      "local": false,
+      "mention": false,
+      "active": "other",
+      "unread": [],
+      "mentions": [],
+      "messages": {
+        "lobby": [
+          "active mention @Alice",
+          "hub notice"
+        ],
+        "other": [
+          "next",
+          "newest"
+        ],
+        "quiet": [
+          "local",
+          "room notice"
+        ]
+      }
+    },
+    {
+      "operation": "inactive",
+      "room": null,
+      "text": "",
+      "local": false,
+      "mention": false,
+      "active": null,
+      "unread": [],
+      "mentions": [],
+      "messages": {
+        "lobby": [
+          "active mention @Alice",
+          "hub notice"
+        ],
+        "other": [
+          "next",
+          "newest"
+        ],
+        "quiet": [
+          "local",
+          "room notice"
+        ]
+      }
+    },
+    {
+      "operation": "message",
+      "room": "other",
+      "text": "inactive",
+      "local": false,
+      "mention": false,
+      "active": null,
+      "unread": [
+        "other"
+      ],
+      "mentions": [],
+      "messages": {
+        "lobby": [
+          "active mention @Alice",
+          "hub notice"
+        ],
+        "other": [
+          "newest",
+          "inactive"
+        ],
+        "quiet": [
+          "local",
+          "room notice"
+        ]
+      }
+    },
+    {
+      "operation": "clear",
+      "room": "other",
+      "text": "",
+      "local": false,
+      "mention": false,
+      "active": null,
+      "unread": [],
+      "mentions": [],
+      "messages": {
+        "lobby": [
+          "active mention @Alice",
+          "hub notice"
+        ],
+        "other": [],
+        "quiet": [
+          "local",
+          "room notice"
+        ]
+      }
+    }
+  ],
+  "automaticDirectory": [
+    {
+      "operation": "default-welcome",
+      "commands": [],
+      "consumed": null
+    },
+    {
+      "operation": "enabled-welcome",
+      "commands": [
+        {
+          "type": 20,
+          "room": null,
+          "body": "/list"
+        }
+      ],
+      "consumed": null
+    },
+    {
+      "operation": "join",
+      "commands": [
+        {
+          "type": 10,
+          "room": "lobby",
+          "body": null
+        }
+      ],
+      "consumed": null
+    },
+    {
+      "operation": "own-joined",
+      "commands": [
+        {
+          "type": 20,
+          "room": "lobby",
+          "body": "/who lobby"
+        }
+      ],
+      "consumed": null
+    },
+    {
+      "operation": "other-joined",
+      "commands": [],
+      "consumed": null
+    },
+    {
+      "operation": "list",
+      "commands": [],
+      "consumed": true
+    },
+    {
+      "operation": "fragment",
+      "commands": [],
+      "consumed": true
+    },
+    {
+      "operation": "who",
+      "commands": [],
+      "consumed": true
+    },
+    {
+      "operation": "manual-list",
+      "commands": [],
+      "consumed": false
+    },
+    {
+      "operation": "manual-who",
+      "commands": [],
+      "consumed": false
+    }
+  ],
+  "observationSeams": "Activity: disk append/delete disabled; automatic directory: captured _send_env transport and disabled manager persistence, actual primary handlers/setters/parsers executed."
 }

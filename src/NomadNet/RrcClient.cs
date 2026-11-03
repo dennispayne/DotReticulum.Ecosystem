@@ -161,6 +161,7 @@ public sealed class RrcClient : IAsyncDisposable
                             _pings.Remove(Convert.ToHexStringLower(ping), out var sent))
                             Report($"RRC pong: {Math.Max(0, Environment.TickCount64 - sent)} ms");
                     }
+                    foreach (var automatic in _state.DrainAutomaticCommands()) SendCore(automatic);
                     var latest = _state.History.LastOrDefault();
                     if (!ReferenceEquals(previous, latest)) notification = latest;
                     await PersistAsync(_stop.Token).ConfigureAwait(false);
@@ -238,6 +239,64 @@ public sealed class RrcClient : IAsyncDisposable
         SendAsync(() => _state.MakePart(room), false, cancellationToken);
     public Task SendMessageAsync(string? room, string text, bool action = false, CancellationToken cancellationToken = default) =>
         SendAsync(() => _state.MakeMessage(room, text, action), true, cancellationToken);
+    public async Task SetActiveRoomAsync(string? room, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            _state.SetActiveRoom(room);
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task MarkReadAsync(string room, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            _state.MarkRead(room);
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task ClearHistoryAsync(string room, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            _state.ClearMessages(room);
+            await PersistAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task SetHistoryPerRoomCapAsync(int cap, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            _state.SetHistoryPerRoomCap(cap);
+            await PersistAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task SetAutomaticDirectoryAsync(bool? list = null, bool? who = null, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            if (list.HasValue) _state.AutoList = list.Value;
+            if (who.HasValue) _state.AutoWho = who.Value;
+            await PersistAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally { _gate.Release(); }
+    }
     public Task PingAsync(CancellationToken cancellationToken = default) => SendAsync(() =>
     {
         var ping = RandomNumberGenerator.GetBytes(8);
@@ -278,7 +337,10 @@ public sealed class RrcClient : IAsyncDisposable
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try { return $"RRC hub: {HubHash}; connected: {_state.Welcomed && _link?.Status == LinkStatus.Active}; " +
             $"nick: {NomadNetTerminalText.Safe(_state.Nick)}; rooms: {string.Join(", ", _state.Rooms)}; " +
-            $"message limit: {_state.MaximumMessageBytes} bytes; history: {_state.History.Count}; auto-reconnect: {_autoReconnect}"; }
+            $"message limit: {_state.MaximumMessageBytes} bytes; history: {_state.History.Count}; auto-reconnect: {_autoReconnect}; " +
+            $"active: {_state.ActiveRoom ?? "none"}; unread: {string.Join(",", _state.UnreadRooms.Order())}; " +
+            $"mentions: {string.Join(",", _state.MentionRooms.Order())}; per-room history: {_state.HistoryPerRoomCap}; " +
+            $"auto-list: {_state.AutoList}; auto-who: {_state.AutoWho}"; }
         finally { _gate.Release(); }
     }
 
@@ -315,6 +377,8 @@ public sealed class RrcClient : IAsyncDisposable
             [3] = _state.History.Select(item => (object?)new object?[] { item.Kind, item.Room, item.Source,
                 item.Nick, item.Text, item.Timestamp, item.Mention }).ToArray(),
             [4] = _autoReconnect,
+            [7] = (long)_state.HistoryPerRoomCap,
+            [5] = _state.AutoList, [6] = _state.AutoWho,
         };
         var bytes = RrcCbor.Encode(map);
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
@@ -338,6 +402,17 @@ public sealed class RrcClient : IAsyncDisposable
             throw new InvalidDataException("Malformed RRC reconnect policy.");
         _state.Nick = nick;
         if (map.GetValueOrDefault(4) is bool reconnect) _autoReconnect = reconnect;
+        if ((map.GetValueOrDefault(5) is { } listValue && listValue is not bool) ||
+            (map.GetValueOrDefault(6) is { } whoValue && whoValue is not bool))
+            throw new InvalidDataException("Malformed RRC automatic directory policy.");
+        if (map.GetValueOrDefault(5) is bool autoList) _state.AutoList = autoList;
+        if (map.GetValueOrDefault(6) is bool autoWho) _state.AutoWho = autoWho;
+        if (map.GetValueOrDefault(7) is { } historyLimit)
+        {
+            if (historyLimit is not long cap || cap is < 0 or > RrcSessionState.MaximumHistory)
+                throw new InvalidDataException("Malformed RRC history cap.");
+            _state.SetHistoryPerRoomCap((int)cap);
+        }
         foreach (var room in rooms)
             _state.Rooms.Add(RrcEnvelope.NormalizeRoom(room as string ?? throw new InvalidDataException("Invalid saved room."), 4096));
         foreach (var item in history)

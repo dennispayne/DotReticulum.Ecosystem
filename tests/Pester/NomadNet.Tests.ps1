@@ -419,13 +419,23 @@ printf '#!c=0\nPARTIAL_RESULT user=%s flags=%s choice=%s pid=%s\n' "$field_user"
             $null = & $read $native 'PARTIAL_RESULT user=Bob flags=a,b choice=two pid=summary'
             & $send $native 'open 1'
             $null = & $read $native 'FORM_RESULT user=Bob flags=a,b choice=two mode=accepted'
+            foreach ($setting in @('auto-list on', 'auto-who on', 'history-limit 100', 'active lobby')) {
+                & $send $native "rrc $setting"
+                $null = & $read $native 'RRC command complete'
+            }
             & $send $native 'rrc join lobby'
             $null = & $read $native 'RRC command complete'
-            & $send $native 'rrc who lobby'
-            $null = & $read $native 'members in lobby:'
-            & $send $native 'rrc members lobby'
-            $null = & $read $native 'RRC member [0-9a-f]+: Python'
-            $null = & $read $native 'RRC command complete'
+            $foundPython = $false
+            for ($attempt = 0; $attempt -lt 40 -and -not $foundPython; $attempt++) {
+                & $send $native 'rrc members lobby'
+                $line = & $read $native 'RRC member [0-9a-f]+: Python|RRC command complete'
+                if ($line -match 'RRC member [0-9a-f]+: Python') {
+                    $foundPython = $true
+                    $null = & $read $native 'RRC command complete'
+                }
+                else { Start-Sleep -Milliseconds 250 }
+            }
+            $foundPython | Should -BeTrue -Because 'automatic /who must populate the actual hub roster without a manual query'
             & $send $native 'rrc send lobby native-group-message'
             $null = & $read $native 'RRC command complete'
             $line = & $read $python '"text"\s*:\s*"native-group-message"'
@@ -436,6 +446,21 @@ printf '#!c=0\nPARTIAL_RESULT user=%s flags=%s choice=%s pid=%s\n' "$field_user"
             $null = & $read $python '"kind"\s*:\s*"action".*"text"\s*:\s*"native-group-action"'
             & $send $python 'rrc-action lobby python-group-action'
             $null = & $read $native 'Python: python-group-action'
+            & $send $native 'rrc status'
+            $null = & $read $native 'active: lobby; unread: ; mentions: '
+            $null = & $read $native 'RRC command complete'
+            & $send $native 'rrc active off'
+            $null = & $read $native 'RRC command complete'
+            & $send $python 'rrc-send lobby hello @Native'
+            $null = & $read $native 'Python: hello @Native'
+            & $send $native 'rrc status'
+            $null = & $read $native 'active: none; unread: lobby; mentions: lobby'
+            $null = & $read $native 'RRC command complete'
+            & $send $native 'rrc read lobby'
+            $null = & $read $native 'RRC command complete'
+            & $send $native 'rrc status'
+            $null = & $read $native 'active: none; unread: ; mentions: '
+            $null = & $read $native 'RRC command complete'
             & $send $native 'rrc ping'
             $null = & $read $native 'RRC pong:'
             & $send $native 'rrc history'
@@ -458,6 +483,10 @@ printf '#!c=0\nPARTIAL_RESULT user=%s flags=%s choice=%s pid=%s\n' "$field_user"
             $null = & $read $native 'RRC command complete'
             & $send $native 'rrc status'
             $null = & $read $native 'nick: Native; rooms: lobby'
+            $null = & $read $native 'RRC command complete'
+            & $send $native 'rrc status'
+            $null = & $read $native 'active: none;.*per-room history: 100; auto-list: True; auto-who: True'
+            $null = & $read $native 'RRC command complete'
             & $send $native 'rrc history lobby'
             $null = & $read $native 'python-group-message'
             $null = & $read $native 'after-link-reconnect'

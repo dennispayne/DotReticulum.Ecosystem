@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from types import SimpleNamespace
 
 from reference_environment import verify_reference
 
@@ -61,6 +62,84 @@ def main():
             "Registered public rooms:\n  lobby - Main room\n  #support\n  empty - ",
             "No public rooms registered", "unrelated notice"]],
     }
+    manager = rrc.RRCManager(SimpleNamespace(
+        identity=SimpleNamespace(hash=bytes(range(16))), rrc_history_per_room_cap=2,
+        peer_settings={"display_name": "Alice"}))
+    hub = rrc.RRCHub(manager, bytes(range(16)))
+    # Disk append/delete boundaries only; actual record/unread/retention methods execute.
+    hub._append_history = lambda room, message: None
+    hub._delete_history = lambda room: None
+    operations = [
+        ("active", "lobby", "", False, False),
+        ("message", "lobby", "active mention @Alice", False, True),
+        ("message", "other", "unread mention @Alice", False, True),
+        ("message", "quiet", "local", True, False),
+        ("notice", None, "hub notice", False, False),
+        ("notice", "quiet", "room notice", False, False),
+        ("active", "other", "", False, False),
+        ("read", "quiet", "", False, False),
+        ("message", "other", "next", False, False),
+        ("message", "other", "newest", False, False),
+        ("inactive", None, "", False, False),
+        ("message", "other", "inactive", False, False),
+        ("clear", "other", "", False, False),
+    ]
+    trace = []
+    for operation, room, text, local, mention in operations:
+        if operation == "active":
+            manager.set_active(hub, room)
+        elif operation == "inactive":
+            manager.set_active(None, None)
+        elif operation == "read":
+            hub.mark_read(room)
+        elif operation == "clear":
+            hub.clear_messages(room)
+        else:
+            message = rrc.RRCMessage("notice" if operation == "notice" else "msg", room,
+                                     bytes(range(16, 32)), "Bob", text, rrc._now_ms())
+            message.mention = mention
+            if operation == "notice":
+                hub._record_notice(message)
+            else:
+                hub._record_message(message, local=local)
+        trace.append({"operation": operation, "room": room, "text": text, "local": local,
+                      "mention": mention, "active": manager.active_room_for(hub),
+                      "unread": sorted(hub.unread_rooms), "mentions": sorted(hub.mention_rooms),
+                      "messages": {key: [item.text for item in values] for key, values in hub.messages.items()}})
+    result["activity"] = trace
+    manager._loading = True
+    automatic = rrc.RRCHub(manager, bytes(range(16)))
+    automatic._append_history = lambda room, message: None
+    sent = []
+    automatic._send_env = sent.append
+    automatic_trace = []
+    for operation in ["default-welcome", "enabled-welcome", "join", "own-joined", "other-joined",
+                      "list", "fragment", "who", "manual-list", "manual-who"]:
+        sent.clear()
+        consumed = None
+        if operation == "enabled-welcome":
+            automatic.set_auto_list(True, save=False)
+            automatic.set_auto_who(True, save=False)
+        if operation.endswith("welcome"):
+            automatic._on_packet(cbor.encode(rrc._make_envelope(rrc.T_WELCOME, bytes(range(16)),
+                                                                body={0: "hub", 1: "0.1"})))
+        elif operation == "join":
+            automatic.join_room("lobby")
+        elif operation.endswith("joined"):
+            automatic._on_packet(cbor.encode(rrc._make_envelope(rrc.T_JOINED, bytes(range(16)),
+                room="lobby", body=[bytes(range(16)) if operation == "own-joined" else bytes(range(16, 32))])))
+        else:
+            notice = {"list": "Registered public rooms:\n  lobby - Main room",
+                      "fragment": "  support - Help", "who": "members in lobby: Alice (000102030405)",
+                      "manual-list": "Registered public rooms:\n  lobby - Main room",
+                      "manual-who": "members in lobby: Alice (000102030405)"}[operation]
+            consumed = automatic._process_notice_text(notice)
+        automatic_trace.append({"operation": operation,
+                                "commands": [{"type": env[rrc.K_T], "room": env.get(rrc.K_ROOM),
+                                              "body": env.get(rrc.K_BODY)} for env in sent],
+                                "consumed": consumed})
+    result["automaticDirectory"] = automatic_trace
+    result["observationSeams"] = "Activity: disk append/delete disabled; automatic directory: captured _send_env transport and disabled manager persistence, actual primary handlers/setters/parsers executed."
     Path(sys.argv[1]).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
 
 

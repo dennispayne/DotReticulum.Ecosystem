@@ -286,6 +286,9 @@ internal static class Program
               rrc nick <name> | rrc ping
               rrc auto-reconnect <on|off>     Persist optional hub recovery policy
               rrc status | rrc history [room] | rrc disconnect | rrc reconnect
+              rrc active <room|off> | rrc read <room> | rrc clear <room>
+              rrc history-limit <0-1000>      Persist per-room retention (0: aggregate cap only)
+              rrc auto-list <on|off> | rrc auto-who <on|off>
               help | quit
 
             The app stores its identity, contacts, conversations, and bookmarks below --config.
@@ -689,6 +692,19 @@ internal static class Program
                     case "disconnect": await client.DisconnectAsync(cancellationToken).ConfigureAwait(false); break;
                     case "reconnect": await client.ConnectAsync(cancellationToken).ConfigureAwait(false); break;
                     case "status": Console.WriteLine(await client.StatusAsync(cancellationToken).ConfigureAwait(false)); break;
+                    case "active" when parts.Length == 2:
+                        await client.SetActiveRoomAsync(parts[1] == "off" ? null : parts[1], cancellationToken).ConfigureAwait(false); break;
+                    case "read" when parts.Length == 2:
+                        await client.MarkReadAsync(parts[1], cancellationToken).ConfigureAwait(false); break;
+                    case "clear" when parts.Length == 2:
+                        await client.ClearHistoryAsync(parts[1], cancellationToken).ConfigureAwait(false); break;
+                    case "history-limit" when parts.Length == 2:
+                        await client.SetHistoryPerRoomCapAsync(int.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture),
+                            cancellationToken).ConfigureAwait(false); break;
+                    case "auto-list" when parts.Length == 2 && parts[1] is "on" or "off":
+                        await client.SetAutomaticDirectoryAsync(list: parts[1] == "on", cancellationToken: cancellationToken).ConfigureAwait(false); break;
+                    case "auto-who" when parts.Length == 2 && parts[1] is "on" or "off":
+                        await client.SetAutomaticDirectoryAsync(who: parts[1] == "on", cancellationToken: cancellationToken).ConfigureAwait(false); break;
                     case "nick" when parts.Length >= 2:
                         await client.SetNickAsync(command[5..], cancellationToken).ConfigureAwait(false); break;
                     case "auto-reconnect" when parts.Length == 2 && parts[1] is "on" or "off":

@@ -18,7 +18,7 @@ Original desktop controls compose/preview images and explicitly record/play audi
 Device ownership/cancellation are verified with fakes, not physical capture or acoustics.
 Default-off LXST calling, trust-aware direct PTT, bounded call history and an original
 desktop voice screen reuse the same Reticulum identity/router as messaging.
-Telemetry, plugins, mobile operation, broad upstream configuration, and upstream database
+Application telemetry/maps, plugins, mobile operation, broad upstream configuration, and upstream database
 migration of all profile semantics remain absent. A bounded offline importer
 activates identity, supported settings, LXMF conversations, text/file/image/audio history,
 delivery methods, known client-router files and synchronization state from upstream profiles. Conversation trust/unread flags
@@ -59,6 +59,7 @@ SHA-256 digests below are over the exact Git blob bytes at primary HEAD.
 | `sbapp/sideband/core.py` | `8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25` |
 | `sbapp/sideband/plugins.py` | `47a051a26a21d53aa8d6232cfc438dfac5e9396814e4bbc6c0149fb74643b6ac` |
 | `sbapp/sideband/sense.py` | `80418b1aa4de638f2c65f1bd64e5ea0466378a6f0bc682781672ef89b93a7dab` |
+| `sbapp/sideband/geo.py` | `af416ae7a1c087cc0c636e994ff58d5c6f7edf9f85379765d7fda9d130e780c7` |
 | `sbapp/sideband/voice.py` | `51e61510ea5eee832e7b9ad452459998c76561d970e0e773a253fe17cc7f2ab8` |
 | `sbapp/services/sidebandservice.py` | `3b6a481ffe8130dc12340260dba4e73994ed7af467d8ba4b310620d23744c011` |
 | `sbapp/buildozer.spec` | `6d4a83fb5466310e0f2b2071e5ed627cdb45ba4b4857592aa52dce3590527441` |
@@ -92,7 +93,7 @@ runtime evidence.
 | Text, image/file and audio messages | implemented bounded subset | Text/files, WebP image preparation/preview, Ogg Opus and Codec2 composition/decoding, explicit 10-second recording/playback/cancellation, content-addressed persistence and explicit exports. Actual Python Sideband core sends/receives images and both audio families directly/through a Python propagation transport; actual Pillow/audioproc decode native output. Published binaries decode imported media and render images. Device tests use fakes; physical capture/acoustics remain unverified. Unknown audio is retained/exportable but playback fails explicitly; no autoplay. See media limits below; `src/Sideband/SidebandMedia*.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py:message_send_dispatch`, `sbapp/sideband/audioproc.py`, `sbapp/sideband/core.py:5189–5196`. |
 | Paper messages and `lxm://` imports | missing | No paper-message/QR creation or import flow, camera/QR, export or URI handling. Offline profile migration imports its identity separately; `README.md`, `sbapp/main.py`, `sbapp/ui/keys.py`. |
 | LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI, call-history migration and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
-| Telemetry, location and situational awareness | missing | Sensor streams include time, identity/information, battery, location, physical link, environment, motion, resource, Reticulum transport, LXMF propagation, connections and interfaces; peer telemetry, tracking, live/offline maps and geospatial calculations are app behavior; `sbapp/sideband/sense.py`, `sbapp/sideband/geo.py`, `sbapp/ui/telemetry.py`, `README.md`. |
+| Telemetry, location and situational awareness | partial foundations only | All 27 sensor wire formats, immutable exact values, bounded atomic telemetry storage and source-verified geo calculations exist. Application collection/privacy, LXMF send/receive/streams, tracking and live/offline maps remain required work; these foundations do not establish application telemetry compatibility. See telemetry foundations below; `SidebandTelemetry*.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/sideband/geo.py`, `sbapp/ui/telemetry.py`. |
 | Remote commands, queries and plugins | missing | Command, service and telemetry plugin base types; built-in ping/echo/signal/telemetry request behavior; custom telemetry sensors; configurable plugin loading and example plugins. This is an application extension contract, not part of the existing .NET `Telemetry` tool; `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`, `README.md`. |
 | Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. Interface editing/discovery and Android interface loading are absent; `src/Sideband/SidebandClient.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
 | Long-lived service and OS integration | partial | The desktop window and headless daemon own the same cancellable client. Linux published daemon/interactive processes stop on SIGTERM with closed/blocked stdin; native console quit and restart pass on both hosts. Days-long Sideband service operation remains unverified. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are deferred mobile contracts; `SidebandDaemon.cs`, `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
@@ -545,6 +546,49 @@ synthetic/discard audio, not physical devices or a Python peer. A separate case
 rejects conflicting options before state creation. The two Linux signal cases
 stop an interactive process with blocked stdin and a daemon with closed stdin
 within three seconds; both now pass against the published binary.
+
+## Telemetry foundations
+
+These are platform-independent building blocks, **not an integrated telemetry
+application** and not the unrelated .NET-only `telemetry` executable.
+`SidebandTelemetryCodec` represents all 27 primary sensor IDs, including
+self-describing transport/propagation/interface data. Wire bytes remain
+authoritative: unknown IDs survive, malformed known readings are explicitly
+classified, and exact integer timestamps are retained separately from convenient
+double projections. Manual/synthetic construction opens no devices or services.
+Encoding/decoding is bounded to 256 KiB, 16 levels and 16,384 values.
+
+`SidebandTelemetryStore` is an original atomic store, not primary SQLite:
+one exclusive writer, default 4,096 records/16 MiB, globally newest-first queries
+limited to 256 records, explicit prune/clear and cancellation/disposal ownership.
+Duplicate identity is source plus exact numeric source timestamp; the first
+payload wins. An outer stream timestamp never substitutes for the sensor time.
+Invalid/missing or more-than-240-seconds-future timebases are explicitly rejected.
+Reported source hashes alone are not authenticated origin/provenance.
+
+Actual primary SQLite observations expose two defects: an unfiltered query
+ignores order/limit, and cleanup retains a maximum of **now minus 240 seconds**,
+deleting valid recent reports. Native queries enforce their global bound;
+`FromPrimary` records the cleanup defect explicitly and no automatic pruning
+invokes it. Application retention still requires an explicit documented policy.
+`SidebandGeo` covers source-observed distances, azimuth/elevation and radio
+horizon; a nonconvergent primary inverse calculation returns no result instead
+of an invented fallback. No geoid/maps/assets or location collection are bundled.
+
+Independent acceptance:
+
+```powershell
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --filter "FullyQualifiedName~SidebandTelemetryTests|FullyQualifiedName~SidebandTelemetryReferenceTests|FullyQualifiedName~SidebandTelemetryStore|FullyQualifiedName~SidebandGeoTests"
+# Set SIDEBAND_TELEMETRY_VECTOR_OUTPUT before the tests, then use the pinned venv:
+python tests\Sideband.Tests\GenerateTelemetryVectors.py --source <primary-checkout> --verify-csharp <exported-json>
+```
+
+Result: **184/184 passed, no skips**; actual pinned `Telemeter` independently
+decoded **63 C#-encoded reports** and matched the reference readings.
+`GenerateTelemetryVectors.py` and `SidebandGeoGenerateVectors.py` execute the
+exact primary sensor/geo methods and extracted SQLite methods with disclosed
+synthetic clocks/dependencies. This is vector/storage evidence, not live
+application telemetry, maps or physical sensor acceptance.
 
 ## Current implementation evidence
 

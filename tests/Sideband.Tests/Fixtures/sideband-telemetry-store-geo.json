@@ -1,0 +1,793 @@
+{
+  "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "source_sha256": {
+    "geo": "af416ae7a1c087cc0c636e994ff58d5c6f7edf9f85379765d7fda9d130e780c7",
+    "core": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+    "sense": "80418b1aa4de638f2c65f1bd64e5ea0466378a6f0bc682781672ef89b93a7dab"
+  },
+  "clock": 1700000000,
+  "method": "Actual imported geo functions; AST-extracted primary core methods with real in-memory SQLite, clock/response/database/conversation dependencies. No full core, hardware, GUI, geoid data or network.",
+  "geo_constants": {
+    "equatorial_radius": 6378137.0,
+    "polar_radius": 6356752.3142,
+    "mean_earth_radius": 6371008.771399999
+  },
+  "geo": [
+    {
+      "name": "london-paris",
+      "first": [
+        51.5,
+        -0.125,
+        10.0
+      ],
+      "second": [
+        48.8566,
+        2.3522,
+        35.0
+      ],
+      "ellipsoid": true,
+      "euclidian": 343081.6064007056,
+      "orthodromic": 343121.455726889,
+      "azalt": [
+        148.0054,
+        -1.5369,
+        4
+      ]
+    },
+    {
+      "name": "london-paris",
+      "first": [
+        51.5,
+        -0.125,
+        10.0
+      ],
+      "second": [
+        48.8566,
+        2.3522,
+        35.0
+      ],
+      "ellipsoid": false,
+      "euclidian": 342715.45456383465,
+      "orthodromic": 342755.5775814019,
+      "azalt": [
+        148.0727,
+        -1.5371,
+        4
+      ]
+    },
+    {
+      "name": "sydney-tokyo",
+      "first": [
+        -33.8688,
+        151.2093,
+        5.0
+      ],
+      "second": [
+        35.6762,
+        139.6503,
+        100.0
+      ],
+      "ellipsoid": true,
+      "euclidian": 7311086.912845628,
+      "orthodromic": 7792176.28117588,
+      "azalt": [
+        350.0037,
+        -35.191,
+        4
+      ]
+    },
+    {
+      "name": "sydney-tokyo",
+      "first": [
+        -33.8688,
+        151.2093,
+        5.0
+      ],
+      "second": [
+        35.6762,
+        139.6503,
+        100.0
+      ],
+      "ellipsoid": false,
+      "euclidian": 7343088.1914674435,
+      "orthodromic": 7825829.390866401,
+      "azalt": [
+        350.049,
+        -35.189,
+        4
+      ]
+    },
+    {
+      "name": "dateline",
+      "first": [
+        10.0,
+        179.9,
+        0.0
+      ],
+      "second": [
+        10.0,
+        -179.9,
+        20.0
+      ],
+      "ellipsoid": true,
+      "euclidian": 21927.905177981767,
+      "orthodromic": 21927.87175163196,
+      "azalt": [
+        89.9827,
+        -0.0462,
+        4
+      ]
+    },
+    {
+      "name": "dateline",
+      "first": [
+        10.0,
+        179.9,
+        0.0
+      ],
+      "second": [
+        10.0,
+        -179.9,
+        20.0
+      ],
+      "ellipsoid": false,
+      "euclidian": 21901.187712880772,
+      "orthodromic": 21901.154988806855,
+      "azalt": [
+        89.9826,
+        -0.0462,
+        4
+      ]
+    },
+    {
+      "name": "equator",
+      "first": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "second": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "ellipsoid": true,
+      "euclidian": 111318.07788798446,
+      "orthodromic": 111319.48659768766,
+      "azalt": [
+        90.0,
+        -0.5,
+        4
+      ]
+    },
+    {
+      "name": "equator",
+      "first": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "second": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "ellipsoid": false,
+      "euclidian": 111193.6684081476,
+      "orthodromic": 111195.07973435763,
+      "azalt": [
+        90.0,
+        -0.5,
+        4
+      ]
+    },
+    {
+      "name": "same",
+      "first": [
+        51.5,
+        -0.125,
+        10.0
+      ],
+      "second": [
+        51.5,
+        -0.125,
+        10.0
+      ],
+      "ellipsoid": true,
+      "euclidian": 0.0,
+      "orthodromic": 0,
+      "azalt": [
+        0.0,
+        null,
+        4
+      ]
+    },
+    {
+      "name": "same",
+      "first": [
+        51.5,
+        -0.125,
+        10.0
+      ],
+      "second": [
+        51.5,
+        -0.125,
+        10.0
+      ],
+      "ellipsoid": false,
+      "euclidian": 0.0,
+      "orthodromic": 0.0,
+      "azalt": [
+        null,
+        null,
+        4
+      ]
+    },
+    {
+      "name": "vertical",
+      "first": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "second": [
+        0.0,
+        0.0,
+        100.0
+      ],
+      "ellipsoid": true,
+      "euclidian": 100.0,
+      "orthodromic": 0,
+      "azalt": [
+        null,
+        90.0,
+        4
+      ]
+    },
+    {
+      "name": "vertical",
+      "first": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "second": [
+        0.0,
+        0.0,
+        100.0
+      ],
+      "ellipsoid": false,
+      "euclidian": 100.0,
+      "orthodromic": 0.0,
+      "azalt": [
+        null,
+        90.0,
+        4
+      ]
+    },
+    {
+      "name": "poles",
+      "first": [
+        90.0,
+        0.0,
+        0.0
+      ],
+      "second": [
+        -90.0,
+        0.0,
+        0.0
+      ],
+      "ellipsoid": true,
+      "euclidian": 12713504.6284,
+      "orthodromic": 20003931.458552677,
+      "azalt": [
+        null,
+        -90.0,
+        4
+      ]
+    },
+    {
+      "name": "poles",
+      "first": [
+        90.0,
+        0.0,
+        0.0
+      ],
+      "second": [
+        -90.0,
+        0.0,
+        0.0
+      ],
+      "ellipsoid": false,
+      "euclidian": 12742017.542799998,
+      "orthodromic": 20015114.35218637,
+      "azalt": [
+        null,
+        -90.0,
+        4
+      ]
+    },
+    {
+      "name": "antipodal",
+      "first": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "second": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "ellipsoid": true,
+      "euclidian": 12756274.0,
+      "orthodromic": 20003931.347978555,
+      "azalt": [
+        null,
+        -90.0,
+        4
+      ]
+    },
+    {
+      "name": "antipodal",
+      "first": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "second": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "ellipsoid": false,
+      "euclidian": 12742017.542799998,
+      "orthodromic": 20015114.35218637,
+      "azalt": [
+        null,
+        -90.0,
+        4
+      ]
+    },
+    {
+      "name": "near-antipodal",
+      "first": [
+        0.001,
+        0.0,
+        0.0
+      ],
+      "second": [
+        -0.001,
+        179.9999,
+        0.0
+      ],
+      "ellipsoid": true,
+      "euclidian": 12756273.999982225,
+      "orthodromic": null,
+      "azalt": [
+        90.0,
+        -89.9999,
+        4
+      ]
+    },
+    {
+      "name": "near-antipodal",
+      "first": [
+        0.001,
+        0.0,
+        0.0
+      ],
+      "second": [
+        -0.001,
+        179.9999,
+        0.0
+      ],
+      "ellipsoid": false,
+      "euclidian": 12742017.542795146,
+      "orthodromic": 20015103.23257667,
+      "azalt": [
+        90.0,
+        -89.9999,
+        4
+      ]
+    },
+    {
+      "name": "short",
+      "first": [
+        51.5,
+        -0.125,
+        -10.0
+      ],
+      "second": [
+        51.50001,
+        -0.12499,
+        -9.0
+      ],
+      "ellipsoid": true,
+      "euclidian": 1.6492494858396722,
+      "orthodromic": 1.3110184612728328,
+      "azalt": [
+        32.6651,
+        37.3251,
+        4
+      ]
+    },
+    {
+      "name": "short",
+      "first": [
+        51.5,
+        -0.125,
+        -10.0
+      ],
+      "second": [
+        51.50001,
+        -0.12499,
+        -9.0
+      ],
+      "ellipsoid": false,
+      "euclidian": 1.6479010936562561,
+      "orthodromic": 1.3085945770885374,
+      "azalt": [
+        31.9029,
+        37.3608,
+        4
+      ]
+    }
+  ],
+  "horizons": [
+    {
+      "height": 0.0,
+      "distance": 0.0,
+      "angle": -0.0,
+      "radio": 0.0
+    },
+    {
+      "height": 1.0,
+      "distance": 3569.5964112294964,
+      "angle": -0.032102104221876086,
+      "radio": 3569.596036067665
+    },
+    {
+      "height": 10.0,
+      "distance": 11288.058975292763,
+      "angle": -0.10151570726089884,
+      "radio": 11288.047163565698
+    },
+    {
+      "height": 100.0,
+      "distance": 35696.10278841725,
+      "angle": -0.3210189637111581,
+      "radio": 35695.729266106646
+    },
+    {
+      "height": 1000.0,
+      "distance": 112884.97483189193,
+      "angle": -1.0150913515160709,
+      "radio": 112873.16376949762
+    },
+    {
+      "height": 10000.0,
+      "distance": 357099.67155963613,
+      "angle": -3.2081132635589698,
+      "radio": 356726.41013832553
+    }
+  ],
+  "shared_horizons": [
+    {
+      "first": [
+        0,
+        0,
+        0
+      ],
+      "second": [
+        0,
+        0,
+        0
+      ],
+      "result": {
+        "horizon1": 0.0,
+        "horizon2": 0.0,
+        "shared": 0.0,
+        "within": false,
+        "geodesic_distance": 0.0,
+        "antenna_distance": 0.0
+      }
+    },
+    {
+      "first": [
+        51.5,
+        0,
+        10
+      ],
+      "second": [
+        51.501,
+        0,
+        10
+      ],
+      "result": {
+        "horizon1": 11288.047163565698,
+        "horizon2": 11288.047163565698,
+        "shared": 22576.094327131395,
+        "within": true,
+        "geodesic_distance": 111.19508385969495,
+        "antenna_distance": 111.19525426626194
+      }
+    },
+    {
+      "first": [
+        51.5,
+        0,
+        1
+      ],
+      "second": [
+        52.5,
+        0,
+        1
+      ],
+      "result": {
+        "horizon1": 3569.596036067665,
+        "horizon2": 3569.596036067665,
+        "shared": 7139.19207213533,
+        "within": false,
+        "geodesic_distance": 111195.07973439815,
+        "antenna_distance": 111193.68586121901
+      }
+    }
+  ],
+  "geo_errors": {
+    "two_coordinate_chord": {
+      "exception": "IndexError"
+    },
+    "ellipsoid_horizon": {
+      "exception": "NotImplementedError"
+    },
+    "ellipsoid_radio": {
+      "exception": "NotImplementedError"
+    },
+    "negative_horizon": {
+      "exception": "ValueError"
+    }
+  },
+  "append": [
+    {
+      "source": "01010101010101010101010101010101",
+      "timestamp": 1699999900,
+      "wire_hex": "8201ce6553f09c0fa56669727374",
+      "accepted": true
+    },
+    {
+      "source": "02020202020202020202020202020202",
+      "timestamp": 1699999950,
+      "wire_hex": "8201ce6553f0ce0fa67365636f6e64",
+      "accepted": true
+    },
+    {
+      "source": "01010101010101010101010101010101",
+      "timestamp": 1699999990,
+      "wire_hex": "8201ce6553f0f60fa66e6577657374",
+      "accepted": true
+    },
+    {
+      "source": "01010101010101010101010101010101",
+      "timestamp": 1699999990,
+      "wire_hex": "8201ce6553f0f60fbb6475706c69636174652d646966666572656e742d7061796c6f6164",
+      "accepted": false
+    },
+    {
+      "source": "01010101010101010101010101010101",
+      "timestamp": 1700000240,
+      "wire_hex": "8201ce6553f1f00faf6675747572652d626f756e64617279",
+      "accepted": true
+    },
+    {
+      "source": "01010101010101010101010101010101",
+      "timestamp": 1700000241,
+      "wire_hex": "8201ce6553f1f10faf6675747572652d72656a6563746564",
+      "accepted": false
+    },
+    {
+      "source": "03030303030303030303030303030303",
+      "timestamp": 1699999980,
+      "wire_hex": "8201ce6553f0ec0fa86578636c75646564",
+      "accepted": true
+    },
+    {
+      "source": "04040404040404040404040404040404",
+      "timestamp": 1699999970,
+      "wire_hex": "8201ce6553f0e20fa9726563697069656e74",
+      "accepted": true
+    }
+  ],
+  "queries": [
+    {
+      "name": "global-unfiltered-limit-bug",
+      "arguments_hex": "81a56c696d697401",
+      "result_hex": "84c410010101010101010101010101010101019392ce6553f09cc40e8201ce6553f09c0fa5666972737492ce6553f0f6c40f8201ce6553f0f60fa66e657765737492ce6553f1f0c4188201ce6553f1f00faf6675747572652d626f756e64617279c410020202020202020202020202020202029192ce6553f0cec40f8201ce6553f0ce0fa67365636f6e64c410030303030303030303030303030303039192ce6553f0ecc4118201ce6553f0ec0fa86578636c75646564c410040404040404040404040404040404049192ce6553f0e2c4128201ce6553f0e20fa9726563697069656e74"
+    },
+    {
+      "name": "global-after",
+      "arguments_hex": "82a56166746572ce6553f09ca56c696d697403",
+      "result_hex": "82c410010101010101010101010101010101019292ce6553f1f0c4188201ce6553f1f00faf6675747572652d626f756e6461727992ce6553f0f6c40f8201ce6553f0f60fa66e6577657374c410030303030303030303030303030303039192ce6553f0ecc4118201ce6553f0ec0fa86578636c75646564"
+    },
+    {
+      "name": "first-source",
+      "arguments_hex": "81ac636f6e746578745f64657374c41001010101010101010101010101010101",
+      "result_hex": "81c410010101010101010101010101010101019392ce6553f1f0c4188201ce6553f1f00faf6675747572652d626f756e6461727992ce6553f0f6c40f8201ce6553f0f60fa66e657765737492ce6553f09cc40e8201ce6553f09c0fa56669727374"
+    },
+    {
+      "name": "exclusive-window",
+      "arguments_hex": "83ac636f6e746578745f64657374c41001010101010101010101010101010101a56166746572ce6553f09ca66265666f7265ce6553f1f0",
+      "result_hex": "81c410010101010101010101010101010101019192ce6553f0f6c40f8201ce6553f0f60fa66e6577657374"
+    },
+    {
+      "name": "empty",
+      "arguments_hex": "81a56166746572ce6553f1f0",
+      "result_hex": "c0"
+    }
+  ],
+  "streams": [
+    {
+      "latest_only": true,
+      "result_hex": "84a7746f5f61646472c41004040404040404040404040404040404a673747265616d9294c41001010101010101010101010101010101ce6553f1f0c4188201ce6553f1f00faf6675747572652d626f756e64617279c094c41002020202020202020202020202020202ce6553f0cec40f8201ce6553f0ce0fa67365636f6e64c0bf69735f617574686f72697a65645f74656c656d657472795f72657175657374c2b569735f636f6c6c6563746f725f726573706f6e7365c3"
+    },
+    {
+      "latest_only": false,
+      "result_hex": "84a7746f5f61646472c41004040404040404040404040404040404a673747265616d9394c41001010101010101010101010101010101ce6553f1f0c4188201ce6553f1f00faf6675747572652d626f756e64617279c094c41001010101010101010101010101010101ce6553f0f6c40f8201ce6553f0f60fa66e6577657374c094c41002020202020202020202020202020202ce6553f0cec40f8201ce6553f0ce0fa67365636f6e64c0bf69735f617574686f72697a65645f74656c656d657472795f72657175657374c2b569735f636f6c6c6563746f725f726573706f6e7365c3"
+    }
+  ],
+  "privacy": [
+    {
+      "enabled": false,
+      "trust": 0,
+      "per_conversation": false,
+      "send": false,
+      "allow_request": false
+    },
+    {
+      "enabled": false,
+      "trust": 0,
+      "per_conversation": true,
+      "send": false,
+      "allow_request": false
+    },
+    {
+      "enabled": false,
+      "trust": 1,
+      "per_conversation": false,
+      "send": false,
+      "allow_request": true
+    },
+    {
+      "enabled": false,
+      "trust": 1,
+      "per_conversation": true,
+      "send": false,
+      "allow_request": true
+    },
+    {
+      "enabled": false,
+      "trust": 2,
+      "per_conversation": false,
+      "send": false,
+      "allow_request": false
+    },
+    {
+      "enabled": false,
+      "trust": 2,
+      "per_conversation": true,
+      "send": false,
+      "allow_request": false
+    },
+    {
+      "enabled": true,
+      "trust": 0,
+      "per_conversation": false,
+      "send": false,
+      "allow_request": false
+    },
+    {
+      "enabled": true,
+      "trust": 0,
+      "per_conversation": true,
+      "send": true,
+      "allow_request": false
+    },
+    {
+      "enabled": true,
+      "trust": 1,
+      "per_conversation": false,
+      "send": true,
+      "allow_request": true
+    },
+    {
+      "enabled": true,
+      "trust": 1,
+      "per_conversation": true,
+      "send": true,
+      "allow_request": true
+    },
+    {
+      "enabled": true,
+      "trust": 2,
+      "per_conversation": false,
+      "send": false,
+      "allow_request": false
+    },
+    {
+      "enabled": true,
+      "trust": 2,
+      "per_conversation": true,
+      "send": true,
+      "allow_request": false
+    }
+  ],
+  "after_clear_hex": "83c410020202020202020202020202020202029192ce6553f0cec40f8201ce6553f0ce0fa67365636f6e64c410030303030303030303030303030303039192ce6553f0ecc4118201ce6553f0ec0fa86578636c75646564c410040404040404040404040404040404049192ce6553f0e2c4128201ce6553f0e20fa9726563697069656e74",
+  "retention": {
+    "keep": 604800,
+    "future_grace": 240,
+    "clean_interval": 3600,
+    "inputs": [
+      1699395199,
+      1699395200,
+      1699999759,
+      1699999760,
+      1699999761,
+      1700000000,
+      1700000240
+    ],
+    "retained": [
+      1699395200,
+      1699999759,
+      1699999760
+    ],
+    "defect": "Primary cleanup uses now - future_grace, NOT now + future_grace; recent valid telemetry is deleted."
+  },
+  "defaults": {
+    "telemetry_enabled": false,
+    "telemetry_send_to_trusted": false,
+    "telemetry_send_to_collector": false,
+    "telemetry_allow_requests_from_anyone": false,
+    "telemetry_allow_requests_from_trusted": false,
+    "telemetry_collector": null,
+    "telemetry_request_from_collector": false,
+    "telemetry_send_interval": 43200,
+    "telemetry_request_interval": 43200,
+    "telemetry_collector_enabled": false,
+    "telemetry_to_mqtt": false,
+    "telemetry_mqtt_host": null,
+    "telemetry_mqtt_port": null,
+    "telemetry_mqtt_user": null,
+    "telemetry_mqtt_pass": null,
+    "telemetry_mqtt_validate_ssl": false,
+    "telemetry_send_appearance": true,
+    "telemetry_display_trusted_only": false,
+    "telemetry_receive_trusted_only": false,
+    "telemetry_send_all_to_collector": false,
+    "telemetry_use_propagation_only": false,
+    "telemetry_try_propagation_on_fail": true,
+    "telemetry_requests_only_send_latest": true,
+    "telemetry_s_location": false,
+    "telemetry_s_battery": false,
+    "telemetry_s_pressure": false,
+    "telemetry_s_temperature": false,
+    "telemetry_s_humidity": false,
+    "telemetry_s_magnetic_field": false,
+    "telemetry_s_ambient_light": false,
+    "telemetry_s_gravity": false,
+    "telemetry_s_angular_velocity": false,
+    "telemetry_s_acceleration": false,
+    "telemetry_s_proximity": false,
+    "telemetry_s_rns_transport": false,
+    "telemetry_s_fixed_location": false,
+    "telemetry_s_fixed_altitude": 0.0,
+    "telemetry_s_information": false,
+    "telemetry_s_information_text": ""
+  },
+  "native_design_differences": [
+    "Original bounded atomic binary store, NOT a Sideband SQLite-compatible file. Uses source timestamp from packed sensor ID 1; received time is not substituted.",
+    "Native query always applies newest-first ordering and a hard limit; primary global query without bounds ignores both.",
+    "Privacy send/receive/display/exclusion policy and collector streams remain parent application integration; store never sends data.",
+    "Native geo accepts typed finite geographic coordinates and clamps inverse-trig roundoff. No geoid/AAMSL assets or external service.",
+    "Ellipsoid inverse retains upstream equator perturbation and a bounded 10000-iteration convergence limit; no replacement geodesic result is invented for nonconvergence."
+  ]
+}

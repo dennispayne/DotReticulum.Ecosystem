@@ -108,12 +108,15 @@ public sealed class OpusFileSink : IAudioSink, IAsyncDisposable
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly NativeOpusFileWriter _writer;
     private readonly OpusParameters _parameters;
+    private readonly bool _appendFinalSilence;
     private int _frameSamples;
     private bool _disposed;
 
-    public OpusFileSink(string path, OpusProfile profile = OpusProfile.AudioMaximum, string? libraryPath = null)
+    public OpusFileSink(string path, OpusProfile profile = OpusProfile.AudioMaximum, string? libraryPath = null,
+        bool appendFinalSilence = true)
     {
         _parameters = OpusParameters.For(profile);
+        _appendFinalSilence = appendFinalSilence;
         _writer = new(path, _parameters, libraryPath);
     }
 
@@ -129,7 +132,8 @@ public sealed class OpusFileSink : IAudioSink, IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_frameSamples == 0) _frameSamples = frame.SamplesPerChannel;
-            _writer.Write(frame.Samples.Span, Math.Max(frame.SamplesPerChannel, _frameSamples));
+            _writer.Write(frame.Samples.Span, _appendFinalSilence
+                ? Math.Max(frame.SamplesPerChannel, _frameSamples) : frame.SamplesPerChannel);
         }
         finally { _gate.Release(); }
     }
@@ -144,7 +148,7 @@ public sealed class OpusFileSink : IAudioSink, IAsyncDisposable
             try
             {
                 // Actual LXST OpusFileSink appends ten frames of final silence.
-                for (var i = 0; i < 10 && _frameSamples != 0; i++) _writer.Write([], _frameSamples);
+                for (var i = 0; _appendFinalSilence && i < 10 && _frameSamples != 0; i++) _writer.Write([], _frameSamples);
             }
             finally { _writer.Dispose(); }
         }
@@ -165,8 +169,9 @@ internal sealed unsafe class NativeOpusFileReader : IDisposable
     {
         var file = new FileInfo(Path.GetFullPath(path));
         if (!file.Exists || file.Length == 0) throw new IOException("An existing nonempty seekable recording file is required.");
-        _library = NativeLibrary.Load(libraryPath ?? (OperatingSystem.IsWindows() ? "opusfile.dll" :
-            OperatingSystem.IsMacOS() ? "libopusfile.0.dylib" : "libopusfile.so.0"));
+        _library = libraryPath is not null ? NativeLibrary.Load(libraryPath) :
+            OperatingSystem.IsWindows() ? NativeAudioLibrary.LoadWindows("opusfile.dll", "libopusfile-0.dll") :
+            NativeLibrary.Load(OperatingSystem.IsMacOS() ? "libopusfile.0.dylib" : "libopusfile.so.0");
         try
         {
             var open = (delegate* unmanaged[Cdecl]<byte*, int*, nint>)NativeLibrary.GetExport(_library, "op_open_file");
@@ -180,7 +185,7 @@ internal sealed unsafe class NativeOpusFileReader : IDisposable
             fixed (byte* name = bytes) _file = open(name, &error);
             if (_file == 0) throw new IOException($"libopusfile could not open the recording: {error}.");
             Channels = _channels(_file, -1);
-            if (Channels is not (1 or 2)) throw new NotSupportedException("Only mono/stereo Ogg Opus files are currently supported.");
+            if (Channels is < 1 or > 64) throw new NotSupportedException("Ogg Opus files must fit the 64-channel audio frame limit.");
             SamplesPerChannel = total(_file, -1);
             if (SamplesPerChannel < 0) throw new IOException("The recording does not have a seekable sample count.");
         }
@@ -241,8 +246,9 @@ internal sealed unsafe class NativeOpusFileWriter : IDisposable
     public NativeOpusFileWriter(string path, OpusParameters parameters, string? libraryPath)
     {
         _channels = parameters.Channels;
-        _library = NativeLibrary.Load(libraryPath ?? (OperatingSystem.IsWindows() ? "opusenc.dll" :
-            OperatingSystem.IsMacOS() ? "libopusenc.0.dylib" : "libopusenc.so.0"));
+        _library = libraryPath is not null ? NativeLibrary.Load(libraryPath) :
+            OperatingSystem.IsWindows() ? NativeAudioLibrary.LoadWindows("opusenc.dll", "libopusenc-0.dll") :
+            NativeLibrary.Load(OperatingSystem.IsMacOS() ? "libopusenc.0.dylib" : "libopusenc.so.0");
         try
         {
             var commentsCreate = (delegate* unmanaged[Cdecl]<nint>)NativeLibrary.GetExport(_library, "ope_comments_create");

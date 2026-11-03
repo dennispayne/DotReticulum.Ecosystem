@@ -10,6 +10,23 @@ public sealed class WindowsWaveAudioTests
     private static readonly AudioDeviceFormat Format = new(8000, 1, TimeSpan.FromMilliseconds(20));
 
     [Fact]
+    public async Task PlaybackAndCaptureResolveReferenceNameSelectorsBeforeOpeningTheNativeLease()
+    {
+        var driver = new Driver { Devices = [new("7", "Primary Speakers", false), new("8", "Desk Microphone", false)] };
+        var backend = new WindowsWaveAudioBackend(driver);
+        await using var playback = await backend.OpenPlaybackAsync("PS", Format);
+        await playback.WriteAsync(new(new float[1], 8000, 1));
+        Assert.Equal("7", driver.Device);
+        await using var capture = await backend.OpenCaptureAsync("Microphone", Format);
+        await using var frames = capture.CaptureAsync().GetAsyncEnumerator();
+        driver.Session.Input.Writer.TryWrite([0.25f]);
+        Assert.True(await frames.MoveNextAsync());
+        Assert.Equal("8", driver.Device);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => backend.OpenPlaybackAsync("nonexistent", Format).AsTask());
+        Assert.Equal(2, driver.Opens);
+    }
+
+    [Fact]
     public async Task CaptureUsesSelectedDeviceAndDisposalCancelsBlockedRead()
     {
         var driver = new Driver();
@@ -140,7 +157,9 @@ public sealed class WindowsWaveAudioTests
         internal bool Capture;
         internal string? Device;
         internal Exception? OpenFailure;
-        public IReadOnlyList<AudioDeviceInfo> List(bool capture) => [new("default", capture ? "Fake input" : "Fake output", true)];
+        internal IReadOnlyList<AudioDeviceInfo>? Devices;
+        public IReadOnlyList<AudioDeviceInfo> List(bool capture) =>
+            Devices ?? [new("default", capture ? "Fake input" : "Fake output", true)];
         public IWindowsWaveSession Open(bool capture, string? device, AudioDeviceFormat format)
         {
             Opens++;

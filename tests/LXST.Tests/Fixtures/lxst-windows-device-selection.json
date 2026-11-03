@@ -1,0 +1,89 @@
+{
+  "revision": "eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f",
+  "source_sha256": "3986d1af72eaf6df04a8475ef75fb50e31beddfb1aa4a8aa8275280f8930fc5f",
+  "method": "Compiled and executed unchanged AST of actual _match_device; only device enumeration input is synthetic.",
+  "devices": [
+    {
+      "id": "out0",
+      "name": "Primary Speakers"
+    },
+    {
+      "id": "out1",
+      "name": "Desk Soundbar"
+    },
+    {
+      "id": "duplicate-first",
+      "name": "Duplicate"
+    },
+    {
+      "id": "duplicate-last",
+      "name": "Duplicate"
+    },
+    {
+      "id": "source.monitor",
+      "name": "Monitor Input"
+    }
+  ],
+  "cases": [
+    {
+      "selector": "out1",
+      "loopback": false,
+      "id": "out1"
+    },
+    {
+      "selector": "Sound",
+      "loopback": false,
+      "id": "out1"
+    },
+    {
+      "selector": "DS",
+      "loopback": false,
+      "id": "out1"
+    },
+    {
+      "selector": "PS",
+      "loopback": false,
+      "id": "out0"
+    },
+    {
+      "selector": "Duplicate",
+      "loopback": false,
+      "id": "duplicate-last"
+    },
+    {
+      "selector": "source.monitor",
+      "loopback": false,
+      "error": "IndexError"
+    },
+    {
+      "selector": "source.monitor",
+      "loopback": true,
+      "id": "source.monitor"
+    },
+    {
+      "selector": "",
+      "loopback": false,
+      "id": "out0"
+    },
+    {
+      "selector": "not-found",
+      "loopback": false,
+      "error": "IndexError"
+    },
+    {
+      "selector": "D[",
+      "loopback": false,
+      "error": "PatternError"
+    }
+  ],
+  "low_latency": {
+    "actual_player_arguments": [
+      {
+        "samplerate": 48000,
+        "blocksize": 960
+      }
+    ],
+    "runtime_method_defined": false,
+    "method": "Actual WindowsBackend.get_player with only device creation replaced; unchanged platform module AST checked for runtime method."
+  }
+}

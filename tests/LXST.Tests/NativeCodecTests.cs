@@ -17,6 +17,52 @@ public sealed class NativeCodecFactAttribute : FactAttribute
 public sealed class NativeCodecTests
 {
     [NativeCodecFact]
+    public void ExplicitPacketCapacityAndLookaheadMatchExecutedPrimaryPyOgg()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory,
+            "Fixtures", "lxst-opus-boundary.json")));
+        using var codec = new NativeOpusCodec(OpusProfile.AudioLow,
+            maximumBytesPerFrame: fixture.RootElement.GetProperty("maximum_bytes_per_frame").GetInt32());
+        Assert.Equal(fixture.RootElement.GetProperty("delay_samples").GetInt32(), codec.AlgorithmicDelaySamples);
+        Assert.Equal(4000, codec.UpdateBitrate(60));
+        foreach (var row in fixture.RootElement.GetProperty("frames").EnumerateArray())
+        {
+            var input = row.GetProperty("input").EnumerateArray().Select(value => value.GetSingle()).ToArray();
+            Assert.Equal(Convert.FromHexString(row.GetProperty("encoded").GetString()!), codec.Encode(new(input, 12000, 1)));
+        }
+        codec.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => codec.AlgorithmicDelaySamples);
+        Assert.Throws<ArgumentOutOfRangeException>(() => new NativeOpusCodec(maximumBytesPerFrame: 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new NativeOpusCodec(maximumBytesPerFrame: StreamPacket.MaximumEncodedBytes + 1));
+    }
+
+    [NativeCodecFact]
+    public void EveryNativeProfileEncodesReferencePacketsAndDecodesWithFiniteSamples()
+    {
+        using var fixture = StreamPacketTests.LoadVectors();
+        foreach (var row in fixture.RootElement.GetProperty("opus").EnumerateArray())
+        {
+            using var codec = new NativeOpusCodec((OpusProfile)row.GetProperty("profile").GetInt32());
+            var input = row.GetProperty("input").EnumerateArray().Select(value => value.GetSingle()).ToArray();
+            var encoded = codec.Encode(new(input, row.GetProperty("sample_rate").GetInt32(), row.GetProperty("channels").GetInt32()));
+            Assert.Equal(Convert.FromHexString(row.GetProperty("encoded").GetString()!), encoded);
+            var decoded = codec.Decode(encoded);
+            Assert.Equal(row.GetProperty("decoded").GetArrayLength(), decoded.Samples.Length);
+            Assert.All(decoded.Samples.ToArray(), sample => Assert.True(float.IsFinite(sample)));
+        }
+        foreach (var row in fixture.RootElement.GetProperty("codec2").EnumerateArray())
+        {
+            using var codec = new NativeCodec2(row.GetProperty("mode").GetInt32());
+            var input = row.GetProperty("input").EnumerateArray().Select(value => value.GetSingle()).ToArray();
+            var encoded = codec.Encode(new(input, 8000, 1));
+            Assert.Equal(Convert.FromHexString(row.GetProperty("encoded").GetString()!), encoded);
+            var decoded = codec.Decode(encoded);
+            Assert.Equal(row.GetProperty("decoded").GetArrayLength(), decoded.Samples.Length);
+            Assert.All(decoded.Samples.ToArray(), sample => Assert.True(float.IsFinite(sample)));
+        }
+    }
+
+    [NativeCodecFact]
     public void ProfileChangesBeforeEncodingAndChannelConversionMatchActualPrimaryControls()
     {
         using var fixture = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-codec-state.json")));

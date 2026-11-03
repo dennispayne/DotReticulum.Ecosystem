@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
@@ -29,15 +30,19 @@ public sealed class WindowsWaveAudioBackend : IAudioDeviceBackend
         CancellationToken cancellationToken = default)
     {
         Validate(format, cancellationToken);
-        return ValueTask.FromResult<IAudioCapture>(new Capture(_driver, device, format));
+        return ValueTask.FromResult<IAudioCapture>(new Capture(_driver, ResolveDevice(true, device), format));
     }
 
     public ValueTask<IAudioPlayback> OpenPlaybackAsync(string? device, AudioDeviceFormat format,
         CancellationToken cancellationToken = default)
     {
         Validate(format, cancellationToken);
-        return ValueTask.FromResult<IAudioPlayback>(new Playback(_driver, device, format));
+        return ValueTask.FromResult<IAudioPlayback>(new Playback(_driver, ResolveDevice(false, device), format));
     }
+
+    private string? ResolveDevice(bool capture, string? device) =>
+        device is null or "default" || uint.TryParse(device, NumberStyles.None, CultureInfo.InvariantCulture, out _)
+            ? device : AudioDeviceSelection.Resolve(device, _driver.List(capture), includeLoopback: true).Id;
 
     private static void Validate(AudioDeviceFormat format, CancellationToken token)
     {

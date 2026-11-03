@@ -13,26 +13,32 @@ public sealed unsafe class NativeOpusCodec : IAudioCodec
     private readonly delegate* unmanaged[Cdecl]<nint, byte*, int, short*, int, int, int> _decode;
     private readonly delegate* unmanaged[Cdecl]<nint, void> _destroyEncoder;
     private readonly delegate* unmanaged[Cdecl]<nint, void> _destroyDecoder;
+    private readonly delegate* unmanaged[Cdecl]<nint, int, int*, int> _getEncoderControl;
     private nint _encoder;
     private nint _decoder;
     private bool _disposed;
     private readonly int _decodeRate;
     private readonly int _decodeChannels;
+    private readonly int? _maximumBytesPerFrame;
     private OpusParameters _parameters;
     private bool _encoded;
     private long _outputBytes;
     private double _outputMilliseconds;
 
     public NativeOpusCodec(OpusProfile profile = OpusProfile.VoiceLow, string? libraryPath = null,
-        int? decodeSampleRate = null, int? decodeChannels = null)
+        int? decodeSampleRate = null, int? decodeChannels = null, int? maximumBytesPerFrame = null)
     {
         _parameters = OpusParameters.For(profile);
         _decodeRate = decodeSampleRate ?? Parameters.SampleRate;
         _decodeChannels = decodeChannels ?? Parameters.Channels;
         if (_decodeRate is not (8000 or 12000 or 16000 or 24000 or 48000)) throw new ArgumentOutOfRangeException(nameof(decodeSampleRate));
         if (_decodeChannels is not (1 or 2)) throw new ArgumentOutOfRangeException(nameof(decodeChannels));
-        _library = NativeLibrary.Load(libraryPath ?? (OperatingSystem.IsWindows() ? "opus.dll" :
-            OperatingSystem.IsMacOS() ? "libopus.0.dylib" : "libopus.so.0"));
+        if (maximumBytesPerFrame is < 1 or > StreamPacket.MaximumEncodedBytes)
+            throw new ArgumentOutOfRangeException(nameof(maximumBytesPerFrame));
+        _maximumBytesPerFrame = maximumBytesPerFrame;
+        _library = libraryPath is not null ? NativeLibrary.Load(libraryPath) :
+            OperatingSystem.IsWindows() ? NativeAudioLibrary.LoadWindows("opus.dll", "libopus-0.dll") :
+            NativeLibrary.Load(OperatingSystem.IsMacOS() ? "libopus.0.dylib" : "libopus.so.0");
         try
         {
             _createEncoder = (delegate* unmanaged[Cdecl]<int, int, int, int*, nint>)NativeLibrary.GetExport(_library, "opus_encoder_create");
@@ -41,6 +47,7 @@ public sealed unsafe class NativeOpusCodec : IAudioCodec
             _decode = (delegate* unmanaged[Cdecl]<nint, byte*, int, short*, int, int, int>)NativeLibrary.GetExport(_library, "opus_decode");
             _destroyEncoder = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(_library, "opus_encoder_destroy");
             _destroyDecoder = (delegate* unmanaged[Cdecl]<nint, void>)NativeLibrary.GetExport(_library, "opus_decoder_destroy");
+            _getEncoderControl = (delegate* unmanaged[Cdecl]<nint, int, int*, int>)NativeLibrary.GetExport(_library, "opus_encoder_ctl");
             var error = 0;
             _encoder = _createEncoder(Parameters.SampleRate, Parameters.Channels, Parameters.Voice ? 2048 : 2049, &error);
             if (error != 0 || _encoder == 0) throw new InvalidOperationException($"libopus encoder creation failed: {error}.");
@@ -60,6 +67,20 @@ public sealed unsafe class NativeOpusCodec : IAudioCodec
     public long OutputBytes { get { lock (_gate) return _outputBytes; } }
     public double OutputMilliseconds { get { lock (_gate) return _outputMilliseconds; } }
     public double OutputBitrate { get { lock (_gate) return _outputMilliseconds == 0 ? 0 : _outputBytes * 8000 / _outputMilliseconds; } }
+    public int AlgorithmicDelaySamples
+    {
+        get
+        {
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                var samples = 0;
+                var error = _getEncoderControl(_encoder, 4027, &samples);
+                if (error != 0) throw new InvalidOperationException($"libopus lookahead query failed: {error}.");
+                return samples;
+            }
+        }
+    }
 
     public void SetProfile(OpusProfile profile)
     {
@@ -84,7 +105,7 @@ public sealed unsafe class NativeOpusCodec : IAudioCodec
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            return (int)Math.Ceiling(_parameters.BitrateCeiling * frameDurationMilliseconds / 8000);
+            return _maximumBytesPerFrame ?? (int)Math.Ceiling(_parameters.BitrateCeiling * frameDurationMilliseconds / 8000);
         }
     }
 

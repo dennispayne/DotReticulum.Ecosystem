@@ -6,10 +6,12 @@ namespace LXST.Tests;
 [Trait("Category", "Unit")]
 public sealed class AudioDeviceSelectionTests
 {
-    [Fact]
-    public void IdentifierSubstringFuzzyAndMonitorSelectionMatchActualPrimary()
+    [Theory]
+    [InlineData("lxst-device-selection.json")]
+    [InlineData("lxst-windows-device-selection.json")]
+    public void IdentifierSubstringFuzzyAndMonitorSelectionMatchActualPrimary(string file)
     {
-        using var fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-device-selection.json")));
+        using var fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", file)));
         var devices = fixture.RootElement.GetProperty("devices").EnumerateArray()
             .Select(device => new AudioDeviceInfo(device.GetProperty("id").GetString()!, device.GetProperty("name").GetString()!, false)).ToArray();
         foreach (var vector in fixture.RootElement.GetProperty("cases").EnumerateArray())

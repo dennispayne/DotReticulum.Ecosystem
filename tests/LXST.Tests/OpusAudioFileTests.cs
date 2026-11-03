@@ -23,6 +23,119 @@ public sealed class OpusAudioFileTests
     }
 
     [NativeCodecFact]
+    public async Task MultichannelFilesPreservePrimaryChannelsFrameBoundariesAndChannelOrder()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory,
+            "Fixtures", "lxst-multichannel-files.json")));
+        Assert.Equal("eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f", fixture.RootElement.GetProperty("revision").GetString());
+        var root = CreateDirectory();
+        try
+        {
+            foreach (var row in fixture.RootElement.GetProperty("cases").EnumerateArray())
+            {
+                var path = Path.Combine(root, "multichannel.opus");
+                await File.WriteAllBytesAsync(path, Convert.FromBase64String(row.GetProperty("file_base64").GetString()!));
+                await using var source = new OpusFileSource(path);
+                Assert.Equal(row.GetProperty("channels").GetInt32(), source.Channels);
+                Assert.Equal(row.GetProperty("samples_per_channel").GetInt64(), source.SamplesPerChannel);
+                var lengths = new List<int>();
+                var prefix = new List<float>();
+                await foreach (var frame in source.CaptureAsync())
+                {
+                    lengths.Add(frame.SamplesPerChannel);
+                    Assert.Equal(source.Channels, frame.Channels);
+                    Assert.All(frame.Samples.ToArray(), sample => Assert.True(float.IsFinite(sample)));
+                    if (prefix.Count == 0) prefix.AddRange(frame.Samples.ToArray().Take(source.Channels * 64));
+                }
+                Assert.Equal(row.GetProperty("frame_lengths").EnumerateArray().Select(value => value.GetInt32()), lengths);
+                var expected = row.GetProperty("decoded").EnumerateArray().Select(value => value.GetSingle()).ToArray();
+                var dot = expected.Zip(prefix, (left, right) => (double)left * right).Sum();
+                var norm = Math.Sqrt(expected.Sum(value => (double)value * value) * prefix.Sum(value => (double)value * value));
+                Assert.True(dot / norm > .99999, "Decoded channel ordering/content differs from actual primary playback.");
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [NativeCodecFact]
+    public async Task LoopGainDoesNotAccumulateAndChangingChannelChainsFailExplicitly()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory,
+            "Fixtures", "lxst-multichannel-files.json")));
+        var root = CreateDirectory();
+        try
+        {
+            var cases = fixture.RootElement.GetProperty("cases").EnumerateArray().ToArray();
+            var first = Convert.FromBase64String(cases[0].GetProperty("file_base64").GetString()!);
+            var path = Path.Combine(root, "loop.opus");
+            await File.WriteAllBytesAsync(path, first);
+            foreach (var row in fixture.RootElement.GetProperty("loop_gain").EnumerateArray())
+            {
+                var passes = row.GetProperty("pass_prefixes").EnumerateArray().ToArray();
+                Assert.NotEqual(passes[0][0].GetSingle(), passes[1][0].GetSingle());
+                await using var source = new OpusFileSource(path, loop: true, gainDb: row.GetProperty("gain_db").GetDouble());
+                await using var frames = source.CaptureAsync().GetAsyncEnumerator();
+                double? initialPower = null;
+                for (var index = 0; index < 9; index++)
+                {
+                    Assert.True(await frames.MoveNextAsync());
+                    if (index % row.GetProperty("frames_per_pass").GetInt32() != 0) continue;
+                    var power = frames.Current.Samples.ToArray().Sum(sample => (double)sample * sample);
+                    initialPower ??= power;
+                    Assert.InRange(power / initialPower.Value, .99, 1.01);
+                }
+            }
+            await File.WriteAllBytesAsync(path, first.Concat(Convert.FromBase64String(
+                cases[1].GetProperty("file_base64").GetString()!)).ToArray());
+            await using var chained = new OpusFileSource(path);
+            Assert.Equal(3, fixture.RootElement.GetProperty("changing_channel_chain").GetProperty("observation")
+                .GetProperty("channels").GetInt32());
+            await Assert.ThrowsAsync<NotSupportedException>(async () =>
+            {
+                await foreach (var _ in chained.CaptureAsync()) { }
+            });
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [NativeCodecFact]
+    public async Task RecordingCanExplicitlyOmitTheDefaultLxstTailWithoutTruncatingInput()
+    {
+        var root = CreateDirectory();
+        try
+        {
+            foreach (var appendFinalSilence in new[] { true, false })
+            {
+                var path = Path.Combine(root, $"tail-{appendFinalSilence}.opus");
+                await using (var sink = new OpusFileSink(path, OpusProfile.AudioLow, appendFinalSilence: appendFinalSilence))
+                {
+                    for (var index = 0; index < 5; index++)
+                    {
+                        var samples = Enumerable.Range(index * 720, 720)
+                            .Select(sample => (float)(.15 * Math.Sin(2 * Math.PI * 440 * sample / 12000))).ToArray();
+                        await sink.WriteAsync(new(samples, 12000, 1));
+                    }
+                }
+                await using var source = new OpusFileSource(path);
+                Assert.Equal(appendFinalSilence ? 43200 : 14400, source.SamplesPerChannel);
+                Assert.Equal(1, source.Channels);
+                await using var frames = source.CaptureAsync().GetAsyncEnumerator();
+                Assert.True(await frames.MoveNextAsync());
+                Assert.Contains(frames.Current.Samples.ToArray(), sample => Math.Abs(sample) > .05f);
+            }
+            var partialPath = Path.Combine(root, "partial.opus");
+            await using (var sink = new OpusFileSink(partialPath, OpusProfile.AudioLow, appendFinalSilence: false))
+            {
+                await sink.WriteAsync(new(new float[720], 12000, 1));
+                await sink.WriteAsync(new(new float[1], 12000, 1));
+            }
+            await using var partial = new OpusFileSource(partialPath);
+            Assert.Equal(2884, partial.SamplesPerChannel);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [NativeCodecFact]
     public async Task ActualReferenceFileGainAndPlayerReleaseLeaveTheExternalSinkOwnedByTheCaller()
     {
         using var fixture = LoadFixture();

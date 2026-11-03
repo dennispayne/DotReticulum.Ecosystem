@@ -50,7 +50,7 @@ public sealed unsafe class NativeCodec2 : IAudioCodec
     private static nint LoadLibrary(string? path)
     {
         if (path is not null) return NativeLibrary.Load(path);
-        if (OperatingSystem.IsWindows()) return NativeLibrary.Load("codec2.dll");
+        if (OperatingSystem.IsWindows()) return NativeAudioLibrary.LoadWindows("codec2.dll", "libcodec2.dll");
         if (OperatingSystem.IsMacOS()) return NativeLibrary.Load("libcodec2.dylib");
         if (NativeLibrary.TryLoad("libcodec2.so.1.2", out var library)) return library;
         return NativeLibrary.Load("libcodec2.so");

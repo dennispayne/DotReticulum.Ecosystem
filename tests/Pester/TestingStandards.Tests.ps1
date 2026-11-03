@@ -120,6 +120,14 @@ exit 0
         Get-CompatibilityStatus @() | Should -Be 'Not covered'
     }
 
+    It 'retains parameter values in excluded Pester names without running their bodies' {
+        $template = 'GUI acceptance.renders (media=<Media>)'
+        Expand-PesterCaseName $template @{ Media = $true } | Should -Be 'GUI acceptance.renders (media=True)'
+        Expand-PesterCaseName $template @{ Media = $false } | Should -Be 'GUI acceptance.renders (media=False)'
+        Expand-PesterCaseName $template $null | Should -Be $template
+        Expand-PesterCaseName 'literal <Unknown>' @{ Media = $true } | Should -Be 'literal <Unknown>'
+    }
+
     It 'does not pass claims without selectors and reports unmatched execution cases' {
         $catalog = New-Catalog
         $cases = @(

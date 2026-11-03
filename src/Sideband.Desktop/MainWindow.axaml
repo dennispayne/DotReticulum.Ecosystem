@@ -56,8 +56,8 @@
                     IsEnabled="False" ToolTip.Tip="Maps and telemetry are not implemented in this build." />
             <Button HorizontalContentAlignment="Left" Content="Telemetry · unavailable"
                     IsEnabled="False" ToolTip.Tip="Telemetry is not implemented in this build." />
-            <Button x:Name="VoiceUnavailableButton" HorizontalContentAlignment="Left" Content="Voice · unavailable"
-                    IsEnabled="False" ToolTip.Tip="Desktop call controls and device integration are not implemented." />
+            <Button x:Name="VoiceNavButton" HorizontalContentAlignment="Left" Content="Voice"
+                    Tag="Voice" Click="NavigateClicked" />
             <Button HorizontalContentAlignment="Left" Content="Hardware · unavailable"
                     IsEnabled="False" ToolTip.Tip="Hardware configuration is managed by Reticulum outside this app." />
             <Button HorizontalContentAlignment="Left" Content="Plugins · unavailable"
@@ -127,6 +127,52 @@
                        Text="Contacts added here are stored locally. Discovered LXMF delivery announces are added to this list." TextWrapping="Wrap" />
             <ListBox x:Name="ExpandedContactList" MinHeight="320" />
             <TextBlock Text="Add a contact from the Conversations screen using its 32-character delivery address." TextWrapping="Wrap" />
+          </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="VoicePage" IsVisible="False" Margin="24">
+          <StackPanel Spacing="12">
+            <TextBlock FontSize="26" FontWeight="SemiBold" Text="Voice" />
+            <TextBlock Text="Voice is off by default. Enabling registers your LXST telephone while connected. Only answering an accepted call opens capture; trusted direct push-to-talk can answer automatically when explicitly enabled."
+                       TextWrapping="Wrap" />
+            <CheckBox x:Name="VoiceEnabledBox" Content="Enable voice while connected" />
+            <CheckBox x:Name="VoiceTrustedOnlyBox" Content="Accept calls only from trusted peers" />
+            <CheckBox x:Name="VoiceDirectPttBox" Content="Allow trusted conversations with direct-PTT permission to answer automatically" />
+            <CheckBox x:Name="VoiceHdxSpeakerBox" Content="Use loudspeaker for half-duplex calls" />
+            <TextBox x:Name="VoiceMicrophoneBox" MaxLength="512" PlaceholderText="Microphone device identifier (empty for default)" />
+            <TextBox x:Name="VoiceSpeakerBox" MaxLength="512" PlaceholderText="Private output device identifier (empty for default)" />
+            <TextBox x:Name="VoiceLoudspeakerBox" MaxLength="512" PlaceholderText="Loudspeaker device identifier (empty for default)" />
+            <TextBox x:Name="VoiceRingerBox" MaxLength="512" PlaceholderText="Ringer output device identifier (empty for default)" />
+            <Button x:Name="ListVoiceDevicesButton" Content="List available devices (does not capture)" Click="ListVoiceDevicesClicked" />
+            <TextBox x:Name="VoiceDevicesText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" />
+            <Button x:Name="SaveVoiceButton" Content="Save voice settings" Click="SaveVoiceClicked" />
+            <TextBlock x:Name="VoiceStatusText" Text="Voice disabled." TextWrapping="Wrap" />
+            <TextBox x:Name="VoiceIdentityBox" MaxLength="32" PlaceholderText="Peer identity hash (32 hex, not LXMF address)" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ComboBox x:Name="VoiceProfileSelector" MinWidth="180" />
+              <ComboBox x:Name="VoiceModeSelector" MinWidth="150" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="CallIdentityButton" Content="Call identity" Click="CallIdentityClicked" />
+              <Button x:Name="CallContactButton" Content="Call selected contact" Click="CallContactClicked" />
+              <Button x:Name="AnswerCallButton" Content="Answer" Click="AnswerCallClicked" />
+              <Button x:Name="RejectCallButton" Content="Reject" Click="RejectCallClicked" />
+              <Button x:Name="HangupCallButton" Content="Hang up" Click="HangupCallClicked" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <CheckBox x:Name="VoiceMuteMicrophoneBox" Content="Mute microphone" Click="VoiceMuteChanged" />
+              <CheckBox x:Name="VoiceMuteSpeakerBox" Content="Mute playback" Click="VoiceMuteChanged" />
+              <CheckBox x:Name="VoiceLoudspeakerEnabledBox" Content="Loudspeaker" Click="VoiceLoudspeakerChanged" />
+              <Button x:Name="PushToTalkButton" Content="Hold to talk (Space)" />
+              <Button x:Name="ApplyVoiceProfileButton" Content="Apply profile/mode" Click="ApplyVoiceProfileClicked" />
+            </StackPanel>
+            <TextBlock x:Name="VoiceFramesText" TextWrapping="Wrap" />
+            <CheckBox x:Name="ConversationDirectPttBox" Content="Allow direct PTT for the selected trusted LXMF contact" />
+            <Button x:Name="SaveConversationPttButton" Content="Save selected contact PTT permission" Click="SaveConversationPttClicked" />
+            <CheckBox x:Name="VoicePeerTrustedBox" Content="Trust this voice-only identity (an existing LXMF conversation takes precedence)" />
+            <Button x:Name="SaveVoicePeerTrustButton" Content="Save identity trust" Click="SaveVoicePeerTrustClicked" />
+            <TextBlock FontSize="18" FontWeight="SemiBold" Text="Recent call events" />
+            <ListBox x:Name="VoiceHistoryList" MinHeight="140" />
+            <Button x:Name="ClearVoiceHistoryButton" Content="Clear call history" Click="ClearVoiceHistoryClicked" />
           </StackPanel>
         </ScrollViewer>
         <ScrollViewer x:Name="ConnectivityPage" IsVisible="False" Margin="24">
@@ -231,7 +277,7 @@
                        TextWrapping="Wrap" />
             <TextBlock Text="Before connecting, check the selected config path on the Connectivity screen. The default may point to an existing user Reticulum configuration; Sideband never repairs or resets it automatically."
                        TextWrapping="Wrap" />
-            <TextBlock Text="This desktop build supports text, files, bounded images and audio messages, explicit recording/playback, contacts, propagation, settings exchange and local history. Audio needs separately installed native codecs and operating-system devices. Received media never plays or opens automatically. Voice calls, maps, telemetry, plugins and the upstream LAN repository mirror are not available."
+            <TextBlock Text="This desktop build supports text, files, bounded images and audio messages, explicit recording/playback, optional LXST calls, contacts, propagation, settings exchange and local history. Audio needs separately installed native codecs and operating-system devices. Received media never plays or opens automatically. Maps, telemetry, plugins and the upstream LAN repository mirror are not available."
                        TextWrapping="Wrap" />
             <Button Content="Open Connectivity" HorizontalAlignment="Left" Click="OpenConnectivityClicked" />
           </StackPanel>

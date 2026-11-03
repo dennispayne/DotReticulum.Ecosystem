@@ -1,0 +1,70 @@
+{
+  "sideband_sha": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "source_sha256": {
+    "sbapp/sideband/cli/commands.py": "d06f6d7a6f8f5b64647d2e9b2ef2c61712175b7555dc064f2a02e376e363e34d",
+    "sbapp/sideband/cli/cmd_voice.py": "17b867e9448c2cf15d973395c18f3f3c973af2efcb171c2deb4034d631451853"
+  },
+  "method": "Import actual cmd_voice, register, validate and execute each actual Command",
+  "cases": [
+    {
+      "command": "voice status",
+      "handler": false,
+      "result": "Not yet implemented"
+    },
+    {
+      "command": "voice announce",
+      "handler": false,
+      "result": "Not yet implemented"
+    },
+    {
+      "command": "voice dial",
+      "handler": false,
+      "result": "Not yet implemented"
+    },
+    {
+      "command": "voice hangup",
+      "handler": false,
+      "result": "Not yet implemented"
+    },
+    {
+      "command": "voice answer",
+      "handler": false,
+      "result": "Not yet implemented"
+    },
+    {
+      "command": "voice log",
+      "handler": false,
+      "result": "Not yet implemented"
+    },
+    {
+      "command": "voice mute mic",
+      "handler": false,
+      "result": "Not yet implemented"
+    },
+    {
+      "command": "voice mute spk",
+      "handler": false,
+      "result": "Not yet implemented"
+    },
+    {
+      "command": "voice unmute mic",
+      "handler": false,
+      "result": "Not yet implemented"
+    },
+    {
+      "command": "voice unmute spk",
+      "handler": false,
+      "result": "Not yet implemented"
+    },
+    {
+      "command": "voice profile",
+      "handler": false,
+      "result": "Not yet implemented"
+    },
+    {
+      "command": "voice mode",
+      "handler": false,
+      "result": "Not yet implemented"
+    }
+  ]
+}

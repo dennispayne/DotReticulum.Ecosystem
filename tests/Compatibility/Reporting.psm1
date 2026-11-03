@@ -55,6 +55,16 @@ function Get-CompatibilityStatus {
     return 'Not covered'
 }
 
+function Expand-PesterCaseName {
+    param([string] $Name, [Collections.IDictionary] $Data)
+    if ($null -ne $Data) {
+        foreach ($entry in $Data.GetEnumerator()) {
+            $Name = $Name.Replace("<$($entry.Key)>", [string] $entry.Value)
+        }
+    }
+    return $Name
+}
+
 function Read-TrxCases {
     param([string] $Directory)
     foreach ($file in Get-ChildItem -LiteralPath $Directory -Filter '*.trx' -Recurse -File) {
@@ -160,4 +170,4 @@ function Write-CompatibilityReport {
     $lines -join "`n" | Set-Content -LiteralPath (Join-Path $Directory 'compatibility.md') -Encoding utf8
 }
 
-Export-ModuleMember -Function Read-CompatibilityCatalog, Get-CompatibilityStatus, Read-TrxCases, New-CompatibilityReport, Write-CompatibilityReport
+Export-ModuleMember -Function Read-CompatibilityCatalog, Get-CompatibilityStatus, Expand-PesterCaseName, Read-TrxCases, New-CompatibilityReport, Write-CompatibilityReport

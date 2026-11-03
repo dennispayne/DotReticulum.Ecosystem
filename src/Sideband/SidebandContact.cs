@@ -1,6 +1,7 @@
 namespace Sideband;
 
-public sealed record SidebandContact(string DeliveryHash, string DisplayName, bool Trusted = false, bool Unread = false)
+public sealed record SidebandContact(string DeliveryHash, string DisplayName, bool Trusted = false, bool Unread = false,
+    bool DirectPushToTalk = false)
 {
     public static bool TryNormalizeDeliveryHash(string? value, out string normalized)
     {
@@ -18,13 +19,14 @@ public sealed record SidebandContact(string DeliveryHash, string DisplayName, bo
         }
     }
 
-    public static SidebandContact Create(string displayName, string deliveryHash, bool trusted = false, bool unread = false)
+    public static SidebandContact Create(string displayName, string deliveryHash, bool trusted = false, bool unread = false,
+        bool directPushToTalk = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         var name = displayName.Trim();
         if (name.Length > 80) throw new ArgumentException("Contact names may contain at most 80 characters.", nameof(displayName));
         if (!TryNormalizeDeliveryHash(deliveryHash, out var normalized))
             throw new ArgumentException("An LXMF delivery address must be exactly 32 hexadecimal characters.", nameof(deliveryHash));
-        return new SidebandContact(normalized, name, trusted, unread);
+        return new SidebandContact(normalized, name, trusted, unread, directPushToTalk);
     }
 }

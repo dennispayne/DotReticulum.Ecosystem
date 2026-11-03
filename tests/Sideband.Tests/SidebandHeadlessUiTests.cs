@@ -181,7 +181,11 @@ public sealed class SidebandHeadlessUiTests
             Assert.True(window.IsVisible);
             Assert.NotNull(window.FindControl<ListBox>("ContactList"));
             Assert.NotNull(window.FindControl<ListBox>("MessageList"));
-            Assert.False(window.FindControl<Button>("VoiceUnavailableButton")?.IsEnabled ?? true);
+            Assert.True(window.FindControl<Button>("VoiceNavButton")!.IsEnabled);
+            window.FindControl<Button>("VoiceNavButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(window.FindControl<ScrollViewer>("VoicePage")!.IsVisible);
+            Assert.False(window.FindControl<CheckBox>("VoiceEnabledBox")!.IsChecked);
+            Assert.False(window.FindControl<Button>("CallIdentityButton")!.IsEnabled);
             Assert.True(window.FindControl<Button>("SendButton")!.IsEnabled);
             window.FindControl<Button>("ContactsNavButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.True(window.FindControl<ScrollViewer>("ContactsPage")!.IsVisible);
@@ -371,6 +375,83 @@ public sealed class SidebandHeadlessUiTests
             if (window?.IsVisible == true) await window.CloseAndWaitAsync();
             if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
         }
+    }
+
+    [AvaloniaFact]
+    public async Task VoiceSettingsDevicesTrustAndDialCancellationWorkWithoutOpeningCapture()
+    {
+        var root = Path.Combine(AppContext.BaseDirectory, "sideband-ui-call-" + Guid.NewGuid().ToString("N"));
+        var config = Path.Combine(root, "rns");
+        var token = TestContext.Current.CancellationToken;
+        var devices = new SidebandVoiceLifecycleTests.Devices();
+        MainWindow? window = null;
+        try
+        {
+            Directory.CreateDirectory(config);
+            await File.WriteAllTextAsync(Path.Combine(config, "config"),
+                "[reticulum]\n  enable_transport = no\n  share_instance = no\n\n[logging]\n  loglevel = 4\n", token);
+            var store = new SidebandStateStore(root);
+            var delivery = new string('b', 32);
+            await store.AddContactAsync(SidebandContact.Create("Call peer", delivery, trusted: true), token);
+            await store.AddCallEventAsync(new(DateTimeOffset.UtcNow, "incoming-missed", new string('a', 32)), token);
+            window = new MainWindow(root, config, mediaBackend: devices);
+            window.Show();
+            await WaitForAsync(() => window.FindControl<TextBox>("DisplayNameBox")?.Text == "Sideband");
+            window.FindControl<Button>("VoiceNavButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.FindControl<CheckBox>("VoiceEnabledBox")!.IsChecked = true;
+            window.FindControl<CheckBox>("VoiceTrustedOnlyBox")!.IsChecked = true;
+            window.FindControl<CheckBox>("VoiceDirectPttBox")!.IsChecked = true;
+            window.FindControl<TextBox>("VoiceMicrophoneBox")!.Text = "fake-input";
+            window.FindControl<TextBox>("VoiceSpeakerBox")!.Text = "fake-output";
+            window.FindControl<Button>("SaveVoiceButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => window.FindControl<TextBlock>("VoiceStatusText")!.Text!.Contains("connect to Reticulum", StringComparison.Ordinal));
+            window.FindControl<CheckBox>("ConversationDirectPttBox")!.IsChecked = true;
+            window.FindControl<Button>("SaveConversationPttButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.FindControl<Button>("ConnectButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => window.FindControl<Button>("CallIdentityButton")!.IsEnabled);
+            window.FindControl<Button>("ListVoiceDevicesButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => window.FindControl<TextBox>("VoiceDevicesText")!.Text?.Contains("fake-input", StringComparison.Ordinal) == true);
+            Assert.Contains("fake-output", window.FindControl<TextBox>("VoiceDevicesText")!.Text);
+            Assert.Equal(0, devices.Captures);
+            Assert.Equal(0, devices.Playbacks);
+            var peer = new string('a', 32);
+            window.FindControl<TextBox>("VoiceIdentityBox")!.Text = peer;
+            window.FindControl<CheckBox>("VoicePeerTrustedBox")!.IsChecked = true;
+            window.FindControl<Button>("SaveVoicePeerTrustButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(async () => (await new SidebandStateStore(root).LoadAsync(cancellationToken: token)).VoicePeers?.Count == 1);
+            window.FindControl<Button>("CallIdentityButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => window.FindControl<Button>("HangupCallButton")!.IsEnabled);
+            var elapsed = System.Diagnostics.Stopwatch.StartNew();
+            window.FindControl<Button>("HangupCallButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => window.FindControl<Button>("CallIdentityButton")!.IsEnabled);
+            Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(2));
+            Assert.Equal(0, devices.Captures);
+            var persisted = await new SidebandStateStore(root).LoadAsync(cancellationToken: token);
+            Assert.True(persisted.VoiceEnabled);
+            Assert.True(persisted.Voice!.TrustedOnly);
+            Assert.True(persisted.Voice.DirectPushToTalk);
+            Assert.True(Assert.Single(persisted.Contacts).DirectPushToTalk);
+            Assert.Equal(peer, Assert.Single(persisted.VoicePeers!).IdentityHash);
+            Assert.Single(window.FindControl<ListBox>("VoiceHistoryList")!.Items);
+            window.FindControl<Button>("ClearVoiceHistoryButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => window.FindControl<ListBox>("VoiceHistoryList")!.Items.Count == 0);
+            Assert.Empty((await new SidebandStateStore(root).LoadAsync(cancellationToken: token)).Calls!);
+            await window.CloseAndWaitAsync();
+            Assert.Equal(devices.Captures, devices.CaptureDisposals);
+            Assert.Equal(devices.Playbacks, devices.PlaybackDisposals);
+        }
+        finally
+        {
+            if (window is not null) await window.CloseAndWaitAsync();
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    private static async Task WaitForAsync(Func<Task<bool>> condition)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        while (!await condition()) await Task.Delay(20, timeout.Token);
     }
 
     private static async Task WaitForAsync(Func<bool> condition)

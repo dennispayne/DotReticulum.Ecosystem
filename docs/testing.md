@@ -27,17 +27,29 @@ validate subsequent unpushed local changes.
 
 The integrated local gate
 `& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
-artifacts\builds\fleet-media-unified -OutputDirectory
-artifacts\tests\fleet-media-final` covers Sideband media/router/schedule migration,
-NomadNet browser/media and the synchronized LXST 0.5.4 reference/catalog and release-tag
-expectation. It passed: 457 managed cases and 60 Pester cases, with 78 managed
-and 23 selected Pester cases explicitly skipped for absent prerequisites.
+artifacts\builds\fleet-voice-unified -OutputDirectory
+artifacts\tests\fleet-voice-final-v3` covers Sideband voice/media/router/schedule migration,
+NomadNet browser/directory and the synchronized LXST 0.5.4 reference/catalog and release-tag
+expectation. It passed: 722 managed cases and 61 Pester cases, with 81 managed
+and 23 discovered Pester cases explicitly skipped for absent prerequisites.
+Fourteen additional catalog availability records identify unavailable native suites.
+The working-tree corpus includes isolated telemetry/extension reference foundations;
+those tests are not application telemetry/maps or Python-plugin compatibility.
 It retains TRX, per-case
 compatibility evidence and merged coverage for all eight production assemblies.
 Its absent live/native prerequisites remain explicit skips; the separately
 selected published/real-peer application gates are recorded in each project's
 reference doc. This local result is not hosted evidence or a complete-parity
 claim.
+
+The final native catalog check
+`& .\tests\run-compatibility.ps1 -SkipManaged -Pester -OutputDirectory
+artifacts\tests\fleet-voice-final-catalog-v2`, with the accepted Windows Sideband
+binary selected, passed 66 Pester cases. Managed checks were not selected.
+Excluded data-driven GUI cases retain their parameter values and remain explicit
+skips, rather than producing a false unmatched-selector failure. Its two POSIX
+signal skips are independently exercised on Linux; the Sideband reference doc
+records the full published voice, import and rendered-GUI results.
 
 ## Entry points
 

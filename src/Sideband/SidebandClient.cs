@@ -4,6 +4,8 @@ using DotReticulum.Applications.Runtime;
 using DotReticulum.Core;
 using DotReticulum.Transport;
 using LXMF;
+using LXST;
+using LXST.Devices;
 
 namespace Sideband;
 
@@ -23,23 +25,30 @@ public sealed class SidebandClient : IAsyncDisposable
     private ReticulumNode? _node;
     private Identity? _identity;
     private LxmRouter? _router;
+    private readonly IAudioDeviceBackend? _voiceDevices;
+    private SidebandVoiceService? _voice;
+    private Identity? _voiceRemoteIdentity;
     private CallbackAnnounceHandler? _announceHandler;
     private CallbackAnnounceHandler? _propagationHandler;
     private int _disposed;
 
-    public SidebandClient(SidebandStateStore store)
+    public SidebandClient(SidebandStateStore store, IAudioDeviceBackend? voiceDevices = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _attachments = new SidebandAttachmentStore(store.DataDirectory);
+        _voiceDevices = voiceDevices;
     }
 
     public event Action<SidebandState>? StateChanged;
     public event Action<string>? ErrorReported;
+    public event Action<SidebandVoiceSnapshot>? VoiceStateChanged;
 
     public bool IsConnected => _router is not null;
     public SidebandConnectionInfo? ConnectionInfo { get; private set; }
     public LxmPropagationTransferState SyncState => _router?.PropagationTransferState ?? LxmPropagationTransferState.Idle;
     public double SyncProgress => _router?.PropagationTransferProgress ?? 0;
+    public SidebandVoiceSnapshot? VoiceSnapshot => _voice?.Snapshot;
+    public string? VoiceDestinationHash => _voice is { } voice ? Convert.ToHexStringLower(voice.DestinationHash) : null;
 
     public async Task<SidebandState> LoadAsync(CancellationToken cancellationToken = default) =>
         await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -52,6 +61,7 @@ public sealed class SidebandClient : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
             if (_router is not null) return;
+            await _store.PruneCallHistoryAsync(cancellationToken).ConfigureAwait(false);
             var state = await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
             var config = string.IsNullOrWhiteSpace(reticulumConfigDirectory)
                 ? state.ReticulumConfigDirectory
@@ -94,6 +104,7 @@ public sealed class SidebandClient : IAsyncDisposable
                 _router = router;
                 lock (_cancellationGate) _runCancellation = runCancellation;
                 _inboundTask = Task.Run(() => ProcessIncomingAsync(inbound.Reader), CancellationToken.None);
+                await ApplyVoiceConfigurationAsync(state, cancellationToken).ConfigureAwait(false);
                 var runToken = runCancellation.Token;
                 _periodicTask = Task.Run(() => ProcessPeriodicAsync(runToken), CancellationToken.None);
                 await router.AnnounceAsync(cancellationToken).ConfigureAwait(false);
@@ -118,6 +129,10 @@ public sealed class SidebandClient : IAsyncDisposable
                 await _propagationGate.WaitAsync().ConfigureAwait(false);
                 try { _router = null; _node = null; }
                 finally { _propagationGate.Release(); }
+                if (_voice is { } voice) await voice.DisposeAsync().ConfigureAwait(false);
+                _voice = null;
+                _voiceRemoteIdentity?.Dispose();
+                _voiceRemoteIdentity = null;
                 if (router is not null) await router.DisposeAsync().ConfigureAwait(false);
                 inbound.Writer.TryComplete();
                 if (_inboundTask is not null) await _inboundTask.ConfigureAwait(false);
@@ -141,6 +156,7 @@ public sealed class SidebandClient : IAsyncDisposable
     {
         var contact = SidebandContact.Create(name, deliveryHash);
         await _store.AddContactAsync(contact, cancellationToken).ConfigureAwait(false);
+        await RefreshVoicePolicyAsync(cancellationToken).ConfigureAwait(false);
         PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
     }
 
@@ -148,6 +164,7 @@ public sealed class SidebandClient : IAsyncDisposable
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         await _store.SetConversationTrustAsync(deliveryHash, trusted, cancellationToken).ConfigureAwait(false);
+        await RefreshVoicePolicyAsync(cancellationToken).ConfigureAwait(false);
         PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
     }
 
@@ -157,6 +174,178 @@ public sealed class SidebandClient : IAsyncDisposable
         await _store.SetConversationReadAsync(deliveryHash, read, cancellationToken).ConfigureAwait(false);
         PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
     }
+
+    public async Task ConfigureVoiceAsync(bool enabled, SidebandVoiceConfiguration configuration,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _store.ConfigureVoiceAsync(enabled, configuration, cancellationToken).ConfigureAwait(false);
+        await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+            var state = await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (_node is not null) await ApplyVoiceConfigurationAsync(state, cancellationToken).ConfigureAwait(false);
+            PublishState(state);
+        }
+        finally { _lifecycle.Release(); }
+    }
+
+    public async Task SetConversationPushToTalkAsync(string deliveryHash, bool enabled, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _store.SetConversationPushToTalkAsync(deliveryHash, enabled, cancellationToken).ConfigureAwait(false);
+        await RefreshVoicePolicyAsync(cancellationToken).ConfigureAwait(false);
+        PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
+    }
+
+    public async Task SetVoicePeerTrustAsync(string identityHash, bool trusted, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _store.SetVoicePeerTrustAsync(identityHash, trusted, cancellationToken).ConfigureAwait(false);
+        await RefreshVoicePolicyAsync(cancellationToken).ConfigureAwait(false);
+        PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
+    }
+
+    public Task CallIdentityAsync(string identityHash, TelephoneProfile profile = TelephoneProfile.MediumQuality,
+        TelephoneMode mode = TelephoneMode.FullDuplex, CancellationToken cancellationToken = default)
+    {
+        if (!SidebandContact.TryNormalizeDeliveryHash(identityHash, out var normalized))
+            throw new ArgumentException("Enter a 32-character hexadecimal identity hash, not an LXMF destination.", nameof(identityHash));
+        return CallDestinationAsync(Destination.ComputeHashFromNameAndIdentity("lxst.telephony", Convert.FromHexString(normalized)),
+            profile, mode, cancellationToken);
+    }
+
+    public Task CallContactAsync(string deliveryHash, TelephoneProfile profile = TelephoneProfile.MediumQuality,
+        TelephoneMode mode = TelephoneMode.FullDuplex, CancellationToken cancellationToken = default)
+    {
+        if (!SidebandContact.TryNormalizeDeliveryHash(deliveryHash, out var normalized))
+            throw new ArgumentException("Enter a 32-character hexadecimal LXMF delivery address.", nameof(deliveryHash));
+        return CallDestinationAsync(Convert.FromHexString(normalized), profile, mode, cancellationToken);
+    }
+
+    private async Task CallDestinationAsync(byte[] destination, TelephoneProfile profile, TelephoneMode mode, CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var voice = RequireVoice();
+            if (voice.IsBusy) throw new InvalidOperationException("The voice service is already busy.");
+            using var owned = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _runCancellation!.Token);
+            var remote = await _node!.ResolveIdentityAsync(destination, SidebandVoiceService.PathTimeout, owned.Token).ConfigureAwait(false)
+                ?? throw new TimeoutException("No announced identity was found for the requested peer.");
+            _voiceRemoteIdentity?.Dispose();
+            _voiceRemoteIdentity = remote;
+            await voice.CallAsync(remote, profile, mode, owned.Token).ConfigureAwait(false);
+        }
+        finally { _lifecycle.Release(); }
+    }
+
+    public async Task ClearCallHistoryAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+            if (_inboundTask is null)
+            {
+                await _store.ClearCallHistoryAsync(cancellationToken).ConfigureAwait(false);
+                PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
+            }
+            else
+            {
+                var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                await _inbound.Writer.WriteAsync(new ClientUpdate(ClearCalls: completion), cancellationToken).ConfigureAwait(false);
+                await completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally { _lifecycle.Release(); }
+    }
+
+    public ValueTask AnnounceVoiceAsync(CancellationToken cancellationToken = default) => RequireVoice().AnnounceAsync(cancellationToken);
+    public ValueTask AnswerCallAsync(CancellationToken cancellationToken = default) => RequireVoice().AnswerAsync(cancellationToken);
+    public ValueTask RejectCallAsync(CancellationToken cancellationToken = default) => RequireVoice().RejectAsync(cancellationToken);
+    public ValueTask HangupCallAsync(CancellationToken cancellationToken = default) => RequireVoice().HangupAsync(cancellationToken);
+    public void MuteVoiceMicrophone(bool muted) => RequireVoice().MuteMicrophone(muted);
+    public void MuteVoiceSpeaker(bool muted) => RequireVoice().MuteSpeaker(muted);
+    public void SetPushToTalk(bool pressed) => RequireVoice().SetPushToTalk(pressed);
+    public ValueTask SetVoiceLoudspeakerAsync(bool enabled, CancellationToken cancellationToken = default) =>
+        RequireVoice().EnableLoudspeakerAsync(enabled, cancellationToken);
+    public ValueTask SetVoiceProfileAsync(TelephoneProfile profile, CancellationToken cancellationToken = default) =>
+        RequireVoice().SwitchProfileAsync(profile, cancellationToken);
+    public ValueTask SetVoiceModeAsync(TelephoneMode mode, CancellationToken cancellationToken = default) =>
+        RequireVoice().SwitchModeAsync(mode, cancellationToken);
+    public ValueTask<IReadOnlyList<AudioDeviceInfo>> ListVoiceInputsAsync(CancellationToken cancellationToken = default) =>
+        RequireVoice().ListInputsAsync(cancellationToken);
+    public ValueTask<IReadOnlyList<AudioDeviceInfo>> ListVoiceOutputsAsync(CancellationToken cancellationToken = default) =>
+        RequireVoice().ListOutputsAsync(cancellationToken);
+
+    private SidebandVoiceService RequireVoice()
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        return _voice ?? throw new InvalidOperationException("Connect to Reticulum and enable voice first.");
+    }
+
+    private async Task ApplyVoiceConfigurationAsync(SidebandState state, CancellationToken token)
+    {
+        if (!state.VoiceEnabled)
+        {
+            if (_voice is { } previous) await previous.DisposeAsync().ConfigureAwait(false);
+            _voice = null;
+            _voiceRemoteIdentity?.Dispose();
+            _voiceRemoteIdentity = null;
+            return;
+        }
+        var policy = VoicePolicy(state);
+        if (_voice is { } existing)
+        {
+            await existing.ConfigureAsync(policy, token).ConfigureAwait(false);
+            return;
+        }
+        var backend = _voiceDevices ?? (OperatingSystem.IsWindows()
+            ? new WindowsWasapiAudioBackend()
+            : OperatingSystem.IsLinux() ? new PulseAudioDeviceBackend()
+            : throw new PlatformNotSupportedException("Sideband voice devices require Windows or Linux."));
+        var voice = new SidebandVoiceService(_node!.Router, _identity!, backend, policy);
+        voice.StateChanged += PublishVoice;
+        voice.Error += error => Report(error.Context + (error.Exception is null ? string.Empty : " " + error.Exception.Message));
+        var updates = _inbound;
+        voice.CallHistory += call =>
+        {
+            if (!updates.Writer.TryWrite(new ClientUpdate(Call: call)))
+                Report("Voice history queue is full or closed; the call event was not persisted.");
+        };
+        try
+        {
+            voice.Start();
+            await voice.AnnounceAsync(token).ConfigureAwait(false);
+            _voice = voice;
+        }
+        catch { await voice.DisposeAsync().ConfigureAwait(false); throw; }
+    }
+
+    private async Task RefreshVoicePolicyAsync(CancellationToken token)
+    {
+        await _lifecycle.WaitAsync(token).ConfigureAwait(false);
+        try
+        {
+            await RefreshVoicePolicyCoreAsync(token).ConfigureAwait(false);
+        }
+        finally { _lifecycle.Release(); }
+    }
+
+    private async Task RefreshVoicePolicyCoreAsync(CancellationToken token)
+    {
+        if (_voice is not { } voice) return;
+        var state = await _store.LoadAsync(cancellationToken: token).ConfigureAwait(false);
+        if (ReferenceEquals(voice, _voice))
+            await voice.ConfigureAsync(VoicePolicy(state), token).ConfigureAwait(false);
+    }
+
+    private static SidebandVoicePolicy VoicePolicy(SidebandState state) => new(state.Voice, state.VoicePeers,
+        state.Contacts.Select(contact => new SidebandVoiceDeliveryPeer(contact.DeliveryHash, contact.Trusted, contact.DirectPushToTalk)));
 
     public Task SendTextAsync(string deliveryHash, string content, CancellationToken cancellationToken = default) =>
         SendMessageAsync(deliveryHash, content, null, null, cancellationToken);
@@ -425,6 +614,11 @@ public sealed class SidebandClient : IAsyncDisposable
             ConnectionInfo = null;
         }
         finally { _propagationGate.Release(); }
+        var voice = _voice;
+        _voice = null;
+        if (voice is not null) await voice.DisposeAsync().ConfigureAwait(false);
+        _voiceRemoteIdentity?.Dispose();
+        _voiceRemoteIdentity = null;
         if (router is not null) await router.DisposeAsync().ConfigureAwait(false);
         if (cancellation is not null)
         {
@@ -458,6 +652,7 @@ public sealed class SidebandClient : IAsyncDisposable
             {
                 try
                 {
+                    await _store.PruneCallHistoryAsync(cancellationToken).ConfigureAwait(false);
                     var state = await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
                     var router = _router;
                     if (router is null) continue;
@@ -530,14 +725,19 @@ public sealed class SidebandClient : IAsyncDisposable
         {
             try
             {
-                if (update.Propagation is { } candidate)
+                if (update.ClearCalls is not null)
+                    await _store.ClearCallHistoryAsync().ConfigureAwait(false);
+                else if (update.Propagation is { } candidate)
                 {
                     await ProcessPropagationAsync(candidate).ConfigureAwait(false);
                 }
                 else if (update.Contact is { } contact)
                 {
                     await _store.AddContactAsync(contact).ConfigureAwait(false);
+                    await RefreshVoicePolicyCoreAsync(CancellationToken.None).ConfigureAwait(false);
                 }
+                else if (update.Call is { } call)
+                    await _store.AddCallEventAsync(call).ConfigureAwait(false);
                 else if (update.FailedMessage is { } failed)
                 {
                     await RetryViaPropagationAsync(update.MessageId, failed).ConfigureAwait(false);
@@ -611,10 +811,16 @@ public sealed class SidebandClient : IAsyncDisposable
                         image,
                         audio);
                     await _store.AddMessageAsync(stored).ConfigureAwait(false);
+                    await RefreshVoicePolicyCoreAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 PublishState(await _store.LoadAsync().ConfigureAwait(false));
+                update.ClearCalls?.TrySetResult();
             }
-            catch (Exception ex) { Report("Could not persist a Sideband conversation update: " + ex.Message); }
+            catch (Exception ex)
+            {
+                update.ClearCalls?.TrySetException(ex);
+                Report("Could not persist a Sideband conversation update: " + ex.Message);
+            }
         }
     }
 
@@ -657,6 +863,16 @@ public sealed class SidebandClient : IAsyncDisposable
         }
     }
 
+    private void PublishVoice(SidebandVoiceSnapshot snapshot)
+    {
+        if (VoiceStateChanged is not { } callbacks) return;
+        foreach (Action<SidebandVoiceSnapshot> callback in callbacks.GetInvocationList())
+        {
+            try { callback(snapshot); }
+            catch (Exception ex) { Report("A Sideband voice observer failed: " + ex.Message); }
+        }
+    }
+
     private void Report(string message)
     {
         if (ErrorReported is not { } callbacks)
@@ -675,7 +891,7 @@ public sealed class SidebandClient : IAsyncDisposable
     private sealed record PropagationCandidate(string Hash, int Hops, long Emitted);
     private sealed record ClientUpdate(ReceivedMessage? Received = null, SidebandContact? Contact = null,
         Guid MessageId = default, string? DeliveryState = null, PropagationCandidate? Propagation = null,
-        LxMessage? FailedMessage = null);
+        LxMessage? FailedMessage = null, SidebandVoiceCallEvent? Call = null, TaskCompletionSource? ClearCalls = null);
 
     private static Channel<ClientUpdate> CreateInboundChannel() =>
         System.Threading.Channels.Channel.CreateBounded<ClientUpdate>(new BoundedChannelOptions(128)

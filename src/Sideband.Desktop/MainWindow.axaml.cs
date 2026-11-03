@@ -38,6 +38,9 @@ public sealed partial class MainWindow : Window
     private SidebandEncodedAudio? _recordedAudio;
     private Avalonia.Media.Imaging.Bitmap? _previewBitmap;
     private long _mediaSelectionVersion;
+    private readonly DispatcherTimer _voiceTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private bool _pttPressed;
+    private CancellationTokenSource? _dialCancellation;
 
     internal static bool SmokeUiSucceeded { get; private set; }
 
@@ -52,14 +55,26 @@ public sealed partial class MainWindow : Window
         _smokeUi = smokeUi;
         _mediaBackend = mediaBackend;
         _store = new SidebandStateStore(dataDirectory);
-        _client = new SidebandClient(_store);
+        _client = new SidebandClient(_store, mediaBackend);
         _client.StateChanged += OnStateChanged;
         _client.ErrorReported += OnErrorReported;
+        _client.VoiceStateChanged += OnVoiceStateChanged;
         ThemeSelector.ItemsSource = new[] { "Dark", "Light" };
         AttachmentKindSelector.ItemsSource = new[] { "File", "Image", "Audio" };
         AttachmentKindSelector.SelectedIndex = 0;
         ImageQualitySelector.ItemsSource = Enum.GetValues<SidebandImageQuality>();
         ImageQualitySelector.SelectedItem = SidebandImageQuality.Medium;
+        VoiceProfileSelector.ItemsSource = Enum.GetValues<TelephoneProfile>();
+        VoiceProfileSelector.SelectedItem = TelephoneProfile.MediumQuality;
+        VoiceModeSelector.ItemsSource = Enum.GetValues<TelephoneMode>();
+        VoiceModeSelector.SelectedItem = TelephoneMode.FullDuplex;
+        PushToTalkButton.AddHandler(Avalonia.Input.InputElement.PointerPressedEvent, PushToTalkPressed, RoutingStrategies.Tunnel);
+        PushToTalkButton.AddHandler(Avalonia.Input.InputElement.PointerReleasedEvent, PushToTalkReleased, RoutingStrategies.Tunnel);
+        PushToTalkButton.PointerCaptureLost += (_, _) => ReleasePushToTalk();
+        PushToTalkButton.AddHandler(Avalonia.Input.InputElement.KeyDownEvent, PushToTalkKeyDown, RoutingStrategies.Tunnel);
+        PushToTalkButton.AddHandler(Avalonia.Input.InputElement.KeyUpEvent, PushToTalkKeyUp, RoutingStrategies.Tunnel);
+        Deactivated += (_, _) => ReleasePushToTalk();
+        _voiceTimer.Tick += (_, _) => UpdateVoiceView();
         Closed += OnClosed;
         Closing += OnClosing;
         Opened += OnOpened;
@@ -100,6 +115,8 @@ public sealed partial class MainWindow : Window
         PreferencesPage.IsVisible = page == "Preferences";
         UtilitiesPage.IsVisible = page == "Utilities";
         GuidePage.IsVisible = page == "Guide";
+        VoicePage.IsVisible = page == "Voice";
+        if (page != "Voice") ReleasePushToTalk();
         PageTitle.Text = page switch
         {
             "Identity" => "Backup & Keys",
@@ -108,6 +125,7 @@ public sealed partial class MainWindow : Window
         if (page == "Connectivity") UpdateConnectivityView();
         if (page == "Contacts") RefreshExpandedContacts();
         if (page == "Conversations") MarkVisibleConversationRead();
+        if (page == "Voice") { LoadVoiceSettings(); UpdateVoiceView(); }
     }
 
     private async void OnOpened(object? sender, EventArgs e)
@@ -121,6 +139,8 @@ public sealed partial class MainWindow : Window
         try
         {
             _state = await _store.LoadAsync(_commandLineRnsConfig, _windowCancellation.Token);
+            await _store.PruneCallHistoryAsync(_windowCancellation.Token);
+            _state = await _client.LoadAsync(_windowCancellation.Token);
             if (_commandLineRnsConfig is not null)
             {
                 await _store.SetReticulumConfigDirectoryAsync(_commandLineRnsConfig, _windowCancellation.Token);
@@ -137,10 +157,13 @@ public sealed partial class MainWindow : Window
             PeriodicSyncBox.IsChecked = _state.PeriodicSynchronization;
             SyncIntervalBox.Text = _state.SynchronizationIntervalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
             ApplyTheme(_state.Theme);
+            LoadVoiceSettings();
+            _voiceTimer.Start();
             RefreshContacts();
             RefreshExpandedContacts();
             SetStatus($"Offline · local data: {_store.DataDirectory}");
             UpdateConnectivityView();
+            UpdateVoiceView();
             if (_smokeUi)
             {
                 Console.WriteLine("SMOKE_UI_OPENED=Sideband");
@@ -193,6 +216,7 @@ public sealed partial class MainWindow : Window
             ConnectivityStatusText.Text = "Could not connect to Reticulum. Check the selected configuration and use rnstatus with that configuration to inspect the running node and interfaces.";
         }
         UpdateConnectivityView();
+        UpdateVoiceView();
     }
 
     private void DisconnectClicked(object? sender, RoutedEventArgs e) => TrackOperation(DisconnectAsync);
@@ -207,6 +231,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex) { ShowError("Disconnect failed: " + ex.Message); }
         UpdateConnectivityView();
+        UpdateVoiceView();
     }
 
     private void SaveConfigClicked(object? sender, RoutedEventArgs e) => TrackOperation(SaveConfigAsync);
@@ -284,6 +309,7 @@ public sealed partial class MainWindow : Window
             PeriodicSyncBox.IsChecked = _state.PeriodicSynchronization;
             SyncIntervalBox.Text = _state.SynchronizationIntervalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
             ApplyTheme(_state.Theme);
+            LoadVoiceSettings();
             PreferencesStatusText.Text = unsupported.Count == 0 ? "Settings imported." :
                 "Settings imported. Preserved but not applied: " + string.Join(", ", unsupported);
         }
@@ -479,6 +505,11 @@ public sealed partial class MainWindow : Window
 
     private void RunAudioOperation(Func<CancellationToken, Task> operation) => TrackOperation(async () =>
     {
+        if (_client.VoiceSnapshot?.State == SidebandVoiceState.InCall)
+        {
+            ShowError("End the voice call before playing or recording an audio message.");
+            return;
+        }
         if (_audioCancellation is not null) { ShowError("Stop the current audio operation first."); return; }
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_windowCancellation.Token);
         _audioCancellation = cancellation;
@@ -496,6 +527,7 @@ public sealed partial class MainWindow : Window
             _audioCancellation = null;
             StopAudioButton.IsEnabled = false;
             PlayAudioButton.IsEnabled = RecordAudioButton.IsEnabled = SendButton.IsEnabled = true;
+            UpdateVoiceView();
         }
     });
 
@@ -573,7 +605,196 @@ public sealed partial class MainWindow : Window
             if (_client.IsConnected)
                 SetStatus($"Connected · LXMF address {state.OwnDeliveryHash}");
             UpdateConnectivityView();
+            UpdateVoiceView();
         });
+    }
+
+    private void LoadVoiceSettings()
+    {
+        if (_state is null) return;
+        var voice = _state.Voice ?? new();
+        VoiceEnabledBox.IsChecked = _state.VoiceEnabled;
+        VoiceTrustedOnlyBox.IsChecked = voice.TrustedOnly;
+        VoiceDirectPttBox.IsChecked = voice.DirectPushToTalk;
+        VoiceHdxSpeakerBox.IsChecked = voice.HalfDuplexLoudspeaker;
+        VoiceMicrophoneBox.Text = voice.Microphone;
+        VoiceSpeakerBox.Text = voice.Speaker;
+        VoiceLoudspeakerBox.Text = voice.Loudspeaker;
+        VoiceRingerBox.Text = voice.Ringer;
+        ConversationDirectPttBox.IsChecked = _state.Contacts
+            .FirstOrDefault(item => item.DeliveryHash == _selectedContact)?.DirectPushToTalk == true;
+    }
+
+    private void OnVoiceStateChanged(SidebandVoiceSnapshot snapshot) => Dispatcher.UIThread.Post(() =>
+    {
+        if (_closing) return;
+        if (snapshot.State == SidebandVoiceState.InCall) _audioCancellation?.Cancel();
+        UpdateVoiceView();
+    });
+
+    private void UpdateVoiceView()
+    {
+        if (_closing) return;
+        var snapshot = _client.VoiceSnapshot;
+        var active = snapshot?.State == SidebandVoiceState.InCall;
+        var ready = snapshot is { Started: true, State: SidebandVoiceState.Available };
+        CallIdentityButton.IsEnabled = CallContactButton.IsEnabled = ready && _dialCancellation is null;
+        AnswerCallButton.IsEnabled = RejectCallButton.IsEnabled = snapshot?.State == SidebandVoiceState.Ringing;
+        HangupCallButton.IsEnabled = _dialCancellation is not null || snapshot is { State: not SidebandVoiceState.Available };
+        VoiceMuteMicrophoneBox.IsEnabled = VoiceMuteSpeakerBox.IsEnabled = VoiceLoudspeakerEnabledBox.IsEnabled = active;
+        ApplyVoiceProfileButton.IsEnabled = active;
+        PushToTalkButton.IsEnabled = active && snapshot?.Mode == TelephoneMode.HalfDuplex;
+        ListVoiceDevicesButton.IsEnabled = snapshot is { Started: true };
+        if (snapshot is not null)
+        {
+            VoiceMuteMicrophoneBox.IsChecked = snapshot.TransmitMuted;
+            VoiceMuteSpeakerBox.IsChecked = snapshot.ReceiveMuted;
+            VoiceLoudspeakerEnabledBox.IsChecked = snapshot.LoudspeakerEnabled;
+            VoiceStatusText.Text = $"{snapshot.State} · peer {snapshot.RemoteIdentityHash ?? "none"} · telephone {_client.VoiceDestinationHash}";
+            var elapsed = snapshot.EstablishedAt is { } time ? DateTimeOffset.UtcNow - time : TimeSpan.Zero;
+            VoiceFramesText.Text = $"Duration {elapsed:hh\\:mm\\:ss} · RX {snapshot.ReceivedFrames} · TX {snapshot.TransmittedFrames}";
+        }
+        else
+        {
+            VoiceStatusText.Text = _state?.VoiceEnabled == true ? "Voice enabled; connect to Reticulum to start." : "Voice disabled.";
+            VoiceFramesText.Text = string.Empty;
+        }
+        if (!active && _pttPressed) ReleasePushToTalk();
+        if (_audioCancellation is null) PlayAudioButton.IsEnabled = RecordAudioButton.IsEnabled = !active;
+        VoiceHistoryList.ItemsSource = (_state?.Calls ?? []).OrderByDescending(call => call.Time)
+            .Select(call => $"{call.Time.LocalDateTime:g} · {call.Event} · {call.IdentityHash}").ToArray();
+    }
+
+    private void ClearVoiceHistoryClicked(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () =>
+        await _client.ClearCallHistoryAsync(_windowCancellation.Token));
+
+    private void SaveVoiceClicked(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () =>
+    {
+        if (_audioCancellation is not null) throw new InvalidOperationException("Stop media playback/recording before changing voice devices.");
+        if (VoiceEnabledBox.IsChecked != true) _dialCancellation?.Cancel();
+        await _client.ConfigureVoiceAsync(VoiceEnabledBox.IsChecked == true, new()
+        {
+            TrustedOnly = VoiceTrustedOnlyBox.IsChecked == true,
+            DirectPushToTalk = VoiceDirectPttBox.IsChecked == true,
+            HalfDuplexLoudspeaker = VoiceHdxSpeakerBox.IsChecked == true,
+            Microphone = DeviceName(VoiceMicrophoneBox.Text),
+            Speaker = DeviceName(VoiceSpeakerBox.Text),
+            Loudspeaker = DeviceName(VoiceLoudspeakerBox.Text),
+            Ringer = DeviceName(VoiceRingerBox.Text),
+        }, _windowCancellation.Token);
+        _state = await _client.LoadAsync(_windowCancellation.Token);
+        UpdateVoiceView();
+    });
+
+    private static string? DeviceName(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private void ListVoiceDevicesClicked(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () =>
+    {
+        var inputs = await _client.ListVoiceInputsAsync(_windowCancellation.Token);
+        var outputs = await _client.ListVoiceOutputsAsync(_windowCancellation.Token);
+        VoiceDevicesText.Text = string.Join(Environment.NewLine,
+            inputs.Select(device => $"Input: {device.Name} · {device.Id}")
+                .Concat(outputs.Select(device => $"Output: {device.Name} · {device.Id}")));
+        if (inputs.Count == 0 && outputs.Count == 0) VoiceDevicesText.Text = "No audio devices were reported by this backend.";
+    });
+    private TelephoneProfile VoiceProfile => VoiceProfileSelector.SelectedItem is TelephoneProfile profile ? profile : TelephoneProfile.MediumQuality;
+    private TelephoneMode VoiceMode => VoiceModeSelector.SelectedItem is TelephoneMode mode ? mode : TelephoneMode.FullDuplex;
+
+    private void CallIdentityClicked(object? sender, RoutedEventArgs e) => DialVoice(token =>
+        _client.CallIdentityAsync(VoiceIdentityBox.Text ?? string.Empty, VoiceProfile, VoiceMode, token));
+
+    private void CallContactClicked(object? sender, RoutedEventArgs e) => DialVoice(token =>
+        _client.CallContactAsync(_selectedContact ?? throw new InvalidOperationException("Select an LXMF contact first."),
+            VoiceProfile, VoiceMode, token));
+
+    private void DialVoice(Func<CancellationToken, Task> dial) => RunVoiceOperation(async () =>
+    {
+        if (_audioCancellation is not null) throw new InvalidOperationException("Stop media audio before starting a call.");
+        if (_dialCancellation is not null) throw new InvalidOperationException("A call is already being placed.");
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_windowCancellation.Token);
+        _dialCancellation = cancellation;
+        UpdateVoiceView();
+        try { await dial(cancellation.Token); }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            VoiceStatusText.Text = "Call cancelled.";
+        }
+        finally { _dialCancellation = null; UpdateVoiceView(); }
+    });
+
+    private void AnswerCallClicked(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () =>
+    {
+        if (_audioCancellation is not null) throw new InvalidOperationException("Stop media audio before answering a call.");
+        await _client.AnswerCallAsync(_windowCancellation.Token);
+    });
+    private void RejectCallClicked(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () => await _client.RejectCallAsync(_windowCancellation.Token));
+    private void HangupCallClicked(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () =>
+    {
+        _dialCancellation?.Cancel();
+        await _client.HangupCallAsync(_windowCancellation.Token);
+    });
+    private void VoiceMuteChanged(object? sender, RoutedEventArgs e) => RunVoiceOperation(() =>
+    {
+        _client.MuteVoiceMicrophone(VoiceMuteMicrophoneBox.IsChecked == true);
+        _client.MuteVoiceSpeaker(VoiceMuteSpeakerBox.IsChecked == true);
+        return Task.CompletedTask;
+    });
+    private void VoiceLoudspeakerChanged(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () =>
+        await _client.SetVoiceLoudspeakerAsync(VoiceLoudspeakerEnabledBox.IsChecked == true, _windowCancellation.Token));
+    private void ApplyVoiceProfileClicked(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () =>
+    {
+        await _client.SetVoiceProfileAsync(VoiceProfile, _windowCancellation.Token);
+        await _client.SetVoiceModeAsync(VoiceMode, _windowCancellation.Token);
+    });
+    private void SaveConversationPttClicked(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () =>
+        await _client.SetConversationPushToTalkAsync(_selectedContact ?? throw new InvalidOperationException("Select an LXMF contact first."),
+            ConversationDirectPttBox.IsChecked == true, _windowCancellation.Token));
+    private void SaveVoicePeerTrustClicked(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () =>
+        await _client.SetVoicePeerTrustAsync(VoiceIdentityBox.Text ?? string.Empty, VoicePeerTrustedBox.IsChecked == true, _windowCancellation.Token));
+
+    private void RunVoiceOperation(Func<Task> operation) => TrackOperation(async () =>
+    {
+        try { await operation(); UpdateVoiceView(); }
+        catch (OperationCanceledException) when (_windowCancellation.IsCancellationRequested) { }
+        catch (Exception ex) { ShowError("Voice operation failed: " + ex.Message); }
+    });
+
+    private void PushToTalkPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    {
+        if (!PushToTalkButton.IsEnabled) return;
+        PressPushToTalk();
+        e.Pointer.Capture(PushToTalkButton);
+        e.Handled = true;
+    }
+    private void PushToTalkReleased(object? sender, Avalonia.Input.PointerReleasedEventArgs e)
+    {
+        ReleasePushToTalk();
+        e.Pointer.Capture(null);
+        e.Handled = true;
+    }
+    private void PushToTalkKeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
+    {
+        if (e.Key != Avalonia.Input.Key.Space || !PushToTalkButton.IsEnabled) return;
+        PressPushToTalk();
+        e.Handled = true;
+    }
+    private void PushToTalkKeyUp(object? sender, Avalonia.Input.KeyEventArgs e)
+    {
+        if (e.Key != Avalonia.Input.Key.Space) return;
+        ReleasePushToTalk();
+        e.Handled = true;
+    }
+    private void PressPushToTalk()
+    {
+        if (_pttPressed) return;
+        try { _client.SetPushToTalk(true); _pttPressed = true; }
+        catch (Exception ex) { ShowError("Could not start push-to-talk: " + ex.Message); }
+    }
+    private void ReleasePushToTalk()
+    {
+        if (!_pttPressed) return;
+        _pttPressed = false;
+        try { _client.SetPushToTalk(false); }
+        catch (Exception ex) { ShowError("Could not release push-to-talk: " + ex.Message); }
     }
 
     private void OnErrorReported(string message) => Dispatcher.UIThread.Post(() =>
@@ -718,6 +939,8 @@ public sealed partial class MainWindow : Window
         if (_allowClose) return;
         e.Cancel = true;
         _closing = true;
+        _voiceTimer.Stop();
+        ReleasePushToTalk();
         IsEnabled = false;
         _closeTask ??= CompleteCloseAsync();
     }
@@ -732,6 +955,7 @@ public sealed partial class MainWindow : Window
             await DrainPendingOperationsAsync().ConfigureAwait(false);
             _client.StateChanged -= OnStateChanged;
             _client.ErrorReported -= OnErrorReported;
+            _client.VoiceStateChanged -= OnVoiceStateChanged;
             await _client.DisposeAsync().ConfigureAwait(false);
         }
         catch (Exception ex)

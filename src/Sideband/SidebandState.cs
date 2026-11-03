@@ -29,7 +29,11 @@ public sealed record SidebandState(
     int SynchronizationIntervalSeconds = 43_200,
     double? LastSynchronization = null,
     bool SynchronizationRetrying = false,
-    bool TryPropagationOnFail = true)
+    bool TryPropagationOnFail = true,
+    bool VoiceEnabled = false,
+    SidebandVoiceConfiguration? Voice = null,
+    IReadOnlyList<SidebandVoicePeer>? VoicePeers = null,
+    IReadOnlyList<SidebandVoiceCallEvent>? Calls = null)
 {
     public const int CurrentSchemaVersion = 1;
 

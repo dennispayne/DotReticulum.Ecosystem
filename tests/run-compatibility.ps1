@@ -127,6 +127,7 @@ try {
         foreach ($suite in @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'Pester') -Filter '*.Tests.ps1' -File | Select-Object -ExpandProperty Name)) {
             $requiredVariables = switch ($suite) {
                 'Sideband.Tests.ps1' { 'DOTRETICULUM_SIDEBAND_BINARY' }
+                'SidebandVoice.Tests.ps1' { 'DOTRETICULUM_SIDEBAND_BINARY' }
                 'SidebandProfileImport.Tests.ps1' { 'DOTRETICULUM_SIDEBAND_BINARY'; 'DOTRETICULUM_SIDEBAND_PROFILE' }
                 'NomadNet.Tests.ps1' { 'DOTRETICULUM_NOMADNET_BINARY' }
                 default { @() }
@@ -164,8 +165,8 @@ try {
                     $detail = "Skipped by $suite prerequisites/platform gates; see recorded mode flags and suite source."
                 }
                 $cases.Add([pscustomobject]@{
-                    Runner = 'pester'; Suite = $suite; Name = $test.ExpandedPath -join '.'
-                    Case = $test.ExpandedName
+                    Runner = 'pester'; Suite = $suite; Name = Expand-PesterCaseName ($test.ExpandedPath -join '.') $test.Data
+                    Case = Expand-PesterCaseName $test.ExpandedName $test.Data
                     Status = switch ($test.Result) { 'Passed' { 'Pass' }; 'Skipped' { 'Skipped' }; 'NotRun' { 'Skipped' }; default { 'Fail' } }
                     Detail = $detail
                     Artifact = Join-Path $OutputDirectory "$suite.xml"
@@ -201,9 +202,11 @@ finally {
             CatalogSha256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'Compatibility\catalog.json') -Algorithm SHA256).Hash
             Failures = $failures.ToArray(); NativeBinaries = $nativeBinaries.ToArray(); VerifiedReference = $provenance
             RunStatus = if ($failed) { 'Failed' } else { 'Passed selected checks' }
-            Modes = @{ Live = ($Live -or $LxstLive -or $NomadNetLive); LxstLive = [bool]$LxstLive; NomadNetLive = [bool]$NomadNetLive; Gui = [bool]$Gui
+            Modes = @{ Live = ($Live -or $LxstLive -or $NomadNetLive -or $env:DOTRETICULUM_SIDEBAND_VOICE_LIVE -eq '1'); LxstLive = [bool]$LxstLive; NomadNetLive = [bool]$NomadNetLive; Gui = [bool]$Gui
                 NativeCodecs = $env:DOTLXST_NATIVE; VirtualAudio = $env:DOTLXST_VIRTUAL_AUDIO; WindowsAudio = $env:DOTLXST_WINDOWS_AUDIO
                 SidebandApplication = $env:DOTSIDEBAND_LIVE; SidebandSource = $env:DOTRETICULUM_SIDEBAND_UPSTREAM
+                SidebandVoice = $env:DOTRETICULUM_SIDEBAND_VOICE_LIVE; SidebandVoiceSource = $env:DOTRETICULUM_SIDEBAND_SOURCE
+                SidebandVoiceSynthetic = $env:DOTRETICULUM_SIDEBAND_VOICE_SYNTHETIC; SidebandVoicePulse = $env:DOTRETICULUM_SIDEBAND_VOICE_PULSE
                 SidebandProfile = $env:DOTRETICULUM_SIDEBAND_PROFILE }
         }
         Write-CompatibilityReport -Report $report -Directory $OutputDirectory

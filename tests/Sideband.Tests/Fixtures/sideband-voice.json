@@ -1,0 +1,324 @@
+{
+  "sideband_sha": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "source_sha256": {
+    "sbapp/sideband/voice.py": "51e61510ea5eee832e7b9ad452459998c76561d970e0e773a253fe17cc7f2ab8",
+    "sbapp/sideband/core.py": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+    "sbapp/ui/voice.py": "29b05bebc30826d655a9b579cb5c5531e259696d97c58b9885eb3d378274e1f6",
+    "LXST/Primitives/Telephony.py": "921c603ebc189422a6949049c86c2d15704cd9d401ffd9738098a73ce41918ab"
+  },
+  "method": "Actual ReticulumTelephone policy/callback methods and unchanged core voice_is_trusted AST. Fake owner/database/telephone; no devices, network or GUI. Constants read from imported class; config assignments observed via AST.",
+  "constants": {
+    "STATE_AVAILABLE": 0,
+    "STATE_CONNECTING": 1,
+    "STATE_RINGING": 2,
+    "STATE_IN_CALL": 3,
+    "RING_TIME": 30,
+    "WAIT_TIME": 60,
+    "PATH_TIME": 10,
+    "CALL_LOG_KEEP": 1209600
+  },
+  "defaults": {
+    "voice_enabled": false,
+    "voice_output": null,
+    "voice_input": null,
+    "voice_ringer": null,
+    "voice_speaker": null,
+    "voice_loudspeaker": null,
+    "voice_trusted_only": false,
+    "voice_hdx_loudspeaker": true,
+    "voice_hdx_direct_ptt": false,
+    "voice_low_latency": false
+  },
+  "policies": [
+    {
+      "trusted_only": false,
+      "delivery_trust": null,
+      "voice_trust": false,
+      "allowed": true
+    },
+    {
+      "trusted_only": false,
+      "delivery_trust": null,
+      "voice_trust": true,
+      "allowed": true
+    },
+    {
+      "trusted_only": false,
+      "delivery_trust": false,
+      "voice_trust": false,
+      "allowed": true
+    },
+    {
+      "trusted_only": false,
+      "delivery_trust": false,
+      "voice_trust": true,
+      "allowed": true
+    },
+    {
+      "trusted_only": false,
+      "delivery_trust": true,
+      "voice_trust": false,
+      "allowed": true
+    },
+    {
+      "trusted_only": false,
+      "delivery_trust": true,
+      "voice_trust": true,
+      "allowed": true
+    },
+    {
+      "trusted_only": true,
+      "delivery_trust": null,
+      "voice_trust": false,
+      "allowed": false
+    },
+    {
+      "trusted_only": true,
+      "delivery_trust": null,
+      "voice_trust": true,
+      "allowed": true
+    },
+    {
+      "trusted_only": true,
+      "delivery_trust": false,
+      "voice_trust": false,
+      "allowed": false
+    },
+    {
+      "trusted_only": true,
+      "delivery_trust": false,
+      "voice_trust": true,
+      "allowed": false
+    },
+    {
+      "trusted_only": true,
+      "delivery_trust": true,
+      "voice_trust": false,
+      "allowed": true
+    },
+    {
+      "trusted_only": true,
+      "delivery_trust": true,
+      "voice_trust": true,
+      "allowed": true
+    }
+  ],
+  "direct_ptt": [
+    {
+      "enabled": false,
+      "delivery_trusted": false,
+      "ptt_enabled": false,
+      "allowed": false
+    },
+    {
+      "enabled": false,
+      "delivery_trusted": false,
+      "ptt_enabled": true,
+      "allowed": false
+    },
+    {
+      "enabled": false,
+      "delivery_trusted": true,
+      "ptt_enabled": false,
+      "allowed": false
+    },
+    {
+      "enabled": false,
+      "delivery_trusted": true,
+      "ptt_enabled": true,
+      "allowed": false
+    },
+    {
+      "enabled": true,
+      "delivery_trusted": false,
+      "ptt_enabled": false,
+      "allowed": false
+    },
+    {
+      "enabled": true,
+      "delivery_trusted": false,
+      "ptt_enabled": true,
+      "allowed": false
+    },
+    {
+      "enabled": true,
+      "delivery_trusted": true,
+      "ptt_enabled": false,
+      "allowed": false
+    },
+    {
+      "enabled": true,
+      "delivery_trusted": true,
+      "ptt_enabled": true,
+      "allowed": true
+    }
+  ],
+  "transitions": [
+    {
+      "name": "outgoing-success",
+      "initial": 1,
+      "established_state": 3,
+      "final_state": 0,
+      "events": [
+        "outgoing-success",
+        "ongoing-ended"
+      ]
+    },
+    {
+      "name": "incoming-success",
+      "initial": 2,
+      "established_state": 3,
+      "final_state": 0,
+      "events": [
+        "incoming-success",
+        "ongoing-ended"
+      ]
+    },
+    {
+      "name": "outgoing-failure",
+      "initial": 1,
+      "established_state": 1,
+      "final_state": 0,
+      "events": [
+        "outgoing-failure"
+      ]
+    },
+    {
+      "name": "incoming-missed",
+      "initial": 2,
+      "established_state": 2,
+      "final_state": 0,
+      "events": [
+        "incoming-missed"
+      ]
+    }
+  ],
+  "destination_vector": {
+    "identity": "000102030405060708090a0b0c0d0e0f",
+    "delivery": "a953c22cba1cff60cbaf4d3c75ecf35a"
+  },
+  "call_log": {
+    "method": "Actual ReticulumTelephone.log_call/get_call_log/clear_call_log with a real owned file; __new__ avoids audio/network construction. Fixed clock and hash-only identity descriptor are disclosed oracle inputs. Restart means a fresh instance with call_log=None reading the same file.",
+    "initial": [],
+    "log_results": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "before_restart": [
+      {
+        "time": 1800000000.0,
+        "event": "outgoing-success",
+        "identity": "000102030405060708090a0b0c0d0e0f"
+      },
+      {
+        "time": 1800000001.0,
+        "event": "ongoing-ended",
+        "identity": "000102030405060708090a0b0c0d0e0f"
+      },
+      {
+        "time": 1800000002.0,
+        "event": "incoming-success",
+        "identity": "000102030405060708090a0b0c0d0e0f"
+      },
+      {
+        "time": 1800000003.0,
+        "event": "outgoing-failure",
+        "identity": "000102030405060708090a0b0c0d0e0f"
+      },
+      {
+        "time": 1800000004.0,
+        "event": "incoming-missed",
+        "identity": "000102030405060708090a0b0c0d0e0f"
+      }
+    ],
+    "restart_loaded": [
+      {
+        "time": 1800000000.0,
+        "event": "outgoing-success",
+        "identity": "000102030405060708090a0b0c0d0e0f"
+      },
+      {
+        "time": 1800000001.0,
+        "event": "ongoing-ended",
+        "identity": "000102030405060708090a0b0c0d0e0f"
+      },
+      {
+        "time": 1800000002.0,
+        "event": "incoming-success",
+        "identity": "000102030405060708090a0b0c0d0e0f"
+      },
+      {
+        "time": 1800000003.0,
+        "event": "outgoing-failure",
+        "identity": "000102030405060708090a0b0c0d0e0f"
+      },
+      {
+        "time": 1800000004.0,
+        "event": "incoming-missed",
+        "identity": "000102030405060708090a0b0c0d0e0f"
+      }
+    ],
+    "clear_result": null,
+    "packed_empty_hex": "90",
+    "after_clear": [],
+    "restart_after_clear": []
+  },
+  "ringer": {
+    "method": "Actual Telephone.__activate_ring_tone with fake LineSink/OpusFileSource/Pipeline; real thread and waits, synthetic file-existence placeholder. No upstream audio asset or device is read.",
+    "initial_delay_seconds": 0.5,
+    "poll_seconds": 0.1,
+    "observations": [
+      {
+        "incoming": true,
+        "early_answer": false,
+        "started_before_400ms": false,
+        "started": true,
+        "stopped": true,
+        "construction": [
+          {
+            "device": "oracle-ringer"
+          },
+          {
+            "loop": true,
+            "frame_ms": 60
+          }
+        ]
+      },
+      {
+        "incoming": true,
+        "early_answer": true,
+        "started_before_400ms": false,
+        "started": false,
+        "stopped": true,
+        "construction": [
+          {
+            "device": "oracle-ringer"
+          },
+          {
+            "loop": true,
+            "frame_ms": 60
+          }
+        ]
+      },
+      {
+        "incoming": false,
+        "early_answer": false,
+        "started_before_400ms": false,
+        "started": false,
+        "stopped": true,
+        "construction": [
+          {
+            "device": "oracle-ringer"
+          },
+          {
+            "loop": true,
+            "frame_ms": 60
+          }
+        ]
+      }
+    ]
+  }
+}

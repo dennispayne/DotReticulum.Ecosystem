@@ -51,11 +51,14 @@ public sealed class SidebandStateStore
     public async Task AddContactAsync(SidebandContact contact, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(contact);
-        var validated = SidebandContact.Create(contact.DisplayName, contact.DeliveryHash, contact.Trusted, contact.Unread);
+        var validated = SidebandContact.Create(contact.DisplayName, contact.DeliveryHash, contact.Trusted, contact.Unread, contact.DirectPushToTalk);
         await MutateAsync(state =>
         {
             var existing = state.Contacts.FirstOrDefault(item => item.DeliveryHash == validated.DeliveryHash);
-            var updated = existing is null ? validated : validated with { Trusted = existing.Trusted, Unread = existing.Unread };
+            var updated = existing is null ? validated : validated with
+            {
+                Trusted = existing.Trusted, Unread = existing.Unread, DirectPushToTalk = existing.DirectPushToTalk,
+            };
             var contacts = state.Contacts.Where(item => item.DeliveryHash != validated.DeliveryHash).Append(updated).ToArray();
             if (contacts.Length > 1_000) throw new InvalidOperationException("The contact list is full.");
             return state with { Contacts = contacts };
@@ -67,6 +70,55 @@ public sealed class SidebandStateStore
 
     public Task SetConversationReadAsync(string deliveryHash, bool read, CancellationToken cancellationToken = default) =>
         MutateConversationAsync(deliveryHash, contact => contact with { Unread = !read }, cancellationToken);
+
+    public Task SetConversationPushToTalkAsync(string deliveryHash, bool enabled, CancellationToken cancellationToken = default) =>
+        MutateConversationAsync(deliveryHash, contact => contact with { DirectPushToTalk = enabled }, cancellationToken);
+
+    public Task ConfigureVoiceAsync(bool enabled, SidebandVoiceConfiguration configuration, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        return MutateAsync(state => state with { VoiceEnabled = enabled, Voice = configuration }, cancellationToken);
+    }
+
+    public Task SetVoicePeerTrustAsync(string identityHash, bool trusted, CancellationToken cancellationToken = default)
+    {
+        if (!SidebandContact.TryNormalizeDeliveryHash(identityHash, out var normalized))
+            throw new ArgumentException("A voice peer must have a 32-character hexadecimal identity hash.", nameof(identityHash));
+        return MutateAsync(state =>
+        {
+            var peers = state.VoicePeers ?? [];
+            var peer = peers.SingleOrDefault(item => item.IdentityHash == normalized) ?? new(normalized);
+            return state with
+            {
+                VoicePeers = peers.Where(item => item.IdentityHash != normalized)
+                    .Append(peer with { VoiceTrusted = trusted }).OrderBy(item => item.IdentityHash, StringComparer.Ordinal).ToArray(),
+            };
+        }, cancellationToken);
+    }
+
+    public Task AddCallEventAsync(SidebandVoiceCallEvent call, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(call);
+        ValidateCallEvent(call);
+        return MutateAsync(state => state with
+        {
+            Calls = (state.Calls ?? []).Append(call)
+                .Where(item => item.Time >= DateTimeOffset.UtcNow - SidebandVoiceService.CallLogRetention)
+                .OrderBy(item => item.Time).TakeLast(1_000).ToArray(),
+        }, cancellationToken);
+    }
+
+    public Task ClearCallHistoryAsync(CancellationToken cancellationToken = default) =>
+        MutateAsync(state => state with { Calls = [] }, cancellationToken);
+
+    public Task PruneCallHistoryAsync(CancellationToken cancellationToken = default) =>
+        MutateAsync(state =>
+        {
+            var cutoff = DateTimeOffset.UtcNow - SidebandVoiceService.CallLogRetention;
+            return state.Calls is { } calls && calls.Any(call => call.Time < cutoff)
+                ? state with { Calls = calls.Where(call => call.Time >= cutoff).ToArray() }
+                : state;
+        }, cancellationToken);
 
     public async Task<SidebandChatMessage> AddMessageAsync(SidebandChatMessage message, CancellationToken cancellationToken = default)
     {
@@ -197,6 +249,18 @@ public sealed class SidebandStateStore
             var byDefault = settings.TryGetValue("propagation_by_default", out var propagation) ? propagation.GetBoolean() : state.PropagationByDefault;
             var periodic = settings.TryGetValue("lxmf_periodic_sync", out var sync) ? sync.GetBoolean() : state.PeriodicSynchronization;
             var fallback = settings.TryGetValue("lxmf_try_propagation_on_fail", out var retry) ? retry.GetBoolean() : state.TryPropagationOnFail;
+            var voice = state.Voice ?? new();
+            var voiceEnabled = settings.TryGetValue("voice_enabled", out var enabled) ? enabled.GetBoolean() : state.VoiceEnabled;
+            voice = voice with
+            {
+                TrustedOnly = settings.TryGetValue("voice_trusted_only", out var trustedOnly) ? trustedOnly.GetBoolean() : voice.TrustedOnly,
+                DirectPushToTalk = settings.TryGetValue("voice_hdx_direct_ptt", out var directPtt) ? directPtt.GetBoolean() : voice.DirectPushToTalk,
+                HalfDuplexLoudspeaker = settings.TryGetValue("voice_hdx_loudspeaker", out var hdxSpeaker) ? hdxSpeaker.GetBoolean() : voice.HalfDuplexLoudspeaker,
+                Microphone = settings.TryGetValue("voice_input", out var microphone) ? microphone.GetString() : voice.Microphone,
+                Speaker = settings.TryGetValue("voice_speaker", out var speaker) ? speaker.GetString() : voice.Speaker,
+                Loudspeaker = settings.TryGetValue("voice_loudspeaker", out var loudspeaker) ? loudspeaker.GetString() : voice.Loudspeaker,
+                Ringer = settings.TryGetValue("voice_ringer", out var ringer) ? ringer.GetString() : voice.Ringer,
+            };
             var interval = state.SynchronizationIntervalSeconds;
             if (settings.TryGetValue("lxmf_sync_interval", out var syncInterval) &&
                 (syncInterval.ValueKind != JsonValueKind.Number || !syncInterval.TryGetInt32(out interval)))
@@ -213,11 +277,14 @@ public sealed class SidebandStateStore
                 TryPropagationOnFail = fallback,
                 SynchronizationIntervalSeconds = interval,
                 ImportedSettings = settings,
+                VoiceEnabled = voiceEnabled,
+                Voice = voice,
             };
         }, cancellationToken).ConfigureAwait(false);
         return settings.Keys.Where(key => key is not ("display_name" or "dark_ui" or "lxmf_propagation_node" or
             "last_lxmf_propagation_node" or "propagation_by_default" or "lxmf_periodic_sync" or "lxmf_sync_interval" or
-            "lxmf_try_propagation_on_fail")).Order(StringComparer.Ordinal).ToArray();
+            "lxmf_try_propagation_on_fail" or "voice_enabled" or "voice_trusted_only" or "voice_hdx_direct_ptt" or
+            "voice_hdx_loudspeaker" or "voice_input" or "voice_speaker" or "voice_loudspeaker" or "voice_ringer")).Order(StringComparer.Ordinal).ToArray();
     }
 
     public async Task ExportSettingsAsync(string path, CancellationToken cancellationToken = default)
@@ -234,6 +301,15 @@ public sealed class SidebandStateStore
         settings["lxmf_periodic_sync"] = JsonSerializer.SerializeToElement(state.PeriodicSynchronization, SidebandStateJsonContext.Default.Boolean);
         settings["lxmf_try_propagation_on_fail"] = JsonSerializer.SerializeToElement(state.TryPropagationOnFail, SidebandStateJsonContext.Default.Boolean);
         settings["lxmf_sync_interval"] = JsonSerializer.SerializeToElement(state.SynchronizationIntervalSeconds, SidebandStateJsonContext.Default.Int32);
+        var voice = state.Voice ?? new();
+        settings["voice_enabled"] = JsonSerializer.SerializeToElement(state.VoiceEnabled, SidebandStateJsonContext.Default.Boolean);
+        settings["voice_trusted_only"] = JsonSerializer.SerializeToElement(voice.TrustedOnly, SidebandStateJsonContext.Default.Boolean);
+        settings["voice_hdx_direct_ptt"] = JsonSerializer.SerializeToElement(voice.DirectPushToTalk, SidebandStateJsonContext.Default.Boolean);
+        settings["voice_hdx_loudspeaker"] = JsonSerializer.SerializeToElement(voice.HalfDuplexLoudspeaker, SidebandStateJsonContext.Default.Boolean);
+        settings["voice_input"] = JsonSerializer.SerializeToElement(voice.Microphone, SidebandStateJsonContext.Default.String);
+        settings["voice_speaker"] = JsonSerializer.SerializeToElement(voice.Speaker, SidebandStateJsonContext.Default.String);
+        settings["voice_loudspeaker"] = JsonSerializer.SerializeToElement(voice.Loudspeaker, SidebandStateJsonContext.Default.String);
+        settings["voice_ringer"] = JsonSerializer.SerializeToElement(voice.Ringer, SidebandStateJsonContext.Default.String);
         var target = Path.GetFullPath(path);
         if (string.Equals(target, StatePath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             throw new ArgumentException("Export cannot overwrite the application's state file.", nameof(path));
@@ -299,6 +375,7 @@ public sealed class SidebandStateStore
         {
             var current = await LoadUnderLockAsync(cancellationToken).ConfigureAwait(false);
             var next = mutation(current);
+            if (ReferenceEquals(current, next)) return;
             ValidateState(next);
             await WriteAtomicallyAsync(next, cancellationToken).ConfigureAwait(false);
             _state = next;
@@ -397,6 +474,29 @@ public sealed class SidebandStateStore
             catch (ArgumentException ex) { throw new InvalidDataException("Sideband state contains an invalid contact.", ex); }
         }
         foreach (var message in state.Messages) ValidateMessage(message);
+        if (state.Voice is { } voice)
+            foreach (var device in new[] { voice.Microphone, voice.Speaker, voice.Loudspeaker, voice.Ringer })
+                if (device is not null && (string.IsNullOrWhiteSpace(device) || device.Length > 512 || device.Any(char.IsControl)))
+                    throw new InvalidDataException("A saved voice device identifier is invalid.");
+        if (state.VoicePeers is { } peers)
+        {
+            if (peers.Count > 1_000 || peers.Any(peer => peer is null ||
+                !SidebandContact.TryNormalizeDeliveryHash(peer.IdentityHash, out var normalized) || normalized != peer.IdentityHash) ||
+                peers.Select(peer => peer.IdentityHash).Distinct(StringComparer.Ordinal).Count() != peers.Count)
+                throw new InvalidDataException("The saved voice peer collection is invalid or oversized.");
+        }
+        if (state.Calls is { } calls)
+        {
+            if (calls.Count > 1_000) throw new InvalidDataException("The saved voice call history is oversized.");
+            foreach (var call in calls) ValidateCallEvent(call);
+        }
+    }
+
+    private static void ValidateCallEvent(SidebandVoiceCallEvent call)
+    {
+        if (call is null || !SidebandContact.TryNormalizeDeliveryHash(call.IdentityHash, out _) ||
+            string.IsNullOrWhiteSpace(call.Event) || call.Event.Length > 32 || call.Event.Any(char.IsControl))
+            throw new InvalidDataException("A saved voice call event is invalid.");
     }
 
     private static void ValidateMessage(SidebandChatMessage message)

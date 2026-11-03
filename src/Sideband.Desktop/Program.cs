@@ -1,5 +1,6 @@
 using Avalonia;
 using Sideband;
+using System.Runtime.InteropServices;
 
 namespace Sideband.Desktop;
 
@@ -48,6 +49,21 @@ internal static class Program
             }
             if (options.Initialize || options.Check || options.ImportSettings is not null || options.ExportSettings is not null)
                 return RunMaintenanceAsync(options).GetAwaiter().GetResult();
+
+            if (options.Daemon)
+            {
+                using var cancellation = new CancellationTokenSource();
+                ConsoleCancelEventHandler cancel = (_, e) => { e.Cancel = true; cancellation.Cancel(); };
+                Console.CancelKeyPress += cancel;
+                using var signal = PosixSignalRegistration.Create(PosixSignal.SIGTERM,
+                    context => { context.Cancel = true; cancellation.Cancel(); });
+                try
+                {
+                    return SidebandDaemon.RunAsync(DataDirectory, ReticulumConfigDirectory, options.Interactive,
+                        options.SyntheticAudio, options.Verbose, Console.In, Console.Out, Console.Error, cancellation.Token).GetAwaiter().GetResult();
+                }
+                finally { Console.CancelKeyPress -= cancel; }
+            }
 
             var exitCode = BuildAvaloniaApp().StartWithClassicDesktopLifetime([]);
             return SmokeUiMode && !MainWindow.SmokeUiSucceeded && exitCode == 0 ? 2 : exitCode;
@@ -130,6 +146,10 @@ internal static class Program
         var help = false;
         var version = false;
         var smokeUi = false;
+        var daemon = false;
+        var interactive = false;
+        var syntheticAudio = false;
+        var verbose = false;
         string? importSettings = null;
         string? exportSettings = null;
         string? importProfile = null;
@@ -143,6 +163,10 @@ internal static class Program
                 case "--init": initialize = true; break;
                 case "--check": check = true; break;
                 case "--check-media": checkMedia = true; break;
+                case "-d" or "--daemon": daemon = true; break;
+                case "-i" or "--interactive": interactive = true; break;
+                case "-v" or "--verbose": verbose = true; break;
+                case "--synthetic-audio": syntheticAudio = true; break;
                 case "-c" or "--config" or "--data-dir": dataDirectory = NextValue(args, ref index); break;
                 case "--import-settings": importSettings = NextValue(args, ref index); break;
                 case "--export-settings": exportSettings = NextValue(args, ref index); break;
@@ -155,6 +179,10 @@ internal static class Program
 
         if ((initialize ? 1 : 0) + (check ? 1 : 0) + (checkMedia ? 1 : 0) + (importSettings is null ? 0 : 1) + (exportSettings is null ? 0 : 1) + (importProfile is null ? 0 : 1) > 1)
             throw new ArgumentException("--init, --check, --check-media, --import-settings, --export-settings and --import-profile cannot be combined.");
+        if (daemon && (initialize || check || checkMedia || importSettings is not null || exportSettings is not null || importProfile is not null || smokeUi))
+            throw new ArgumentException("--daemon cannot be combined with maintenance or UI smoke modes.");
+        if ((interactive || syntheticAudio || verbose) && !daemon)
+            throw new ArgumentException("--interactive, --synthetic-audio and --verbose require --daemon.");
         if (checkMedia && (rnsConfig is not null || smokeUi))
             throw new ArgumentException("--check-media is offline and cannot be combined with --rnsconfig or --smoke-ui.");
         if (importProfile is not null && (string.IsNullOrWhiteSpace(dataDirectory) || rnsConfig is not null || smokeUi))
@@ -169,7 +197,8 @@ internal static class Program
             rnsConfig = Path.GetFullPath(rnsConfig);
         }
 
-        return new Options(dataDirectory, rnsConfig, initialize, check, help, version, smokeUi, importSettings, exportSettings, importProfile, checkMedia);
+        return new Options(dataDirectory, rnsConfig, initialize, check, help, version, smokeUi, importSettings, exportSettings, importProfile, checkMedia,
+            daemon, interactive, syntheticAudio, verbose);
     }
 
     private static string NextValue(string[] args, ref int index)
@@ -194,6 +223,7 @@ internal static class Program
           sideband --export-settings <json-path> [--config <path>]
           sideband --import-profile <upstream-profile> --data-dir <new-directory>
           sideband --smoke-ui [--data-dir <path>] [--rnsconfig <path>]
+          sideband --daemon [--interactive] [--verbose] [--synthetic-audio] [--config <path>] [--rnsconfig <path>]
           sideband --help | --version
 
         --init       Initialize durable application state and the local identity.
@@ -206,8 +236,13 @@ internal static class Program
         --import-profile   Import an offline upstream desktop profile into an absent directory; never merge or overwrite.
         --rnsconfig  Select a Reticulum configuration directory or file.
         --smoke-ui   Open the normal desktop window and report actual render events for GUI acceptance.
+        --daemon     Serve without opening the desktop; runs until cancellation, even when stdin closes.
+        --interactive  Enable a bounded original console in daemon mode; EOF or quit stops it.
+        --verbose    Print public voice-state events in daemon mode (also -v).
+        --synthetic-audio  Explicit daemon-only synthetic/discard audio; never opens physical devices.
         """;
 
     private sealed record Options(string? DataDirectory, string? ReticulumConfigDirectory, bool Initialize, bool Check, bool Help, bool Version, bool SmokeUi,
-        string? ImportSettings, string? ExportSettings, string? ImportProfile, bool CheckMedia);
+        string? ImportSettings, string? ExportSettings, string? ImportProfile, bool CheckMedia,
+        bool Daemon, bool Interactive, bool SyntheticAudio, bool Verbose);
 }

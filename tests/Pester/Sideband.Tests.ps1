@@ -82,7 +82,29 @@ Describe 'sideband desktop GUI acceptance' -Tag 'GUI' {
         New-Item -ItemType Directory -Force -Path $guiRoot | Out-Null
     }
 
-    It 'opens and renders a native window, then visibly reports the send validation state' {
+    It 'opens and renders a native window and validation state (media=<Media>)' -TestCases @(
+        @{ Media = $false },
+        @{ Media = $true }
+    ) {
+        param($Media)
+        $activeData = $guiData
+        if ($Media) {
+            $reference = $env:DOTRETICULUM_SIDEBAND_PROFILE
+            if ([string]::IsNullOrWhiteSpace($reference) -or
+                -not (Test-Path -LiteralPath (Join-Path $reference 'observations.json'))) {
+                Set-ItResult -Skipped -Because 'Native media rendering requires a generated Sideband media profile.'
+                return
+            }
+            $observations = Get-Content -LiteralPath (Join-Path $reference 'observations.json') -Raw | ConvertFrom-Json
+            if ($observations.PSObject.Properties.Name -notcontains 'media' -or
+                $observations.media.PSObject.Properties.Name -notcontains 'image') {
+                Set-ItResult -Skipped -Because 'The selected upstream profile contains no generated image.'
+                return
+            }
+            $activeData = Join-Path $guiRoot 'media-data'
+            & $guiBinary --import-profile $reference --data-dir $activeData 2>&1 | Out-Null
+            $LASTEXITCODE | Should -Be 0
+        }
         $start = [System.Diagnostics.ProcessStartInfo]::new()
         $start.FileName = $guiBinary
         $start.UseShellExecute = $false
@@ -90,7 +112,7 @@ Describe 'sideband desktop GUI acceptance' -Tag 'GUI' {
         $start.RedirectStandardError = $true
         $start.ArgumentList.Add('--smoke-ui')
         $start.ArgumentList.Add('--data-dir')
-        $start.ArgumentList.Add($guiData)
+        $start.ArgumentList.Add($activeData)
         $start.ArgumentList.Add('--rnsconfig')
         $start.ArgumentList.Add($guiRns)
         $process = [System.Diagnostics.Process]::new()
@@ -143,8 +165,14 @@ Describe 'sideband desktop GUI acceptance' -Tag 'GUI' {
             $output = ($stdoutLines -join "`n") + "`n" + $stderr.GetAwaiter().GetResult()
             $output | Should -Match 'SMOKE_UI_OPENED=Sideband'
             $output | Should -Match 'SMOKE_UI_RENDERED_INITIAL=1'
-            $output | Should -Match 'SMOKE_UI_STATUS_CHANGED=Select a contact before sending\.'
-            $output | Should -Match 'SMOKE_UI_RENDERED_STATUS=Select a contact before sending\.'
+            if ($Media) {
+                $output | Should -Match 'SMOKE_UI_RENDERED_MEDIA=1'
+                $output | Should -Match 'SMOKE_UI_RENDERED_STATUS='
+            }
+            else {
+                $output | Should -Match 'SMOKE_UI_STATUS_CHANGED=Select a contact before sending\.'
+                $output | Should -Match 'SMOKE_UI_RENDERED_STATUS=Select a contact before sending\.'
+            }
             $process.ExitCode | Should -Be 0
         }
         finally {

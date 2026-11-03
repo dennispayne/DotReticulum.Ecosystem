@@ -6,6 +6,8 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Sideband;
 using System.Collections.Generic;
+using LXST;
+using LXST.Devices;
 
 namespace Sideband.Desktop;
 
@@ -23,6 +25,7 @@ public sealed partial class MainWindow : Window
     private Task _initializationTask = Task.CompletedTask;
     private int _smokeRenderCount;
     private int _smokeStatusChanged;
+    private int _smokeActionInvoked;
     private string? _selectedContact;
     private SidebandState? _state;
     private IReadOnlyList<SidebandChatMessage> _visibleMessages = [];
@@ -30,6 +33,11 @@ public sealed partial class MainWindow : Window
     private bool _closing;
     private bool _allowClose;
     private Task? _closeTask;
+    private readonly IAudioDeviceBackend? _mediaBackend;
+    private CancellationTokenSource? _audioCancellation;
+    private SidebandEncodedAudio? _recordedAudio;
+    private Avalonia.Media.Imaging.Bitmap? _previewBitmap;
+    private long _mediaSelectionVersion;
 
     internal static bool SmokeUiSucceeded { get; private set; }
 
@@ -37,16 +45,21 @@ public sealed partial class MainWindow : Window
 
     public MainWindow(string dataDirectory, bool smokeUi = false) : this(dataDirectory, null, smokeUi) { }
 
-    public MainWindow(string dataDirectory, string? reticulumConfig, bool smokeUi = false)
+    public MainWindow(string dataDirectory, string? reticulumConfig, bool smokeUi = false, IAudioDeviceBackend? mediaBackend = null)
     {
         InitializeComponent();
         _commandLineRnsConfig = string.IsNullOrWhiteSpace(reticulumConfig) ? null : Path.GetFullPath(reticulumConfig);
         _smokeUi = smokeUi;
+        _mediaBackend = mediaBackend;
         _store = new SidebandStateStore(dataDirectory);
         _client = new SidebandClient(_store);
         _client.StateChanged += OnStateChanged;
         _client.ErrorReported += OnErrorReported;
         ThemeSelector.ItemsSource = new[] { "Dark", "Light" };
+        AttachmentKindSelector.ItemsSource = new[] { "File", "Image", "Audio" };
+        AttachmentKindSelector.SelectedIndex = 0;
+        ImageQualitySelector.ItemsSource = Enum.GetValues<SidebandImageQuality>();
+        ImageQualitySelector.SelectedItem = SidebandImageQuality.Medium;
         Closed += OnClosed;
         Closing += OnClosing;
         Opened += OnOpened;
@@ -64,11 +77,15 @@ public sealed partial class MainWindow : Window
         if (renderCount == 1)
         {
             Console.WriteLine("SMOKE_UI_RENDERED_INITIAL=1");
-            Dispatcher.UIThread.Post(() => SendButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
+            Dispatcher.UIThread.Post(InvalidateVisual);
         }
         else if (Volatile.Read(ref _smokeStatusChanged) != 0 && !SmokeUiSucceeded)
         {
+            if (_state is null || !_initializationTask.IsCompleted || Volatile.Read(ref _smokeActionInvoked) == 0) return;
+            var hasImage = _state.Messages.Any(message => message.Image is not null);
+            if (hasImage && MediaPreview.Source is null) return;
             SmokeUiSucceeded = true;
+            if (hasImage) Console.WriteLine("SMOKE_UI_RENDERED_MEDIA=1");
             Console.WriteLine("SMOKE_UI_RENDERED_STATUS=" + StatusText.Text);
             _ = CloseAfterCaptureAsync();
         }
@@ -124,7 +141,17 @@ public sealed partial class MainWindow : Window
             RefreshExpandedContacts();
             SetStatus($"Offline · local data: {_store.DataDirectory}");
             UpdateConnectivityView();
-            if (_smokeUi) Console.WriteLine("SMOKE_UI_OPENED=Sideband");
+            if (_smokeUi)
+            {
+                Console.WriteLine("SMOKE_UI_OPENED=Sideband");
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (_closing) return;
+                    SendButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    Volatile.Write(ref _smokeActionInvoked, 1);
+                    InvalidateVisual();
+                });
+            }
         }
         catch (OperationCanceledException) when (_windowCancellation.IsCancellationRequested) { }
         catch (Exception ex) { ShowError("Could not load Sideband data: " + ex.Message); }
@@ -333,10 +360,23 @@ public sealed partial class MainWindow : Window
         SendButton.IsEnabled = false;
         try
         {
-            if (string.IsNullOrWhiteSpace(AttachmentPathBox.Text))
+            if (_recordedAudio is not null)
+            {
+                if (!string.IsNullOrWhiteSpace(AttachmentPathBox.Text))
+                    throw new InvalidOperationException("Discard the recording before attaching another file.");
+                await _client.SendAudioAsync(_selectedContact, content, _recordedAudio, _windowCancellation.Token);
+            }
+            else if (string.IsNullOrWhiteSpace(AttachmentPathBox.Text))
                 await _client.SendTextAsync(_selectedContact, content, _windowCancellation.Token);
+            else if (AttachmentKindSelector.SelectedItem as string == "Image")
+                await _client.SendImageAsync(_selectedContact, content, AttachmentPathBox.Text,
+                    ImageQualitySelector.SelectedItem is SidebandImageQuality quality ? quality : SidebandImageQuality.Medium,
+                    _windowCancellation.Token);
+            else if (AttachmentKindSelector.SelectedItem as string == "Audio")
+                await _client.SendAudioFileAsync(_selectedContact, content, AttachmentPathBox.Text, _windowCancellation.Token);
             else
                 await _client.SendFileAsync(_selectedContact, content, AttachmentPathBox.Text, _windowCancellation.Token);
+            ClearRecording();
             MessageBox.Text = string.Empty;
             AttachmentPathBox.Text = string.Empty;
             await RefreshMessagesAsync();
@@ -360,6 +400,115 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex) { ShowError("Could not save attachment: " + ex.Message); }
     });
+
+    private void SaveImageClicked(object? sender, RoutedEventArgs e) => ExportMedia(audio: false);
+    private void SaveAudioClicked(object? sender, RoutedEventArgs e) => ExportMedia(audio: true);
+
+    private void ExportMedia(bool audio) => TrackOperation(async () =>
+    {
+        try
+        {
+            var message = SelectedMessage();
+            var path = AttachmentExportPathBox.Text;
+            ArgumentException.ThrowIfNullOrWhiteSpace(path);
+            await _client.ExportMediaAsync(message.PeerDeliveryHash, message.Id, audio, path, _windowCancellation.Token);
+            SetStatus("Media exported without opening it.");
+        }
+        catch (Exception ex) { ShowError("Could not export media: " + ex.Message); }
+    });
+
+    private SidebandChatMessage SelectedMessage()
+    {
+        var index = MessageList.SelectedIndex;
+        if (_selectedContact is null || index < 0 || index >= _visibleMessages.Count)
+            throw new InvalidOperationException("Select a conversation message first.");
+        return _visibleMessages[index];
+    }
+
+    private void MessageSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        var version = ++_mediaSelectionVersion;
+        MediaPreview.Source = null;
+        _previewBitmap?.Dispose();
+        _previewBitmap = null;
+        MediaPreview.IsVisible = false;
+        MediaStatusText.Text = string.Empty;
+        if (MessageList.SelectedIndex < 0 || MessageList.SelectedIndex >= _visibleMessages.Count) return;
+        var message = SelectedMessage();
+        MediaStatusText.Text = message.Audio is { } audio ? $"Audio mode {audio.Mode}: {audio.Data.Length} bytes. Playback is explicit." : string.Empty;
+        if (message.Image is null) return;
+        TrackOperation(async () =>
+        {
+            try
+            {
+                var bytes = await _client.LoadImageAsync(message.PeerDeliveryHash, message.Id, _windowCancellation.Token);
+                if (_closing || version != _mediaSelectionVersion) return;
+                using var input = new MemoryStream(bytes, writable: false);
+                _previewBitmap = new Avalonia.Media.Imaging.Bitmap(input);
+                MediaPreview.Source = _previewBitmap;
+                MediaPreview.IsVisible = true;
+            }
+            catch (OperationCanceledException) when (_windowCancellation.IsCancellationRequested) { }
+            catch (Exception ex) { ShowError("Could not display image: " + ex.Message); }
+        });
+    }
+
+    private IAudioDeviceBackend MediaBackend() => _mediaBackend ?? (OperatingSystem.IsWindows()
+        ? new WindowsWaveAudioBackend()
+        : OperatingSystem.IsLinux() ? new PulseAudioDeviceBackend()
+        : throw new PlatformNotSupportedException("Sideband audio devices are currently implemented for Windows and Linux."));
+
+    private void PlayAudioClicked(object? sender, RoutedEventArgs e) => RunAudioOperation(async token =>
+    {
+        var message = SelectedMessage();
+        var frame = await _client.LoadAudioAsync(message.PeerDeliveryHash, message.Id, token);
+        await SidebandMediaDevices.PlayAsync(MediaBackend(), null, frame, token);
+        MediaStatusText.Text = "Audio playback complete.";
+    });
+
+    private void RecordAudioClicked(object? sender, RoutedEventArgs e) => RunAudioOperation(async token =>
+    {
+        RecordingStatusText.Text = "Recording for up to 10 seconds. Stop audio cancels recording.";
+        var frame = await SidebandMediaDevices.RecordAsync(MediaBackend(), null, TimeSpan.FromSeconds(10), token);
+        var encoded = await SidebandMediaCodec.EncodeOggOpusAsync(frame, token);
+        ClearRecording();
+        _recordedAudio = encoded;
+        AttachmentPathBox.Text = string.Empty;
+        RecordingStatusText.Text = "Recording ready. Send securely queues it; discard removes it.";
+    });
+
+    private void RunAudioOperation(Func<CancellationToken, Task> operation) => TrackOperation(async () =>
+    {
+        if (_audioCancellation is not null) { ShowError("Stop the current audio operation first."); return; }
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_windowCancellation.Token);
+        _audioCancellation = cancellation;
+        StopAudioButton.IsEnabled = true;
+        PlayAudioButton.IsEnabled = RecordAudioButton.IsEnabled = SendButton.IsEnabled = false;
+        try { await operation(cancellation.Token); }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            MediaStatusText.Text = "Audio operation cancelled.";
+            RecordingStatusText.Text = _recordedAudio is null ? string.Empty : "Previous recording retained.";
+        }
+        catch (Exception ex) { ShowError("Audio operation failed: " + ex.Message); }
+        finally
+        {
+            _audioCancellation = null;
+            StopAudioButton.IsEnabled = false;
+            PlayAudioButton.IsEnabled = RecordAudioButton.IsEnabled = SendButton.IsEnabled = true;
+        }
+    });
+
+    private void StopAudioClicked(object? sender, RoutedEventArgs e) => _audioCancellation?.Cancel();
+    private void ClearRecordingClicked(object? sender, RoutedEventArgs e) => ClearRecording();
+
+    private void ClearRecording()
+    {
+        if (_recordedAudio is { } recorded)
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(recorded.EncodedBytes);
+        _recordedAudio = null;
+        RecordingStatusText.Text = string.Empty;
+    }
 
     private void ContactSelectionChanged(object? sender, SelectionChangedEventArgs e) =>
         TrackOperation(ContactSelectionChangedAsync);
@@ -463,11 +612,21 @@ public sealed partial class MainWindow : Window
         {
             var messages = await _client.GetMessagesAsync(peer, cancellationToken);
             if (_selectedContact != peer || _closing) return;
+            var selectedId = MessageList.SelectedIndex >= 0 && MessageList.SelectedIndex < _visibleMessages.Count
+                ? _visibleMessages[MessageList.SelectedIndex].Id : (Guid?)null;
             _visibleMessages = messages;
             MessageList.ItemsSource = messages.Select(message =>
                 $"{message.Timestamp.LocalDateTime:g}  {(message.Incoming ? "Received" : message.DeliveryState)} ({message.DeliveryMethod})\n{message.Content}" +
-                (message.Attachments is { Count: > 0 } files ? "\nFiles: " + string.Join(", ", files.Select(file => $"{file.Name} ({file.Length} bytes)")) : string.Empty))
+                (message.Attachments is { Count: > 0 } files ? "\nFiles: " + string.Join(", ", files.Select(file => $"{file.Name} ({file.Length} bytes)")) : string.Empty) +
+                (message.Image is { } image ? $"\nImage: {image.Format} ({image.Data.Length} bytes)" : string.Empty) +
+                (message.Audio is { } audio ? $"\nAudio: mode {audio.Mode} ({audio.Data.Length} bytes)" : string.Empty))
                 .ToArray();
+            if (selectedId is not null) MessageList.SelectedIndex = messages.ToList().FindIndex(message => message.Id == selectedId);
+            else if (_smokeUi)
+            {
+                var imageIndex = messages.ToList().FindIndex(message => message.Image is not null);
+                if (imageIndex >= 0) MessageList.SelectedIndex = imageIndex;
+            }
             if (messages.Count > 0) MessageList.ScrollIntoView(messages.Count - 1);
             MarkVisibleConversationRead();
         }
@@ -618,6 +777,10 @@ public sealed partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
+        MediaPreview.Source = null;
+        _previewBitmap?.Dispose();
+        _previewBitmap = null;
+        ClearRecording();
         _closedCompletion.TrySetResult();
     }
 }

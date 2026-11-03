@@ -7,6 +7,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Sideband.Desktop;
 using System.Text.Json;
+using LXST;
 
 [assembly: AvaloniaTestApplication(typeof(Sideband.Tests.TestAppBuilder))]
 
@@ -21,6 +22,147 @@ public sealed class TestAppBuilder
 [Trait("Category", "Integration")]
 public sealed class SidebandHeadlessUiTests
 {
+    public static bool MediaNativeIsDisabled => Environment.GetEnvironmentVariable("DOTLXST_NATIVE") != "1";
+
+    [AvaloniaFact]
+    public async Task ImageSelectionExportCorruptionAndRestartNeverOpenAudioDevices()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "sideband-media-ui-" + Guid.NewGuid().ToString("N"));
+        const string peer = "00112233445566778899aabbccddeeff";
+        MainWindow? window = null;
+        try
+        {
+            using var fixture = JsonDocument.Parse(await File.ReadAllTextAsync(
+                Path.Combine(AppContext.BaseDirectory, "Fixtures", "sideband-media.json")));
+            var bytes = Convert.FromBase64String(fixture.RootElement.GetProperty("images")[0].GetProperty("encoded").GetString()!);
+            var image = await SeedMediaAsync(path, "image.webp", bytes);
+            var store = new SidebandStateStore(path);
+            await store.AddContactAsync(SidebandContact.Create("Image peer", peer));
+            await store.AddMessageAsync(new(Guid.NewGuid(), peer, true, "", "Reference image",
+                DateTimeOffset.UtcNow, "Received", Image: new("webp", image)));
+            var backend = new UiMediaBackend();
+            window = new MainWindow(path, Path.Combine(path, "isolated-rns"), mediaBackend: backend);
+            window.Show();
+            await WaitForAsync(() => window.FindControl<ListBox>("MessageList")?.ItemCount == 1);
+            Assert.Equal(0, backend.Opens);
+            Assert.Null(window.FindControl<Image>("MediaPreview")!.Source);
+            window.FindControl<ListBox>("MessageList")!.SelectedIndex = 0;
+            await WaitForAsync(() => window.FindControl<Image>("MediaPreview")?.Source is not null);
+            Assert.Contains("Image: webp", Assert.Single(window.FindControl<ListBox>("MessageList")!.ItemsSource!.Cast<string>()));
+            await using (var client = new SidebandClient(store))
+            {
+                var message = Assert.Single(await client.GetMessagesAsync(peer));
+                var export = Path.Combine(path, "export.webp");
+                await client.ExportMediaAsync(peer, message.Id, false, export, TestContext.Current.CancellationToken);
+                Assert.Equal(bytes, await File.ReadAllBytesAsync(export));
+                await File.WriteAllBytesAsync(Path.Combine(path, "attachments", image.ContentHash), "corrupt"u8.ToArray());
+            }
+            await window.CloseAndWaitAsync();
+            window = new MainWindow(path, Path.Combine(path, "isolated-rns"), mediaBackend: backend);
+            window.Show();
+            await WaitForAsync(() => window.FindControl<ListBox>("MessageList")?.ItemCount == 1);
+            window.FindControl<ListBox>("MessageList")!.SelectedIndex = 0;
+            await WaitForAsync(() => window.FindControl<TextBlock>("StatusText")?.Text?.StartsWith("Could not display image:", StringComparison.Ordinal) == true);
+            Assert.Null(window.FindControl<Image>("MediaPreview")!.Source);
+            Assert.Equal(0, backend.Opens);
+            await window.CloseAndWaitAsync();
+        }
+        finally
+        {
+            if (window?.IsVisible == true) await window.CloseAndWaitAsync();
+            if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [AvaloniaFact(SkipWhen = nameof(MediaNativeIsDisabled), Skip = "Sideband audio UI requires DOTLXST_NATIVE=1 and installed native codecs; devices are fakes.")]
+    public async Task ExplicitAudioPlaybackRecordingCancellationAndCloseOwnTheirDeviceLeases()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "sideband-audio-ui-" + Guid.NewGuid().ToString("N"));
+        const string peer = "00112233445566778899aabbccddeeff";
+        MainWindow? window = null;
+        try
+        {
+            using var fixture = JsonDocument.Parse(await File.ReadAllTextAsync(
+                Path.Combine(AppContext.BaseDirectory, "Fixtures", "sideband-media.json")));
+            var bytes = Convert.FromBase64String(fixture.RootElement.GetProperty("opus").GetProperty("encoded").GetString()!);
+            var data = await SeedMediaAsync(path, "audio.ogg", bytes);
+            var store = new SidebandStateStore(path);
+            await store.AddContactAsync(SidebandContact.Create("Audio peer", peer));
+            await store.AddMessageAsync(new(Guid.NewGuid(), peer, true, "", "Reference audio",
+                DateTimeOffset.UtcNow, "Received", Audio: new(SidebandMediaCodec.OpusOggMode, data)));
+            var backend = new UiMediaBackend();
+            window = new MainWindow(path, Path.Combine(path, "isolated-rns"), mediaBackend: backend);
+            window.Show();
+            await WaitForAsync(() => window.FindControl<ListBox>("MessageList")?.ItemCount == 1);
+            window.FindControl<ListBox>("MessageList")!.SelectedIndex = 0;
+            Assert.Equal(0, backend.Opens);
+            window.FindControl<Button>("PlayAudioButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => backend.Opens == 1);
+            window.FindControl<Button>("StopAudioButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => backend.Disposals == 1);
+            await WaitForAsync(() => window.FindControl<Button>("RecordAudioButton")?.IsEnabled == true);
+            window.FindControl<Button>("RecordAudioButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => backend.Opens == 2);
+            window.FindControl<Button>("StopAudioButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => backend.Disposals == 2);
+            await WaitForAsync(() => window.FindControl<Button>("RecordAudioButton")?.IsEnabled == true);
+            Assert.Equal(string.Empty, window.FindControl<TextBlock>("RecordingStatusText")!.Text);
+            window.FindControl<Button>("RecordAudioButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => backend.Opens == 3);
+            await window.CloseAndWaitAsync();
+            Assert.Equal(3, backend.Disposals);
+        }
+        finally
+        {
+            if (window?.IsVisible == true) await window.CloseAndWaitAsync();
+            if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
+        }
+    }
+
+    private static async Task<SidebandAttachment> SeedMediaAsync(string path, string name, byte[] bytes)
+    {
+        var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes));
+        Directory.CreateDirectory(Path.Combine(path, "attachments"));
+        await File.WriteAllBytesAsync(Path.Combine(path, "attachments", hash), bytes, TestContext.Current.CancellationToken);
+        return new(name, hash, bytes.Length);
+    }
+
+    private sealed class UiMediaBackend : IAudioDeviceBackend
+    {
+        internal int Opens;
+        internal int Disposals;
+        public ValueTask<IReadOnlyList<AudioDeviceInfo>> ListInputsAsync(CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("The UI must not enumerate devices automatically.");
+        public ValueTask<IReadOnlyList<AudioDeviceInfo>> ListOutputsAsync(CancellationToken cancellationToken = default) =>
+            ListInputsAsync(cancellationToken);
+        public ValueTask<IAudioCapture> OpenCaptureAsync(string? device, AudioDeviceFormat format, CancellationToken cancellationToken = default)
+        {
+            Opens++;
+            return ValueTask.FromResult<IAudioCapture>(new Capture(this));
+        }
+        public ValueTask<IAudioPlayback> OpenPlaybackAsync(string? device, AudioDeviceFormat format, CancellationToken cancellationToken = default)
+        {
+            Opens++;
+            return ValueTask.FromResult<IAudioPlayback>(new Playback(this));
+        }
+        private sealed class Capture(UiMediaBackend owner) : IAudioCapture
+        {
+            public async IAsyncEnumerable<AudioFrame> CaptureAsync(
+                [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                yield break;
+            }
+            public ValueTask DisposeAsync() { owner.Disposals++; return ValueTask.CompletedTask; }
+        }
+        private sealed class Playback(UiMediaBackend owner) : IAudioPlayback
+        {
+            public async ValueTask WriteAsync(AudioFrame frame, CancellationToken cancellationToken = default) =>
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            public ValueTask DisposeAsync() { owner.Disposals++; return ValueTask.CompletedTask; }
+        }
+    }
+
     [AvaloniaFact]
     public async Task NavigationPreferencesAndConnectivityUseSavedApplicationState()
     {

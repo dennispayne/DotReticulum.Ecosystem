@@ -28,6 +28,7 @@ def main():
     parser.add_argument("--rns", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--public-fixture", type=Path)
+    parser.add_argument("--media-fixture", type=Path)
     args = parser.parse_args()
     source = args.sideband.resolve()
     revision = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
@@ -152,8 +153,18 @@ def main():
     core.db.execute("PRAGMA journal_mode=WAL")
     core.db.execute("PRAGMA wal_autocheckpoint=0")
     core.trusted_conversation(peer_dest.hash)
+    core.setpersistent("lxmf.lastsync", 1760000360.25)
+    core.setpersistent("lxmf.syncretrying", True)
+    media = None
+    outgoing_fields = {}
+    if args.media_fixture:
+        media = json.loads(args.media_fixture.read_text(encoding="utf-8"))
+        if media["sideband_sha"] != revision:
+            raise RuntimeError("The media fixture targets another Sideband revision")
+        encoded_codec2 = next(row for row in media["codec2"] if row["mode"] == 8)
+        outgoing_fields[LXMF.FIELD_AUDIO] = [8, bytes.fromhex(encoded_codec2["encoded"])]
     outgoing = LXMF.LXMessage(peer_dest, own_dest, "Native migration outbound", "Outgoing",
-                              desired_method=LXMF.LXMessage.PROPAGATED)
+                              desired_method=LXMF.LXMessage.PROPAGATED, fields=outgoing_fields)
     outgoing.timestamp = 1760000000.25
     outgoing.state = LXMF.LXMessage.DELIVERED
     outgoing.pack()
@@ -170,6 +181,18 @@ def main():
                               fields={LXMF.FIELD_FILE_ATTACHMENTS: [["reference.txt", b"Python attachment\n"]],
                                       LXMF.FIELD_RENDERER: 2},
                               desired_method=LXMF.LXMessage.DIRECT)
+    media_observations = {}
+    if media is not None:
+        image = media["images"][0]
+        image_bytes = base64.b64decode(image["encoded"], validate=True)
+        audio = media["opus"]
+        audio_bytes = base64.b64decode(audio["encoded"], validate=True)
+        incoming.fields[LXMF.FIELD_IMAGE] = [image["format"], image_bytes]
+        incoming.fields[LXMF.FIELD_AUDIO] = [audio["mode"], audio_bytes]
+        media_observations = {
+            "image": {"format": image["format"], "sha256": hashlib.sha256(image_bytes).hexdigest(), "length": len(image_bytes)},
+            "audio": {"mode": audio["mode"], "sha256": hashlib.sha256(audio_bytes).hexdigest(), "length": len(audio_bytes)},
+        }
     incoming.timestamp = 1760000001.5
     incoming.state = LXMF.LXMessage.DELIVERED
     incoming.pack()
@@ -204,8 +227,11 @@ def main():
         "conversationUnread": bool(core._db_conversation(peer_dest.hash)["unread"]),
         "mainDatabaseTrusted": bool(main_trust), "mainDatabaseUnread": bool(main_unread),
         "missingConversationCreated": missing_conversation_created,
+        "lastSynchronization": core.getpersistent("lxmf.lastsync"),
+        "synchronizationRetrying": core.getpersistent("lxmf.syncretrying"),
         "walBytes": (storage / "sideband.db-wal").stat().st_size,
         "disclosure": "Actual unchanged persistence methods with inert unused GUI/telemetry/plugin/resource imports",
+        "media": media_observations,
     }
     (output / "observations.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     if args.public_fixture:

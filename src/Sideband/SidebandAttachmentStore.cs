@@ -73,13 +73,19 @@ internal sealed class SidebandAttachmentStore(string dataDirectory)
         finally { _gate.Release(); }
     }
 
-    internal async Task ExportAsync(SidebandAttachment attachment, string target, CancellationToken cancellationToken)
+    internal async Task<byte[]> LoadAsync(SidebandAttachment attachment, CancellationToken cancellationToken)
     {
         Validate(attachment);
         var data = await ReadBoundedAsync(Path.Combine(_directory, attachment.ContentHash), cancellationToken).ConfigureAwait(false);
         if (data.Length != attachment.Length || !CryptographicOperations.FixedTimeEquals(
                 SHA256.HashData(data), Convert.FromHexString(attachment.ContentHash)))
             throw new InvalidDataException("Stored attachment integrity check failed.");
+        return data;
+    }
+
+    internal async Task ExportAsync(SidebandAttachment attachment, string target, CancellationToken cancellationToken)
+    {
+        var data = await LoadAsync(attachment, cancellationToken).ConfigureAwait(false);
         await using var stream = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None, 16_384,
             FileOptions.Asynchronous | FileOptions.WriteThrough);
         try

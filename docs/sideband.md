@@ -13,12 +13,14 @@ transport/propagation node. Separate RNS/LXMF peer cases exercise larger file fi
 Manual/automatic propagation-node selection, one-shot failed-delivery retry, inbox retrieval,
 restart persistence and upstream-shaped JSON settings exchange are implemented.
 Periodic inbox synchronization and its retry schedule persist over restart.
-Bounded file attachments can be sent, received, persisted and explicitly saved.
-Image/audio composition and playback, voice, telemetry,
+Bounded file, image and audio attachments can be sent, received, persisted and explicitly saved.
+Original desktop controls compose/preview images and explicitly record/play audio.
+Device ownership/cancellation are verified with fakes, not physical capture or acoustics.
+Voice calls, telemetry,
 plugins, mobile operation, broad upstream configuration, and upstream database
 migration of all profile semantics remain absent. A bounded offline importer
-activates identity, supported settings, LXMF conversations, text/file history
-and delivery methods from upstream profiles. Conversation trust/unread flags
+activates identity, supported settings, LXMF conversations, text/file/image/audio history,
+delivery methods, known client-router files and synchronization state from upstream profiles. Conversation trust/unread flags
 are active native state, including imported values; trusted sends request LXMF
 reply tickets. Foreground conversation viewing marks messages read.
 
@@ -86,15 +88,15 @@ runtime evidence.
 | App shell and interaction | partial | Original Avalonia UI uses an upstream-inspired dark/teal top bar, collapsible navigation, and Conversations, Contacts, Connectivity, Backup & Keys, Preferences, Utilities, and Guide screens. Supported screens expose real local contacts/history, runtime connection state, effective config path, public identity hashes, and persisted display/theme settings. The announce stream, objects/devices, map, voice, telemetry, hardware management, plugins, and other upstream screens are visibly unavailable rather than simulated; upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
 | Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. Peer appearance/settings, groups, broadcasts and voice conversations remain absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
 | LXMF messaging and propagation UI | partial | Text send/receive, automatic/manual node selection, persisted periodic fetches, cancellation, one-shot failed-delivery propagation retry, trusted-conversation reply tickets and restart retrieval reuse `LxmRouter`. Actual primary Sideband daemon-core direct/propagated round trips pass separately from Python LXMF endpoint tests, with trust enabled and disabled in both directions. Full message presentation/settings remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,4811–4828,5156–5227,5634–5644`, `docs/lxmf.md`. |
-| Text, image/file and audio messages | partial | Text and file composition, receipt, content-addressed persistence and explicit file export exist. Two-way 2 MiB file fields execute actual pinned Python LXMF and survive native-client restart. The UI displays filenames/sizes and can save the selected message's first file; no received content opens automatically. Image/audio composition, rendering/playback and recording remain missing; `src/Sideband/SidebandAttachmentStore.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `tests/Interop/sideband_attachment_node.py`, `sbapp/sideband/core.py:5189–5196`. |
+| Text, image/file and audio messages | implemented bounded subset | Text/files, WebP image preparation/preview, Ogg Opus and Codec2 composition/decoding, explicit 10-second recording/playback/cancellation, content-addressed persistence and explicit exports. Actual Python Sideband core sends/receives images and both audio families directly/through a Python propagation transport; actual Pillow/audioproc decode native output. Published binaries decode imported media and render images. Device tests use fakes; physical capture/acoustics remain unverified. Unknown audio is retained/exportable but playback fails explicitly; no autoplay. See media limits below; `src/Sideband/SidebandMedia*.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py:message_send_dispatch`, `sbapp/sideband/audioproc.py`, `sbapp/sideband/core.py:5189–5196`. |
 | Paper messages and `lxm://` imports | missing | No paper-message/QR creation or import flow, camera/QR, export or URI handling. Offline profile migration imports its identity separately; `README.md`, `sbapp/main.py`, `sbapp/ui/keys.py`. |
 | LXST calls and push-to-talk | missing | A disabled UI button explicitly reports voice unavailability. No Sideband audio devices, call authorization, duplex controls or call history are implemented. The LXST library now targets Sideband's required 0.5.4, but that does not implement application-level voice integration; `src/Sideband.Desktop/MainWindow.axaml`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`, `docs/lxst.md`. |
 | Telemetry, location and situational awareness | missing | Sensor streams include time, identity/information, battery, location, physical link, environment, motion, resource, Reticulum transport, LXMF propagation, connections and interfaces; peer telemetry, tracking, live/offline maps and geospatial calculations are app behavior; `sbapp/sideband/sense.py`, `sbapp/sideband/geo.py`, `sbapp/ui/telemetry.py`, `README.md`. |
 | Remote commands, queries and plugins | missing | Command, service and telemetry plugin base types; built-in ping/echo/signal/telemetry request behavior; custom telemetry sensors; configurable plugin loading and example plugins. This is an application extension contract, not part of the existing .NET `Telemetry` tool; `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`, `README.md`. |
 | Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. Interface editing/discovery and Android interface loading are absent; `src/Sideband/SidebandClient.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
 | Long-lived service and OS integration | missing | The desktop app owns a live client while its window runs. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are not implemented or validated; `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
-| Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual `primary_identity`, binary `sideband_config` and bounded SQLite/WAL snapshots into an absent destination; activates contacts/trust/unread/text/files/methods, archives unimplemented semantics and never modifies source or merges existing state. Voice objects, non-file fields, telemetry and persistent DB semantics remain archive-only; interfaces and router storage are not migrated. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `tests/Sideband.Tests/SidebandProfileImportTests.cs`, `sbapp/main.py:209–273`. |
-| CLI and headless operation | partial | Help/version, init/check, data/config selection, JSON settings exchange and the native extension `--import-profile SOURCE --data-dir NEW_DIRECTORY` exist. Profile import is offline and supports cancellation; conflicting maintenance/network options fail before opening state/UI. Unsupported keys are reported without values. Upstream verbose, daemon and interactive modes remain missing; `src/Sideband.Desktop/Program.cs`, `tests/Pester/SidebandProfileImport.Tests.ps1`, `sbapp/main.py`. |
+| Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/text/files/images/audio/methods, known client-router tickets/own ratchets/caches and `lxmf.lastsync`/`lxmf.syncretrying`. Unimplemented semantics remain archived; source files never change. Voice objects, other fields, telemetry and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `sbapp/main.py:209–273`. |
+| CLI and headless operation | partial | Help/version, init/check, data/config selection, JSON settings exchange and native extensions `--import-profile SOURCE --data-dir NEW_DIRECTORY` and `--check-media` exist. Media audit is cancellable/offline, decodes persisted media and never opens Reticulum/devices. Profile import is offline/cancellable; conflicting maintenance/network options fail before state/UI. Unsupported keys are reported without values. Upstream verbose, daemon and interactive modes remain missing; `src/Sideband.Desktop/Program.cs`, `tests/Pester/SidebandProfileImport.Tests.ps1`, `sbapp/main.py`. |
 | Repository server | missing | Upstream's optional "repository server" is a local-network HTTPS mirror for static Sideband/RNode software and guide downloads plus a package list (default port 4444); it is not an RNS/rngit Git hosting server. The native Sideband app does not host this service. The ecosystem's `rngit` service is separate and is not exposed here; the Utilities page labels the mirror unavailable; `sbapp/sideband/core.py`, `sbapp/ui/layouts.py`, `src/Sideband.Desktop/MainWindow.axaml`. |
 | Native packaging and upgrades | partial | Windows and Linux NativeAOT publishes succeed with trimming/linker warnings treated as errors. Package the full publish directory, including Windows `sideband.exe`, `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, `libSkiaSharp.dll` and the three included third-party notice files; Linux `sideband`, `libHarfBuzzSharp.so`, `libSkiaSharp.so`, `libSystem.IO.Ports.Native.so` and the same notices. The notices include Avalonia/Skia/HarfBuzz MIT texts, ANGLE's BSD license, and .NET serial runtime notices. Installer/signing, self-upgrade and other upstream package formats remain absent; `src/Sideband.Desktop/Sideband.Desktop.csproj`, `src/Sideband.Desktop/THIRD-PARTY-NOTICES*.txt`, `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
 
@@ -128,23 +130,24 @@ runtime evidence.
   without a required Internet service, optional Reticulum transports, encrypted
   messaging, local/offline maps, plugins, remote control and Android transport
   use. These are source claims only; this inventory did not execute upstream
-  app flows or confirm platform packaging.
+  GUI flows or confirm platform packaging. The separate daemon-core application
+  cases below execute selected messaging contracts.
 
 ## DotReticulum.Ecosystem integration boundary
 
 `DotReticulum`, `LXMF` and `LXST` are reusable protocol-layer candidates, not a
 drop-in Sideband application. The selected initial scope is Windows/Linux
 desktop with native C# and Avalonia 12.1.4; the app references `LXMF` and
-`DotReticulum.Applications`, and intentionally does not reference LXST. RNS is
+`DotReticulum.Applications`, and now references LXST for audio-message codecs/devices. RNS is
 pinned to 1.5.7, matching Sideband 2.2.0's declared minimum; LXMF 1.2.1 exceeds
 its declared minimum. LXST targets the required 0.5.4, but this application does
-not yet integrate its call/device APIs. Voice therefore remains disabled.
+not yet integrate its call APIs. Voice calls therefore remain disabled.
 
 The app project is `src/Sideband.Desktop/Sideband.Desktop.csproj` (assembly and
 executable name `sideband`); its protocol/application library is `src/Sideband`
 (assembly `Sideband.Core`, namespace `Sideband`). The library uses source-
 generated JSON rather than reflection serialization. Native plugins, upstream
-full SQLite migration, mobile services and platform-specific sensors/audio are not
+full SQLite migration, mobile services and platform-specific sensors are not
 implemented. The bounded importer below is not full upstream profile parity.
 The current native client is an initial desktop app, not an
 upstream replacement.
@@ -198,18 +201,18 @@ values fail transactionally instead of being silently coerced.
 branch with injected clock, persistence, request-admission and logging
 dependencies, at the same recorded `core.py` revision/digest. Eight vectors
 cover initialization, disabled/before/exact/due ticks and both busy-retry states.
-Last-attempt/retry state is native JSON persistence, not migration of upstream's
-SQLite `persistent` table. Disposal cancels and awaits the owned periodic task.
+Last-attempt/retry state persists in native JSON and activates from upstream's
+SQLite `persistent` table during offline migration. Disposal cancels and awaits the owned periodic task.
 
 Windows validation uses `--artifacts-path artifacts\builds\fleet-sideband`:
 `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release` with
 `--filter "Category!=Live"` passed the settings/UI/lifecycle cases.
 Strict `dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release
 -r win-x64 --artifacts-path artifacts\builds\fleet-sideband-native
--p:RuntimeIdentifiers=win-x64 -p:ILLinkTreatWarningsAsErrors=true
+-p:ILLinkTreatWarningsAsErrors=true
 -p:IlcTreatWarningsAsErrors=true` passed. Published Native and GUI Pester gates
-passed 3/3 on Windows and WSL/Linux: identity restart, settings exchange/error
-transactionality and an actual rendered validation flow. The analogous Linux
+passed 4/4 on Windows and WSL/Linux: identity restart, settings exchange/error
+transactionality and actual rendered validation/image flows. The analogous Linux
 publish used `/home/dennis/fleet-sideband-native`, `linux-x64` and provisioned
 .NET/MSBuild plus clang; WSLg rendering used software graphics. These gates do
 not exercise physical audio or arbitrary desktop environments.
@@ -227,7 +230,7 @@ remembered address over restart. Legacy manual-only JSON state can also switch
 to automatic selection without losing its known node. These are LXMF-peer tests, not an
 actual upstream Sideband application or GUI peer. Separate actual application cases
 are described below. The Linux equivalent uses
-`--artifacts-path /home/dennis/fleet-sideband-managed` and the isolated Linux
+`--artifacts-path /home/dennis/fleet-sideband-media-tests` and the isolated Linux
 reference environment. A separate message deposited after manual exchange is
 retrieved autonomously by the real 60-second scheduler, without calling manual
 sync; both messages and the enabled interval survive restart. The case runs
@@ -296,9 +299,11 @@ directory before connecting. Windows needs system `winsqlite3.dll`, Linux
 Unimplemented data stays in `imported-profile`: original binary config and SQLite
 snapshot, but no redundant private-identity copy. Unknown binary configuration
 uses hexadecimal JSON projections; the original MessagePack remains authoritative.
-Voice, non-file message fields, telemetry and persistent DB semantics
-are not activated. Other app-storage files, router tickets/ratchets/queues and
-interfaces are not migrated. Remote historical signatures cannot be verified
+Voice, unsupported message fields, telemetry and unknown persistent properties
+are not activated. Known client-router files and synchronization state are activated
+as described below; other app-storage files, propagation-node state and interfaces
+are not migrated. Upstream queues are memory-only, not omitted persisted files.
+Remote historical signatures cannot be verified
 without sender identities; imported-identity signatures and record hashes are
 checked. Protect the Windows destination with account ACLs; Unix staging/key
 permissions are owner-only. Temporary key/config buffers are zeroed.
@@ -320,9 +325,100 @@ on disk. These are explicit bounded native policies, not upstream limits.
 Hash verification precedes export; existing export destinations are never
 overwritten (including JSON settings exports). Malformed/unsafe names, corruption, quota exhaustion and
 persistence failures are reported. Orphaned content after a failed history
-write is bounded but is not automatically garbage-collected. No image/audio
-decoder, automatic opening, physical recording or published-native file-flow
-acceptance is claimed.
+write is bounded but is not automatically garbage-collected. There is no automatic
+opening, physical recording evidence or published-native network file-flow claim.
+
+### Images and audio messages
+
+Images use field `0x06` as `[format, binary_data]`; audio uses `0x07` as
+`[mode, binary_data]`. Both reuse the existing signed LXMF field serializer.
+Native image input/preview accepts PNG, JPEG and WebP, with at most 2 MiB encoded,
+8,192 pixels per dimension and 16 Mi pixels total. Composition produces WebP
+without upscaling: low/medium/high policies use 320/640/1,280-pixel bounds and
+qualities 22/66/75. Skia and Pillow encoding/resampling are not byte-identical.
+Other Pillow formats and general animation are not supported by this bounded
+native policy. Incoming invalid images report a contextual error without losing
+the message's valid text. Content-addressed files are verified again before
+preview/export; stale asynchronous previews cannot replace a newer selection.
+
+Audio mode `0x10` is Ogg Opus; Codec2 modes `3` through `9` carry concatenated
+codec frames, **not** LXST's leading codec-mode byte. Native composition,
+decoding and explicit recording/playback are limited to ten seconds and 2 MiB.
+This is a native resource/safety limit, not a reference duration limit.
+Unknown byte-valued modes remain stored/exportable and fail playback explicitly.
+No receipt, selection or construction opens a microphone/speaker or autoplays.
+The desktop offers explicit image/audio-file composition, a ten-second recording,
+play/stop/discard and save operations; close cancels and joins owned work.
+Device leases, stalled-provider deadlines, cancellation, failure recovery and
+no-device paths use fake backends, not physical capture or acoustic evidence.
+The desktop selects the existing Windows waveform or Linux PulseAudio provider;
+neither has physical-audio acceptance in this application.
+
+`tests/Sideband.Tests/GenerateMediaVectors.py` executes unchanged image branches
+extracted from actual `main.py` and actual `audioproc` functions with synthetic
+PNG/PCM. The fixture records the exact revisions above, Pillow version, native
+library observations and source hashes; `audioproc.py` SHA-256 is
+`5e2570ece2a08f3f4a09e19e8203b553f5ef13c49995275862f61b2fb9d2ebce`.
+Codec2 encoded frames match all seven supported reference modes; decoder
+excitation is nondeterministic, so PCM byte identity is not asserted. Eleven
+mono 12 kHz/60 ms Opus packets match independently executed reference output.
+The original native Ogg writer uses standard 48 kHz granules/preskip; the
+reference helper writes unscaled 12 kHz counters and quarters decoded duration.
+Native output deliberately fixes that container-timing defect while preserving
+the codec contract. Reference Ogg input still decodes with its observed duration.
+
+Two actual Sideband daemon-core cases per host exchange images and Opus/Codec2
+audio in both directions, directly and through a Python transport/propagation
+node. Actual Pillow and Sideband `audioproc` decode native output; received
+combined media survives export/restart and malformed-media recovery. These use
+synthetic, small media, not maximum-sized media or physical devices. Published
+binaries separately import/decode media and render images; they do not establish
+published-native network media-transfer acceptance.
+
+Images use the packaged Skia native dependency. Audio uses LXST's original
+adapters to independently installed Opus, Opusfile and Codec2 libraries; no
+reference source, sounds or codec binaries are bundled. Windows acceptance used
+MSYS2 Opus 1.6.1, Opusfile 0.12 and Codec2 1.2.0 plus their runtime dependencies;
+Linux used its separately installed libraries. Missing libraries fail with
+operation context. Refer to [lxst.md](lxst.md) for native-library licenses and
+platform boundaries; neither trimming/AOT success nor fake devices establish
+macOS or physical audio support.
+
+`sideband --check-media --data-dir DIRECTORY` is an offline native extension.
+It validates stored payloads and decodes each supported image/audio item, reports
+counts, honors cancellation and fails on corruption/unsupported modes/missing
+codecs. It never opens Reticulum or audio devices. The accepted imported fixture
+reports one image and two audio items.
+
+### Activated router and synchronization migration
+
+The importer activates available `lxmf/available_tickets`,
+`outbound_stamp_costs`, `local_deliveries`, `locally_processed` and only the
+imported identity's signed `ratchets/<delivery-hash>.ratchets`.
+Actual public LXMF stores validate ownership, signatures, schemas and normal
+expiry before installing these files inside the private staging directory.
+Secret copies are zeroed. Bounds are 4 MiB tickets/ratchets, 8 MiB per cache,
+4,096 ticket destinations per map, 16 inbound tickets per destination,
+65,536 duplicate/cache entries and 512 own ratchet keys. Foreign ratchets,
+RNS caches/interfaces, propagation-node peers/message stores and `node_stats`
+are excluded; client queues are memory-only upstream.
+`GenerateSidebandRouterProfile.py` executes actual pinned LXMF/RNS file writers
+and reverse-loads the resulting native files through the actual reference APIs.
+Seventeen tests cover migration and failures, including the generated profile.
+Published acceptance independently reverse-loads native tickets/ratchets/caches
+on both Windows and Linux; it does not prove a live post-import ratchet exchange.
+
+Only the actual binary SQLite `persistent` keys `lxmf.lastsync` and
+`lxmf.syncretrying` activate the native schedule. Other properties stay archived
+without reading their private values. Finite numeric/bool/nil validation and
+schema/row/scalar/file bounds reject malformed input transactionally.
+`GenerateSidebandPersistentProfile.py` executes actual database and periodic-job
+methods, with disclosed controlled dependencies for policy observations.
+Forty-four tests cover actual persistence, strict boundaries, WAL snapshots,
+restart and failures. The full import fixture stores its schedule only in
+committed WAL; published import activates the exact anchor/retry state alongside
+history, media and known router state. This is offline file/policy evidence,
+not an upstream GUI or all-properties migration claim.
 
 ### Python plugin compatibility
 
@@ -349,23 +445,23 @@ Validated commands and outcomes:
 | Command | Result |
 |---|---|
 | `dotnet build DotReticulum.Ecosystem.slnx -c Release --artifacts-path artifacts\builds\fleet-resume` | Passed, zero warnings/errors |
-| Full `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release` with separate Windows/Linux artifacts paths above, all live/application/profile prerequisites enabled | Windows 87 passed/4 skipped; Linux 87 passed/5 skipped. Application, refusal/recovery, scheduled fetch, file and migration cases pass; separate opt-in native-media helper cases skip without their library mode |
+| Full `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release` with separate Windows/Linux artifacts paths above, all live/application/profile prerequisites enabled and `DOTLXST_NATIVE=1` | 167/167 passed on each host, no skips. Actual application/media, refusal/recovery, scheduled fetch, file, codec, fake-device, router and WAL/schedule migration cases pass |
 | `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path artifacts\builds\fleet-sideband --filter FullyQualifiedName~FailedDirectDelivery` with pinned live paths | Windows 2/2; Linux equivalent 2/2: actual refusal, one-shot propagation policy and direct recovery |
 | Same command with `--filter FullyQualifiedName~ActualPrimarySidebandDaemon`, `DOTSIDEBAND_LIVE=1` and the pinned Sideband source | 4/4 on each host: actual unmodified application-core direct/propagated round trips, trust on/off, signed ticket inclusion and persisted reply tickets |
 | Same command with `--filter FullyQualifiedName~ConversationTrustUnread` | 1/1 on each host: original desktop trust/read/unread controls and restart persistence |
 | Same command with `--filter "FullyQualifiedName~ConversationStateTests\|FullyQualifiedName~SidebandProfileImportTests"` and `DOTRETICULUM_SIDEBAND_PROFILE` pointing to generated observations/profile | 51/51 on each host; ten actual-method trust/read/ingest observations, legacy defaults, immutable trust on rename/announce, flag validation, concurrency/cancellation and WAL-only trust/unread activation |
-| `dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\fleet-sideband-native -p:RuntimeIdentifiers=win-x64 -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` | Passed; strict Windows NativeAOT |
-| Linux `dotnet publish src/Sideband.Desktop/Sideband.Desktop.csproj -c Release -r linux-x64 --artifacts-path /home/dennis/fleet-sideband-native -p:RuntimeIdentifiers=linux-x64 -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` | Passed; strict Linux NativeAOT |
-| `& .\tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1 -Tag @('Native','GUI')` with `DOTRETICULUM_SIDEBAND_BINARY` set to the Windows publish | 3/3 passed: help/version, identity restart, transactional settings exchange/errors and actual rendered send validation |
-| Linux PowerShell `& ./tests/run-pester.ps1 -Path tests/Pester/Sideband.Tests.ps1 -Tag Native,GUI` with the Linux binary and WSLg/software graphics | 3/3 passed; same native maintenance and rendered validation flows |
-| `& .\tests\run-pester.ps1 -Path tests\Pester\SidebandProfileImport.Tests.ps1` with published binary and `DOTRETICULUM_SIDEBAND_PROFILE` | 4/4 on each host: identity/config/WAL history/file/trust/unread import, unchanged source, occupied-target refusal, conflicting-option rejection and malformed-input rollback/retry |
+| `dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\fleet-sideband-native -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` | Passed; strict Windows NativeAOT |
+| Linux `dotnet publish src/Sideband.Desktop/Sideband.Desktop.csproj -c Release -r linux-x64 --artifacts-path /home/dennis/fleet-sideband-native -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` | Passed; strict Linux NativeAOT |
+| `& .\tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1 -Tag @('Native','GUI')` with `DOTRETICULUM_SIDEBAND_BINARY` and the generated media profile | 4/4 passed: help/version, identity restart, transactional settings exchange/errors and rendered validation/image flows |
+| Linux PowerShell `& ./tests/run-pester.ps1 -Path tests/Pester/Sideband.Tests.ps1 -Tag Native,GUI` with the Linux binary and WSLg/software graphics | 4/4 passed; same native maintenance and rendered validation/image flows |
+| `& .\tests\run-pester.ps1 -Path tests\Pester\SidebandProfileImport.Tests.ps1` with published binary, native libraries and generated profile/router/persistent observations | 6/6 on each host: identity/config/SQLite-WAL/history/files/trust/media/router/schedule import, unchanged source, actual reverse router load, offline media decode, option/target errors, corruption recovery and transactional rollback |
 
 SHA-256 of the accepted published executables:
 
 | Executable | SHA-256 |
 |---|---|
-| Windows `artifacts\builds\fleet-sideband-native\publish\Sideband.Desktop\release_win-x64\sideband.exe` | `364d379021813a9309bc65655ec57ad6432dd55b26fe5e68dfd323a64b8b7812` |
-| Linux `/home/dennis/fleet-sideband-native/publish/Sideband.Desktop/release_linux-x64/sideband` | `5b5566de795aff2b7fbe0bbda64ac1988e961ba2d2db626525e0f1d65ec2e00d` |
+| Windows `artifacts\builds\fleet-sideband-native\publish\Sideband.Desktop\release_win-x64\sideband.exe` | `1774c5ba7904310482a1689a724672dd0dae9b2e35aafb1f61383ca83b026fd3` |
+| Linux `/home/dennis/fleet-sideband-native/publish/Sideband.Desktop/release_linux-x64/sideband` | `fa965afda44ead3c55fb0c364ca417fb939a6f556c279149a16a70a921017277` |
 
 The Windows output contains `sideband.exe` and native GUI dependencies
 `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, and `libSkiaSharp.dll`. Linux output
@@ -394,8 +490,8 @@ message was persisted, and a .NET-to-Python outgoing message was received with
 the expected content digest. Separate propagation and file-field cases are
 described above. Deliberate direct-refusal/retry is covered separately;
 random packet loss and arbitrary transport-hop
-topologies are not covered. No Android,
-macOS, audio-device, voice, telemetry or plugin behavior is claimed.
+topologies are not covered. No Android, macOS, physical-audio, voice-call,
+telemetry or plugin behavior is claimed.
 
 The native state store persists contacts, chat messages, display name, theme,
 and the local configuration/delivery address in `state.json`; it is not wire-
@@ -419,5 +515,6 @@ with an isolated config; shared-client status is reported from the actual
 runtime role, not guessed from installed software or a config file. The
 user-facing text client supports manually entering a 32-hex LXMF address,
 connecting, sending/receiving text and viewing delivery state. Incoming
-file fields display metadata and can be explicitly saved; image/audio fields
-still have no composition, rendering or playback implementation.
+file fields display metadata and can be explicitly saved. Image/audio composition,
+preview/playback and persistence have the bounded, separately evidenced behavior
+above; voice calls and remaining application inventory entries are still missing.

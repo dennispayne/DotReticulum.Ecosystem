@@ -1,0 +1,21 @@
+{
+  "sideband": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "coreSha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+  "rns": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "lxmf": "e8ba02483217af43be284a72f1c059c730b7d047",
+  "routerSha256": "56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9",
+  "destinationSha256": "e1117e5ff9c4baeda53f9117ae52c4cd0e1e2a4f4167de628e4afb8b4506b8ae",
+  "timestamp": 1793740500.0256205,
+  "methods": "Actual LXMRouter constructor, ticket APIs, update_stamp_cost, ingest_lxm_uri, persistence writers and Destination.rotate_ratchets",
+  "shims": [],
+  "emptyTickets": "g6hvdXRib3VuZICnaW5ib3VuZICvbGFzdF9kZWxpdmVyaWVzgA==",
+  "files": {
+    "local_deliveries": "gsQg6pEWTlE55ViNoGZQ8sVCMNQiFHb8fshoUsYMVC2XSz/LQdq6k7UBQVrEIA4QaokPipJ49x4u6M2ie49rrR7Ff+wNjFYQM8RvgAGsy0HaupO1AUFa",
+    "locally_processed": "gcQgDhBqiQ+Kknj3Hi7ozaJ7j2utHsV/7A2MVhAzxG+AAazLQdq6k7UBQVo=",
+    "outbound_stamp_costs": "gcQQpavNIyMo7Tsnn85uNu74W5LLQdq6k7UAxiYF",
+    "node_stats": "hNkkY2xpZW50X3Byb3BhZ2F0aW9uX21lc3NhZ2VzX3JlY2VpdmVkANkiY2xpZW50X3Byb3BhZ2F0aW9uX21lc3NhZ2VzX3NlcnZlZAC9dW5wZWVyZWRfcHJvcGFnYXRpb25faW5jb21pbmcAvXVucGVlcmVkX3Byb3BhZ2F0aW9uX3J4X2J5dGVzAA=="
+  },
+  "peer": "a5abcd232328ed3b279fce6e36eef85b",
+  "messageHash": "ea91164e5139e5588da06650f2c54230d4221476fc7ec86852c60c542d974b3f",
+  "transientId": "0e106a890f8a9278f71e2ee8cda27b8f6bad1ec57fec0d8c561033c46f8001ac"
+}

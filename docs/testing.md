@@ -27,10 +27,10 @@ validate subsequent unpushed local changes.
 
 The integrated local gate
 `& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
-artifacts\builds\fleet-unified -OutputDirectory
-artifacts\tests\fleet-profile-final` covers Sideband propagation scheduling,
-fallback/profile migration and the synchronized LXST 0.5.4 reference/catalog and release-tag
-expectation. It passed: 331 managed cases and 60 Pester cases, with 57 managed
+artifacts\builds\fleet-media-unified -OutputDirectory
+artifacts\tests\fleet-media-final` covers Sideband media/router/schedule migration,
+NomadNet browser/media and the synchronized LXST 0.5.4 reference/catalog and release-tag
+expectation. It passed: 457 managed cases and 60 Pester cases, with 78 managed
 and 23 selected Pester cases explicitly skipped for absent prerequisites.
 It retains TRX, per-case
 compatibility evidence and merged coverage for all eight production assemblies.

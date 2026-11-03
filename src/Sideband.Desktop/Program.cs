@@ -38,17 +38,56 @@ internal static class Program
                 try { return ProfileImportCommand.RunAsync(profile, DataDirectory, Console.Out, cancellation.Token).GetAwaiter().GetResult(); }
                 finally { Console.CancelKeyPress -= cancel; }
             }
+            if (options.CheckMedia)
+            {
+                using var cancellation = new CancellationTokenSource();
+                ConsoleCancelEventHandler cancel = (_, e) => { e.Cancel = true; cancellation.Cancel(); };
+                Console.CancelKeyPress += cancel;
+                try { return CheckMediaAsync(cancellation.Token).GetAwaiter().GetResult(); }
+                finally { Console.CancelKeyPress -= cancel; }
+            }
             if (options.Initialize || options.Check || options.ImportSettings is not null || options.ExportSettings is not null)
                 return RunMaintenanceAsync(options).GetAwaiter().GetResult();
 
             var exitCode = BuildAvaloniaApp().StartWithClassicDesktopLifetime([]);
             return SmokeUiMode && !MainWindow.SmokeUiSucceeded && exitCode == 0 ? 2 : exitCode;
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or InvalidDataException or InvalidOperationException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        catch (OperationCanceledException)
+        {
+            Console.Error.WriteLine("sideband: operation cancelled.");
+            return 130;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or InvalidDataException or InvalidOperationException or UnauthorizedAccessException or System.Text.Json.JsonException or DllNotFoundException or EntryPointNotFoundException or NotSupportedException)
         {
             Console.Error.WriteLine("sideband: " + ex.Message);
             return 1;
         }
+    }
+
+    private static async Task<int> CheckMediaAsync(CancellationToken cancellationToken)
+    {
+        var store = new SidebandStateStore(DataDirectory);
+        if (!File.Exists(store.StatePath)) throw new FileNotFoundException("No existing Sideband state was found.");
+        var state = await store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        await using var client = new SidebandClient(store);
+        var images = 0;
+        var audio = 0;
+        foreach (var message in state.Messages)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (message.Image is not null)
+            {
+                _ = await client.LoadImageAsync(message.PeerDeliveryHash, message.Id, cancellationToken).ConfigureAwait(false);
+                images++;
+            }
+            if (message.Audio is not null)
+            {
+                _ = await client.LoadAudioAsync(message.PeerDeliveryHash, message.Id, cancellationToken).ConfigureAwait(false);
+                audio++;
+            }
+        }
+        Console.WriteLine($"Validated {images} images and {audio} audio messages without opening audio devices or Reticulum.");
+        return 0;
     }
 
     private static async Task<int> RunMaintenanceAsync(Options options)
@@ -87,6 +126,7 @@ internal static class Program
         string? rnsConfig = null;
         var initialize = false;
         var check = false;
+        var checkMedia = false;
         var help = false;
         var version = false;
         var smokeUi = false;
@@ -102,6 +142,7 @@ internal static class Program
                 case "--smoke-ui": smokeUi = true; break;
                 case "--init": initialize = true; break;
                 case "--check": check = true; break;
+                case "--check-media": checkMedia = true; break;
                 case "-c" or "--config" or "--data-dir": dataDirectory = NextValue(args, ref index); break;
                 case "--import-settings": importSettings = NextValue(args, ref index); break;
                 case "--export-settings": exportSettings = NextValue(args, ref index); break;
@@ -112,8 +153,10 @@ internal static class Program
             }
         }
 
-        if ((initialize ? 1 : 0) + (check ? 1 : 0) + (importSettings is null ? 0 : 1) + (exportSettings is null ? 0 : 1) + (importProfile is null ? 0 : 1) > 1)
-            throw new ArgumentException("--init, --check, --import-settings, --export-settings and --import-profile cannot be combined.");
+        if ((initialize ? 1 : 0) + (check ? 1 : 0) + (checkMedia ? 1 : 0) + (importSettings is null ? 0 : 1) + (exportSettings is null ? 0 : 1) + (importProfile is null ? 0 : 1) > 1)
+            throw new ArgumentException("--init, --check, --check-media, --import-settings, --export-settings and --import-profile cannot be combined.");
+        if (checkMedia && (rnsConfig is not null || smokeUi))
+            throw new ArgumentException("--check-media is offline and cannot be combined with --rnsconfig or --smoke-ui.");
         if (importProfile is not null && (string.IsNullOrWhiteSpace(dataDirectory) || rnsConfig is not null || smokeUi))
             throw new ArgumentException("--import-profile requires an explicit new --data-dir and cannot be combined with --rnsconfig or --smoke-ui.");
         if (initialize || check)
@@ -126,7 +169,7 @@ internal static class Program
             rnsConfig = Path.GetFullPath(rnsConfig);
         }
 
-        return new Options(dataDirectory, rnsConfig, initialize, check, help, version, smokeUi, importSettings, exportSettings, importProfile);
+        return new Options(dataDirectory, rnsConfig, initialize, check, help, version, smokeUi, importSettings, exportSettings, importProfile, checkMedia);
     }
 
     private static string NextValue(string[] args, ref int index)
@@ -146,6 +189,7 @@ internal static class Program
             sideband [--data-dir <path>] [--rnsconfig <path>]
           sideband --init [--data-dir <path>] [--rnsconfig <path>]
           sideband --check [--data-dir <path>] [--rnsconfig <path>]
+          sideband --check-media [--data-dir <path>]
           sideband --import-settings <json-path> [--config <path>]
           sideband --export-settings <json-path> [--config <path>]
           sideband --import-profile <upstream-profile> --data-dir <new-directory>
@@ -154,6 +198,7 @@ internal static class Program
 
         --init       Initialize durable application state and the local identity.
         --check      Validate local state and report the existing identity.
+        --check-media  Validate/decode stored media offline; requires native codecs, never opens devices.
         --data-dir   Select the Sideband data directory.
         --config     Alias for --data-dir (also -c).
         --import-settings  Import supported upstream JSON settings; retain and report unsupported keys.
@@ -164,5 +209,5 @@ internal static class Program
         """;
 
     private sealed record Options(string? DataDirectory, string? ReticulumConfigDirectory, bool Initialize, bool Check, bool Help, bool Version, bool SmokeUi,
-        string? ImportSettings, string? ExportSettings, string? ImportProfile);
+        string? ImportSettings, string? ExportSettings, string? ImportProfile, bool CheckMedia);
 }

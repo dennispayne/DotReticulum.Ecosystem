@@ -171,6 +171,65 @@ public sealed class SidebandClient : IAsyncDisposable
         await SendMessageAsync(deliveryHash, content, name, data, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task SendImageAsync(string deliveryHash, string content, string path,
+        SidebandImageQuality quality = SidebandImageQuality.Medium, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        var input = await SidebandAttachmentStore.ReadBoundedAsync(path, cancellationToken).ConfigureAwait(false);
+        var image = await Task.Run(() => SidebandMediaCodec.PrepareImage(input, quality, cancellationToken), cancellationToken).ConfigureAwait(false);
+        await SendMessageAsync(deliveryHash, content, null, null, cancellationToken, image: image).ConfigureAwait(false);
+    }
+
+    public async Task SendAudioFileAsync(string deliveryHash, string content, string path, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        var input = await SidebandAttachmentStore.ReadBoundedAsync(path, cancellationToken).ConfigureAwait(false);
+        await SendAudioAsync(deliveryHash, content, new(SidebandMediaCodec.OpusOggMode, input), cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task SendAudioAsync(string deliveryHash, string content, SidebandEncodedAudio audio, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        ArgumentNullException.ThrowIfNull(audio);
+        if (audio.EncodedBytes is not { Length: > 0 } || audio.EncodedBytes.Length > SidebandMediaCodec.MaximumEncodedBytes)
+            throw new InvalidDataException("Outgoing audio must contain at most 2 MiB of nonempty encoded data.");
+        audio = audio with { EncodedBytes = audio.EncodedBytes.ToArray() };
+        // Validate outgoing audio before queueing. Receipt never opens a device or requires a native codec.
+        _ = await SidebandMediaCodec.DecodeAudioAsync(audio.Mode, audio.EncodedBytes,
+            Path.Combine(_store.DataDirectory, "media-work"), cancellationToken).ConfigureAwait(false);
+        await SendMessageAsync(deliveryHash, content, null, null, cancellationToken, audio: audio).ConfigureAwait(false);
+    }
+
+    public async Task<byte[]> LoadImageAsync(string peerHash, Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var message = await FindMessageAsync(peerHash, messageId, cancellationToken).ConfigureAwait(false);
+        var image = message.Image ?? throw new InvalidOperationException("The selected message has no image.");
+        var input = await _attachments.LoadAsync(image.Data, cancellationToken).ConfigureAwait(false);
+        return (await Task.Run(() => SidebandMediaCodec.ValidateImage(image.Format, input, cancellationToken),
+            cancellationToken).ConfigureAwait(false)).EncodedBytes;
+    }
+
+    public async Task<LXST.AudioFrame> LoadAudioAsync(string peerHash, Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var message = await FindMessageAsync(peerHash, messageId, cancellationToken).ConfigureAwait(false);
+        var audio = message.Audio ?? throw new InvalidOperationException("The selected message has no audio.");
+        var data = await _attachments.LoadAsync(audio.Data, cancellationToken).ConfigureAwait(false);
+        return await SidebandMediaCodec.DecodeAudioAsync(audio.Mode, data,
+            Path.Combine(_store.DataDirectory, "media-work"), cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task ExportMediaAsync(string peerHash, Guid messageId, bool audio, string path, CancellationToken cancellationToken = default)
+    {
+        var message = await FindMessageAsync(peerHash, messageId, cancellationToken).ConfigureAwait(false);
+        var data = audio ? message.Audio?.Data : message.Image?.Data;
+        await _attachments.ExportAsync(data ?? throw new InvalidOperationException("The selected message has no requested media."),
+            path, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<SidebandChatMessage> FindMessageAsync(string peerHash, Guid messageId, CancellationToken cancellationToken) =>
+        (await _store.GetMessagesAsync(peerHash, cancellationToken).ConfigureAwait(false)).SingleOrDefault(item => item.Id == messageId)
+        ?? throw new ArgumentException("The selected conversation message was not found.", nameof(messageId));
+
     public async Task ExportAttachmentAsync(string peerHash, Guid messageId, int index, string path, CancellationToken cancellationToken = default)
     {
         var messages = await _store.GetMessagesAsync(peerHash, cancellationToken).ConfigureAwait(false);
@@ -181,9 +240,14 @@ public sealed class SidebandClient : IAsyncDisposable
         await _attachments.ExportAsync(attachments[index], path, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task SendMessageAsync(string deliveryHash, string content, string? attachmentName, byte[]? attachmentData, CancellationToken cancellationToken)
+    private async Task SendMessageAsync(string deliveryHash, string content, string? attachmentName, byte[]? attachmentData,
+        CancellationToken cancellationToken, SidebandEncodedImage? image = null, SidebandEncodedAudio? audio = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(content);
+        ArgumentNullException.ThrowIfNull(content);
+        if (content.Length == 0 && (attachmentData is not null || image is not null || audio is not null))
+            content = " ";
+        else
+            ArgumentException.ThrowIfNullOrWhiteSpace(content);
         if (content.Length > 65_536) throw new ArgumentException("Messages are limited to 65,536 characters.", nameof(content));
         if (!SidebandContact.TryNormalizeDeliveryHash(deliveryHash, out var normalized))
             throw new ArgumentException("An LXMF delivery address must be exactly 32 hexadecimal characters.", nameof(deliveryHash));
@@ -203,15 +267,29 @@ public sealed class SidebandClient : IAsyncDisposable
 
             var method = state.PropagationByDefault ? LxmMethod.Propagated : LxmMethod.Direct;
             IReadOnlyList<SidebandAttachment>? attachments = null;
+            SidebandImage? storedImage = null;
+            SidebandAudio? storedAudio = null;
             Dictionary<object, object?>? fields = null;
             if (attachmentData is not null && attachmentName is not null)
             {
                 attachments = [await _attachments.StoreAsync(attachmentName, attachmentData, owned.Token).ConfigureAwait(false)];
                 fields = new Dictionary<object, object?> { [LxmField.FileAttachments] = new object?[] { new object?[] { attachmentName, attachmentData } } };
             }
+            if (image is not null)
+            {
+                storedImage = new(image.Format, await _attachments.StoreAsync("image." + image.Format, image.EncodedBytes, owned.Token).ConfigureAwait(false));
+                (fields ??= [])[LxmField.Image] = new object?[] { image.Format, image.EncodedBytes };
+            }
+            if (audio is not null)
+            {
+                storedAudio = new(audio.Mode, await _attachments.StoreAsync(audio.Mode == SidebandMediaCodec.OpusOggMode ? "audio.ogg" : "audio.c2",
+                    audio.EncodedBytes, owned.Token).ConfigureAwait(false));
+                (fields ??= [])[LxmField.Audio] = new object?[] { audio.Mode, audio.EncodedBytes };
+            }
             var message = LxMessage.Create(destination, identity, content, fields: fields, method: method);
             message.IncludeTicket = state.Contacts.Any(contact => contact.DeliveryHash == normalized && contact.Trusted);
-            var local = new SidebandChatMessage(Guid.NewGuid(), normalized, false, string.Empty, content, DateTimeOffset.UtcNow, "Queued", attachments, method.ToString());
+            var local = new SidebandChatMessage(Guid.NewGuid(), normalized, false, string.Empty, content, DateTimeOffset.UtcNow, "Queued",
+                attachments, method.ToString(), storedImage, storedAudio);
             await _store.AddMessageAsync(local, owned.Token).ConfigureAwait(false);
             PublishState(await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false));
             var updates = _inbound;
@@ -488,6 +566,37 @@ public sealed class SidebandClient : IAsyncDisposable
                         }
                         attachments = accepted;
                     }
+                    SidebandImage? image = null;
+                    SidebandAudio? audio = null;
+                    var mediaBytes = attachments?.Sum(item => (long)item.Length) ?? 0;
+                    if (received.Message.TryGetField(LxmField.Image, out var imageField))
+                    {
+                        try
+                        {
+                            if (imageField is not object?[] { Length: 2 } pair || pair[0] is not string format || pair[1] is not byte[] data)
+                                throw new InvalidDataException("Malformed LXMF image field.");
+                            if (mediaBytes + data.Length > SidebandAttachmentStore.MaximumMessageBytes)
+                                throw new InvalidDataException("Message media exceed the combined 4 MiB limit.");
+                            var validated = SidebandMediaCodec.ValidateImage(format, data);
+                            image = new(validated.Format, await _attachments.StoreAsync("image." + validated.Format, data, CancellationToken.None).ConfigureAwait(false));
+                            mediaBytes += data.Length;
+                        }
+                        catch (Exception ex) { Report("The received image was not stored; text is retained: " + ex.Message); }
+                    }
+                    if (received.Message.TryGetField(LxmField.Audio, out var audioField))
+                    {
+                        try
+                        {
+                            if (audioField is not object?[] { Length: 2 } pair || pair[0] is not long mode || mode is < 0 or > 255 ||
+                                pair[1] is not byte[] { Length: > 0 } data)
+                                throw new InvalidDataException("Malformed LXMF audio field.");
+                            if (mediaBytes + data.Length > SidebandAttachmentStore.MaximumMessageBytes)
+                                throw new InvalidDataException("Message media exceed the combined 4 MiB limit.");
+                            audio = new((int)mode, await _attachments.StoreAsync(mode == SidebandMediaCodec.OpusOggMode ? "audio.ogg" : "audio.c2",
+                                data, CancellationToken.None).ConfigureAwait(false));
+                        }
+                        catch (Exception ex) { Report("The received audio was not stored; text is retained: " + ex.Message); }
+                    }
                     var content = received.Message.Content ?? "[Non-text LXMF content]";
                     var stored = new SidebandChatMessage(
                         Guid.NewGuid(),
@@ -498,7 +607,9 @@ public sealed class SidebandClient : IAsyncDisposable
                         DateTimeOffset.FromUnixTimeMilliseconds((long)(received.Message.Timestamp * 1000)),
                         "Received",
                         attachments,
-                        received.Message.Method.ToString());
+                        received.Message.Method.ToString(),
+                        image,
+                        audio);
                     await _store.AddMessageAsync(stored).ConfigureAwait(false);
                 }
                 PublishState(await _store.LoadAsync().ConfigureAwait(false));

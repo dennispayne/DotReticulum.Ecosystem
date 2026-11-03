@@ -3,11 +3,14 @@ import argparse
 import base64
 import hashlib
 import inspect
+import io
+import json
 import os
 from pathlib import Path
 import subprocess
 import sys
 import time
+import tempfile
 
 import RNS
 import LXMF
@@ -18,6 +21,17 @@ from reference_environment import verify_reference
 PIN = "d069122af14880e43607aed0b71add4c7806fbe0"
 DIGEST = "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25"
 
+def media_summary(message):
+    fields = message["lxm"].fields
+    result = {}
+    if LXMF.FIELD_IMAGE in fields:
+        fmt, data = fields[LXMF.FIELD_IMAGE]
+        result["image"] = {"format": fmt, "length": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+    if LXMF.FIELD_AUDIO in fields:
+        mode, data = fields[LXMF.FIELD_AUDIO]
+        result["audio"] = {"mode": mode, "length": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+    return result
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -26,6 +40,9 @@ def main():
     parser.add_argument("--rnsd-port", type=int, default=0)
     parser.add_argument("--source", type=Path, required=True)
     args = parser.parse_args()
+    lxst_source = os.environ.get("DOTRETICULUM_LXST_UPSTREAM")
+    if lxst_source:
+        sys.path.insert(0, str(Path(lxst_source).resolve()))
     verify_reference(require_lxmf=True)
     source = args.source.resolve()
     revision = subprocess.check_output(
@@ -90,17 +107,49 @@ def main():
             else:
                 core.untrusted_conversation(destination)
             emit({"event": "trust", "trusted": core.is_trusted(destination)})
-        elif parts[0] in ("send", "send-propagated") and len(parts) == 3:
+        elif parts[0] in ("send", "send-propagated", "send-media", "send-media-propagated") and len(parts) == 3:
             destination = bytes.fromhex(parts[1])
+            media = {}
             content = base64.b64decode(parts[2], validate=True).decode("utf-8")
+            if parts[0].startswith("send-media"):
+                media = json.loads(content)
+                content = media["content"]
+            image = [media["image"]["format"], base64.b64decode(media["image"]["data"], validate=True)] if "image" in media else None
+            audio = [media["audio"]["mode"], base64.b64decode(media["audio"]["data"], validate=True)] if "audio" in media else None
             if RNS.Identity.recall(destination) is None:
                 RNS.Transport.request_path(destination)
                 deadline = time.time() + 20
                 while RNS.Identity.recall(destination) is None and time.time() < deadline:
                     time.sleep(0.05)
-            if not core.send_message(content, destination, parts[0] == "send-propagated"):
+            if not core.send_message(content, destination, parts[0].endswith("propagated"), image=image, audio=audio):
                 raise RuntimeError("Actual Sideband send_message rejected the synthetic test message")
             emit({"event": "sent_queued"})
+        elif parts[0] == "inspect-media" and len(parts) == 3:
+            messages = core.list_messages(bytes.fromhex(parts[1]), limit=32) or []
+            message = next(item for item in messages if item["hash"].hex() == parts[2])
+            fields = message["lxm"].fields
+            result = media_summary(message)
+            if LXMF.FIELD_IMAGE in fields:
+                from PIL import Image
+                with Image.open(io.BytesIO(fields[LXMF.FIELD_IMAGE][1])) as image:
+                    image.load()
+                    result["image"].update({"width": image.width, "height": image.height})
+            if LXMF.FIELD_AUDIO in fields:
+                verify_reference(require_lxmf=True, require_lxst=True)
+                from sbapp.sideband import audioproc
+                mode, data = fields[LXMF.FIELD_AUDIO]
+                if mode == LXMF.AM_OPUS_OGG:
+                    descriptor, filename = tempfile.mkstemp(suffix=".ogg", dir=args.config)
+                    try:
+                        with os.fdopen(descriptor, "wb") as output:
+                            output.write(data)
+                        decoded = audioproc.samples_from_ogg(filename)
+                    finally:
+                        Path(filename).unlink()
+                    result["audio"]["decoded_samples"] = len(decoded)
+                else:
+                    result["audio"]["decoded_samples"] = len(audioproc.decode_codec2(data, mode)) // 2
+            emit({"event": "media-inspected", **result})
         elif parts[0] == "snapshot" and len(parts) == 2:
             messages = core.list_messages(bytes.fromhex(parts[1]), limit=32)
             if messages is None:
@@ -112,6 +161,7 @@ def main():
                  "state": message["state"], "method": message["method"],
                  "incoming": message["dest"] == core.lxmf_destination.hash,
                  "includes_ticket": LXMF.FIELD_TICKET in message["lxm"].fields,
+                 **media_summary(message),
                  "sha256": hashlib.sha256(message["content"]).hexdigest()}
                 for message in messages]})
         else:

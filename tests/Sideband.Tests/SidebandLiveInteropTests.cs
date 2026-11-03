@@ -7,7 +7,7 @@ using Sideband;
 namespace Sideband.Tests;
 
 [Trait("Category", "Integration")]
-public sealed class SidebandLiveInteropTests
+public sealed partial class SidebandLiveInteropTests
 {
     [Theory(SkipWhen = nameof(ApplicationInteropIsDisabled), Skip = "Actual Sideband application interop requires DOTSIDEBAND_LIVE=1, DOTRETICULUM_LIVE=1, pinned reference paths and DOTRETICULUM_SIDEBAND_UPSTREAM.")]
     [InlineData(false, false)]

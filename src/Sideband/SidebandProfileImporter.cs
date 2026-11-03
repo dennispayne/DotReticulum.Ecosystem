@@ -86,9 +86,9 @@ public static class SidebandProfileImporter
                 finally { File.Delete(settingsPath); }
                 var notices = new List<string>
                 {
-                    "LXMF conversation names, addresses, trust and unread flags, text, file attachments and delivery states are activated. Conversation activity timestamps/data, transport/stamp extras, other LXMF fields, voice objects, announces, telemetry and persistent state remain archive-only.",
+                    "LXMF conversation names, addresses, trust and unread flags, text, file/image/audio attachments and delivery states are activated. Conversation activity timestamps/data, transport/stamp extras, other LXMF fields, voice objects, announces, telemetry and unsupported persistent properties remain archive-only.",
                     "The original binary configuration and SQLite snapshot are retained privately in imported-profile. Unknown binary configuration values use hexadecimal JSON projections; the original MessagePack remains authoritative.",
-                    "Reticulum interfaces, LXMF router tickets/ratchets/queues, plugins and other app_storage files are not imported. Configure interfaces in the new private reticulum directory before connecting.",
+                    "Reticulum interfaces, plugins and unknown app_storage files are not imported. Configure interfaces in the new private reticulum directory before connecting.",
                     "Historical signatures are verified only when the source is the imported identity; remote sender identities are not available in this profile snapshot. Import is not live interoperability evidence.",
                 };
                 if (unsupported.Count > 0) notices.Add("Configuration keys retained without native behavior: " + string.Join(", ", unsupported));
@@ -158,18 +158,37 @@ public static class SidebandProfileImporter
                                 importedAttachments.Add(await attachments.StoreAsync(name, content, cancellationToken).ConfigureAwait(false));
                             }
                         }
+                        SidebandImage? image = null;
+                        SidebandAudio? audio = null;
+                        if (message.TryGetField(LxmField.Image, out var imageField))
+                        {
+                            if (imageField is not object?[] { Length: 2 } item || item[0] is not string format || item[1] is not byte[] data)
+                                throw new InvalidDataException("Invalid stored LXMF image field.");
+                            var validated = SidebandMediaCodec.ValidateImage(format, data, cancellationToken);
+                            image = new(validated.Format, await attachments.StoreAsync("image." + validated.Format, data, cancellationToken).ConfigureAwait(false));
+                        }
+                        if (message.TryGetField(LxmField.Audio, out var audioField))
+                        {
+                            if (audioField is not object?[] { Length: 2 } item || item[0] is not long mode || mode is < 0 or > 255 ||
+                                item[1] is not byte[] { Length: > 0 } data)
+                                throw new InvalidDataException("Invalid stored LXMF audio field.");
+                            audio = new((int)mode, await attachments.StoreAsync(mode == SidebandMediaCodec.OpusOggMode ? "audio.ogg" : "audio.c2",
+                                data, cancellationToken).ConfigureAwait(false));
+                        }
                         if (!Enum.IsDefined((LxmState)checked((byte)state))) throw new InvalidDataException("Unknown LXMF delivery state.");
                         messages.Add(new SidebandChatMessage(new Guid(hash.AsSpan(0, 16)), peer, incoming,
                             message.Title, message.Content ?? throw new InvalidDataException("Binary message content is not supported."),
                             DateTimeOffset.UnixEpoch.AddSeconds(message.Timestamp),
                             ((LxmState)state).ToString(), importedAttachments.Count == 0 ? null : importedAttachments,
-                            DeliveryMethod: ((LxmMethod)method).ToString()));
+                            DeliveryMethod: ((LxmMethod)method).ToString(), Image: image, Audio: audio));
                     }
                     var tables = database.Rows("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name", 64);
                     foreach (var table in tables)
-                        if (table[0] is string name && name is not ("conv" or "lxm"))
+                        if (table[0] is string name && name is not ("conv" or "lxm" or "persistent"))
                             notices.Add("Database table retained without native behavior: " + name);
                 }
+                var persistent = await SidebandPersistentProfile.ReadAsync(Path.Combine(archive, "sideband.db"), cancellationToken).ConfigureAwait(false);
+                notices.AddRange(persistent.Notices);
                 var settings = await store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
                 await store.SaveImportedStateAsync(settings with
                 {
@@ -177,11 +196,19 @@ public static class SidebandProfileImporter
                     OwnDeliveryHash = own,
                     Contacts = contacts.OrderBy(contact => contact.DeliveryHash, StringComparer.Ordinal).ToArray(),
                     Messages = messages.OrderBy(message => message.Timestamp).ThenBy(message => message.Id).ToArray(),
+                    LastSynchronization = persistent.LastSynchronization,
+                    SynchronizationRetrying = persistent.SynchronizationRetrying,
                 }, cancellationToken).ConfigureAwait(false);
                 var storage = Path.Combine(staging, "reticulum", "storage");
                 CreatePrivateDirectory(Path.GetDirectoryName(storage)!);
                 CreatePrivateDirectory(storage);
                 IdentityFile.SaveNew(identity, Path.Combine(storage, "sideband"));
+                var routerState = await SidebandRouterProfile.ImportAsync(source, staging, identity, cancellationToken).ConfigureAwait(false);
+                notices.Add($"Imported {routerState.ImportedFiles} known LXMF client-router persistence files.");
+                notices.AddRange(routerState.Notices);
+                var finalSource = await FingerprintAsync(source, files, cancellationToken).ConfigureAwait(false);
+                if (before.Count != finalSource.Count || before.Any(pair => !finalSource.TryGetValue(pair.Key, out var value) || pair.Value != value))
+                    throw new IOException("The source profile changed during validation. Stop upstream Sideband and retry.");
                 // There must be no second identity copy in the retained reference archive.
                 File.Delete(Path.Combine(archive, "primary_identity"));
                 cancellationToken.ThrowIfCancellationRequested();

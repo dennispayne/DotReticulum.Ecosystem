@@ -9,7 +9,9 @@ public sealed record SidebandChatMessage(
     DateTimeOffset Timestamp,
     string DeliveryState,
     IReadOnlyList<SidebandAttachment>? Attachments = null,
-    string DeliveryMethod = "Direct");
+    string DeliveryMethod = "Direct",
+    SidebandImage? Image = null,
+    SidebandAudio? Audio = null);
 
 public sealed record SidebandState(
     int SchemaVersion,

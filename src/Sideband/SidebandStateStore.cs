@@ -415,6 +415,22 @@ public sealed class SidebandStateStore
             if (attachments.Count > 8 || attachments.Sum(attachment => (long)attachment.Length) > SidebandAttachmentStore.MaximumMessageBytes)
                 throw new InvalidDataException("A saved message exceeds attachment count or size limits.");
         }
+        if (message.Image is { } image)
+        {
+            if (image.Format is not ("webp" or "png" or "jpeg"))
+                throw new InvalidDataException("A saved image has an unsupported format.");
+            SidebandAttachmentStore.Validate(image.Data);
+            if (image.Data.Length == 0) throw new InvalidDataException("A saved image is empty.");
+        }
+        if (message.Audio is { } audio)
+        {
+            if (audio.Mode is < 0 or > 255) throw new InvalidDataException("A saved audio mode is invalid.");
+            SidebandAttachmentStore.Validate(audio.Data);
+            if (audio.Data.Length == 0) throw new InvalidDataException("A saved audio message is empty.");
+        }
+        if ((message.Attachments?.Sum(item => (long)item.Length) ?? 0) +
+            (message.Image?.Data.Length ?? 0) + (message.Audio?.Data.Length ?? 0) > SidebandAttachmentStore.MaximumMessageBytes)
+            throw new InvalidDataException("A saved message exceeds its combined 4 MiB media limit.");
     }
 
     private void RestrictDirectoryOnUnix()

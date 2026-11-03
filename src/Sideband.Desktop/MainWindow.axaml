@@ -89,14 +89,31 @@
                   <Button x:Name="MarkConversationUnreadButton" Content="Mark unread" Click="MarkConversationUnreadClicked" />
                 </StackPanel>
               </StackPanel>
-              <ListBox x:Name="MessageList" Grid.Row="1" MinHeight="280" />
+              <StackPanel Grid.Row="1" Spacing="6">
+                <ListBox x:Name="MessageList" MinHeight="240" SelectionChanged="MessageSelectionChanged" />
+                <Image x:Name="MediaPreview" MaxHeight="240" Stretch="Uniform" IsVisible="False" />
+                <TextBlock x:Name="MediaStatusText" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button x:Name="PlayAudioButton" Content="Play selected audio" Click="PlayAudioClicked" />
+                  <Button x:Name="StopAudioButton" Content="Stop audio" IsEnabled="False" Click="StopAudioClicked" />
+                </StackPanel>
+              </StackPanel>
               <TextBox x:Name="MessageBox" Grid.Row="2" AcceptsReturn="True" MinHeight="88"
                        MaxLength="65536" PlaceholderText="Write a text message" />
               <StackPanel Grid.Row="3" Spacing="6">
-                <TextBox x:Name="AttachmentPathBox" PlaceholderText="Optional file attachment path (up to 2 MiB)" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <TextBox x:Name="AttachmentExportPathBox" MinWidth="180" PlaceholderText="Save selected message's first file to..." />
+                  <ComboBox x:Name="AttachmentKindSelector" Width="140" />
+                  <ComboBox x:Name="ImageQualitySelector" Width="170" />
+                  <Button x:Name="RecordAudioButton" Content="Record 10 s" Click="RecordAudioClicked" />
+                  <Button x:Name="ClearRecordingButton" Content="Discard recording" Click="ClearRecordingClicked" />
+                </StackPanel>
+                <TextBox x:Name="AttachmentPathBox" PlaceholderText="Optional file, image or Ogg Opus path (up to 2 MiB)" />
+                <TextBlock x:Name="RecordingStatusText" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBox x:Name="AttachmentExportPathBox" MinWidth="180" PlaceholderText="Export selected message to..." />
                   <Button x:Name="SaveAttachmentButton" Content="Save file" Click="SaveAttachmentClicked" />
+                  <Button Content="Save image" Click="SaveImageClicked" />
+                  <Button Content="Save audio" Click="SaveAudioClicked" />
                   <Button x:Name="SendButton" Content="Send securely" Click="SendClicked" />
                 </StackPanel>
               </StackPanel>
@@ -214,7 +231,7 @@
                        TextWrapping="Wrap" />
             <TextBlock Text="Before connecting, check the selected config path on the Connectivity screen. The default may point to an existing user Reticulum configuration; Sideband never repairs or resets it automatically."
                        TextWrapping="Wrap" />
-            <TextBlock Text="This desktop build supports text conversations, bounded file attachments, contacts, manual propagation, settings exchange and local history. Voice, image/audio messages, maps, telemetry, plugins, and the upstream LAN repository mirror are not available."
+            <TextBlock Text="This desktop build supports text, files, bounded images and audio messages, explicit recording/playback, contacts, propagation, settings exchange and local history. Audio needs separately installed native codecs and operating-system devices. Received media never plays or opens automatically. Voice calls, maps, telemetry, plugins and the upstream LAN repository mirror are not available."
                        TextWrapping="Wrap" />
             <Button Content="Open Connectivity" HorizontalAlignment="Left" Click="OpenConnectivityClicked" />
           </StackPanel>

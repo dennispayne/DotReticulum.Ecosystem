@@ -10,12 +10,19 @@ namespace Sideband.Tests;
 public sealed class SidebandLiveInteropTests
 {
     [Theory(SkipWhen = nameof(ApplicationInteropIsDisabled), Skip = "Actual Sideband application interop requires DOTSIDEBAND_LIVE=1, DOTRETICULUM_LIVE=1, pinned reference paths and DOTRETICULUM_SIDEBAND_UPSTREAM.")]
-    [InlineData(false)]
-    [InlineData(true)]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
     [Trait("Category", "Live")]
-    public async Task ActualPrimarySidebandDaemonPersistsBidirectionalApplicationMessages(bool propagated)
+    public async Task ActualPrimarySidebandDaemonPersistsBidirectionalApplicationMessages(bool propagated, bool trusted)
     {
         var token = TestContext.Current.CancellationToken;
+        using var policy = System.Text.Json.JsonDocument.Parse(await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "Fixtures", "sideband-conversation-policy.json"), token));
+        Assert.Equal("d069122af14880e43607aed0b71add4c7806fbe0", policy.RootElement.GetProperty("revision").GetString());
+        var includesTicket = policy.RootElement.GetProperty("cases").EnumerateArray().Single(item =>
+            item.GetProperty("name").GetString() == (trusted ? "trusted" : "untrusted")).GetProperty("include_ticket").GetBoolean();
         var source = Environment.GetEnvironmentVariable("DOTRETICULUM_SIDEBAND_UPSTREAM")
             ?? throw new InvalidOperationException("Set DOTRETICULUM_SIDEBAND_UPSTREAM to the clean pinned Sideband checkout.");
         int port;
@@ -41,6 +48,10 @@ public sealed class SidebandLiveInteropTests
             var local = (await client.LoadAsync(token)).OwnDeliveryHash!;
             await python.WaitForAnnounce(Convert.FromHexString(local), TimeSpan.FromSeconds(30));
             await python.Command("announce", "announced", TimeSpan.FromSeconds(30));
+            await client.AddContactAsync("Actual Sideband", python.HashHex, token);
+            await client.SetConversationTrustAsync(python.HashHex, trusted, token);
+            var trust = await python.Command($"trust {local} {(trusted ? "yes" : "no")}", "trust", TimeSpan.FromSeconds(10));
+            Assert.Equal(trusted, trust.GetProperty("trusted").GetBoolean());
             if (propagation is not null)
             {
                 var ready = await propagation.Command("enable-pn", "pn-ready", TimeSpan.FromSeconds(30));
@@ -63,6 +74,13 @@ public sealed class SidebandLiveInteropTests
                 var snapshot = await python.Command("snapshot " + local, "snapshot", TimeSpan.FromSeconds(10));
                 found = snapshot.GetProperty("messages").EnumerateArray().Any(message =>
                     message.GetProperty("incoming").GetBoolean() && message.GetProperty("sha256").GetString() == expected);
+                if (found)
+                {
+                    Assert.Equal(includesTicket, snapshot.GetProperty("has_ticket").GetBoolean());
+                    Assert.Equal(includesTicket, snapshot.GetProperty("messages").EnumerateArray().Single(message =>
+                        message.GetProperty("incoming").GetBoolean() && message.GetProperty("sha256").GetString() == expected)
+                        .GetProperty("includes_ticket").GetBoolean());
+                }
                 if (!found) await Task.Delay(100, token);
             }
             Assert.True(found, "The actual Sideband application's list_messages API did not return the incoming message.");
@@ -77,6 +95,16 @@ public sealed class SidebandLiveInteropTests
             var received = await WaitForMessageAsync(client, python.HashHex, token);
             Assert.Equal(incoming, received.Content);
             Assert.Equal("Received", received.DeliveryState);
+            Assert.True((await client.LoadAsync(token)).Contacts.Single(contact => contact.DeliveryHash == python.HashHex).Unread);
+            await client.SetConversationReadAsync(python.HashHex, true, token);
+            await client.DisconnectAsync();
+            using var tickets = new LXMF.LxmTicketStore(Path.Combine(root, "data", "lxmf", "available_tickets"));
+            var replyTicket = tickets.GetOutbound(Convert.FromHexString(python.HashHex));
+            try { Assert.Equal(includesTicket, replyTicket is not null); }
+            finally { if (replyTicket is not null) System.Security.Cryptography.CryptographicOperations.ZeroMemory(replyTicket.Token); }
+            var persisted = await new SidebandStateStore(Path.Combine(root, "data")).LoadAsync(cancellationToken: token);
+            Assert.Equal(trusted, persisted.Contacts.Single(contact => contact.DeliveryHash == python.HashHex).Trusted);
+            Assert.False(persisted.Contacts.Single(contact => contact.DeliveryHash == python.HashHex).Unread);
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
     }

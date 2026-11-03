@@ -29,6 +29,12 @@ Describe 'sideband upstream desktop-profile migration' -Tag 'Native', 'ProfileIm
         $state.periodicSynchronization | Should -BeTrue
         $state.messages.Count | Should -Be 2
         $state.contacts[0].displayName | Should -Be 'Reference contact'
+        $state.contacts[0].trusted | Should -Be $observations.conversationTrusted
+        $state.contacts[0].unread | Should -Be $observations.conversationUnread
+        $observations.mainDatabaseTrusted | Should -BeFalse
+        $observations.mainDatabaseUnread | Should -BeFalse
+        $observations.conversationTrusted | Should -BeTrue
+        $observations.conversationUnread | Should -BeTrue
         ($state.messages | Where-Object incoming).deliveryMethod | Should -Be 'Direct'
         ($state.messages | Where-Object { -not $_.incoming }).deliveryMethod | Should -Be 'Propagated'
         $attachment = ($state.messages | Where-Object incoming).attachments[0]

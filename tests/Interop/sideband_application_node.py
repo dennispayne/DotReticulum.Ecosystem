@@ -81,6 +81,15 @@ def main():
             if state != LXMF.LXMRouter.PR_COMPLETE:
                 raise RuntimeError(f"Actual application retrieval did not complete: {state}")
             emit({"event": "retrieved"})
+        elif parts[0] == "trust" and len(parts) == 3 and parts[2] in ("yes", "no"):
+            destination = bytes.fromhex(parts[1])
+            if not core.has_conversation(destination):
+                core.create_conversation(destination)
+            if parts[2] == "yes":
+                core.trusted_conversation(destination)
+            else:
+                core.untrusted_conversation(destination)
+            emit({"event": "trust", "trusted": core.is_trusted(destination)})
         elif parts[0] in ("send", "send-propagated") and len(parts) == 3:
             destination = bytes.fromhex(parts[1])
             content = base64.b64decode(parts[2], validate=True).decode("utf-8")
@@ -94,10 +103,15 @@ def main():
             emit({"event": "sent_queued"})
         elif parts[0] == "snapshot" and len(parts) == 2:
             messages = core.list_messages(bytes.fromhex(parts[1]), limit=32)
-            emit({"event": "snapshot", "messages": [
+            if messages is None:
+                messages = []
+            emit({"event": "snapshot",
+                  "has_ticket": core.message_router.get_outbound_ticket(bytes.fromhex(parts[1])) is not None,
+                  "messages": [
                 {"hash": message["hash"].hex(), "source": message["source"].hex(),
                  "state": message["state"], "method": message["method"],
                  "incoming": message["dest"] == core.lxmf_destination.hash,
+                 "includes_ticket": LXMF.FIELD_TICKET in message["lxm"].fields,
                  "sha256": hashlib.sha256(message["content"]).hexdigest()}
                 for message in messages]})
         else:

@@ -1,0 +1,37 @@
+{
+    "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+    "source_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+    "method": "actual is_trusted and send_message; injected database, message factory, destination, router and ingestion APIs",
+    "cases": [
+        {
+            "name": "missing",
+            "database_trust": null,
+            "trusted": false,
+            "include_ticket": false
+        },
+        {
+            "name": "untrusted",
+            "database_trust": 0,
+            "trusted": false,
+            "include_ticket": false
+        },
+        {
+            "name": "trusted",
+            "database_trust": 1,
+            "trusted": true,
+            "include_ticket": true
+        },
+        {
+            "name": "other-nonzero",
+            "database_trust": 2,
+            "trusted": false,
+            "include_ticket": false
+        },
+        {
+            "name": "negative",
+            "database_trust": -1,
+            "trusted": false,
+            "include_ticket": false
+        }
+    ]
+}

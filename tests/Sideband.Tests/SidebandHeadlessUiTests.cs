@@ -93,6 +93,52 @@ public sealed class SidebandHeadlessUiTests
     }
 
     [AvaloniaFact]
+    public async Task ConversationTrustUnreadAndReadingSurviveWindowRestart()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "sideband-conversation-ui-" + Guid.NewGuid().ToString("N"));
+        const string peer = "00112233445566778899aabbccddeeff";
+        MainWindow? window = null;
+        try
+        {
+            var store = new SidebandStateStore(path);
+            await store.AddContactAsync(SidebandContact.Create("Policy peer", peer));
+            await store.AddMessageAsync(new SidebandChatMessage(Guid.NewGuid(), peer, true, "", "Unread note",
+                DateTimeOffset.UtcNow, "Received"));
+            window = new MainWindow(path, Path.Combine(path, "isolated-rns"));
+            window.Show();
+            await WaitForAsync(() => window.FindControl<ListBox>("MessageList")?.ItemCount == 1);
+            window.Activate();
+            await WaitForAsync(() => window.IsActive);
+            await WaitForAsync(() => window.FindControl<ListBox>("ContactList")?.ItemsSource?.Cast<string>().All(
+                item => !item.Contains("[Unread]", StringComparison.Ordinal)) == true);
+            window.FindControl<CheckBox>("TrustConversationBox")!.IsChecked = true;
+            window.FindControl<Button>("SaveConversationTrustButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => window.FindControl<TextBlock>("StatusText")?.Text?.StartsWith("Conversation trust saved", StringComparison.Ordinal) == true);
+            window.FindControl<Button>("MarkConversationUnreadButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => window.FindControl<TextBlock>("StatusText")?.Text == "Conversation marked unread.");
+            Assert.True(window.FindControl<ScrollViewer>("ContactsPage")!.IsVisible);
+            Assert.Contains("[Unread]", Assert.Single(window.FindControl<ListBox>("ExpandedContactList")!.ItemsSource!.Cast<string>()));
+            await window.CloseAndWaitAsync();
+            var persisted = Assert.Single((await new SidebandStateStore(path).LoadAsync()).Contacts);
+            Assert.True(persisted.Trusted);
+            Assert.True(persisted.Unread);
+            window = new MainWindow(path, Path.Combine(path, "isolated-rns"));
+            window.Show();
+            window.Activate();
+            await WaitForAsync(() => window.FindControl<CheckBox>("TrustConversationBox")?.IsChecked == true);
+            await WaitForAsync(() => window.FindControl<ListBox>("ContactList")?.ItemsSource?.Cast<string>().All(
+                item => !item.Contains("[Unread]", StringComparison.Ordinal)) == true);
+            await window.CloseAndWaitAsync();
+            Assert.False(Assert.Single((await new SidebandStateStore(path).LoadAsync()).Contacts).Unread);
+        }
+        finally
+        {
+            if (window?.IsVisible == true) await window.CloseAndWaitAsync();
+            if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task WindowPresentsChatControlsAndReportsSendWithoutSelection()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "sideband-ui-test-" + Guid.NewGuid().ToString("N"));

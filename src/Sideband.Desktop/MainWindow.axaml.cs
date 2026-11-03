@@ -17,6 +17,7 @@ public sealed partial class MainWindow : Window
     private readonly CancellationTokenSource _windowCancellation = new();
     private readonly object _operationGate = new();
     private readonly HashSet<Task> _pendingOperations = [];
+    private readonly HashSet<string> _markingRead = [];
     private readonly TaskCompletionSource _closedCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly bool _smokeUi;
     private Task _initializationTask = Task.CompletedTask;
@@ -49,6 +50,7 @@ public sealed partial class MainWindow : Window
         Closed += OnClosed;
         Closing += OnClosing;
         Opened += OnOpened;
+        Activated += (_, _) => MarkVisibleConversationRead();
         NavigateTo("Conversations");
         UpdateConnectivityView();
     }
@@ -88,6 +90,7 @@ public sealed partial class MainWindow : Window
         };
         if (page == "Connectivity") UpdateConnectivityView();
         if (page == "Contacts") RefreshExpandedContacts();
+        if (page == "Conversations") MarkVisibleConversationRead();
     }
 
     private async void OnOpened(object? sender, EventArgs e)
@@ -366,7 +369,45 @@ public sealed partial class MainWindow : Window
         if (ContactList.SelectedIndex < 0 || _state is null || ContactList.SelectedIndex >= _state.Contacts.Count) return;
         _selectedContact = _state.Contacts[ContactList.SelectedIndex].DeliveryHash;
         ConversationPeerText.Text = _state.Contacts[ContactList.SelectedIndex].DisplayName + " · " + _selectedContact;
+        TrustConversationBox.IsChecked = _state.Contacts[ContactList.SelectedIndex].Trusted;
         await RefreshMessagesAsync(_windowCancellation.Token);
+    }
+
+    private void SaveConversationTrustClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
+    {
+        try
+        {
+            var peer = _selectedContact ?? throw new InvalidOperationException("Select a conversation before changing trust.");
+            await _client.SetConversationTrustAsync(peer, TrustConversationBox.IsChecked == true, _windowCancellation.Token);
+            SetStatus("Conversation trust saved. Trusted outgoing messages request a signed reply ticket.");
+        }
+        catch (Exception ex) { ShowError("Could not save conversation trust: " + ex.Message); }
+    });
+
+    private void MarkConversationUnreadClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
+    {
+        try
+        {
+            var peer = _selectedContact ?? throw new InvalidOperationException("Select a conversation before marking it unread.");
+            NavigateTo("Contacts");
+            await _client.SetConversationReadAsync(peer, false, _windowCancellation.Token);
+            SetStatus("Conversation marked unread.");
+        }
+        catch (Exception ex) { ShowError("Could not mark the conversation unread: " + ex.Message); }
+    });
+
+    private void MarkVisibleConversationRead()
+    {
+        if (_closing || !ConversationsPage.IsVisible || !IsActive || _selectedContact is not { } peer ||
+            _state?.Contacts.Any(contact => contact.DeliveryHash == peer && contact.Unread) != true ||
+            !_markingRead.Add(peer)) return;
+        TrackOperation(async () =>
+        {
+            try { await _client.SetConversationReadAsync(peer, true, _windowCancellation.Token); }
+            catch (OperationCanceledException) when (_windowCancellation.IsCancellationRequested) { }
+            catch (Exception ex) { ShowError("Could not mark the conversation read: " + ex.Message); }
+            finally { _markingRead.Remove(peer); }
+        });
     }
 
     private void OnStateChanged(SidebandState state)
@@ -396,7 +437,7 @@ public sealed partial class MainWindow : Window
         if (_state is null) return;
         var oldSelection = _selectedContact;
         ContactList.ItemsSource = _state.Contacts
-            .Select(contact => $"{contact.DisplayName}  ·  {contact.DeliveryHash}")
+            .Select(FormatContact)
             .ToArray();
         var selectedIndex = _state.Contacts.ToList().FindIndex(contact => contact.DeliveryHash == oldSelection);
         if (selectedIndex >= 0) ContactList.SelectedIndex = selectedIndex;
@@ -408,22 +449,27 @@ public sealed partial class MainWindow : Window
     {
         if (_state is null) return;
         ExpandedContactList.ItemsSource = _state.Contacts
-            .Select(contact => $"{contact.DisplayName}  ·  {contact.DeliveryHash}")
+            .Select(FormatContact)
             .ToArray();
     }
 
+    private static string FormatContact(SidebandContact contact) =>
+        $"{(contact.Unread ? "[Unread] " : string.Empty)}{contact.DisplayName}  ·  {contact.DeliveryHash}{(contact.Trusted ? "  [Trusted]" : string.Empty)}";
+
     private async Task RefreshMessagesAsync(CancellationToken cancellationToken = default)
     {
-        if (_selectedContact is null) return;
+        if (_selectedContact is not { } peer) return;
         try
         {
-            var messages = await _client.GetMessagesAsync(_selectedContact, cancellationToken);
+            var messages = await _client.GetMessagesAsync(peer, cancellationToken);
+            if (_selectedContact != peer || _closing) return;
             _visibleMessages = messages;
             MessageList.ItemsSource = messages.Select(message =>
                 $"{message.Timestamp.LocalDateTime:g}  {(message.Incoming ? "Received" : message.DeliveryState)} ({message.DeliveryMethod})\n{message.Content}" +
                 (message.Attachments is { Count: > 0 } files ? "\nFiles: " + string.Join(", ", files.Select(file => $"{file.Name} ({file.Length} bytes)")) : string.Empty))
                 .ToArray();
             if (messages.Count > 0) MessageList.ScrollIntoView(messages.Count - 1);
+            MarkVisibleConversationRead();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (Exception ex) { ShowError("Could not load conversation: " + ex.Message); }

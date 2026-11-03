@@ -83,6 +83,11 @@
                 <TextBlock FontSize="24" FontWeight="SemiBold" Text="Messages" />
                 <TextBlock x:Name="ConversationPeerText" Margin="0,4,0,0"
                            Foreground="{DynamicResource SecondaryTextBrush}" Text="Select a contact" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <CheckBox x:Name="TrustConversationBox" Content="Trusted contact (include reply tickets)" />
+                  <Button x:Name="SaveConversationTrustButton" Content="Save trust" Click="SaveConversationTrustClicked" />
+                  <Button x:Name="MarkConversationUnreadButton" Content="Mark unread" Click="MarkConversationUnreadClicked" />
+                </StackPanel>
               </StackPanel>
               <ListBox x:Name="MessageList" Grid.Row="1" MinHeight="280" />
               <TextBox x:Name="MessageBox" Grid.Row="2" AcceptsReturn="True" MinHeight="88"
@@ -163,7 +168,7 @@
         <ScrollViewer x:Name="IdentityPage" IsVisible="False" Margin="24">
           <StackPanel Spacing="14">
             <TextBlock FontSize="26" FontWeight="SemiBold" Text="Backup &amp; Keys" />
-            <TextBlock Text="The app uses the Reticulum identity stored under its selected Reticulum configuration. Private-key export and identity import are not included; this page only shows the public address after connecting."
+            <TextBlock Text="The app uses the Reticulum identity stored under its selected Reticulum configuration. The offline --import-profile command can migrate an upstream profile into a new data directory; this page never displays or exports private keys."
                        TextWrapping="Wrap" />
             <TextBlock x:Name="IdentityHashText" Text="Identity: not available while offline" TextWrapping="Wrap" />
             <TextBlock x:Name="DeliveryHashText" Text="LXMF address: not available while offline" TextWrapping="Wrap" />

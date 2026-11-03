@@ -86,7 +86,7 @@ public static class SidebandProfileImporter
                 finally { File.Delete(settingsPath); }
                 var notices = new List<string>
                 {
-                    "Only LXMF conversation names, addresses, text, file attachments and delivery states are activated. Trust, unread counters, conversation data, transport/stamp extras, other LXMF fields, voice objects, announces, telemetry and persistent state remain archive-only.",
+                    "LXMF conversation names, addresses, trust and unread flags, text, file attachments and delivery states are activated. Conversation activity timestamps/data, transport/stamp extras, other LXMF fields, voice objects, announces, telemetry and persistent state remain archive-only.",
                     "The original binary configuration and SQLite snapshot are retained privately in imported-profile. Unknown binary configuration values use hexadecimal JSON projections; the original MessagePack remains authoritative.",
                     "Reticulum interfaces, LXMF router tickets/ratchets/queues, plugins and other app_storage files are not imported. Configure interfaces in the new private reticulum directory before connecting.",
                     "Historical signatures are verified only when the source is the imported identity; remote sender identities are not available in this profile snapshot. Import is not live interoperability evidence.",
@@ -98,7 +98,7 @@ public static class SidebandProfileImporter
                 {
                     ValidateSchema(database, "conv", ["dest_context", "last_tx", "last_rx", "unread", "type", "trust", "name", "data"]);
                     ValidateSchema(database, "lxm", ["lxm_hash", "dest", "source", "title", "tx_ts", "rx_ts", "state", "method", "t_encrypted", "t_encryption", "data", "extra"]);
-                    foreach (var row in database.Rows("SELECT dest_context, type, name FROM conv LIMIT 1001", 1_000))
+                    foreach (var row in database.Rows("SELECT dest_context, type, name, trust, unread FROM conv LIMIT 1001", 1_000))
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         var hash = Bytes(row[0], 16, "conversation address");
@@ -115,7 +115,8 @@ public static class SidebandProfileImporter
                             string text => text,
                             _ => throw new InvalidDataException("Invalid conversation name."),
                         };
-                        contacts.Add(SidebandContact.Create(string.IsNullOrWhiteSpace(name) ? address : name, address));
+                        contacts.Add(SidebandContact.Create(string.IsNullOrWhiteSpace(name) ? address : name, address,
+                            ReadFlag(row[3], "conversation trust"), ReadFlag(row[4], "conversation unread")));
                     }
                     var attachments = new SidebandAttachmentStore(staging);
                     foreach (var row in database.Rows("SELECT lxm_hash, dest, source, state, method, data FROM lxm LIMIT 10001", 10_000))
@@ -193,6 +194,9 @@ public static class SidebandProfileImporter
 
     private static byte[] Bytes(object? value, int length, string description) =>
         value is byte[] bytes && bytes.Length == length ? bytes : throw new InvalidDataException("Invalid " + description + ".");
+
+    private static bool ReadFlag(object? value, string description) =>
+        value is long flag && flag is 0 or 1 ? flag == 1 : throw new InvalidDataException("Invalid " + description + " flag; expected integer 0 or 1.");
 
     private static void ValidateSchema(ProfileSqlite database, string table, string[] columns)
     {

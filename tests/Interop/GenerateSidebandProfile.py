@@ -4,7 +4,7 @@ GUI/audio/telemetry/plugin/resource imports are inert dependency stubs. The actu
 SidebandCore database/configuration methods and installed RNS/LXMF run unchanged.
 No GUI, networking, telemetry or plugin interoperability is claimed by this adapter.
 The output profile contains a fresh private identity: keep it in ignored artifacts.
-The optional public fixture contains only an empty DB and non-secret synthetic config.
+The optional public fixture contains an empty DB, synthetic config and non-secret conversation observations.
 """
 import argparse
 import base64
@@ -14,10 +14,12 @@ import json
 import os
 from pathlib import Path
 import shutil
+import sqlite3
 import subprocess
 import sys
 import threading
 import types
+from contextlib import closing
 
 
 def main():
@@ -83,9 +85,12 @@ def main():
     core.config_path = str(work / "sideband_config")
     core.app_dir = str(work)
     core.saving_configuration = False
-    core.is_client = False
+    core.is_client = True
     core.is_service = False
     core.is_daemon = False
+    core.state_lock = threading.Lock()
+    core.state_db = {}
+    core.service_stopped = False
     core.config = {
         "display_name": "Python Profile",
         "dark_ui": False,
@@ -104,11 +109,10 @@ def main():
         fixture = {
             "upstream": revision,
             "coreSha256": fingerprint, "mainSha256": main_fingerprint,
-            "method": "Actual SidebandCore.__db_init and __save_config; inert unused subsystem imports",
+            "method": "Actual SidebandCore.__db_init, __save_config, conversation trust/read/name setters and lxm_ingest; inert unused subsystem imports",
             "emptyDatabase": base64.b64encode(Path(core.db_path).read_bytes()).decode(),
             "configuration": base64.b64encode(Path(core.config_path).read_bytes()).decode(),
         }
-        args.public_fixture.write_text(json.dumps(fixture, indent=2) + "\n", encoding="utf-8")
     own = RNS.Identity()
     peer = RNS.Identity()
     own.to_file(str(work / "primary_identity"))
@@ -116,15 +120,52 @@ def main():
     peer_dest = RNS.Destination(peer, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")
     core._SidebandCore__event_conversations_changed = lambda: None
     core._db_create_conversation(peer_dest.hash, name="Reference contact", trust=True)
+    conversation_transitions = []
+
+    def observe_conversation(operation):
+        conversation = core._db_conversation(peer_dest.hash)
+        conversation_transitions.append({
+            "operation": operation,
+            "trusted": core.is_trusted(peer_dest.hash),
+            "unread": bool(conversation["unread"]),
+            "name": conversation["name"],
+        })
+
+    observe_conversation("created_trusted")
+    core.untrusted_conversation(peer_dest.hash)
+    observe_conversation("untrusted")
+    core.trusted_conversation(peer_dest.hash)
+    observe_conversation("trusted")
+    core.unread_conversation(peer_dest.hash)
+    observe_conversation("marked_unread")
+    core._db_conversation_set_name(peer_dest.hash, "Renamed contact")
+    observe_conversation("renamed_unread")
+    core._db_conversation_set_name(peer_dest.hash, "Reference contact")
+    core.read_conversation(peer_dest.hash)
+    observe_conversation("read")
+    missing_context = bytes.fromhex("ff" * 16)
+    core.trusted_conversation(missing_context)
+    core.unread_conversation(missing_context)
+    core.read_conversation(missing_context)
+    missing_conversation_created = core.has_conversation(missing_context)
+    core.untrusted_conversation(peer_dest.hash)
     core.db.execute("PRAGMA journal_mode=WAL")
     core.db.execute("PRAGMA wal_autocheckpoint=0")
+    core.trusted_conversation(peer_dest.hash)
     outgoing = LXMF.LXMessage(peer_dest, own_dest, "Native migration outbound", "Outgoing",
                               desired_method=LXMF.LXMessage.PROPAGATED)
     outgoing.timestamp = 1760000000.25
     outgoing.state = LXMF.LXMessage.DELIVERED
     outgoing.pack()
     outgoing.method = LXMF.LXMessage.PROPAGATED
-    core._db_save_lxm(outgoing, peer_dest.hash, originator=True)
+    core.setstate("app.displaying", "conversations_screen")
+    core.lxm_ingest(outgoing, originator=True)
+    observe_conversation("outgoing_unselected")
+    core.read_conversation(peer_dest.hash)
+    core.setstate("app.displaying", "messages_screen")
+    core.setstate("app.active_conversation", peer_dest.hash)
+    core.lxm_ingest(outgoing, originator=True)
+    observe_conversation("outgoing_selected")
     incoming = LXMF.LXMessage(own_dest, peer_dest, "Native migration inbound", "Incoming",
                               fields={LXMF.FIELD_FILE_ATTACHMENTS: [["reference.txt", b"Python attachment\n"]],
                                       LXMF.FIELD_RENDERER: 2},
@@ -133,7 +174,11 @@ def main():
     incoming.state = LXMF.LXMessage.DELIVERED
     incoming.pack()
     incoming.method = LXMF.LXMessage.DIRECT
-    core._db_save_lxm(incoming, peer_dest.hash)
+    core.lxm_ingest(incoming)
+    observe_conversation("incoming_selected")
+    core.setstate("app.displaying", "conversations_screen")
+    core.lxm_ingest(incoming)
+    observe_conversation("incoming_unselected")
     storage = output / "app_storage"
     storage.mkdir(mode=0o700)
     for name in ["primary_identity", "sideband_config", "sideband.db", "sideband.db-wal", "sideband.db-shm"]:
@@ -143,6 +188,10 @@ def main():
     observed = core._db_message(incoming.hash)
     if observed["content"] != incoming.content:
         raise RuntimeError("Upstream persistence readback failed")
+    # This diagnostic intentionally excludes WAL, proving both activated flags
+    # differ from the main file and must come from the consistent WAL snapshot.
+    with closing(sqlite3.connect(Path(core.db_path).as_uri() + "?immutable=1", uri=True)) as main_only:
+        main_trust, main_unread = main_only.execute("SELECT trust, unread FROM conv").fetchone()
     metadata = {
         "upstream": revision, "coreSha256": fingerprint, "mainSha256": main_fingerprint,
         "rnsRevision": PINNED_RNS_SHA, "lxmfRevision": PINNED_LXMF_SHA,
@@ -150,10 +199,19 @@ def main():
         "lxmfModule": str(Path(LXMF.__file__).resolve()), "lxmfVersion": LXMF.__version__,
         "ownDeliveryHash": own_dest.hash.hex(), "peerDeliveryHash": peer_dest.hash.hex(),
         "incomingHash": incoming.hash.hex(), "outgoingHash": outgoing.hash.hex(),
+        "conversationTransitions": conversation_transitions,
+        "conversationTrusted": core.is_trusted(peer_dest.hash),
+        "conversationUnread": bool(core._db_conversation(peer_dest.hash)["unread"]),
+        "mainDatabaseTrusted": bool(main_trust), "mainDatabaseUnread": bool(main_unread),
+        "missingConversationCreated": missing_conversation_created,
         "walBytes": (storage / "sideband.db-wal").stat().st_size,
         "disclosure": "Actual unchanged persistence methods with inert unused GUI/telemetry/plugin/resource imports",
     }
     (output / "observations.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+    if args.public_fixture:
+        fixture["conversationTransitions"] = conversation_transitions
+        fixture["missingConversationCreated"] = missing_conversation_created
+        args.public_fixture.write_text(json.dumps(fixture, indent=2) + "\n", encoding="utf-8")
     core.db.close()
     shutil.rmtree(work)
     print(json.dumps(metadata))

@@ -11,7 +11,7 @@ namespace Sideband.Tests;
 // GenerateSidebandProfile.py executes unchanged persistence methods at primary Sideband
 // d069122af14880e43607aed0b71add4c7806fbe0; core.py SHA-256
 // 8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25.
-// The committed fixture is an empty upstream-created database and non-secret synthetic config.
+// The committed fixture contains an empty upstream-created database, synthetic config and conversation observations.
 [Trait("Category", "Integration")]
 public sealed class SidebandProfileImportTests
 {
@@ -42,7 +42,8 @@ public sealed class SidebandProfileImportTests
         Assert.Equal(await File.ReadAllBytesAsync(Path.Combine(profile.Source, "sideband_config"), TestContext.Current.CancellationToken),
             await File.ReadAllBytesAsync(Path.Combine(profile.Target, "imported-profile", "sideband_config"), TestContext.Current.CancellationToken));
         Assert.Contains(result.Notices, notice => notice.Contains("profile_fixture_unknown", StringComparison.Ordinal));
-        Assert.Contains(result.Notices, notice => notice.Contains("Trust, unread", StringComparison.Ordinal));
+        Assert.Contains(result.Notices, notice => notice.Contains("trust and unread flags", StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Notices, notice => notice.Contains("Trust, unread counters", StringComparison.Ordinal));
         if (!OperatingSystem.IsWindows())
         {
             Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite,
@@ -138,6 +139,8 @@ public sealed class SidebandProfileImportTests
         Assert.Equal(1, result.Messages);
         var state = await new SidebandStateStore(profile.Target).LoadAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("Reference contact", Assert.Single(state.Contacts).DisplayName);
+        Assert.True(Assert.Single(state.Contacts).Trusted);
+        Assert.True(Assert.Single(state.Contacts).Unread);
         var message = Assert.Single(state.Messages);
         Assert.False(message.Incoming);
         Assert.Equal("Test content", message.Content);
@@ -152,6 +155,64 @@ public sealed class SidebandProfileImportTests
         Assert.Equal("Direct", Assert.Single((await store.LoadAsync(cancellationToken: TestContext.Current.CancellationToken)).Messages).DeliveryMethod);
         await Assert.ThrowsAsync<InvalidDataException>(() => store.UpdateMessageStateAsync(message.Id, "Failed",
             TestContext.Current.CancellationToken, deliveryMethod: "Invented"));
+    }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(0, 1)]
+    [InlineData(1, 0)]
+    [InlineData(1, 1)]
+    public async Task ImportPreservesPersistedTrustAndUnreadWithoutReplayingHistory(int trust, int unread)
+    {
+        using var profile = new Profile();
+        AddMessage(profile, "valid");
+        WriteSql(Path.Combine(profile.Source, "sideband.db"), $"UPDATE conv SET trust={trust}, unread={unread}");
+        var before = profile.Fingerprint();
+        await SidebandProfileImporter.ImportAsync(profile.Source, profile.Target, TestContext.Current.CancellationToken);
+        var state = await new SidebandStateStore(profile.Target).LoadAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var contact = Assert.Single(state.Contacts);
+        Assert.Equal(trust == 1, contact.Trusted);
+        Assert.Equal(unread == 1, contact.Unread);
+        Assert.Single(state.Messages);
+        Assert.Equal(before, profile.Fingerprint());
+    }
+
+    [Theory]
+    [InlineData("trust", "2")]
+    [InlineData("trust", "-1")]
+    [InlineData("trust", "NULL")]
+    [InlineData("trust", "'true'")]
+    [InlineData("trust", "0.5")]
+    [InlineData("unread", "2")]
+    [InlineData("unread", "-1")]
+    [InlineData("unread", "NULL")]
+    [InlineData("unread", "'true'")]
+    [InlineData("unread", "0.5")]
+    public async Task MalformedConversationFlagsRejectTransactionWithoutChangingSource(string column, string value)
+    {
+        using var profile = new Profile();
+        AddMessage(profile, "valid");
+        WriteSql(Path.Combine(profile.Source, "sideband.db"), $"UPDATE conv SET {column}={value}");
+        var before = profile.Fingerprint();
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            SidebandProfileImporter.ImportAsync(profile.Source, profile.Target, TestContext.Current.CancellationToken));
+        Assert.False(Directory.Exists(profile.Target));
+        Assert.Equal(before, profile.Fingerprint());
+        Assert.Empty(Directory.GetDirectories(profile.Root, ".native.import-*"));
+    }
+
+    [Fact]
+    public async Task NonLxmfConversationFlagsRemainArchiveOnly()
+    {
+        using var profile = new Profile();
+        WriteSql(Path.Combine(profile.Source, "sideband.db"),
+            "INSERT INTO conv VALUES(randomblob(16),0,0,-1,4,2,X'566f696365',X'C0')");
+        var result = await SidebandProfileImporter.ImportAsync(profile.Source, profile.Target, TestContext.Current.CancellationToken);
+        var state = await new SidebandStateStore(profile.Target).LoadAsync(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Empty(state.Contacts);
+        Assert.Empty(state.Messages);
+        Assert.Contains(result.Notices, notice => notice.Contains("non-LXMF conversation", StringComparison.Ordinal));
+        Assert.True(File.Exists(Path.Combine(profile.Target, "imported-profile", "sideband.db")));
     }
 
     [Fact]
@@ -224,6 +285,13 @@ public sealed class SidebandProfileImportTests
         Assert.Equal(before, profile.Fingerprint());
         using var observations = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(reference, "observations.json"), TestContext.Current.CancellationToken));
         Assert.Equal(observations.RootElement.GetProperty("ownDeliveryHash").GetString(), state.OwnDeliveryHash);
+        var contact = Assert.Single(state.Contacts);
+        Assert.Equal(observations.RootElement.GetProperty("conversationTrusted").GetBoolean(), contact.Trusted);
+        Assert.Equal(observations.RootElement.GetProperty("conversationUnread").GetBoolean(), contact.Unread);
+        Assert.False(observations.RootElement.GetProperty("mainDatabaseTrusted").GetBoolean());
+        Assert.False(observations.RootElement.GetProperty("mainDatabaseUnread").GetBoolean());
+        Assert.True(contact.Trusted);
+        Assert.True(contact.Unread);
         var incoming = Assert.Single(state.Messages, message => message.Incoming);
         Assert.Equal("Native migration inbound", incoming.Content);
         Assert.Equal("Direct", incoming.DeliveryMethod);

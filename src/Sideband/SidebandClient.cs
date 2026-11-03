@@ -144,6 +144,20 @@ public sealed class SidebandClient : IAsyncDisposable
         PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
     }
 
+    public async Task SetConversationTrustAsync(string deliveryHash, bool trusted, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _store.SetConversationTrustAsync(deliveryHash, trusted, cancellationToken).ConfigureAwait(false);
+        PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
+    }
+
+    public async Task SetConversationReadAsync(string deliveryHash, bool read, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _store.SetConversationReadAsync(deliveryHash, read, cancellationToken).ConfigureAwait(false);
+        PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
+    }
+
     public Task SendTextAsync(string deliveryHash, string content, CancellationToken cancellationToken = default) =>
         SendMessageAsync(deliveryHash, content, null, null, cancellationToken);
 
@@ -196,6 +210,7 @@ public sealed class SidebandClient : IAsyncDisposable
                 fields = new Dictionary<object, object?> { [LxmField.FileAttachments] = new object?[] { new object?[] { attachmentName, attachmentData } } };
             }
             var message = LxMessage.Create(destination, identity, content, fields: fields, method: method);
+            message.IncludeTicket = state.Contacts.Any(contact => contact.DeliveryHash == normalized && contact.Trusted);
             var local = new SidebandChatMessage(Guid.NewGuid(), normalized, false, string.Empty, content, DateTimeOffset.UtcNow, "Queued", attachments, method.ToString());
             await _store.AddMessageAsync(local, owned.Token).ConfigureAwait(false);
             PublishState(await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false));

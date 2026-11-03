@@ -51,26 +51,39 @@ public sealed class SidebandStateStore
     public async Task AddContactAsync(SidebandContact contact, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(contact);
-        var validated = SidebandContact.Create(contact.DisplayName, contact.DeliveryHash);
+        var validated = SidebandContact.Create(contact.DisplayName, contact.DeliveryHash, contact.Trusted, contact.Unread);
         await MutateAsync(state =>
         {
-            var contacts = state.Contacts.Where(item => item.DeliveryHash != validated.DeliveryHash).Append(validated).ToArray();
+            var existing = state.Contacts.FirstOrDefault(item => item.DeliveryHash == validated.DeliveryHash);
+            var updated = existing is null ? validated : validated with { Trusted = existing.Trusted, Unread = existing.Unread };
+            var contacts = state.Contacts.Where(item => item.DeliveryHash != validated.DeliveryHash).Append(updated).ToArray();
             if (contacts.Length > 1_000) throw new InvalidOperationException("The contact list is full.");
             return state with { Contacts = contacts };
         }, cancellationToken).ConfigureAwait(false);
     }
+
+    public Task SetConversationTrustAsync(string deliveryHash, bool trusted, CancellationToken cancellationToken = default) =>
+        MutateConversationAsync(deliveryHash, contact => contact with { Trusted = trusted }, cancellationToken);
+
+    public Task SetConversationReadAsync(string deliveryHash, bool read, CancellationToken cancellationToken = default) =>
+        MutateConversationAsync(deliveryHash, contact => contact with { Unread = !read }, cancellationToken);
 
     public async Task<SidebandChatMessage> AddMessageAsync(SidebandChatMessage message, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(message);
         try { ValidateMessage(message); }
         catch (InvalidDataException ex) { throw new ArgumentException("The message contains invalid or oversized fields.", nameof(message), ex); }
+        _ = SidebandContact.TryNormalizeDeliveryHash(message.PeerDeliveryHash, out var peerHash);
+        message = message with { PeerDeliveryHash = peerHash };
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var state = await LoadUnderLockAsync(cancellationToken).ConfigureAwait(false);
             var messages = state.Messages.Append(message).TakeLast(MaximumMessages).ToArray();
-            var next = state with { Messages = messages };
+            var contacts = state.Contacts.Any(contact => contact.DeliveryHash == peerHash)
+                ? state.Contacts.Select(contact => contact.DeliveryHash == peerHash ? contact with { Unread = true } : contact).ToArray()
+                : state.Contacts.Append(SidebandContact.Create(peerHash, peerHash, unread: true)).ToArray();
+            var next = state with { Contacts = contacts, Messages = messages };
             await WriteAtomicallyAsync(next, cancellationToken).ConfigureAwait(false);
             _state = next;
             return message;
@@ -293,6 +306,17 @@ public sealed class SidebandStateStore
         finally { _gate.Release(); }
     }
 
+    private Task MutateConversationAsync(string deliveryHash, Func<SidebandContact, SidebandContact> mutation,
+        CancellationToken cancellationToken)
+    {
+        if (!SidebandContact.TryNormalizeDeliveryHash(deliveryHash, out var normalized))
+            throw new ArgumentException("An LXMF delivery address must be exactly 32 hexadecimal characters.", nameof(deliveryHash));
+        return MutateAsync(state => state with
+        {
+            Contacts = state.Contacts.Select(contact => contact.DeliveryHash == normalized ? mutation(contact) : contact).ToArray(),
+        }, cancellationToken);
+    }
+
     private async Task<SidebandState> LoadUnderLockAsync(CancellationToken cancellationToken)
     {
         if (_state is not null) return _state;
@@ -331,6 +355,7 @@ public sealed class SidebandStateStore
                 if (stream.Length > MaximumStateBytes) throw new InvalidDataException("Sideband state exceeds the 8 MiB safety limit.");
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             File.Move(temporary, StatePath, overwrite: true);
         }
         finally

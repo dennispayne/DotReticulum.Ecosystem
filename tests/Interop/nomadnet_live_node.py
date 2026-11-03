@@ -171,6 +171,15 @@ def main():
                     else:
                         raise RuntimeError("Configured reference TCP clients did not reconnect")
                     continue
+                if parts[0] == "conversation-stats":
+                    emit("conversations", entries=[
+                        {"hash": entry[0], "unread": entry[4], "failures": entry[6]}
+                        for entry in app.conversations()])
+                    continue
+                if parts[0] == "conversation-read" and len(parts) == 2:
+                    app.mark_conversation_read(parts[1])
+                    emit("conversation-read", hash=parts[1])
+                    continue
                 if parts[0] == "announce":
                     app.announce_now()
                     if app.message_router.propagation_node:

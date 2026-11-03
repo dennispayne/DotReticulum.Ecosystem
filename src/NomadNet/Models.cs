@@ -6,6 +6,8 @@ public sealed class NomadNetState
     public List<NomadNetContact> Contacts { get; set; } = [];
     public List<NomadNetMessage> Messages { get; set; } = [];
     public List<NomadNetBookmark> Bookmarks { get; set; } = [];
+    public List<NomadNetConversationAlert> ConversationAlerts { get; set; } = [];
+    public List<string> IgnoredDestinations { get; set; } = [];
 }
 
 public sealed record NomadNetSettings
@@ -95,7 +97,21 @@ public sealed record NomadNetSettings
     }
 }
 
-public sealed record NomadNetContact(string DestinationHash, string Name);
+public sealed record NomadNetContact(string DestinationHash, string Name)
+{
+    public int TrustLevel { get; init; } = 2;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool Ignored { get; init; }
+    public bool HostsNode { get; init; }
+    public int PreferredDelivery { get; init; } = 1;
+    public bool IdentifyOnConnect { get; init; }
+    public int? SortRank { get; init; }
+    public string Notes { get; init; } = "";
+}
+
+public sealed record NomadNetConversationAlert(string PeerHash, int Unread, int Failures);
+public sealed record NomadNetConversation(string PeerHash, string? Name, DateTimeOffset LastActivity,
+    int MessageCount, int Unread, int Failures);
 
 public sealed record NomadNetMessage(
     string Id,
@@ -114,6 +130,7 @@ public sealed record NomadNetBookmark(string DestinationHash, string Path, strin
 [System.Text.Json.Serialization.JsonSerializable(typeof(NomadNetContact))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(NomadNetMessage))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(NomadNetBookmark))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(NomadNetConversation))]
 internal partial class NomadNetJsonContext : System.Text.Json.Serialization.JsonSerializerContext
 {
 }

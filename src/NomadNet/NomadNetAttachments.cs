@@ -94,6 +94,39 @@ public static class NomadNetAttachments
         finally { Writes.Release(); }
     }
 
+    public static async Task DeleteAsync(string directory, IEnumerable<string> messageIds, CancellationToken cancellationToken = default)
+    {
+        await Writes.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var storage = Path.Combine(directory, "attachments");
+            if (Directory.Exists(storage) && (File.GetAttributes(storage) & FileAttributes.ReparsePoint) != 0)
+                throw new InvalidDataException("Refusing to delete through an attachment storage link.");
+            var ids = messageIds.Distinct(StringComparer.Ordinal).Take(NomadNetStore.MaximumMessages + 1).ToArray();
+            if (ids.Length > NomadNetStore.MaximumMessages) throw new InvalidDataException("Too many attachment roots for one deletion.");
+            foreach (var id in ids)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (id.Length != 64 || id.Any(character => !Uri.IsHexDigit(character))) continue;
+                var root = Path.Combine(directory, "attachments", id.ToLowerInvariant());
+                if (!Directory.Exists(root)) continue;
+                if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0 || Directory.EnumerateDirectories(root).Any())
+                    throw new InvalidDataException("Refusing to delete an attachment directory containing links or subdirectories.");
+                var files = Directory.EnumerateFiles(root).Take(MaximumAttachments * 4 + 1).ToArray();
+                if (files.Length > MaximumAttachments * 4)
+                    throw new InvalidDataException("Attachment directory exceeds its deletion safety bound.");
+                foreach (var file in files)
+                {
+                    if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) != 0)
+                        throw new InvalidDataException("Refusing to delete an attachment link.");
+                }
+                foreach (var file in files) File.Delete(file);
+                Directory.Delete(root);
+            }
+        }
+        finally { Writes.Release(); }
+    }
+
     private static async Task SaveCoreAsync(string directory, string messageId, IReadOnlyList<NomadNetAttachment> attachments, CancellationToken cancellationToken)
     {
         var storage = Path.Combine(directory, "attachments");

@@ -115,6 +115,56 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
             $python = & $start 'python' $env:DOTRETICULUM_PYTHON $pythonArgs
             $ready = ((& $read $python '"event"\s*:\s*"ready"').Substring(2) | ConvertFrom-Json)
             $ready.revision | Should -Be 'f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2'
+            if ($env:DOTRETICULUM_NOMADNET_CONVERSATION_LIVE -eq '1') {
+                $nativeDelivery = [regex]::Match([IO.File]::ReadAllText((Join-Path $work 'native.stdout')),
+                    'LXMF delivery address:\s*([0-9a-f]{32})').Groups[1].Value
+                $nativeDelivery | Should -Match '^[0-9a-f]{32}$'
+                foreach ($command in @("contact add $($ready.delivery) Actual primary",
+                    "contact trust $($ready.delivery) trusted", "contact delivery $($ready.delivery) opportunistic",
+                    "contact notes $($ready.delivery) generated acceptance note")) {
+                    & $send $native $command
+                    $null = & $read $native 'Contact (policy )?saved'
+                }
+                & $send $native "send $($ready.delivery) CONVERSATION_OPPORTUNISTIC_NATIVE"
+                $received = ((& $read $python '"event"\s*:\s*"received"').Substring(2) | ConvertFrom-Json)
+                $received.content | Should -Be 'CONVERSATION_OPPORTUNISTIC_NATIVE'
+                $received.method | Should -Be 1
+                & $send $python 'conversation-stats'
+                $stats = ((& $read $python '"event"\s*:\s*"conversations"').Substring(2) | ConvertFrom-Json)
+                @($stats.entries | Where-Object hash -EQ $nativeDelivery)[0].unread | Should -Be 1
+                & $send $python "conversation-read $nativeDelivery"
+                $null = & $read $python '"event"\s*:\s*"conversation-read"'
+                & $send $python "send $nativeDelivery CONVERSATION_PRIMARY_INBOUND"
+                $null = & $read $python '"event"\s*:\s*"delivered"'
+                $stateFile = Join-Path $work 'native\state.json'
+                $deadline = [DateTime]::UtcNow.AddSeconds(15)
+                do {
+                    $state = [IO.File]::ReadAllText($stateFile) | ConvertFrom-Json
+                    if (@($state.messages | Where-Object content -EQ 'CONVERSATION_PRIMARY_INBOUND').Count -gt 0) { break }
+                    Start-Sleep -Milliseconds 50
+                } while ([DateTime]::UtcNow -lt $deadline)
+                @($state.conversationAlerts | Where-Object peerHash -EQ $ready.delivery)[0].unread | Should -Be 1
+                & $send $native 'conversations'
+                $null = & $read $native "Conversation $($ready.delivery) unread=1 failed=0"
+                $null = & $read $native 'Conversations complete'
+                & $send $native "conversation active $($ready.delivery)"
+                $null = & $read $native 'Conversation command complete'
+                & $send $python "send $nativeDelivery CONVERSATION_ACTIVE_PRIMARY"
+                $null = & $read $native 'Conversation received:.*CONVERSATION_ACTIVE_PRIMARY'
+                $null = & $read $python '"event"\s*:\s*"delivered"'
+                & $send $native "conversation active off"
+                $null = & $read $native 'Conversation command complete'
+                & $send $native "conversation export $($ready.delivery) conversation.txt"
+                $null = & $read $native 'Conversation command complete'
+                [IO.File]::ReadAllText((Join-Path $work 'native\downloads\conversation.txt')) |
+                    Should -Match 'CONVERSATION_ACTIVE_PRIMARY'
+                & $send $native "contact ignore $($ready.delivery) on"
+                $null = & $read $native 'Contact policy saved'
+                & $send $python "paper $nativeDelivery CONVERSATION_IGNORED_PAPER"
+                $paper = ((& $read $python '"event"\s*:\s*"paper"').Substring(2) | ConvertFrom-Json).uri
+                & $send $native "ingest $paper"
+                $null = & $read $native 'Paper ingest: Rejected'
+            }
             & $send $native "browse $($ready.node)"
             $null = & $read $native 'Image application contract'
             & $send $native 'show-media 1'
@@ -145,6 +195,42 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
             $native = & $start 'native-restarted-cache-only' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
             $restoredNode = [regex]::Match((& $read $native 'Hosted node address:'), '[0-9a-f]{32}').Value
             $restoredNode | Should -Be $nativeNode
+            if ($env:DOTRETICULUM_NOMADNET_CONVERSATION_LIVE -eq '1') {
+                & $send $native 'contacts'
+                $line = & $read $native "$($ready.delivery).*trust=255 ignored=True delivery=3"
+                $line | Should -Match 'generated acceptance note'
+                $null = & $read $native 'Contacts complete'
+                & $send $native 'conversations'
+                $null = & $read $native "Conversation $($ready.delivery) unread=0 failed=0"
+                $null = & $read $native 'Conversations complete'
+                & $send $native "contact remove $($ready.delivery)"
+                $null = & $read $native 'Contact removed'
+                $state = [IO.File]::ReadAllText((Join-Path $work 'native\state.json')) | ConvertFrom-Json
+                $state.ignoredDestinations | Should -Contain $ready.delivery
+                & $send $python "paper $nativeDelivery CONVERSATION_IGNORED_AFTER_RESTART"
+                $paper = ((& $read $python '"event"\s*:\s*"paper"').Substring(2) | ConvertFrom-Json).uri
+                & $send $native "ingest $paper"
+                $null = & $read $native 'Paper ingest: Rejected'
+                & $send $native "contact ignore $($ready.delivery) off"
+                $null = & $read $native 'Contact policy saved'
+                & $send $python "paper $nativeDelivery CONVERSATION_ALLOWED_AFTER_UNIGNORE"
+                $paper = ((& $read $python '"event"\s*:\s*"paper"').Substring(2) | ConvertFrom-Json).uri
+                & $send $native "ingest $paper"
+                $null = & $read $native 'Paper ingest: LocalDelivery'
+                $deadline = [DateTime]::UtcNow.AddSeconds(15)
+                do {
+                    $state = [IO.File]::ReadAllText((Join-Path $work 'native\state.json')) | ConvertFrom-Json
+                    if (@($state.messages | Where-Object content -EQ 'CONVERSATION_ALLOWED_AFTER_UNIGNORE').Count -gt 0) { break }
+                    Start-Sleep -Milliseconds 50
+                } while ([DateTime]::UtcNow -lt $deadline)
+                @($state.messages | Where-Object content -EQ 'CONVERSATION_ALLOWED_AFTER_UNIGNORE').Count | Should -Be 1
+                @($state.messages | Where-Object content -Match 'CONVERSATION_IGNORED').Count | Should -Be 0
+                & $send $native "conversation delete $($ready.delivery)"
+                $null = & $read $native 'Conversation command complete'
+                $state = [IO.File]::ReadAllText((Join-Path $work 'native\state.json')) | ConvertFrom-Json
+                @($state.messages | Where-Object peerHash -EQ $ready.delivery).Count | Should -Be 0
+                $state.ignoredDestinations | Should -Not -Contain $ready.delivery
+            }
             & $send $python 'wait-network'
             $null = & $read $python '"event"\s*:\s*"network-ready"'
             & $send $native 'announce'

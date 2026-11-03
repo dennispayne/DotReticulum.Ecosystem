@@ -164,6 +164,8 @@ internal static class Program
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
             catch (ChannelClosedException) { }
         };
+        foreach (var hash in await state.IgnoredDestinationsAsync(cancellationToken).ConfigureAwait(false))
+            router.IgnoreDestination(Convert.FromHexString(hash));
         router.Start();
         await using var propagationPolicy = new NomadNetPropagation(options.DataDirectory, settings,
             () => FindPropagationCandidates(node.Router),
@@ -212,6 +214,8 @@ internal static class Program
             await foreach (var received in reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
                 var message = received.Message;
+                if (await store.IsIgnoredAsync(Convert.ToHexStringLower(message.SourceHash), cancellationToken).ConfigureAwait(false))
+                    continue;
                 var content = message.Content ?? "[non-text LXMF content]";
                 var id = message.Hash is { Length: > 0 } hash ? Convert.ToHexStringLower(hash) : Guid.NewGuid().ToString("N");
                 try
@@ -230,6 +234,8 @@ internal static class Program
                     await store.SaveMessageAsync(new NomadNetMessage(id, Convert.ToHexStringLower(message.SourceHash), "inbound",
                         DateTimeOffset.FromUnixTimeMilliseconds((long)(message.Timestamp * 1000)), message.Title, content, "received"),
                         cancellationToken).ConfigureAwait(false);
+                    if (await store.ActiveConversationAsync(cancellationToken).ConfigureAwait(false) == Convert.ToHexStringLower(message.SourceHash))
+                        Console.WriteLine($"Conversation received: {NomadNetTerminalText.Safe(message.Title)} {NomadNetTerminalText.Safe(content)}");
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException)
                 {
@@ -256,6 +262,14 @@ internal static class Program
               peers                          List announced Reticulum destinations
               contact add <hash> <name>      Save a known LXMF destination
               contacts | contact remove <hash>
+              contact trust <hash> <unknown|trusted|untrusted|warning>
+              contact ignore <hash> <on|off>  Persist and apply LXMF blacklist
+              contact delivery <hash> <direct|propagated|opportunistic>
+              contact notes <hash> <text>    Store local peer notes
+              conversations                   List latest activity and unread/failures
+              conversation active <hash|off> Mark read and select viewed conversation
+              conversation read|delete|purge-failed <hash>
+              conversation export <hash> <name.txt>
               send <hash> <message>          Send a text LXMF message
               send-propagated <hash> <text>  Send through selected propagation node
               attach <hash> <file>           Send a file attachment
@@ -512,7 +526,35 @@ internal static class Program
             if (command.Equals("contacts", StringComparison.OrdinalIgnoreCase) || command.Equals("contact list", StringComparison.OrdinalIgnoreCase))
             {
                 foreach (var contact in await store.ContactsAsync(cancellationToken).ConfigureAwait(false))
-                    Console.WriteLine($"{contact.DestinationHash}  {NomadNetTerminalText.Safe(contact.Name)}");
+                    Console.WriteLine($"{contact.DestinationHash}  {NomadNetTerminalText.Safe(contact.Name)} trust={contact.TrustLevel} ignored={contact.Ignored} delivery={contact.PreferredDelivery}" +
+                        (contact.Notes.Length == 0 ? "" : $" notes={NomadNetTerminalText.Safe(contact.Notes)}"));
+                Console.WriteLine("Contacts complete.");
+                return false;
+            }
+            if (command.StartsWith("contact trust ", StringComparison.OrdinalIgnoreCase) ||
+                command.StartsWith("contact ignore ", StringComparison.OrdinalIgnoreCase) ||
+                command.StartsWith("contact delivery ", StringComparison.OrdinalIgnoreCase) ||
+                command.StartsWith("contact notes ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = Split(command, 4);
+                if (parts.Length != 4) throw new ArgumentException("Use contact trust|ignore|delivery|notes <hash> <value>.");
+                var hash = NomadNetAddress.NormalizeHash(parts[2]);
+                var contact = await store.FindContactAsync(hash, cancellationToken).ConfigureAwait(false) ??
+                    new NomadNetContact(hash, hash) { Ignored = await store.IsIgnoredAsync(hash, cancellationToken).ConfigureAwait(false) };
+                contact = parts[1] switch
+                {
+                    "trust" => contact with { TrustLevel = parts[3] switch
+                        { "warning" => 0, "untrusted" => 1, "unknown" => 2, "trusted" => 255, _ => throw new ArgumentException("Invalid trust level.") } },
+                    "ignore" when parts[3] is "on" or "off" => contact with { Ignored = parts[3] == "on" },
+                    "delivery" => contact with { PreferredDelivery = parts[3] switch
+                        { "direct" => 1, "propagated" => 2, "opportunistic" => 3, _ => throw new ArgumentException("Invalid delivery method.") } },
+                    "notes" => contact with { Notes = parts[3] },
+                    _ => throw new ArgumentException("Invalid contact command."),
+                };
+                await store.SaveContactAsync(contact, cancellationToken).ConfigureAwait(false);
+                if (contact.Ignored) router.IgnoreDestination(Convert.FromHexString(hash));
+                else router.UnignoreDestination(Convert.FromHexString(hash));
+                Console.WriteLine("Contact policy saved.");
                 return false;
             }
             if (command.StartsWith("contact add ", StringComparison.OrdinalIgnoreCase))
@@ -527,6 +569,40 @@ internal static class Program
             {
                 var hash = command["contact remove ".Length..].Trim();
                 Console.WriteLine(await store.RemoveContactAsync(hash, cancellationToken).ConfigureAwait(false) ? "Contact removed." : "Contact not found.");
+                return false;
+            }
+            if (command.Equals("conversations", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var conversation in await store.ConversationsAsync(cancellationToken).ConfigureAwait(false))
+                    Console.WriteLine($"Conversation {conversation.PeerHash} unread={conversation.Unread} failed={conversation.Failures} messages={conversation.MessageCount} " +
+                        NomadNetTerminalText.Safe(conversation.Name ?? ""));
+                Console.WriteLine("Conversations complete.");
+                return false;
+            }
+            if (command.StartsWith("conversation ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = Split(command, 4);
+                if (parts.Length < 3) throw new ArgumentException("Use conversation active|read|delete|purge-failed|export <hash>.");
+                var hash = parts[1] == "active" && parts[2] == "off" ? null : NomadNetAddress.NormalizeHash(parts[2]);
+                switch (parts[1])
+                {
+                    case "active" when parts.Length == 3:
+                        await store.SetActiveConversationAsync(hash, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case "read" when parts.Length == 3:
+                        await store.MarkReadAsync(hash!, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case "delete" or "purge-failed" when parts.Length == 3:
+                        var removed = await store.DeleteConversationAsync(hash!, parts[1] == "purge-failed", cancellationToken).ConfigureAwait(false);
+                        await NomadNetAttachments.DeleteAsync(dataDirectory, removed, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case "export" when parts.Length == 4:
+                        await SaveDownloadAsync(Encoding.UTF8.GetBytes(await store.ExportConversationAsync(hash!, cancellationToken).ConfigureAwait(false)),
+                            parts[3], cancellationToken).ConfigureAwait(false);
+                        break;
+                    default: throw new ArgumentException("Invalid conversation command.");
+                }
+                Console.WriteLine("Conversation command complete.");
                 return false;
             }
             if (command.StartsWith("send ", StringComparison.OrdinalIgnoreCase))
@@ -783,12 +859,17 @@ internal static class Program
         }
 
         private async Task SendAsync(string destinationText, string content, CancellationToken cancellationToken,
-            Dictionary<object, object?>? fields = null, LxmMethod method = LxmMethod.Direct)
+            Dictionary<object, object?>? fields = null, LxmMethod? method = null)
         {
             var destination = Convert.FromHexString(NomadNetAddress.NormalizeHash(destinationText));
+            var contact = await store.FindContactAsync(destinationText, cancellationToken).ConfigureAwait(false);
+            method ??= contact?.PreferredDelivery switch { 2 => LxmMethod.Propagated, 3 => LxmMethod.Opportunistic, _ => LxmMethod.Direct };
             if (method == LxmMethod.Propagated)
+            {
+                if (router.OutboundPropagationNode is null) throw new InvalidOperationException("Select a propagation node first.");
                 _ = await RecallAsync(destination, cancellationToken).ConfigureAwait(false);
-            var message = LxMessage.Create(destination, identity, content, "", fields, method);
+            }
+            var message = LxMessage.Create(destination, identity, content, "", fields, method.Value);
             var id = Guid.NewGuid().ToString("N");
             await _delivery.QueueAsync(message, new NomadNetMessage(id, Convert.ToHexStringLower(destination), "outbound",
                 DateTimeOffset.UtcNow, "", content, "queued"), cancellationToken).ConfigureAwait(false);
@@ -806,19 +887,20 @@ internal static class Program
             if (messages.Count == 0) Console.WriteLine("No stored messages.");
         }
 
-        private Task ShowPeersAsync(CancellationToken cancellationToken)
+        private async Task ShowPeersAsync(CancellationToken cancellationToken)
         {
             var peers = node.Router.Engine.Known.ExportSnapshot();
-            if (peers.Count == 0) { Console.WriteLine("No announced destinations are known yet."); return Task.CompletedTask; }
+            if (peers.Count == 0) { Console.WriteLine("No announced destinations are known yet."); return; }
             foreach (var peer in peers.OrderByDescending(item => item.Entry.RememberedUnix).Take(256))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var hash = Convert.ToHexStringLower(peer.DestinationHash);
+                if (await store.IsIgnoredAsync(hash, cancellationToken).ConfigureAwait(false)) continue;
                 var displayName = LxmfAppData.DisplayName(peer.Entry.AppData);
-                Console.WriteLine($"{hash}  {NomadNetTerminalText.Safe(displayName ?? "(no display name)")}");
+                Console.WriteLine($"{hash}  {NomadNetTerminalText.Safe(displayName ?? "(no display name)")} trust=" +
+                    await store.TrustLevelAsync(hash, displayName, cancellationToken).ConfigureAwait(false));
             }
             if (peers.Count > 256) Console.WriteLine($"Showing 256 of {peers.Count} destinations.");
-            return Task.CompletedTask;
         }
 
         private async Task BrowseAsync(string hashText, string pathText, CancellationToken cancellationToken, bool reload = false, object? requestData = null)

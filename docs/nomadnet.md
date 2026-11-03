@@ -52,11 +52,11 @@ Underlying-library acceptance is not automatically application acceptance.
 | Contract and upstream sources | Current status and boundary |
 |---|---|
 | Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`, `--console`, `--textui` accepted. Daemon ignores terminal input and serves until cancellation. `--console` selects the existing console logging; `--textui` selects the original command loop, not Urwid. Extensions: `--help`, `--init`, `--status`. |
-| Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, contacts, names; live direct text both ways. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. No application selector for opportunistic delivery, read/unread state, conversation deletion/export or upstream `.index` compatibility. |
+| Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, per-peer direct/propagated/opportunistic preference, unread/failure counters, explicit viewed/read state, latest-activity listing, deletion/failed purge and plain-text export. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. Native opportunistic text is received by the actual primary; direct reply/viewed state and both applications' read counters are exercised. Upstream `.index`/conversation import and full conversation UI remain missing. |
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Encoded image files can be explicitly converted with the local image adapter; automatic conversation-image display remains missing. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
 | Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. Actual primary app ingest/generation tested both ways. QR image generation, QR scan and printer commands are missing. |
 | Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; optional hosted propagation node using `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Propagation-node peering and broader configuration remain unverified/incomplete at the application layer. |
-| Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; explicit trusted node identities and validated active propagation-node classification for automatic selection. General trusted/untrusted/unknown warning policies, blacklist/ignore UI, full directory classification and upstream directory import are missing. |
+| Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Node/identify/rank metadata have storage APIs but not yet full UI behavior. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Associated-identity trust propagation, full node-directory presentation and upstream directory import remain missing. |
 | Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **partial**: `nomadnetwork.node`, UTF-8 name app-data, default index, nested static pages, six-second startup announce and periodic node announce; explicit refresh and five-second directory scans. New/deleted paths update handlers. `.allowed` identity lists enforced. Source-specific counters, refresh interval settings and upstream default assets are not implemented. |
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
 | Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. OS-process tests cover native execution; selected Linux native browser also submits real forms to unmodified Python executable pages across a Python transport. Python-to-native executable-form browser acceptance remains unverified. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
@@ -65,7 +65,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways through a Python transport, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron message rendering and complete Channels UI remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop. Urwid menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
-| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contacts/messages/bookmarks, LXMF storage, attachment byte files, page cache and separate bounded CBOR RRC hub profiles/history; application identity/history/cache and RRC nick/rooms/history survive restart. Upstream config/directory/peer-settings/conversation/RRC file import and migration, peer-settings backup recovery and full restart policy are missing. |
+| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Upstream config/directory/peer-settings/conversation/RRC file import and migration, peer-settings backup recovery and full restart policy are missing. |
 
 ### Configuration audit
 
@@ -211,6 +211,54 @@ automatic trust selections, and honors the disable flag. These are not claimed
 as bug-for-bug parity. The executed primary policy fixture records the original
 selection/failure decisions, with storage/network observation seams disclosed.
 
+### Directory and conversations
+
+`contact trust <hash> unknown|trusted|untrusted|warning` persists the primary
+numeric classifications 2/255/1/0. Collision warnings follow executed
+`Directory.trust_level`: a saved, non-trusted peer announcing another saved
+entry's exact name gets warning0; a trusted peer keeps its status; a completely
+unsaved peer remains unknown2. Names are compared ordinally, not case-folded.
+`contact notes <hash> <text>` stores bounded local notes; renaming retains policy.
+
+`contact ignore <hash> on|off` updates a separate durable blacklist and calls the
+existing LXMF `IgnoreDestination`/`UnignoreDestination`. Ignored delivery sources
+are also checked before storing queued incoming messages/attachments, and hidden
+from the application peer listing. Forgetting a contact does not remove its
+blacklist entry. This does not remove the Reticulum stack's own identity/path
+knowledge. Automatic propagation trust remains the distinct `trust-node` policy;
+changing a contact's trust does not yet update associated node entries.
+
+`contact delivery <hash> direct|propagated|opportunistic` controls ordinary text
+and attachment sends through the existing LXMF methods. Explicit
+`send-propagated` overrides that preference and requires a selected propagation
+node. This is not a new message transport.
+
+`conversations` lists latest activity, counts and pending unread/failure alerts.
+New inbound IDs increase unread; a final failed/rejected outbound increases
+failure count once. Duplicate storage updates and stale terminal callbacks do
+not inflate counters. `conversation read <hash>` clears both alerts.
+`conversation active <hash|off>` selects a session-local viewed peer, clears its
+alerts, and prints its incoming messages without setting unread; restart clears
+that selection, not the durable counts. `messages [hash]` is an observational
+history dump; use explicit read/active commands to acknowledge it.
+
+`conversation purge-failed <hash>` removes failed/rejected outbound records but
+preserves received/delivered history. `conversation delete <hash>` removes all
+that peer's records/alerts and their stored attachment roots.
+`conversation export <hash> <name.txt>` writes a plain UTF-8 snapshot into
+`downloads`, a native extension rather than upstream persistence import.
+History deletion is committed before attachment cleanup; a cleanup I/O error is
+reported and may leave orphan attachment files, not silently reported as a
+fully atomic multi-file deletion. New arrivals can create a new conversation.
+
+Schema1 state without the new collections loads with empty alerts/policies;
+old messages are not retrospectively assumed unread. Limits remain 2,000
+messages/alerts, 10,000 contacts/ignored destinations, 4,096 note characters and
+the existing 5-MiB state bound. Directory/history native JSON does not claim
+compatibility with the primary's MessagePack/index/unread files.
+Oversized contact-policy changes reject and restore their in-memory policy
+without evicting message history or modifying the existing disk snapshot.
+
 ### Group chat and interactive pages
 
 RRC uses the same application identity but an independent identified `rrc.hub`
@@ -315,6 +363,70 @@ artifacts\builds\nomadnet-browser-solution -v:q` with zero warnings/errors and
 `dotnet test DotReticulum.Ecosystem.slnx -c Release --artifacts-path
 artifacts\builds\nomadnet-browser-solution --no-build -v:q`: **406 passed,
 70 explicit opt-in/platform skips, zero failures** across the five test projects.
+
+### Selected conversation/application acceptance
+
+The current conversation slice's exact strict NativeAOT binaries are:
+
+- Windows `artifacts\builds\nomadnet-conversations-win\publish\NomadNet\release_win-x64\nomadnet.exe`;
+  SHA-256 `1dafec172a12793e045b6bfa23bc5f28df86e90e9b31e7d86200e433f63f7dbf`.
+- Linux `artifacts/builds/nomadnet-conversations-linux/publish/NomadNet/release_linux-x64/nomadnet`;
+  SHA-256 `51ad8c36d4d7a8c900ea89c08e31a07ff1d891bc8edd2e04691348828b0e4815`.
+
+The strict publish commands below use the corresponding
+`nomadnet-conversations-*` artifacts paths, with no new dependency. Scoped
+managed tests with the selected FFmpeg pass **67 +3 Linux-only skips on
+Windows**, **70/70 Linux**; Native cases pass **4/4 each**. The image application
+case, additionally setting `DOTRETICULUM_NOMADNET_CONVERSATION_LIVE=1`, passes
+**1/1 each** with these additional assertions:
+
+- Native peer preference sends real opportunistic LXMF text; actual primary
+  reception reports method1, and its real conversation unread/read APIs run.
+- Actual primary direct replies create durable native unread counts; selecting
+  the viewed peer clears them and prints a subsequent reply without unread.
+  Native UTF-8 export contains that reply.
+- Contact trust, notes, preference, blacklist and read state survive native
+  restart. Forgetting the contact retains the independent blacklist.
+- Actual primary generates fresh encrypted paper messages; native ingestion is
+  rejected while ignored both before/after restart, and accepted/persisted after
+  unignore. Ignored content never enters history. This verifies application
+  blacklist wiring without weakening direct-send retry policy.
+- Conversation deletion removes its records/alerts. Deterministic integration
+  tests additionally verify selected attachment-root deletion, Linux symlink
+  rejection, failure purge, duplicate counters, concurrent reception,
+  cancellation and quota rejection without history eviction.
+
+The same Linux binary passes current actual primary RRC/form/partial acceptance
+**1/1** (18.88 seconds). Image/restart checks remain in the same live case.
+This direct two-application evidence does not establish opportunistic multihop,
+propagated attachment preference or interactive Urwid automation.
+
+```powershell
+& artifacts\tests\nomadnet-conversations-win-acceptance.ps1
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-conversations-linux-acceptance.ps1
+```
+
+These ignored scripts select frozen managed DLLs/binaries plus the exact
+reference/tool paths documented below and require expected pass counts.
+Older image scripts explicitly disable the new conversation opt-in, preserving
+their frozen binary/test provenance. The parent independently accepted the
+image slice on both hosts: scoped managed, Native4/4, Images1/1, Linux RRC1/1.
+
+`GenerateNomadNetConversationVectors.py` executes primary `Directory.trust_level`,
+`DirectoryEntry`, `Conversation.ingest`, `mark_conversation_read` and
+`delete_conversation`. The fixture records exact revision/source hashes; its
+message persistence callback writes a generated public marker rather than
+LXMF bytes. These are policy vectors, not invented wire vectors or live proof.
+
+`dotnet build DotReticulum.Ecosystem.slnx -c Release --artifacts-path
+artifacts\builds\nomadnet-conversations-solution -v:q` passes with **zero
+warnings/errors**. The corresponding frozen `dotnet test ... --no-build -v:q
+--logger trx --results-directory artifacts\tests\nomadnet-conversations-full-ready`
+passes **484 tests, 80 explicit opt-in/platform skips, zero failures**.
+Earlier integrated runs encountered unrelated Sideband voice-startup races;
+those failures were reported with TRX evidence. Its owner corrected actual
+server-accept readiness before announce, and the final rebuilt suite passes.
+No Sideband code was changed by the NomadNet owner.
 
 ### Selected image/application acceptance
 

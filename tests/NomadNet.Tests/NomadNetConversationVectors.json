@@ -1,0 +1,80 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "method": "Actual Directory.trust_level/DirectoryEntry and Conversation.ingest, application mark_conversation_read, delete_conversation. Message persistence callback writes a public marker instead of LXMF bytes; no wire/transport claim.",
+  "sourceSha256": {
+    "Directory.py": "2c1e333044d0417573eef7c280737a849d34f5942303142891770aed05cf8744",
+    "Conversation.py": "38c419564248cc8777669ec77a055f8dcebcdf0e94a71ee4f7970c7d76640df5",
+    "NomadNetworkApp.py": "beda2e618d67200cb14cf7d636efa34f13b4607f99717575f02a1c91fafcf60b"
+  },
+  "trust": [
+    {
+      "saved": 2,
+      "announced": null,
+      "actual": 2
+    },
+    {
+      "saved": 2,
+      "announced": "Trusted Alice",
+      "actual": 0
+    },
+    {
+      "saved": 255,
+      "announced": "Trusted Alice",
+      "actual": 255
+    },
+    {
+      "saved": 1,
+      "announced": "Alice",
+      "actual": 1
+    },
+    {
+      "saved": 0,
+      "announced": null,
+      "actual": 0
+    },
+    {
+      "saved": null,
+      "announced": "Trusted Alice",
+      "actual": 2
+    }
+  ],
+  "sequence": [
+    {
+      "direction": "inbound",
+      "failed": false,
+      "unread": 1,
+      "failures": 0
+    },
+    {
+      "direction": "inbound",
+      "failed": false,
+      "unread": 2,
+      "failures": 0
+    },
+    {
+      "direction": "outbound",
+      "failed": false,
+      "unread": 2,
+      "failures": 0
+    },
+    {
+      "direction": "outbound",
+      "failed": true,
+      "unread": 2,
+      "failures": 1
+    }
+  ],
+  "read": {
+    "unread": 0,
+    "failures": 0,
+    "unreadFile": false,
+    "failedFile": false
+  },
+  "deleted": true,
+  "defaults": {
+    "trust": 2,
+    "delivery": 1,
+    "identify": false,
+    "notes": ""
+  }
+}

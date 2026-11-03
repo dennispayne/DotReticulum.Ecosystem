@@ -85,6 +85,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     private TelephoneCallerPolicy _callerPolicy;
     private Call? _call;
     private CancellationTokenSource? _pendingDial;
+    private TaskCompletionSource? _pendingDialCompletion;
     private bool _started;
     private bool _disposed;
     private bool _externalBusy;
@@ -224,11 +225,13 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         var started = Stopwatch.GetTimestamp();
         TimeSpan connectTimeout;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token, cancellationToken);
+        var dialCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         timeout.CancelAfter(_options.WaitTimeout);
         lock (_gate)
         {
             if (_externalBusy || _call is not null || _state != CallState.Available) throw new InvalidOperationException("Telephone is busy.");
             _pendingDial = timeout;
+            _pendingDialCompletion = dialCompletion;
             _state = CallState.Calling;
             connectTimeout = _connectTimeout;
         }
@@ -261,6 +264,12 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
                 if (ReferenceEquals(_pendingDial, timeout)) Hangup();
             }
             throw;
+        }
+        finally
+        {
+            dialCompletion.TrySetResult();
+            lock (_gate)
+                if (ReferenceEquals(_pendingDialCompletion, dialCompletion)) _pendingDialCompletion = null;
         }
     }
 
@@ -639,7 +648,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
             Hangup();
             if (_started) _router.DeregisterLocalDestination(_destination);
             _stop.Cancel();
-            cleanup = _cleanup.ToArray();
+            cleanup = _pendingDialCompletion is { } dial ? [.. _cleanup, dial.Task] : _cleanup.ToArray();
         }
         _ = CompleteDisposalAsync(cleanup, completion);
         return new(completion.Task);

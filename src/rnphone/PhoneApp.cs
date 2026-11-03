@@ -222,14 +222,15 @@ public static class PhoneApp
                     var line = await input.ReadLineAsync(stop);
                     if (line is null) break;
                     line = line.Trim();
-                    if (phonebookOpen && line is ("back" or "b" or "quit" or "q"))
+                    var idleAction = TerminalCommands.IdleAction(line);
+                    if (telephone.State == CallState.Available && phonebookOpen && line is ("back" or "b" or "quit" or "q"))
                     {
                         phonebookOpen = false;
                         await output.WriteLineAsync("Phonebook closed");
                         await output.FlushAsync();
                         continue;
                     }
-                    if (line is "quit" or "q" or "exit") break;
+                    if (telephone.State == CallState.Available && TerminalCommands.IsQuit(line)) break;
                     try
                     {
                         if (line == "reload")
@@ -247,10 +248,13 @@ public static class PhoneApp
                             phonebookOpen = false;
                             await output.WriteLineAsync("Configuration reloaded");
                         }
+                        else if (TerminalCommands.CallAction(telephone.State, telephone.IsIncomingCall, line) == "answer")
+                        {
+                            await telephone.AnswerAsync(stop);
+                        }
                         else if (telephone.State == CallState.Ringing && telephone.IsIncomingCall)
                         {
-                            if (line.Length == 0) await telephone.AnswerAsync(stop);
-                            else telephone.Hangup();
+                            telephone.Hangup();
                         }
                         else if (line == "profile" && telephone.State == CallState.Established)
                         {
@@ -271,14 +275,14 @@ public static class PhoneApp
                             else telephone.TransmitGainDb = gain;
                         }
                         else if (telephone.State is CallState.Established or CallState.Calling or CallState.Connecting) telephone.Hangup();
-                        else if (line is "identity" or "i") await output.WriteLineAsync($"Identity hash: <{identity.HexHash}>");
-                        else if (line is "desthash" or "d") await output.WriteLineAsync($"Destination hash: <{Convert.ToHexStringLower(telephone.DestinationHash)}>");
-                        else if (line is "announce" or "anounce" or "a")
+                        else if (idleAction == "identity") await output.WriteLineAsync($"Identity hash: <{identity.HexHash}>");
+                        else if (idleAction == "desthash") await output.WriteLineAsync($"Destination hash: <{Convert.ToHexStringLower(telephone.DestinationHash)}>");
+                        else if (idleAction == "announce" || line == "announce")
                         {
                             await telephone.AnnounceAsync(stop);
                             await output.WriteLineAsync("Announce sent");
                         }
-                        else if (line is "phonebook" or "p")
+                        else if (idleAction == "phonebook")
                         {
                             var number = 0;
                             foreach (var entry in settings.Phonebook)
@@ -292,7 +296,7 @@ public static class PhoneApp
                         else if (line is "help" or "h" or "?") await output.WriteLineAsync(Usage);
                         else if (line.Length != 0)
                         {
-                            if (line is "redial" or "r")
+                            if (idleAction == "redial")
                             {
                                 if (last is null) continue;
                                 line = last;

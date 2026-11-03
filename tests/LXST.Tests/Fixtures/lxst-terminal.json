@@ -1,0 +1,501 @@
+{
+  "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223",
+  "source_sha256": "a0ea3cb846ec6d1b876462a0d9dd646cdceb2d84ac3c6f4028a354144b6d8664",
+  "substitutes": "Constructor bypass; fake telephone/callbacks and one-iteration input boundary. Actual main_menu and run execute.",
+  "cases": [
+    {
+      "state": "available",
+      "command": "",
+      "actions": []
+    },
+    {
+      "state": "available",
+      "command": "quit",
+      "actions": [
+        "quit"
+      ]
+    },
+    {
+      "state": "available",
+      "command": "q",
+      "actions": [
+        "quit"
+      ]
+    },
+    {
+      "state": "available",
+      "command": "exit",
+      "actions": [
+        "quit"
+      ]
+    },
+    {
+      "state": "available",
+      "command": "identity",
+      "actions": [
+        "identity"
+      ]
+    },
+    {
+      "state": "available",
+      "command": "i",
+      "actions": [
+        "identity"
+      ]
+    },
+    {
+      "state": "available",
+      "command": "desthash",
+      "actions": [
+        "desthash"
+      ]
+    },
+    {
+      "state": "available",
+      "command": "d",
+      "actions": [
+        "desthash"
+      ]
+    },
+    {
+      "state": "available",
+      "command": "announce",
+      "actions": []
+    },
+    {
+      "state": "available",
+      "command": "a",
+      "actions": [
+        "announce"
+      ]
+    },
+    {
+      "state": "available",
+      "command": "anounce",
+      "actions": [
+        "announce"
+      ]
+    },
+    {
+      "state": "available",
+      "command": "help",
+      "actions": []
+    },
+    {
+      "state": "available",
+      "command": "h",
+      "actions": []
+    },
+    {
+      "state": "available",
+      "command": "?",
+      "actions": []
+    },
+    {
+      "state": "available",
+      "command": "phonebook",
+      "actions": [
+        "phonebook"
+      ]
+    },
+    {
+      "state": "available",
+      "command": "p",
+      "actions": [
+        "phonebook"
+      ]
+    },
+    {
+      "state": "available",
+      "command": "redial",
+      "actions": [
+        "redial"
+      ]
+    },
+    {
+      "state": "available",
+      "command": "r",
+      "actions": [
+        "redial"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "",
+      "actions": [
+        "answer"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "quit",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "q",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "exit",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "identity",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "i",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "desthash",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "d",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "announce",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "a",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "anounce",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "help",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "h",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "?",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "phonebook",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "p",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "redial",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "ringing",
+      "command": "r",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "quit",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "q",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "exit",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "identity",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "i",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "desthash",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "d",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "announce",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "a",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "anounce",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "help",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "h",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "?",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "phonebook",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "p",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "redial",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "connecting",
+      "command": "r",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "quit",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "q",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "exit",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "identity",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "i",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "desthash",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "d",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "announce",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "a",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "anounce",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "help",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "h",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "?",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "phonebook",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "p",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "redial",
+      "actions": [
+        "hangup"
+      ]
+    },
+    {
+      "state": "in-call",
+      "command": "r",
+      "actions": [
+        "hangup"
+      ]
+    }
+  ]
+}

@@ -118,6 +118,34 @@ public sealed class TelephoneLifecycleTests
     }
 
     [Fact]
+    public async Task DisposalCancelsAndAwaitsPendingPathDiscoveryWithoutSubscribers()
+    {
+        await using var rig = new Rig(new());
+        await rig.StartAsync();
+        using var remote = Identity.Generate();
+        var pending = rig.Phone.CallAsync(remote);
+        await Task.WhenAll(rig.Phone.DisposeAsync().AsTask(), rig.Phone.DisposeAsync().AsTask())
+            .WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(pending.IsCompleted);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+    }
+
+    [Fact]
+    public async Task RepeatedPeerTeardownAndReconnectionKeepsTheTelephoneServingWithoutObservers()
+    {
+        await using var rig = new Rig(new() { AutoAnswerDelay = TimeSpan.FromMilliseconds(20), CodecFactory = new RawFactory() });
+        await rig.StartAsync();
+        for (var index = 0; index < 12; index++)
+        {
+            await using var peer = rig.Connect(out var established);
+            await established.WaitAsync(TimeSpan.FromSeconds(5));
+            await peer.SendFrameAsync(new(CodecKind.Raw, new byte[] { 0, 0, 0 }));
+            rig.LastLink!.Teardown();
+            await LiveStreamTests.WaitForAsync(() => rig.Phone.State == CallState.Available);
+        }
+    }
+
+    [Fact]
     public async Task ReplacingCallerPolicyAfterDenialAllowsTheNextIncomingCall()
     {
         await using var rig = new Rig(new()

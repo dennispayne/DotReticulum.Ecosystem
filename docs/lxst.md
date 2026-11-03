@@ -653,6 +653,30 @@ has no implementation. Their exact disposition is:
   quality, device latency or support claim follows from virtual/fake tests.
   Exhaustive timing matrices and long-duration operation remain unverified.
 
+  ### Terminal and disposal regression acceptance
+
+  `GenerateTerminalVectors.py` executes primary 0.4.5 `main_menu` and one
+  iteration of the actual `run` loop for 72 state/command combinations, using
+  disclosed telephone/callback/input substitutes. `Fixtures/lxst-terminal.json`
+  records its revision and utility SHA-256. `quit`, `q` and `exit` during a call
+  now reject/hang up rather than exiting the service; phonebook close commands
+  only apply while available. The correctly spelled `announce` remains a .NET
+  extension: primary registers `anounce` and `a`, not `announce`.
+
+  Endpoint disposal now cancels **and awaits** pending path discovery, including
+  concurrent disposal without state subscribers. Twelve sequential peer
+  teardown/reconnect cycles verify continued service without observers; this is
+  bounded lifecycle evidence, not a long-duration soak or physical test.
+
+  Acceptance from `daa304d` plus these changes:
+
+  | Exact command | Result |
+  |---|---|
+  | `dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path artifacts\builds\lxst-completion-win --results-directory artifacts\tests\lxst-completion-win-fixed --logger trx --verbosity quiet` | 106 passed, 17 opt-in skips |
+  | Same project command under WSL using `/home/dennis/.dotreticulum-dotnet/dotnet`, `--artifacts-path artifacts/builds/lxst-completion-linux --results-directory artifacts/tests/lxst-completion-linux --logger trx --verbosity quiet`, with all three LXST opt-ins and the pinned primary paths | 149 passed, 2 Windows-only skips; actual Python stream/telephone direct, .NET-hop and Python-hop cases |
+  | `dotnet publish src\rnphone\rnphone.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\lxst-completion-aot-win -o artifacts\builds\lxst-completion-native-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet` with MSVC environment | Passed |
+  | `pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 -Tag NativeWindows`, selecting that binary and separately installed official `opus.dll` | 1 passed, zero skips; real native Opus, synthetic/discard devices, profile switch, reverse call and identity restart |
+
 ### Reticulum adapter guarantees and ownership
 
 The adapter uses public `Link.TrySend` and the exclusive

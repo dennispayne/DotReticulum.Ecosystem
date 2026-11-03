@@ -12,7 +12,7 @@ public sealed partial class LxmRouter
 
     private void ConfigurePropagationSignals(Link link)
     {
-        link.PacketReceived = (data, _) =>
+        link.SetPacketReceiver((data, _) =>
         {
             try
             {
@@ -29,8 +29,22 @@ public sealed partial class LxmRouter
                 _wake.Release();
             }
             catch (Exception ex) { Report("Could not process propagation transfer signalling: " + ex.Message); }
-        };
-        link.Closed += closed => { lock (_gate) _propagationMessages.Remove(closed); };
+        });
+        link.Closed += ForgetOutboundLink;
+    }
+
+    private void ForgetOutboundLink(Link closed)
+    {
+        lock (_gate)
+        {
+            foreach (var key in _links.Where(entry => ReferenceEquals(entry.Value, closed)).Select(entry => entry.Key).ToArray())
+            {
+                _links.Remove(key);
+                _identified.Remove(key);
+            }
+            _propagationLinks.Remove(closed);
+            _propagationMessages.Remove(closed);
+        }
     }
 
     private Link? FindBackchannel(ReadOnlySpan<byte> destination)

@@ -479,9 +479,13 @@ public sealed partial class LxmRouter : IAsyncDisposable
             else ConfigurePropagationSignals(created);
             lock (_gate)
             {
-                _links[key] = created;
-                if (propagated) _propagationLinks.Add(created);
+                if (_disposed == 0 && created.Status != LinkStatus.Closed)
+                {
+                    _links[key] = created;
+                    if (propagated) _propagationLinks.Add(created);
+                }
             }
+            if (Volatile.Read(ref _disposed) != 0) created.Teardown();
             return;
         }
 
@@ -578,6 +582,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         link.Closed += closed =>
         {
             lock (_gate) _incomingLinks.Remove(closed);
+            ForgetOutboundLink(closed);
         };
         lock (_gate)
         {

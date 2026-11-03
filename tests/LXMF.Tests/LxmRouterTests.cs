@@ -259,14 +259,17 @@ public class LxmRouterTests
         finally { if (Directory.Exists(storage)) Directory.Delete(storage, true); }
     }
 
-    [Fact]
-    public async Task IdlePropagationLinks_ExpireStrictlyAfter180SecondsAndReconnect()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task IdlePropagationLinks_ExpireStrictlyAfter180SecondsAndReconnect(bool nodeExpiresFirst)
     {
         var storage = Path.Combine(AppContext.BaseDirectory, "idle-propagation-" + Guid.NewGuid().ToString("N"));
         try
         {
             var clock = new LinkClock();
             await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = storage },
+                clientOptions: new LxmRouterOptions { ProcessingInterval = TimeSpan.FromHours(1) },
                 transportTimeProvider: clock);
             var node = pair.Server.EnablePropagationNode(new LxmPropagationOptions
             {
@@ -280,18 +283,82 @@ public class LxmRouterTests
             await pair.Client.SendAsync(message);
             Assert.Equal(LxmState.Sent, await message.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
             var link = Assert.Single(pair.ClientRouter.Links.Links, value => value.Status == LinkStatus.Active);
+            var remote = Assert.Single(pair.ServerRouter.Links.Links, value => value.Status == LinkStatus.Active);
+            var clientClosed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var serverClosed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            link.Closed += _ => clientClosed.TrySetResult();
+            remote.Closed += _ => serverClosed.TrySetResult();
             clock.Advance(TimeSpan.FromSeconds(180));
             Assert.Equal(0, node.CleanLinks());
             Assert.Equal(0, pair.Client.CleanLinks());
             clock.Advance(TimeSpan.FromMilliseconds(1));
-            Assert.Equal(1, node.CleanLinks());
-            Assert.Equal(1, pair.Client.CleanLinks());
-            Assert.Equal(LinkStatus.Closed, link.Status);
+            Assert.Equal(1, nodeExpiresFirst ? node.CleanLinks() : pair.Client.CleanLinks());
+            await Task.WhenAll(clientClosed.Task, serverClosed.Task).WaitAsync(TimeSpan.FromSeconds(10));
+            // A received teardown updates LastData. It must release the other cache,
+            // not force a second local idle expiry or retain the closed link for 180s.
+            Assert.Equal(0, nodeExpiresFirst ? pair.Client.CleanLinks() : node.CleanLinks());
+            clock.Advance(TimeSpan.FromSeconds(180) + TimeSpan.FromMilliseconds(1));
+            Assert.Equal(0, node.CleanLinks());
+            Assert.Equal(0, pair.Client.CleanLinks());
             var next = LxMessage.Create(pair.Client.DeliveryHash, pair.ClientIdentity, "after propagation idle", method: LxmMethod.Propagated);
             await pair.Client.SendAsync(next);
             Assert.Equal(LxmState.Sent, await next.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
             Assert.NotEqual(link.LinkId, Assert.Single(pair.ClientRouter.Links.Links, value => value.Status == LinkStatus.Active).LinkId);
             Assert.Equal(2, node.MessageCount);
+        }
+        finally { if (Directory.Exists(storage)) Directory.Delete(storage, true); }
+    }
+
+    [Fact]
+    public async Task PropagationRejection_PrecedesDelayedPacketObserversAndSurvivesTeardown()
+    {
+        var storage = Path.Combine(AppContext.BaseDirectory, "ordered-propagation-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = storage });
+            var node = pair.Server.EnablePropagationNode(new LxmPropagationOptions { StampCost = 13, AutoPeer = false });
+            await node.AnnounceAsync();
+            await pair.WaitAsync(() => pair.ClientRouter.HasPath(node.DestinationHash));
+            pair.Client.OutboundPropagationNode = node.DestinationHash;
+            var first = LxMessage.Create(pair.Client.DeliveryHash, pair.ClientIdentity, "valid first", method: LxmMethod.Propagated);
+            await pair.Client.SendAsync(first);
+            Assert.Equal(LxmState.Sent, await first.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+            await pair.WaitAsync(() => node.MessageCount == 1);
+            var link = Assert.Single(pair.ClientRouter.Links.Links, value => value.Status == LinkStatus.Active);
+            var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var observed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            link.Closed += _ => closed.TrySetResult();
+            var previousObserver = link.PacketReceived;
+            link.PacketReceived = (data, packet) =>
+            {
+                try
+                {
+                    // Reproduce a packet observer dispatched after its link-close observer.
+                    closed.Task.WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+                    previousObserver?.Invoke(data, packet);
+                    observed.TrySetResult();
+                }
+                catch (Exception ex) { observed.TrySetException(ex); }
+            };
+            var rejected = LxMessage.Create(pair.Client.DeliveryHash, pair.ClientIdentity, "invalid", method: LxmMethod.Propagated);
+            rejected.Pack(destinationIdentity: pair.ClientIdentity);
+            var stamp = new byte[LxStamper.StampSize];
+            var workblock = LxStamper.Workblock(rejected.TransientId!, LxStamper.WorkblockExpandRoundsPn);
+            for (var attempt = 0; attempt < 256 && LxStamper.IsValid(stamp, 10, workblock); attempt++) stamp[0]++;
+            Assert.False(LxStamper.IsValid(stamp, 10, workblock));
+            rejected.SetPropagationStamp(stamp);
+            rejected.PropagationNodeHash = node.DestinationHash;
+            await pair.Client.SendAsync(rejected);
+            Assert.Equal(LxmState.Rejected, await rejected.Completion.WaitAsync(TimeSpan.FromSeconds(10)));
+            await observed.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(LxmState.Rejected, rejected.State);
+            Assert.Equal(0, rejected.DeliveryAttempts);
+            Assert.Equal(1, node.MessageCount);
+            var recovery = LxMessage.Create(pair.Client.DeliveryHash, pair.ClientIdentity, "valid recovery", method: LxmMethod.Propagated);
+            await pair.Client.SendAsync(recovery);
+            Assert.Equal(LxmState.Sent, await recovery.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+            await pair.WaitAsync(() => node.MessageCount == 2);
+            Assert.NotEqual(link.LinkId, Assert.Single(pair.ClientRouter.Links.Links, value => value.Status == LinkStatus.Active).LinkId);
         }
         finally { if (Directory.Exists(storage)) Directory.Delete(storage, true); }
     }

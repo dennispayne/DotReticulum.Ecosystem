@@ -54,8 +54,11 @@ public class LxmRuntimePolicyTests
         finally { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); }
     }
 
-    [Fact]
-    public async Task DeferredStamp_CanBeInspectedAndCancelledByRawMessageId()
+    [Theory]
+    [InlineData(LxmState.Cancelled)]
+    [InlineData(LxmState.Rejected)]
+    [InlineData(LxmState.Failed)]
+    public async Task DeferredStamp_CanBeInspectedAndCancelledByRawMessageId(LxmState cancelState)
     {
         await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { InboundStampCost = 254 });
         await pair.Server.AnnounceAsync();
@@ -66,9 +69,10 @@ public class LxmRuntimePolicyTests
         await pair.WaitAsync(() => pair.Client.GetOutboundMessageStampCost(id) is not null);
         Assert.Equal(254, pair.Client.GetOutboundMessageStampCost(id));
         Assert.Equal(0, pair.Client.GetOutboundProgress(id));
-        Assert.True(pair.Client.CancelOutbound(id));
+        Assert.True(pair.Client.CancelOutbound(id, cancelState));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => sending);
-        Assert.Equal(LxmState.Cancelled, message.State);
+        Assert.Equal(cancelState, message.State);
+        Assert.Equal(cancelState, await message.Completion.WaitAsync(TimeSpan.FromSeconds(5)));
         Assert.Null(pair.Client.GetOutboundProgress(id));
         Assert.False(pair.Client.CancelOutbound(id));
     }

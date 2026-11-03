@@ -98,7 +98,7 @@ surface. A grouped implemented row does not override an explicit limitation.
 | Incoming authorization: all, none, identity list or callable; blocked callers take precedence | implemented | Executed primary policy matrix; immutable `TelephoneCallerPolicy`, safe policy replacement, endpoint callback and executable config/phonebook authorization |
 | One active call; incoming contention, answer, hangup and teardown | implemented | Busy contender cannot interrupt an established call; bidirectional rejection and simultaneous cross-dial Busy/recovery execute actual Python; setup requests are gated until both callers have entered outgoing state |
 | Ring/wait/connect timeouts, path requests, periodic announcements | partial | Incoming ring and outgoing wait timeout/recovery live-verified; silent active-link connect deadline and delayed auto-answer integration-tested; exhaustive timing/announce comparisons remain unverified |
-| Ringing/established/ended/busy/rejected callbacks | partial | Original .NET state event rather than five Python callbacks; isolated observer failures tested |
+| Ringing/established/ended/busy/rejected callbacks | implemented with original API shape | Isolated `StateChanged` notifications plus typed `CallEnded` after tone completion and cleanup; executed primary outcome timing, observer failures and continued service tested |
 | Profile negotiation (`255 + profile`), selection and mid-call switch | implemented | All eight initial profiles live-verified with either side originating direct calls; all eight mid-call profiles in both negotiation directions; medium-quality calls in both transport-hop topologies |
 | Combined signalling and explicit empty signalling lists | implemented | Actual 0.5.4 packets in `lxst-telephone-modes.json`; `SendSignalsAsync` preserves empty lists rather than emitting an empty map |
 | Full/half-duplex modes, `240 + mode`, PTT packet squelch, AGC pause, remote-mode-follow disable | implemented | Executed mode/PTT vectors; initial half-duplex in both call directions; mode/PTT changes across direct and both transport hops; squelch drops packets, not silent audio |
@@ -149,7 +149,7 @@ effect. The .NET configurable interval is an explicit extension.
 | Mixer buffering, per-source limits, gain, mute, channel conversion and timed output | implemented | Original bounded `AudioMixer`; reference output and lifecycle tests |
 | General mixer source resampling | upstream-placeholder | `Mixer.py`, TODO for all source types |
 | High-pass, low-pass, band-pass and automatic gain-control state | implemented | Original managed filters; vectors executed against actual primary Python/native filter path |
-| 0.5.4 `EchoSuppressor`, receive-reference feeds, delay/coupling tracking and comfort noise | missing | `Filters.py`, `Mixer.reference_outs`, telephony's default echo-suppression chain; no substitute algorithm is claimed equivalent |
+| 0.5.4 `EchoSuppressor`, receive-reference feeds, delay/coupling tracking and comfort noise | implemented software; acoustic quality unverified | Independently authored managed DSP; 14 executed-reference scenarios include two explicit upstream-error/recovery boundaries; mixer/telephone feeds and actual native Opus echo wiring tested without audio hardware or subscribers |
 | Tone frequency, gain, easing, frame duration and start/stop | implemented | `ToneAudioSource`; actual generator vectors and async source lifecycle tests |
 | Line capture/playback, preferred devices, buffers, gain, filters and low latency | partial | Linux CLI capture/playback and runtime replacement exist; actual LineSource skip/easing vectors drive `AudioCaptureEnvelope`; `Audio.BufferedAudioSink` implements executed LineSink queue/playback/starvation contracts; gain/filters reuse endpoint processing; Linux low-latency toggle is an upstream unsupported branch, executed on real virtual-audio calls |
 | Loopback source/sink and buffering | implemented | `Audio.LoopbackAudioBridge`; executed relay/lifecycle observations; bounded queue/clock behavior is a .NET extension, not an upstream buffering claim |
@@ -162,8 +162,12 @@ maximum quality; low/ultra-low latency. Their nominal frame durations are
 Codec2 aggregation durations are not Opus frame durations.
 
 Endpoint transmit audio passes through the independently verified
-`BandPassFilter(250, 8500)` and, by default, `AutomaticGainControl(-15)`, then
-reference mixer gain/mute and final `[-1, 1]` clipping. The reference permits
+`BandPassFilter(250, 8500)` and, by default, `AutomaticGainControl(-15)` and
+`EchoSuppressor`, then reference mixer gain/mute and final `[-1, 1]` clipping.
+Utility capture uses 48 kHz; codec resampling follows processing, rather than
+running the echo detector at the codec's sample rate against a 48 kHz reference.
+Legacy codec-rate `SendAudioAsync` input is explicitly adapted for echo analysis.
+The reference permits
 the 8500 Hz cutoff even with 8 kHz input; vectors cover that non-Nyquist-limited
 behavior. Gain follows the actual mixer's `10 ** (gain / 10)` multiplier, not
 an assumed `gain / 20` amplitude convention. Receive gain/mute affects both
@@ -177,7 +181,7 @@ capture/playback quality claim follows from these headless processing tests.
 |---|---|---|
 | Console entry point `rnphone` | partial | Native executable exists; no full CLI/daemon compatibility claim |
 | `--help`, `-l/--list-devices`, `--config`, `--rnsconfig`, `-s/--service`, `--systemd`, `--version`, repeated `-v/--verbose` | partial | Flags implemented; Linux/Windows device listing; original help/systemd text |
-| Interactive dial/redial, answer/hangup, identity/destination display, phonebook and profile controls | partial | Bidirectional native calls, profile cycle, phonebook numeric aliases and submenu back/quit executed; exact terminal formatting and complete key matrix unverified |
+| Interactive dial/redial, answer/hangup, identity/destination display, phonebook and profile controls | implemented software; original presentation | 248 executed state/menu/token cases, bidirectional native calls, phonebook/reload/restart and profile cycle; first-space tokenization, hash priority and submenu close semantics tested; no byte-identical ANSI/prompt claim |
 | Service mode, signals, shutdown cleanup, systemd example | partial | Native service ignores closed stdin for 60 seconds and exits cleanly on targeted SIGTERM; identity retained across restart; hours/days operation remains unverified |
 | Configuration directory precedence, default config creation and first-run behavior | partial | Precedence implemented; minimal original default config, no bundled assets |
 | Identity generation/load/failure and `storage` directory | implemented | Native Pester restart test; owner-only Unix creation; buffers zeroed |
@@ -222,10 +226,10 @@ not implicitly covered by the network interfaces. This is not full API parity:
 | `Sinks.py`: `get_backend`, backend device listing/player ownership; Sink/RemoteSink/LocalSink; LineSink low latency; OpusFileSink queue/finalization | Linux I/O, Ogg Opus recording and executed-reference `BufferedAudioSink` playback queue are implemented; explicit async file backpressure; Linux Backend ignores constructor low_latency and its player lacks runtime enable_low_latency; other platform branches unverified |
 | `Primitives/Players.py`: FilePlayer state, completion callback, source, loop/start/stop/play | Implemented device-independent `FilePlayer`; callback timing is asynchronous, not Python's polling schedule; source replacement requires stopped playback |
 | `Primitives/Recorders.py`: FileRecorder state, source/output path, start/stop/record | Implemented device-independent `FileRecorder` with a caller-owned source and per-run finalization; effective output-path replacement is an explicit extension over the executed upstream shadow-attribute placeholder |
-| `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Partial: gains, mute/reset and transmit band-pass/AGC are implemented; device queries, ringtone, ringback/busy tones and runtime capture/sink selection are Linux CLI-only; no invented low-latency effect is supplied for the reference's unsupported Linux branch |
+| `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Typed backend queries, reusable `TelephoneAudioOutput`, routing/reset, endpoint DSP/gains/mute and timed outcomes implemented; utility composes platform devices and ringtone/tones; no invented low-latency effect for the unsupported Linux branch |
 | `Primitives/Telephony.py`: external busy override | Implemented; real incoming rejection followed by clearing busy and accepting the next call is integration-tested |
 | `Primitives/Telephony.py`: Profiles labels/abbreviations/index/next helpers | Implemented `TelephoneProfiles`; executed primary labels, abbreviations, frame durations and ordering; CLI profile cycle follows low latency then ultra-low latency |
-| `Utilities/rnphone.py`: ReticulumTelephone reload/apply config, keypad/hook/display enablement and hardware state; complete terminal menu/redial/status/signal behavior | Partial; CLI/persisted identity and software hardware controls are implemented; literal terminal formatting/full key matrices and physical runtime hardware operation remain unverified |
+| `Utilities/rnphone.py`: ReticulumTelephone reload/apply config, keypad/hook/display enablement and hardware state; complete terminal menu/redial/status/signal behavior | Software controls, persisted identity, 248 terminal observations and source-observed duration formatting/refresh cadence implemented; literal ANSI/prompt bytes and physical runtime hardware operation unverified |
 | `Primitives/hardware`: LCD print/clear/sleep/wake/close; Keypad hook/key-map/key-state/start/stop | Software implemented: fakeable bus/pin interfaces, Linux OS providers, explicit initialization/ownership, matrix transitions, 150 ms hook debounce, four-key rollover guard, utility controls and scanner restart/error isolation; physical GPIO/I2C remains unverified |
 | `Platforms/{linux,windows,darwin,android}` | Original Linux subprocess and Windows WinMM implementations; macOS/Android providers absent and environments unavailable; no translation or redistribution of upstream platform bindings |
 
@@ -259,13 +263,13 @@ features to reproduce.
 | `Primitives/Players.py`: `FilePlayer.running/playing/finished_callback/set_source/loop/start/stop/play` | Device-independent player implemented; asynchronous callback timing and explicit caller-owned sink |
 | `Primitives/Recorders.py`: `FileRecorder.running/recording/set_source/set_output_path/start/stop/record` | Device-independent recorder implemented; effective stopped-only output-path replacement is an explicit extension |
 | `Primitives/Telephony.py`: `Profiles.available_profiles/profile_index/profile_name/profile_abbrevation/get_codec/get_frame_time/next_profile`, `Signalling` constants | Profile metadata/factory/cycle and telephone signal values implemented; executed primary values |
-| `Telephone`: `available_outputs/available_inputs/default_output/default_input`, `set_speaker/set_microphone/set_ringer/set_ringtone`, `set_low_latency_output` | Linux utility device/ringtone composition only; no generic device-backed telephone facade or invented Linux low-latency effect |
+| `Telephone`: `available_outputs/available_inputs/default_output/default_input`, `set_speaker/set_microphone/set_ringer/set_ringtone`, `set_low_latency_output` | Typed backend queries and caller-owned reusable `TelephoneAudioOutput` facade; endpoint routes/resets it through `ITelephoneOutputControl`; utility owns capture/ringer; no invented Linux low-latency effect |
 | `Telephone`: `teardown/announce/set_allowed/set_blocked/set_connect_timeout/set_announce_interval`, `set_ringing_callback/set_established_callback/set_ended_callback/set_busy_callback/set_rejected_callback` | Endpoint lifecycle, authorization, mutable outgoing `ConnectTimeout` and isolated state events implemented; announce-interval setter is ineffective upstream |
-| `Telephone`: `set_busy_tone_time/enable_agc/disable_agc/set_busy/busy/active_profile/receive_muted/transmit_muted` | Configurable tone duration through source construction; AGC, busy override, profile and mute state implemented; CLI tone scheduling differs explicitly |
+| `Telephone`: `set_busy_tone_time/enable_agc/disable_agc/set_busy/busy/active_profile/receive_muted/transmit_muted` | Mutable bounded `BusyToneDuration`, AGC, busy override, profile/mute state; 5 ms busy controls and final 500 ms gain hold execute primary timing vectors; typed completion follows cleanup |
 | `Telephone`: `signal/answer/hangup/mute_receive/unmute_receive/mute_transmit/unmute_transmit/set_receive_gain/set_transmit_gain/switch_profile/call/signalling_received` | Endpoint/session behavior implemented, including actual profile negotiation, gains/mute and both-direction calls |
 | Hardware `LCD.print/clear/is_sleeping/sleep/wake/close`; `Event`; `Keypad.enable_hook/set_key_map/is_down/is_up/start/stop` | Fakeable software protocols, Linux OS providers and utility wiring implemented; physical operation unverified |
 | `Utilities/rnphone.py`: `create_default_config/reload_config/load_phonebook/apply_config`, `enable_keypad/enable_hook/enable_display`, `is_available/is_in_call/is_ringing/call_is_connecting/hw_is_idle/hw_is_dialing` | Configuration/call status and software hardware state implemented; actual utility keypad editing/dial/answer/reject/hook outputs executed as reference vectors; physical state delivery unverified |
-| Utility `start/stop/dial/redial/call/ringing/call_ended/call_established/display_call_status/became_available`, `print_identity/print_destination/phonebook_menu/main_menu/run/cleanup/quit/sigint_handler/sigterm_handler`, `main`, `Terminal` | Native CLI lifecycle, menus, dialing, states and signals partial; literal terminal formatting/full key matrix and hardware display states are not claimed |
+| Utility `start/stop/dial/redial/call/ringing/call_ended/call_established/display_call_status/became_available`, `print_identity/print_destination/phonebook_menu/main_menu/run/cleanup/quit/sigint_handler/sigterm_handler`, `main`, `Terminal` | Native lifecycle/menus/signals, reference-executed terminal cases, duration strings and refresh cadence implemented; physical display states and byte-identical terminal presentation not claimed |
 | `Common.nop`, `Processing.py`, package/version metadata | No-op and empty processing module are not missing functionality; target version recorded, no Python module-layout emulation |
 
 ## Primary 0.4.5 → 0.5.4 contract changes
@@ -286,12 +290,12 @@ No upstream source, assets or codec binaries are bundled or translated.
 | Packetizer squelch, telephone PTT and mode-follow controls | **implemented for telephone calls** — `TransmitSquelched`, `SetTransmitSquelched`, `DisableRemoteModeFollow`. Codec/filter processing continues while packets are suppressed. Initial HDX does not pause AGC; explicit squelch does; returning to FDX alone does not clear an existing AGC pause. Generic packetizer-specific public API shape is not reproduced. |
 | `LineSink` profile-specific buffer height/start threshold and wait-for-frames behavior | **implemented for telephone output buffering** — public `BufferedAudioSink.ConfigureProfile`, `MaximumBufferHeight`, `StartFrames`; `rnphone` applies initial and changed profiles. Executed vectors preserve the reference's conditional buffer-update quirk: fresh LowLatency maximum remains 3, but Medium→LowLatency becomes 4. Hard queue cap remains 6. |
 | Telephone band-pass switch | **implemented** — `UseBandPass`, default true; call-local processing captures the setting. Native filter vectors are regenerated from 0.5.4. |
-| `Filters.EchoSuppressor`, mixer receive-reference sinks and telephone default echo path | **missing software** — no echo delay/coupling tracking, comfort-noise or reference-fed suppression implementation. `UseBandPass` is not an echo-suppression substitute. |
-| Telephone loudspeaker routing/toggle and receive-reference wiring | **partial** — caller-owned `DeviceAudioSink.SetDevice` and reusable device helpers permit explicit route selection. No telephone-owned loudspeaker facade, automatic routing reset or echo-reference integration is claimed. |
+| `Filters.EchoSuppressor`, mixer receive-reference sinks and telephone default echo path | **implemented software** — managed bounded correlation/delay/coupling detector, double-talk/hangover gain gate and colored comfort noise; executed primary PCM/state vectors and real Opus network wiring. Physical acoustic quality is unverified. |
+| Telephone loudspeaker routing/toggle and receive-reference wiring | **implemented software** — reusable `TelephoneAudioOutput`, `ITelephoneOutputControl`, `EnableLoudspeakerAsync`/`DisableLoudspeakerAsync`, post-gain reference feeds and automatic teardown reset. Route changes open replacement before closing the current lease; failed replacement retains it. |
 | Line source release and pipeline release operations | **implemented through explicit .NET disposal/ownership**, rather than Python object-layout compatibility. Cancellation and repeated teardown tests cover the supported graph. |
 | File source/player gain and player release-on-finish | **implemented with differences** — `OpusFileSource.GainDb`, `FilePlayer.GainDb`, `ReleaseOnFinish`; executed actual-reference PCM gain samples and owned-handle release tests. Streaming rereads and applies gain once per pass; Python's in-place loaded-buffer gain can accumulate across loops. This accumulation is not reproduced. Completion means writes accepted by the supplied sink; arbitrary external buffered-sink/hardware drain timing is not claimed equivalent. |
 | Audio channel-map/recovery changes, Linux backend naming, Android auto-reinitialization | **partial** — bounded cancellable Wave/Pulse backends, explicit device switching and format reopening exist; native and virtual software lifecycle tests pass. No Android provider or automatic Android recovery; physical channel-map recovery remains unverified. |
-| Codec/profile descriptions and utility progress/formatting changes | **partial** — wire codec/profile vectors and utilities' version/options are verified. Exact Python object formatting, ANSI output and every timer are not parity claims. |
+| Codec/profile descriptions and utility progress/formatting changes | **implemented for observed software contracts** — source-observed ties-to-even elapsed rounding, duration strings, 250 ms/1 s refresh, 500 ms ringtone onset, 200 ms ringback/5 ms busy control updates and terminal tokenization. Exact ANSI/object formatting and OS scheduling are not parity claims. |
 
 `GenerateTelephoneModeVectors.py` executes actual primary telephone methods with
 disclosed fake packetizer/AGC/output endpoints and captures actual RNS packet
@@ -320,6 +324,62 @@ Use `TelephoneEndpoint` for call state/events, authorized incoming calls,
 Device selection and lifetime remain explicit; constructing an endpoint does not
 silently capture a microphone. Windows uses `WindowsWaveAudioDeviceBackend`.
 Consumers still need a native codec library and an available platform backend.
+
+For managed audio output, supply the same caller-owned `TelephoneAudioOutput`
+as both `TelephoneOptions.Sink` and `OutputControl`. Configure its speaker and
+loudspeaker device identifiers, and subscribe `ProfileChanged` to
+`ConfigureProfile` when using buffering. `Hangup()` requests cleanup;
+`HangupAsync()` awaits canceled dial discovery, receive processing, encoder/DSP
+release and output reset. `Available` and typed `CallEnded` occur only afterward.
+The closing endpoint rejects another call until this boundary. Constructing or
+resetting the facade opens no device; the next frame lazily opens a lease.
+
+### Headless echo and timing evidence
+
+`GenerateEchoSuppressionVectors.py` executes actual `Filters.EchoSuppressor`
+at the pinned revision and records its source digest, synthetic float32 PCM,
+983 frame observations (981 successful results and two explicit failures) and
+captured blocks returned by NumPy's real normal
+generator. Only its clock and input samples are controlled. Its 14 scenarios
+cover mono/stereo/three-channel input, delay/confidence/coupling tracking,
+double-talk, weak coupling/recovery, custom and inactive parameters, reference
+rate changes, mismatch passthrough and comfort-noise generation/clipping.
+Re-execution into `artifacts/tests/lxst-headless-echo-reproduced.json` followed
+by `cmp` reproduced the checked-in fixture byte-for-byte.
+
+This is echo **suppression/gain gating**, not adaptive waveform subtraction.
+The managed implementation uses bounded histories and reusable FFT workspace.
+Reference decimation is six (48 kHz becomes 8 kHz, despite a stale source
+comment); it preserves the observed filter/state quirks and inactive options
+rather than inventing effects. Rates are bounded to 6–384000 Hz, frames to one
+second, and analysis windows to two seconds. Mixer references follow output,
+gain and clipping; failing sinks/observers cannot suppress other references.
+Telephone receive references are fed independently of output sinks/subscribers.
+Native Opus network tests derive a synthetic delayed microphone echo from an
+independently decoded peer stream and verify attenuation/delay tracking without
+observers or audio devices. Concurrent processing/disposal is separately tested.
+These are synthetic software observations, not acoustic listening/hardware proof.
+
+Two actual upstream boundary failures are recorded explicitly: a drastic
+reference-rate reduction raises `ValueError` for empty `argmax`; gated
+19200-sample comfort-noise frames raise a `(19200,)`/`(16384,)` broadcast error.
+Managed recovery uses global delay search for an invalid tracking window and
+bounded noise chunks for long frames, including 400 ms/48 kHz capture.
+Those recovery cases assert finite complete output, **not parity with a
+successful upstream result**, because the actual reference fails.
+
+`GenerateTelephoneControlVectors.py` executes primary routing, clipped mixer
+references, duration/display callbacks and busy/rejected completion with
+disclosed fake devices, pipelines and clocks. Eight completion cases cover
+4.25 s, 0.4 s, 0.501 s and zero tone durations in both outcomes. Busy control is
+quantized to 5 ms, including its 500 ms last-gain tail; ringback updates every
+200 ms. The CLI starts supplied-ringtone playback after 500 ms and reports
+interactive elapsed duration every 250 ms (1 s with LCD in the source).
+Progress workers are canceled, observed and awaited across replacement/teardown.
+The tone fixture also checks 4,288 ideal-clock observations, including samples
+between control updates and custom-duration tails. Routing tests hold an
+in-flight device change across hangup: reset and Available wait until it ends.
+These ideal-clock contracts do not assert identical physical OS scheduling.
 
 ## Architecture and ownership
 
@@ -420,9 +480,10 @@ cadence jobs with disclosed synthetic audio/clock/thread boundaries; mutable
 generator gain transitions separately execute actual `ToneSource.__generate`.
 The CLI routes ringback/busy audio to its own selected-speaker process, applies
 receive gain/mute and cancels stale playback on another call or shutdown.
-Unlike Python's blocking busy job before its final callback, the device-independent
-endpoint reports Busy/Rejected promptly and the CLI plays the bounded tone
-asynchronously after that outcome. That callback timing difference is explicit.
+The endpoint reports the observed Busy/Rejected reason promptly, but its typed
+completion and return to Available wait for the bounded tone/tail and cleanup.
+The CLI cancels tone playback at that completion boundary. For custom short
+durations, the last control gain is retained through the 500 ms tail.
 
 | Environment | Evidence |
 |---|---|
@@ -559,7 +620,8 @@ in **Current 0.5.4 acceptance and reproducible paths** below):
 - Windows actual endpoint enumeration and opted-in synthetic-silence output
   selection: **8 passed, zero skipped**.
 - WSL full LXST suite against the actual primary-release checkout:
-  **156 passed, two Windows-only integration cases explicitly skipped**,
+  **Current totals are in the acceptance table below**, with two Windows-only
+  integration cases explicitly skipped,
   including eight real telephone topology/mode cases,
   sixteen initial-profile cases and seven policy/rejection/timeout recovery cases.
 - Telephone lifecycle cases include a blocked sink proving that a second
@@ -676,11 +738,11 @@ has no implementation. Their exact disposition is:
 | Inventory row | Remaining boundary and reason |
 |---|---|
 | Ring/wait/connect timeouts, path requests, periodic announcements | Implemented; exhaustive relative timing/periodic-announcement matrix unverified. Mutable connect deadlines and timeout recovery execute; this is evidence scope, not an absent timer. |
-| Ringing/established/ended/busy/rejected callbacks | Implemented through a single typed state event instead of five Python setters; original API shape, not missing observable call states. Busy/rejected notification timing intentionally differs as disclosed above. |
+| Ringing/established/ended/busy/rejected callbacks | Original state event plus typed post-cleanup completion instead of five Python setters; eight actual-reference outcome timing cases; busy/rejected reason is observable before final completion. |
 | Receive/transmit gain, mute, AGC, low-latency output, ringer/device selection | Gain/mute/AGC, Linux devices and ringtone implemented. Actual Linux low-latency operation is unsupported upstream; Android backend/OS unavailable; Windows WinMM is not WASAPI/loopback/low-latency parity. |
 | Resample functions, normalize option and supported channel handling | Executed mono/stereo rate conversion and normalization implemented. Arbitrary host-native float128 formats unverified outside the pinned Linux x86 representation; no replacement format is invented. |
 | Line capture/playback, preferred devices, buffers, gain, filters and low latency | Generic and Linux/Windows software exists; successful physical capture/quality/latency and unavailable platform branches unverified. Fake/virtual tests are not physical evidence. |
-| `rnphone`, CLI flags and interactive controls | Installed entry point, listed flags/aliases, dial/redial, answer/hangup, phonebook and profile controls implemented. Help/systemd text, ANSI styling, prompts and call-duration formatting are original; complete terminal byte/key/timing matrices are not claimed. |
+| `rnphone`, CLI flags and interactive controls | Installed entry point, listed flags/aliases and controls implemented. Terminal tokens/state/menu actions, elapsed rounding/duration strings and refresh cadence execute source vectors. Help/systemd text, ANSI styling and prompts remain original; exhaustive physical scheduling/terminal byte matrices are not claimed. |
 | Service mode/signals/shutdown/systemd | Implemented; 60 seconds with stdin closed, then SIGTERM/restart verified; hours/days operation unverified. Original systemd example paths/text, not a copied asset. |
 | Configuration precedence/default/first-run and bundled ringtone copying | Precedence/default creation/identity implemented. No upstream licensed sounds/default-comment template is redistributed; user-supplied Opus ringtone flow is verified. |
 | Sources/Sinks/backend and Telephone device/default helper rows | Generic enumeration/defaults and leased device I/O exist and utility composition uses them. Device-independent endpoint deliberately does not own devices or emulate Python backend object layouts; OS methods live in `IAudioDeviceBackend`, not a missing factory. |
@@ -696,8 +758,8 @@ has no implementation. Their exact disposition is:
   source/API/menu formatting. Device-independent equivalent primitives are
   present; the examples are not extra installed executables.
 - **Intentional differences:** atomic configuration replacement, stricter
-  unknown-setting/allow-list validation, prompt endpoint outcome callbacks with
-  asynchronous CLI busy tones, bounded asynchronous queues and explicit
+  unknown-setting/allow-list validation, an early observed-reason state event
+  distinct from delayed final completion, bounded asynchronous queues and explicit
   ownership. These are not claimed as byte-for-byte Python application behavior.
 - **Unavailable execution environments:** physical audio/GPIO/I2C/RNode,
   macOS/Android device platforms, big-endian and IEEE binary128 hosts. No physical
@@ -707,12 +769,15 @@ has no implementation. Their exact disposition is:
 ### Terminal and disposal regression acceptance
 
   `GenerateTerminalVectors.py` executes primary 0.5.4 `main_menu` and one
-  iteration of the actual `run` loop for 72 state/command combinations, using
+  iteration of the actual `run` loop for 248 state/menu/token combinations, using
   disclosed telephone/callback/input substitutes. `Fixtures/lxst-terminal.json`
   records its revision and utility SHA-256. `quit`, `q` and `exit` during a call
   now reject/hang up rather than exiting the service; phonebook close commands
   only apply while available. The correctly spelled `announce` remains a .NET
   extension: primary registers `anounce` and `a`, not `announce`.
+  Literal ASCII-space tokenization does not strip input; 32-character hash
+  candidates precede command lookup. Phonebook `b/back/q/quit` close the submenu,
+  while unrelated main-menu commands (including `exit`) do not escape it.
 
   Endpoint disposal now cancels **and awaits** pending path discovery, including
   concurrent disposal without state subscribers. Twelve sequential peer
@@ -733,7 +798,7 @@ No reference-side source shim is used for these live telephone calls.
 
 Linux commands use `/home/dennis/.dotreticulum-dotnet/dotnet`,
 `DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet` and prepend that directory
-to `PATH`. Create `artifacts/tests/lxst-upgrade-testdrive` before setting
+to `PATH`. Create `artifacts/tests/lxst-headless-linux-scratch` before setting
 `TMPDIR` to its absolute path. Set `DOTLXST_LIVE=1`, `DOTLXST_NATIVE=1`
 and `DOTLXST_VIRTUAL_AUDIO=1` for the full Linux suite. `DOTLXST_SOAK_SECONDS=60`
 enables counter-based sustained-call checks in Pester and the 60-second
@@ -742,14 +807,14 @@ native acceptance still runs.
 
 | Exact command, from repository root unless specified | Result |
 |---|---|
-| `dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path artifacts\builds\lxst-completion-win --results-directory artifacts\tests\lxst-upgrade-win-final --logger trx --verbosity quiet` | 109 passed, 19 explicit opt-in skips |
-| `/home/dennis/.dotreticulum-dotnet/dotnet test tests/LXST.Tests/LXST.Tests.csproj -c Release --artifacts-path artifacts/builds/lxst-upgrade-linux --results-directory artifacts/tests/lxst-upgrade-final-shared --logger trx --verbosity quiet` with the Linux environment above | 156 passed, 2 Windows-only skips; final rerun uses the shared verifier and current versions |
-| `dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path artifacts\builds\lxst-completion-win --results-directory artifacts\tests\lxst-upgrade-win-devices --filter 'FullyQualifiedName~WindowsWaveAudioTests' --logger trx --verbosity quiet`, with `DOTLXST_WINDOWS_AUDIO=1` | 8 passed, no skips; actual endpoint enumeration and synthetic-silence output/cancellation, no microphone opened |
-| `dotnet publish src\rnphone\rnphone.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\lxst-upgrade-aot-win -o artifacts\builds\lxst-upgrade-native-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet`, with MSVC environment in the same process | Passed; binary `--help`, `--version` and `--list-devices` ran |
-| `/home/dennis/.dotreticulum-dotnet/dotnet publish src/rnphone/rnphone.csproj -c Release -r linux-x64 --artifacts-path artifacts/builds/lxst-upgrade-aot-linux -o artifacts/builds/lxst-upgrade-native-linux -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet` | Passed; published binary used in Linux native flows |
-| `pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 -Tag NativeWindows`, with `DOTLXST_WINDOWS_AUDIO=1`, `DOTLXST_SOAK_SECONDS=60`, and `DOTLXST_RNPHONE_BINARY` selecting the final Windows binary | 1 passed, no skips; 60 seconds of increasing bidirectional real Opus frame counts using synthetic/discard devices; abrupt peer-process death during a call, automatic return to available, same-identity restart and a third successful call |
-| `/home/dennis/.dotreticulum-powershell/pwsh -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/tests/run-pester.ps1 -Path /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/tests/Pester/Rnphone.Tests.ps1 -Tag Native`, from `/home/dennis/dotreticulum-ecosystem-acfd3d43/ci-acceptance-checkout`, with `DOTLXST_LIVE=1`, `DOTLXST_VIRTUAL_AUDIO=1`, `DOTLXST_SOAK_SECONDS=60` and final Linux `DOTLXST_RNPHONE_BINARY` | 7 passed, no skips; actual Python direct calls, virtual PulseAudio source-free pair sustaining bidirectional counters for 60 seconds, device/profile/ringtone/busy flows, service SIGTERM/restart and persistence |
-| Same Linux native command with `-Tag NativeUtility` | 2 passed, no skips; service remained alive for 60 seconds after stdin closed and ignored `quit`, then exited on SIGTERM and restarted with the same identity |
+| `dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path artifacts\builds\lxst-headless-win --results-directory artifacts\tests\lxst-headless-win-final --logger trx --verbosity quiet` | 126 passed, 20 explicit opt-in skips |
+| `/home/dennis/.dotreticulum-dotnet/dotnet test tests/LXST.Tests/LXST.Tests.csproj -c Release --artifacts-path artifacts/builds/lxst-headless-linux-final --results-directory artifacts/tests/lxst-headless-linux-final-accepted --logger trx --verbosity quiet`, with all three Linux opt-ins above | 174 passed, 2 Windows-only skips; complete project including actual Python direct/Python-hop/.NET-hop traffic, codec/profile/loss/recovery cases and new headless contracts |
+| Same Linux SDK: `dotnet test tests/LXST.Tests/LXST.Tests.csproj -c Release --artifacts-path artifacts/builds/lxst-headless-linux-unit-final --results-directory artifacts/tests/lxst-headless-linux-unit-final --filter FullyQualifiedName~EchoSuppressorTests --logger trx --verbosity quiet` | 4 passed, no skips; final stricter noise-consumption/error assertions and concurrent DSP disposal |
+| `dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path artifacts\builds\lxst-headless-win --results-directory artifacts\tests\lxst-headless-win-native-final --filter 'FullyQualifiedName~DefaultEchoUses\|FullyQualifiedName~WindowsWaveAudioTests\|FullyQualifiedName~EchoSuppressorTests' --logger trx --verbosity quiet`, with `DOTLXST_NATIVE=1`, `DOTLXST_WINDOWS_AUDIO=1` and independently installed Opus on `PATH` | 13 passed, no skips; actual native Opus echo processing, concurrent DSP disposal, actual enumeration and synthetic Wave silence; no microphone opened |
+| `dotnet publish src\rnphone\rnphone.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\lxst-headless-publish-win -o artifacts\builds\lxst-headless-native-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet`, with MSVC environment in the same process | Passed; binary used for the Windows native gate below |
+| `/home/dennis/.dotreticulum-dotnet/dotnet publish src/rnphone/rnphone.csproj -c Release -r linux-x64 --artifacts-path artifacts/builds/lxst-headless-publish-linux -o artifacts/builds/lxst-headless-native-linux -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet` | Passed; published binary used in Linux native flows |
+| `pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 -Tag NativeWindows`, with `DOTLXST_WINDOWS_AUDIO=1`, `DOTLXST_SOAK_SECONDS=60`, and `DOTLXST_RNPHONE_BINARY` selecting the final Windows binary | 1 passed, no skips; 60 seconds of increasing bidirectional real Opus frame counts using synthetic/discard devices; loudspeaker toggles, abrupt peer-process death, return to available, same-identity restart and a third successful call |
+| `/home/dennis/.dotreticulum-powershell/pwsh -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/tests/run-pester.ps1 -Path /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/tests/Pester/Rnphone.Tests.ps1 -Tag Native`, from `/home/dennis/dotreticulum-ecosystem-acfd3d43/ci-acceptance-checkout`, with `DOTLXST_LIVE=1`, `DOTLXST_VIRTUAL_AUDIO=1`, `DOTLXST_SOAK_SECONDS=60` and final Linux `DOTLXST_RNPHONE_BINARY` | 7 passed, no skips; actual Python direct calls, virtual PulseAudio source-free pair sustaining bidirectional counters for 60 seconds, routing/profile/ringtone/busy flows, tone release after completion, terminal token/submenu behavior and 60-second stdin-closed service SIGTERM/restart/persistence |
 | Same Linux PowerShell runner with `-Path /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/tests/Pester/ReferenceEnvironment.Tests.ps1`, no tag, `DOTRETICULUM_LXMF_UPSTREAM` unset | 7 passed, 2 explicit optional LXMF-source-mode skips; pinned 0.5.4 actual import accepted and extra LXST source rejected |
 
 The Linux managed live suite exercises stream and telephone traffic with either
@@ -760,17 +825,18 @@ directions is additionally exercised direct. A bounded 60-second call is not an
 hours/days soak. Linux audio evidence uses virtual PulseAudio; Windows headless
 Opus evidence uses synthetic/discard devices. Separate Windows Wave silence
 tests open an enumerated output but do not establish physical speaker quality.
-Successful physical capture, RF, GPIO/I2C, acoustic echo, hardware latency and
-macOS/Android execution remain unverified. Missing echo-suppression software is
-not attributed to unavailable hardware.
+Successful physical capture, RF, GPIO/I2C, acoustic echo quality, hardware latency
+and macOS/Android execution remain unverified. Managed echo software, reference
+feeds and routing are implemented; synthetic DSP/network tests do not establish
+physical acoustic effectiveness.
 
 Final accepted NativeAOT binary SHA-256 values (supplied native libraries are
 separate, not committed):
 
-- `artifacts\builds\lxst-upgrade-native-win\rnphone.exe`:
-  `5bddfef3e229cbf8d84e201fc0ec6fbf7cd7206c35a3de6560c913ae869dde07`
-- `artifacts\builds\lxst-upgrade-native-linux\rnphone`:
-  `c3654050a4d3ca42bb22bc70c44e1207c539a8642797d38e9276f8f5b1c8d6f6`
+- `artifacts\builds\lxst-headless-native-win\rnphone.exe`:
+  `9c8abc1cdfab79f907cfd423223b50ab7f17170045f606f03cf20bdf25c82449`
+- `artifacts\builds\lxst-headless-native-linux\rnphone`:
+  `556278a8ff94fedc95eefc5854b686df4c729b683b0780b78a05867a4bd6106d`
 
 ### Reticulum adapter guarantees and ownership
 

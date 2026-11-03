@@ -1,0 +1,408 @@
+{
+  "revision": "eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f",
+  "source_sha256": {
+    "Primitives/Telephony.py": "921c603ebc189422a6949049c86c2d15704cd9d401ffd9738098a73ce41918ab",
+    "Utilities/rnphone.py": "180c2a133dd490db2437d2e30c28cee97e54018f06fc438cd5d0113d3dac0be2",
+    "Mixer.py": "96c587dab63dfdeaa0fec6634ce6fa411fe3703bf7b205e13865bb169f82fd54"
+  },
+  "substitutes": "Constructor bypass; fake device/pipeline/mixer leases, call link and deterministic clock/thread/display boundaries. Actual route setters/toggles/hangup and terminal status job execute.",
+  "routes": [
+    {
+      "name": "enable",
+      "enabled": true,
+      "device": "handsfree-B",
+      "actions": [
+        [
+          "open",
+          "handsfree-B"
+        ],
+        [
+          "start",
+          "handsfree-B"
+        ],
+        [
+          "stop",
+          "speaker-A"
+        ],
+        [
+          "close",
+          "speaker-A"
+        ],
+        [
+          "mixer-start"
+        ]
+      ]
+    },
+    {
+      "name": "enable-again",
+      "enabled": true,
+      "device": "handsfree-B",
+      "actions": []
+    },
+    {
+      "name": "change-speaker",
+      "enabled": true,
+      "device": "handsfree-B",
+      "actions": []
+    },
+    {
+      "name": "disable",
+      "enabled": false,
+      "device": "speaker-C",
+      "actions": [
+        [
+          "open",
+          "speaker-C"
+        ],
+        [
+          "start",
+          "speaker-C"
+        ],
+        [
+          "stop",
+          "handsfree-B"
+        ],
+        [
+          "close",
+          "handsfree-B"
+        ],
+        [
+          "mixer-start"
+        ]
+      ]
+    },
+    {
+      "name": "disable-false",
+      "enabled": true,
+      "device": "handsfree-B",
+      "actions": [
+        [
+          "open",
+          "handsfree-B"
+        ],
+        [
+          "start",
+          "handsfree-B"
+        ],
+        [
+          "stop",
+          "speaker-C"
+        ],
+        [
+          "close",
+          "speaker-C"
+        ],
+        [
+          "mixer-start"
+        ]
+      ]
+    },
+    {
+      "name": "enable-false",
+      "enabled": false,
+      "device": "speaker-C",
+      "actions": [
+        [
+          "open",
+          "speaker-C"
+        ],
+        [
+          "start",
+          "speaker-C"
+        ],
+        [
+          "stop",
+          "handsfree-B"
+        ],
+        [
+          "close",
+          "handsfree-B"
+        ],
+        [
+          "mixer-start"
+        ]
+      ]
+    },
+    {
+      "name": "enable-before-hangup",
+      "enabled": true,
+      "device": "handsfree-B",
+      "actions": [
+        [
+          "open",
+          "handsfree-B"
+        ],
+        [
+          "start",
+          "handsfree-B"
+        ],
+        [
+          "stop",
+          "speaker-C"
+        ],
+        [
+          "close",
+          "speaker-C"
+        ],
+        [
+          "mixer-start"
+        ]
+      ]
+    },
+    {
+      "name": "hangup",
+      "enabled": false,
+      "device": null,
+      "actions": []
+    }
+  ],
+  "display": [
+    {
+      "has_display": false,
+      "sleeps": [
+        0.25,
+        0.25,
+        0.25,
+        0.25,
+        0.25
+      ],
+      "updates": [],
+      "output": "\rIn call for 0s, hit enter to hang up \r\rIn call for 0s, hit enter to hang up \r\rIn call for 0s, hit enter to hang up \r\rIn call for 1s, hit enter to hang up \r\rIn call for 1s, hit enter to hang up \r\r> "
+    },
+    {
+      "has_display": true,
+      "sleeps": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "updates": [],
+      "output": "\rIn call for 0s, hit enter to hang up \r\rIn call for 1s, hit enter to hang up \r\rIn call for 2s, hit enter to hang up \r\rIn call for 3s, hit enter to hang up \r\rIn call for 4s, hit enter to hang up \r\r> "
+    }
+  ],
+  "outcomes": [
+    {
+      "duration": 4.25,
+      "reason": 0,
+      "events": [
+        [
+          "tone-stop",
+          4.75
+        ],
+        [
+          "callback",
+          4.75,
+          3
+        ]
+      ]
+    },
+    {
+      "duration": 4.25,
+      "reason": 1,
+      "events": [
+        [
+          "tone-stop",
+          4.75
+        ],
+        [
+          "callback",
+          4.75,
+          3
+        ]
+      ]
+    },
+    {
+      "duration": 0.4,
+      "reason": 0,
+      "events": [
+        [
+          "tone-stop",
+          0.9
+        ],
+        [
+          "callback",
+          0.9,
+          3
+        ]
+      ]
+    },
+    {
+      "duration": 0.4,
+      "reason": 1,
+      "events": [
+        [
+          "tone-stop",
+          0.9
+        ],
+        [
+          "callback",
+          0.9,
+          3
+        ]
+      ]
+    },
+    {
+      "duration": 0.501,
+      "reason": 0,
+      "events": [
+        [
+          "tone-stop",
+          1.005
+        ],
+        [
+          "callback",
+          1.005,
+          3
+        ]
+      ]
+    },
+    {
+      "duration": 0.501,
+      "reason": 1,
+      "events": [
+        [
+          "tone-stop",
+          1.005
+        ],
+        [
+          "callback",
+          1.005,
+          3
+        ]
+      ]
+    },
+    {
+      "duration": 0,
+      "reason": 0,
+      "events": [
+        [
+          "tone-stop",
+          0.0
+        ],
+        [
+          "callback",
+          0.0,
+          3
+        ]
+      ]
+    },
+    {
+      "duration": 0,
+      "reason": 1,
+      "events": [
+        [
+          "tone-stop",
+          0.0
+        ],
+        [
+          "callback",
+          0.0,
+          3
+        ]
+      ]
+    }
+  ],
+  "mixer": [
+    [
+      "output",
+      [
+        1.0,
+        -1.0,
+        0.19952623546123505,
+        -0.19952623546123505,
+        0.3990524709224701,
+        -0.3990524709224701,
+        0.0,
+        1.0
+      ]
+    ],
+    [
+      "reference",
+      8000,
+      [
+        1.0,
+        -1.0,
+        0.19952623546123505,
+        -0.19952623546123505,
+        0.3990524709224701,
+        -0.3990524709224701,
+        0.0,
+        1.0
+      ]
+    ]
+  ],
+  "durations": [
+    {
+      "elapsed": 0,
+      "rounded": 0,
+      "text": "0s"
+    },
+    {
+      "elapsed": 0.49,
+      "rounded": 0,
+      "text": "0s"
+    },
+    {
+      "elapsed": 0.5,
+      "rounded": 0,
+      "text": "0s"
+    },
+    {
+      "elapsed": 0.51,
+      "rounded": 1,
+      "text": "1s"
+    },
+    {
+      "elapsed": 1.5,
+      "rounded": 2,
+      "text": "2s"
+    },
+    {
+      "elapsed": 2.5,
+      "rounded": 2,
+      "text": "2s"
+    },
+    {
+      "elapsed": 59.5,
+      "rounded": 60,
+      "text": "1m"
+    },
+    {
+      "elapsed": 60.5,
+      "rounded": 60,
+      "text": "1m"
+    },
+    {
+      "elapsed": 61.5,
+      "rounded": 62,
+      "text": "1m and 2s"
+    },
+    {
+      "elapsed": 3599.5,
+      "rounded": 3600,
+      "text": "1h"
+    },
+    {
+      "elapsed": 3661.5,
+      "rounded": 3662,
+      "text": "1h, 1m and 2s"
+    },
+    {
+      "elapsed": 86399.5,
+      "rounded": 86400,
+      "text": "1d"
+    },
+    {
+      "elapsed": 86400,
+      "rounded": 86400,
+      "text": "1d"
+    },
+    {
+      "elapsed": 90061.5,
+      "rounded": 90062,
+      "text": "1d, 1h, 1m and 2s"
+    }
+  ]
+}

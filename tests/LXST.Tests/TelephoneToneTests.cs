@@ -11,8 +11,17 @@ public sealed class TelephoneToneTests
         using var fixture = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", "lxst-telephone-tones.json")));
         foreach (var (kind, property) in new[] { (TelephoneTone.Ringback, "ringback"), (TelephoneTone.Busy, "busy") })
             foreach (var vector in fixture.RootElement.GetProperty(property).EnumerateArray())
-                Assert.Equal(vector.GetProperty("audible").GetBoolean(),
-                    TelephoneToneSource.IsAudible(kind, TimeSpan.FromSeconds(vector.GetProperty("elapsed").GetDouble())));
+                Assert.True(vector.GetProperty("audible").GetBoolean() ==
+                    TelephoneToneSource.IsAudible(kind, TimeSpan.FromTicks((long)Math.Round(vector.GetProperty("elapsed").GetDouble() * TimeSpan.TicksPerSecond))),
+                    $"{kind} at {vector.GetProperty("elapsed").GetDouble()}");
+        foreach (var example in fixture.RootElement.GetProperty("timing").EnumerateArray())
+            foreach (var observation in example.GetProperty("observations").EnumerateArray())
+                Assert.True(observation.GetProperty("audible").GetBoolean() ==
+                    TelephoneToneSource.IsAudible(example.GetProperty("kind").GetString() == "ringback" ?
+                        TelephoneTone.Ringback : TelephoneTone.Busy,
+                        TimeSpan.FromTicks((long)Math.Round(observation.GetProperty("elapsed").GetDouble() * TimeSpan.TicksPerSecond)),
+                        TimeSpan.FromTicks((long)Math.Round(example.GetProperty("busy_duration").GetDouble() * TimeSpan.TicksPerSecond))),
+                    $"{example.GetProperty("kind").GetString()} at {observation.GetProperty("elapsed").GetDouble()}");
     }
 
     [Trait("Category", "Integration")]

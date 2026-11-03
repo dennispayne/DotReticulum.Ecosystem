@@ -57,9 +57,9 @@ public static class TelephoneAudioCapture
             var reported = false;
             var profile = telephone.ActiveProfile ?? TelephoneProfile.MediumQuality;
             var device = deviceProvider();
-            var (rate, channels, duration) = Format(profile);
+            var (_, channels, duration) = Format(profile);
             await using var capture = new DeviceAudioSource(backend,
-                new(rate, channels, TimeSpan.FromMilliseconds(duration)), device);
+                new(48000, channels, TimeSpan.FromMilliseconds(duration)), device);
             var clock = Stopwatch.StartNew();
             var envelope = new AudioCaptureEnvelope(TimeSpan.FromSeconds(.075),
                 TimeSpan.FromSeconds(firstRun ? .225 : 0));

@@ -13,7 +13,9 @@ public class PhoneCommandTests
         {
             var state = row.GetProperty("state").GetString();
             var command = row.GetProperty("command").GetString()!;
-            var action = state == "available" ? Rnphone.TerminalCommands.IdleAction(command) :
+            IReadOnlyDictionary<string, string>? phonebook = row.GetProperty("menu").GetString() == "phonebook"
+                ? new Dictionary<string, string> { ["7"] = "0123456789abcdef0123456789abcdef" } : null;
+            var action = state == "available" ? Rnphone.TerminalCommands.IdleAction(command, phonebook) :
                 Rnphone.TerminalCommands.CallAction(state switch
                 {
                     "ringing" => CallState.Ringing,

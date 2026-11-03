@@ -24,6 +24,32 @@ public sealed class TelephoneLifecycleTests
         }
     }
 
+    private sealed class Routes : ITelephoneOutputControl
+    {
+        public string? SpeakerDevice { get; set; }
+        public string? LoudspeakerDevice { get; set; }
+        public bool BlockReset;
+        public bool FailSelect;
+        public bool BlockSelect;
+        public readonly List<bool> Selected = [];
+        public TaskCompletionSource ResetStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource ReleaseReset { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource SelectStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource ReleaseSelect { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public async ValueTask SelectLoudspeakerAsync(bool enabled, CancellationToken cancellationToken = default)
+        {
+            if (enabled && FailSelect) throw new IOException("injected route failure");
+            Selected.Add(enabled);
+            SelectStarted.TrySetResult();
+            if (BlockSelect) await ReleaseSelect.Task.WaitAsync(cancellationToken);
+        }
+        public async ValueTask ResetAsync()
+        {
+            ResetStarted.TrySetResult();
+            if (BlockReset) await ReleaseReset.Task;
+        }
+    }
+
     private sealed class Rig : IAsyncDisposable
     {
         private readonly TcpServerPacketInterface _serverInterface;
@@ -159,6 +185,168 @@ public sealed class TelephoneLifecycleTests
         Assert.Null(rig.Phone.EstablishedAt);
         Assert.False(rig.Phone.DisableRemoteModeFollow());
         Assert.False(rig.Phone.TransmitSquelched);
+    }
+
+    [Fact]
+    public async Task BusyAndRejectedOutcomesFollowExecutedPrimaryToneCompletionAndReleaseState()
+    {
+        using var fixture = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory,
+            "Fixtures", "lxst-telephone-controls.json")));
+        foreach (var row in fixture.RootElement.GetProperty("outcomes").EnumerateArray())
+        {
+            var clock = new ManualAudioClock();
+            await using var rig = new Rig(new()
+            {
+                AutoAnswerDelay = TimeSpan.FromMilliseconds(20), TimeProvider = clock,
+                BusyToneDuration = TimeSpan.FromSeconds(row.GetProperty("duration").GetDouble()),
+            });
+            await rig.StartAsync();
+            await using var peer = rig.Connect(out var established);
+            await established.WaitAsync(TimeSpan.FromSeconds(5));
+            var reason = (CallState)row.GetProperty("reason").GetInt32();
+            var seen = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var ended = new TaskCompletionSource<TelephoneCallEnded>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var observedState = CallState.Calling;
+            var callbackAt = TimeSpan.Zero;
+            rig.Phone.StateChanged += state => { if (state == reason) seen.TrySetResult(); };
+            rig.Phone.Error = (_, _) => { };
+            rig.Phone.CallEnded += _ => throw new InvalidOperationException("outcome observer");
+            rig.Phone.CallEnded += outcome =>
+            {
+                observedState = rig.Phone.State;
+                callbackAt = clock.GetUtcNow() - DateTimeOffset.FromUnixTimeSeconds(1000);
+                ended.TrySetResult(outcome);
+            };
+            await peer.SendSignalAsync((long)reason);
+            await seen.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var expected = TimeSpan.FromTicks((long)Math.Round(row.GetProperty("events")[1][1].GetDouble() * TimeSpan.TicksPerSecond));
+            if (expected > TimeSpan.Zero)
+            {
+                await clock.TimerCreated.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                Assert.True(rig.Phone.IsBusy);
+                clock.Advance(expected - TimeSpan.FromMilliseconds(1));
+                Assert.False(ended.Task.IsCompleted);
+                clock.Advance(TimeSpan.FromMilliseconds(1));
+            }
+            Assert.Equal(reason, (await ended.Task.WaitAsync(TimeSpan.FromSeconds(5))).Reason);
+            Assert.Equal(expected, callbackAt);
+            Assert.Equal(CallState.Available, observedState);
+            Assert.False(rig.Phone.IsBusy);
+        }
+    }
+
+    [Fact]
+    public async Task LoudspeakerResetAndConcurrentHangupsWaitForOutputCleanupBeforeAllowingNextCall()
+    {
+        var routes = new Routes { BlockReset = true };
+        await using var rig = new Rig(new() { AutoAnswerDelay = TimeSpan.FromMilliseconds(20), OutputControl = routes });
+        await rig.StartAsync();
+        await using var peer = rig.Connect(out var established);
+        await established.WaitAsync(TimeSpan.FromSeconds(5));
+        rig.Phone.Error = (_, _) => { };
+        rig.Phone.LoudspeakerChanged += _ => throw new InvalidOperationException("route observer");
+        await rig.Phone.EnableLoudspeakerAsync();
+        await rig.Phone.EnableLoudspeakerAsync();
+        Assert.True(rig.Phone.LoudspeakerEnabled);
+        Assert.Equal(new[] { true }, routes.Selected);
+        var first = rig.Phone.HangupAsync().AsTask();
+        await routes.ResetStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var second = rig.Phone.HangupAsync().AsTask();
+        try
+        {
+            Assert.True(rig.Phone.IsBusy);
+            Assert.False(first.IsCompleted);
+            Assert.False(second.IsCompleted);
+            Assert.False(rig.Phone.LoudspeakerEnabled);
+        }
+        finally { routes.ReleaseReset.TrySetResult(); }
+        await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(rig.Phone.IsBusy);
+        await using var next = rig.Connect(out var nextEstablished);
+        await nextEstablished.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(rig.Phone.LoudspeakerEnabled);
+        await rig.Phone.HangupAsync();
+    }
+
+    [Fact]
+    public async Task HangupWaitsForAnInFlightRouteBeforeResetAndAvailable()
+    {
+        var routes = new Routes { BlockSelect = true };
+        await using var rig = new Rig(new() { AutoAnswerDelay = TimeSpan.FromMilliseconds(20), OutputControl = routes });
+        await rig.StartAsync();
+        await using var peer = rig.Connect(out var established);
+        await established.WaitAsync(TimeSpan.FromSeconds(5));
+        var route = rig.Phone.EnableLoudspeakerAsync().AsTask();
+        await routes.SelectStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var hangup = rig.Phone.HangupAsync().AsTask();
+        try
+        {
+            Assert.True(rig.Phone.IsBusy);
+            Assert.False(routes.ResetStarted.Task.IsCompleted);
+            Assert.False(hangup.IsCompleted);
+        }
+        finally { routes.ReleaseSelect.TrySetResult(); }
+        await Task.WhenAll(route, hangup).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(routes.ResetStarted.Task.IsCompleted);
+        Assert.False(rig.Phone.IsBusy);
+        Assert.False(rig.Phone.LoudspeakerEnabled);
+    }
+
+    [Fact]
+    public async Task RouteFailureIsReportedWithoutLosingCallService()
+    {
+        var routes = new Routes { FailSelect = true };
+        await using var rig = new Rig(new() { AutoAnswerDelay = TimeSpan.FromMilliseconds(20), OutputControl = routes });
+        var reports = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        rig.Phone.Error = (context, _) => reports.Enqueue(context);
+        await rig.StartAsync();
+        await using var peer = rig.Connect(out var established);
+        await established.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.ThrowsAsync<IOException>(() => rig.Phone.EnableLoudspeakerAsync().AsTask());
+        Assert.Equal(CallState.Established, rig.Phone.State);
+        await rig.Phone.HangupAsync();
+        Assert.False(rig.Phone.LoudspeakerEnabled);
+        Assert.False(rig.Phone.IsBusy);
+        Assert.Contains(reports, context => context.Contains("route", StringComparison.Ordinal));
+        await using var next = rig.Connect(out var nextEstablished);
+        await nextEstablished.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [NativeCodecFact]
+    public async Task DefaultEchoUsesReceivedAudioWithoutSubscribersAndAcceptsFullRateCapture()
+    {
+        await using var rig = new Rig(new()
+        {
+            AutoAnswerDelay = TimeSpan.FromMilliseconds(20),
+            UseBandPass = false,
+            UseAutomaticGainControl = false,
+            EchoSuppression = new() { ComfortNoiseEnabled = false },
+        });
+        await rig.StartAsync();
+        await using var peer = rig.Connect(out var established, codecFactory: new NativeAudioCodecFactory());
+        await established.WaitAsync(TimeSpan.FromSeconds(5));
+        using var encoder = new NativeOpusCodec(OpusProfile.VoiceMedium);
+        using var decoder = new NativeAudioCodecFactory().Create(CodecKind.Opus);
+        var reference = new List<AudioFrame>();
+        var random = new Random(7824);
+        for (var index = 0; index < 60; index++)
+        {
+            var input = new AudioFrame(Enumerable.Range(0, 240).Select(_ => (float)(random.NextDouble() - .5)).ToArray(), 24000, 1);
+            var packet = encoder.Encode(input);
+            reference.Add(decoder.Decode(packet));
+            await peer.SendFrameAsync(new(CodecKind.Opus, packet));
+            var referenceCount = Math.Min((index + 1) * 480, 42784);
+            await LiveStreamTests.WaitForAsync(() => rig.Phone.EchoSuppressionState?.ReferenceSamples >= referenceCount);
+            var delayed = reference[Math.Max(0, index - 3)];
+            await rig.Phone.SendAudioAsync(new(delayed.Samples.ToArray().Select(value => value * .5f).ToArray(), 48000, 2));
+        }
+        Assert.NotNull(rig.Phone.EchoSuppressionState);
+        Assert.NotNull(rig.Phone.EchoSuppressionState.DelaySamples);
+        Assert.InRange(rig.Phone.EchoSuppressionState.DelaySamples!.Value, 1400, 1480);
+        Assert.True(rig.Phone.EchoSuppressionState.Gain < .01, $"Unattenuated echo gain: {rig.Phone.EchoSuppressionState.Gain}");
+        Assert.Equal(60, rig.Phone.TransmittedFrames);
+        await rig.Phone.HangupAsync();
+        Assert.Null(rig.Phone.EchoSuppressionState);
     }
 
     [NativeCodecFact]
@@ -446,7 +634,7 @@ public sealed class TelephoneLifecycleTests
         await using var next = rig.Connect(out var established);
         await established.WaitAsync(TimeSpan.FromSeconds(10));
         Assert.True(rig.Phone.IsBusy);
-        rig.Phone.Hangup();
+        await rig.Phone.HangupAsync();
         Assert.False(rig.Phone.IsBusy);
     }
 

@@ -107,6 +107,19 @@ public sealed class DeviceAudioSink(IAudioDeviceBackend backend, string? device 
     private bool _reported;
     public void SetDevice(string? device) => Volatile.Write(ref _device, device);
 
+    public async ValueTask SetDeviceAsync(string? device, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            Volatile.Write(ref _device, device);
+            if (_playback is not null && _format is { } format && device != _activeDevice)
+                await ReplacePlaybackAsync(device, format, cancellationToken).ConfigureAwait(false);
+        }
+        finally { _gate.Release(); }
+    }
+
     public async ValueTask WriteAsync(AudioFrame frame, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(frame);
@@ -120,17 +133,14 @@ public sealed class DeviceAudioSink(IAudioDeviceBackend backend, string? device 
             var selected = Volatile.Read(ref _device);
             if (_playback is null || _format != format || selected != _activeDevice)
             {
-                if (_playback is not null) { await _playback.DisposeAsync().ConfigureAwait(false); _playback = null; }
-                _playback = await backend.OpenPlaybackAsync(selected, format, cancellationToken).ConfigureAwait(false);
-                _format = format;
-                _activeDevice = selected;
+                await ReplacePlaybackAsync(selected, format, cancellationToken).ConfigureAwait(false);
             }
-            try { await _playback.WriteAsync(frame, cancellationToken).ConfigureAwait(false); }
+            var playback = _playback ?? throw new InvalidOperationException("Playback did not open.");
+            try { await playback.WriteAsync(frame, cancellationToken).ConfigureAwait(false); }
             catch
             {
-                var failed = _playback;
                 _playback = null;
-                await failed.DisposeAsync().ConfigureAwait(false);
+                await playback.DisposeAsync().ConfigureAwait(false);
                 throw;
             }
             if (!_reported)
@@ -141,6 +151,16 @@ public sealed class DeviceAudioSink(IAudioDeviceBackend backend, string? device 
             }
         }
         finally { _gate.Release(); }
+    }
+
+    private async ValueTask ReplacePlaybackAsync(string? selected, AudioDeviceFormat format, CancellationToken cancellationToken)
+    {
+        var replacement = await backend.OpenPlaybackAsync(selected, format, cancellationToken).ConfigureAwait(false);
+        var previous = _playback;
+        _playback = replacement;
+        _format = format;
+        _activeDevice = selected;
+        if (previous is not null) await previous.DisposeAsync().ConfigureAwait(false);
     }
 
     public async ValueTask StopAsync()

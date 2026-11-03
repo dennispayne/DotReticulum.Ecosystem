@@ -120,6 +120,23 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
         }
     }
 
+    public async ValueTask ResetAsync()
+    {
+        await StopAsync().ConfigureAwait(false);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _frames.Clear();
+            while (_available.Wait(0)) { }
+            _frameTime = null;
+            _maximumHeight = 3;
+            _startFrames = 1;
+            _waitingForFrames = false;
+            OutputLatency = TimeSpan.Zero;
+            MaximumLatency = TimeSpan.Zero;
+        }
+    }
+
     private async Task StopCoreAsync(CancellationTokenSource stop, Task completion)
     {
         await Task.Yield();

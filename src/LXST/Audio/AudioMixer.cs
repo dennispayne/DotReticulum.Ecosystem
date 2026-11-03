@@ -10,6 +10,7 @@ public sealed class AudioMixer : IAsyncDisposable
 
     private readonly object _gate = new();
     private readonly Dictionary<object, SourceQueue> _sources = [];
+    private readonly List<IAudioReferenceReceiver> _references = [];
     private readonly IAudioSink _output;
     private readonly TimeSpan _frameDuration;
     private readonly int _sampleRate;
@@ -24,6 +25,28 @@ public sealed class AudioMixer : IAsyncDisposable
     private bool _disposed;
     private bool _muted;
     private float _gainDb;
+    public Action<string, Exception?>? Error { get; set; }
+
+    public void AddReferenceReceiver(IAudioReferenceReceiver receiver)
+    {
+        ArgumentNullException.ThrowIfNull(receiver);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_references.Count == 32) throw new InvalidOperationException("The mixer reference limit has been reached.");
+            _references.Add(receiver);
+        }
+    }
+
+    public bool RemoveReferenceReceiver(IAudioReferenceReceiver receiver)
+    {
+        ArgumentNullException.ThrowIfNull(receiver);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _references.Remove(receiver);
+        }
+    }
 
     public AudioMixer(
         IAudioSink output,
@@ -228,6 +251,7 @@ public sealed class AudioMixer : IAsyncDisposable
     {
         await Task.Yield();
         await StopAsync().ConfigureAwait(false);
+        lock (_gate) _references.Clear();
     }
 
     private async Task RunAsync(CancellationToken cancellationToken)
@@ -236,9 +260,26 @@ public sealed class AudioMixer : IAsyncDisposable
         while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
         {
             var mixed = MixQueuedFrames();
-            if (mixed is not null)
-                await _output.WriteAsync(mixed, cancellationToken).ConfigureAwait(false);
+            if (mixed is null) continue;
+            try { await _output.WriteAsync(mixed, cancellationToken).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception exception) { Report("Mixer output failed.", exception); }
+            IAudioReferenceReceiver[] references;
+            lock (_gate) references = _references.ToArray();
+            foreach (var receiver in references)
+                try { receiver.HandleReference(mixed); }
+                catch (Exception exception) { Report("Mixer reference receiver failed.", exception); }
         }
+    }
+
+    private void Report(string context, Exception exception)
+    {
+        try
+        {
+            if (Error is { } report) report(context, exception);
+            else System.Diagnostics.Trace.TraceError($"{context} {exception}");
+        }
+        catch (Exception observer) { System.Diagnostics.Trace.TraceError($"{context} {exception}; error observer: {observer}"); }
     }
 
     private AudioFrame? MixQueuedFrames()

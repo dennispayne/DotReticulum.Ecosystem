@@ -34,6 +34,8 @@ public enum TelephoneMode
     HalfDuplex = 2,
 }
 
+public sealed record TelephoneCallEnded(string? RemoteIdentityHash, CallState? Reason, DateTimeOffset? EstablishedAt);
+
 public sealed record TelephoneOptions
 {
     public TimeSpan RingTimeout { get; init; } = TimeSpan.FromSeconds(60);
@@ -48,6 +50,11 @@ public sealed record TelephoneOptions
     public float TransmitGainDb { get; init; }
     public bool UseAutomaticGainControl { get; init; } = true;
     public bool UseBandPass { get; init; } = true;
+    public bool UseEchoSuppression { get; init; } = true;
+    public EchoSuppressorOptions EchoSuppression { get; init; } = new();
+    public ITelephoneOutputControl? OutputControl { get; init; }
+    public TimeProvider TimeProvider { get; init; } = TimeProvider.System;
+    public TimeSpan BusyToneDuration { get; init; } = TimeSpan.FromSeconds(4.25);
     public IAudioSink? Sink { get; init; }
     public IAudioCodecFactory CodecFactory { get; init; } = new NativeAudioCodecFactory();
     public string? OpusLibraryPath { get; init; }
@@ -74,12 +81,14 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         public AutomaticGainControl TransmitAgc { get; } = new(targetLevelDb: -15);
         public bool UseAutomaticGainControl { get; set; }
         public bool UseBandPass { get; set; }
+        public EchoSuppressor? Echo { get; set; }
         public TelephoneMode Mode { get; set; } = TelephoneMode.FullDuplex;
         public bool TransmitSquelched { get; set; }
         public bool AgcPaused { get; set; }
         public bool RemoteModeFollowDisabled { get; set; }
         public DateTimeOffset? EstablishedAt { get; set; }
         public long TransmittedFrames;
+        public CallState? TerminationReason { get; set; }
     }
 
     private sealed class ReceiveSink(TelephoneEndpoint endpoint) : IAudioSink
@@ -109,9 +118,14 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     private bool _transmitMuted;
     private bool _useAutomaticGainControl;
     private bool _useBandPass;
+    private bool _useEchoSuppression;
+    private bool _loudspeakerEnabled;
+    private bool _closing;
+    private TimeSpan _busyToneDuration;
     private TimeSpan _connectTimeout;
     private TaskCompletionSource? _disposeCompletion;
     private Task _announcements = Task.CompletedTask;
+    private Task _outputChanges = Task.CompletedTask;
     private CallState _state = CallState.Available;
 
     public TelephoneEndpoint(TransportRouter router, Identity identity, TelephoneOptions? options = null)
@@ -128,6 +142,11 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         _transmitGainDb = _options.TransmitGainDb;
         _useAutomaticGainControl = _options.UseAutomaticGainControl;
         _useBandPass = _options.UseBandPass;
+        _useEchoSuppression = _options.UseEchoSuppression;
+        BusyToneDuration = _options.BusyToneDuration;
+        ArgumentNullException.ThrowIfNull(_options.TimeProvider);
+        ArgumentNullException.ThrowIfNull(_options.EchoSuppression);
+        using (var validation = new EchoSuppressor(_options.EchoSuppression)) { }
         _connectTimeout = _options.ConnectTimeout;
         if (_options.RingTimeout <= TimeSpan.Zero || _options.WaitTimeout <= TimeSpan.Zero ||
             _options.ConnectTimeout <= TimeSpan.Zero || _options.AnnounceInterval <= TimeSpan.Zero ||
@@ -143,7 +162,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
 
     public byte[] DestinationHash => _destination.Destination.Hash.ToArray();
     public CallState State { get { lock (_gate) return _state; } }
-    public bool IsBusy { get { lock (_gate) return _externalBusy || _state != CallState.Available; } }
+    public bool IsBusy { get { lock (_gate) return _externalBusy || _closing || _state != CallState.Available; } }
     public TelephoneProfile? ActiveProfile { get { lock (_gate) return _call?.Profile; } }
     public TelephoneMode? ActiveMode { get { lock (_gate) return _call?.Mode; } }
     public bool TransmitSquelched { get { lock (_gate) return _call?.TransmitSquelched ?? false; } }
@@ -151,6 +170,17 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     public DateTimeOffset? EstablishedAt { get { lock (_gate) return _call?.EstablishedAt; } }
     public long ReceivedFrames { get { lock (_gate) return _call?.Session.DecodedFrames ?? 0; } }
     public long TransmittedFrames { get { lock (_gate) return _call is { } call ? Interlocked.Read(ref call.TransmittedFrames) : 0; } }
+    public bool LoudspeakerEnabled { get { lock (_gate) return _loudspeakerEnabled; } }
+    public TimeSpan BusyToneDuration
+    {
+        get { lock (_gate) return _busyToneDuration; }
+        set
+        {
+            if (value < TimeSpan.Zero || value > TimeSpan.FromMinutes(1)) throw new ArgumentOutOfRangeException(nameof(value));
+            lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); _busyToneDuration = value; }
+        }
+    }
+    public EchoSuppressionState? EchoSuppressionState { get { lock (_gate) return _call?.Echo?.State; } }
     public Identity? RemoteIdentity { get { lock (_gate) return _call?.Link.RemoteIdentity; } }
     public bool IsIncomingCall { get { lock (_gate) return _call is { Outgoing: false }; } }
     /// <summary>Changes future outgoing establishment deadlines; an already scheduled deadline is not rewritten.</summary>
@@ -190,9 +220,16 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         get { lock (_gate) return _useBandPass; }
         set { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); _useBandPass = value; } }
     }
+    public bool UseEchoSuppression
+    {
+        get { lock (_gate) return _useEchoSuppression; }
+        set { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); _useEchoSuppression = value; } }
+    }
     public event Action<CallState>? StateChanged;
     public event Action<TelephoneMode>? ModeChanged;
     public event Action<TelephoneProfile>? ProfileChanged;
+    public event Action<bool>? LoudspeakerChanged;
+    public event Action<TelephoneCallEnded>? CallEnded;
     public event Action<AudioFrame>? AudioReceived;
     public Action<string, Exception?>? Error { get; set; }
 
@@ -259,7 +296,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         timeout.CancelAfter(_options.WaitTimeout);
         lock (_gate)
         {
-            if (_externalBusy || _call is not null || _state != CallState.Available) throw new InvalidOperationException("Telephone is busy.");
+            if (_externalBusy || _closing || _call is not null || _state != CallState.Available) throw new InvalidOperationException("Telephone is busy.");
             _pendingDial = timeout;
             _pendingDialCompletion = dialCompletion;
             _state = CallState.Calling;
@@ -337,6 +374,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception ex) { Report("LXST audio sink failed.", ex); }
         }
+        call.Echo?.HandleReference(output.SampleRate == 48000 ? output : AudioResampler.Resample(output, 48000));
         Notify(AudioReceived, output);
     }
 
@@ -351,7 +389,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
     private async Task CloseAfterIngressAsync(Call call)
     {
         await call.Session.Completion.ConfigureAwait(false);
-        CloseCall(call);
+        lock (_gate) if (call.TerminationReason is null) CloseCall(call);
     }
 
     private void AcceptLink(Link link)
@@ -359,7 +397,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         Call? call = null;
         lock (_gate)
         {
-            if (!_disposed && _started && !_externalBusy && _call is null && _state == CallState.Available)
+            if (!_disposed && _started && !_externalBusy && !_closing && _call is null && _state == CallState.Available)
             {
                 call = Attach(link, false, TelephoneProfile.MediumQuality);
                 _call = call;
@@ -451,9 +489,11 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
             {
                 case CallState.Busy:
                 case CallState.Rejected:
+                    if (call.TerminationReason is not null) break;
+                    call.TerminationReason = (CallState)signal;
                     SetState((CallState)signal);
                     call.Link.Teardown();
-                    CloseCall(call);
+                    TrackCleanup(FinishOutcomeAsync(call, _busyToneDuration));
                     break;
                 case CallState.Available when call.Outgoing:
                     call.Link.Identify(_identity);
@@ -483,6 +523,18 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         catch (Exception ex) { Report("LXST preference signalling failed.", ex); CloseCall(call); }
     }
 
+    private async Task FinishOutcomeAsync(Call call, TimeSpan toneDuration)
+    {
+        await Task.Yield();
+        try
+        {
+            if (toneDuration > TimeSpan.Zero)
+                await Task.Delay(TelephoneToneSource.OutcomeDuration(toneDuration), _options.TimeProvider, call.Stop.Token).ConfigureAwait(false);
+            CloseCall(call);
+        }
+        catch (OperationCanceledException) when (call.Stop.IsCancellationRequested) { }
+    }
+
     private void SelectMode(Call call, TelephoneMode mode)
     {
         var changed = call.Mode != mode;
@@ -499,6 +551,45 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
             if (_call is not { } call) return false;
             call.RemoteModeFollowDisabled = true;
             return true;
+        }
+    }
+
+    public ValueTask EnableLoudspeakerAsync(bool enable = true, CancellationToken cancellationToken = default) =>
+        SelectLoudspeakerAsync(enable, cancellationToken);
+
+    public ValueTask DisableLoudspeakerAsync(bool disable = true, CancellationToken cancellationToken = default) =>
+        SelectLoudspeakerAsync(!disable, cancellationToken);
+
+    private ValueTask SelectLoudspeakerAsync(bool enabled, CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (_closing) throw new InvalidOperationException("The call is closing.");
+            if (_loudspeakerEnabled == enabled) return ValueTask.CompletedTask;
+            _loudspeakerEnabled = enabled;
+            var change = ChangeOutputRouteAsync(_outputChanges, enabled, cancellationToken);
+            _outputChanges = change;
+            TrackCleanup(change);
+            Notify(LoudspeakerChanged, enabled);
+            return new(change);
+        }
+    }
+
+    private async Task ChangeOutputRouteAsync(Task preceding, bool enabled, CancellationToken cancellationToken)
+    {
+        try { await preceding.ConfigureAwait(false); }
+        catch (Exception) { } // The preceding operation already reported its failure.
+        try
+        {
+            if (_options.OutputControl is { } output)
+                await output.SelectLoudspeakerAsync(enabled, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Report("LXST output route change failed.", exception);
+            throw;
         }
     }
 
@@ -566,6 +657,14 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
             }
             var filtered = call.UseBandPass ? call.TransmitFilter.Process(frame) : frame;
             if (call.UseAutomaticGainControl && !agcPaused) filtered = call.TransmitAgc.Process(filtered);
+            if (call.Echo is { } echo)
+            {
+                var referenceRate = filtered.SampleRate == 48000 ? filtered : AudioResampler.Resample(filtered, 48000);
+                var suppressed = echo.Process(referenceRate);
+                if (!ReferenceEquals(referenceRate, suppressed))
+                    filtered = suppressed.SampleRate == filtered.SampleRate ? suppressed :
+                        AudioResampler.Resample(suppressed, filtered.SampleRate);
+            }
             var processed = ApplyMixerGain(filtered, gain, muted);
             if (call.Encoder is null || call.EncoderProfile != profile)
             {
@@ -584,15 +683,19 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         finally { call.AudioLock.Release(); }
     }
 
-    private IAudioCodec CreateEncoder(TelephoneProfile profile) => profile switch
+    private IAudioCodec CreateEncoder(TelephoneProfile profile)
     {
-        TelephoneProfile.UltraLowBandwidth => new NativeCodec2(700, _options.Codec2LibraryPath),
-        TelephoneProfile.VeryLowBandwidth => new NativeCodec2(1600, _options.Codec2LibraryPath),
-        TelephoneProfile.LowBandwidth => new NativeCodec2(3200, _options.Codec2LibraryPath),
-        TelephoneProfile.HighQuality => new NativeOpusCodec(OpusProfile.VoiceHigh, _options.OpusLibraryPath),
-        TelephoneProfile.MaximumQuality => new NativeOpusCodec(OpusProfile.VoiceMaximum, _options.OpusLibraryPath),
-        _ => new NativeOpusCodec(OpusProfile.VoiceMedium, _options.OpusLibraryPath),
-    };
+        IAudioCodec codec = profile switch
+        {
+            TelephoneProfile.UltraLowBandwidth => new NativeCodec2(700, _options.Codec2LibraryPath),
+            TelephoneProfile.VeryLowBandwidth => new NativeCodec2(1600, _options.Codec2LibraryPath),
+            TelephoneProfile.LowBandwidth => new NativeCodec2(3200, _options.Codec2LibraryPath),
+            TelephoneProfile.HighQuality => new NativeOpusCodec(OpusProfile.VoiceHigh, _options.OpusLibraryPath),
+            TelephoneProfile.MaximumQuality => new NativeOpusCodec(OpusProfile.VoiceMaximum, _options.OpusLibraryPath),
+            _ => new NativeOpusCodec(OpusProfile.VoiceMedium, _options.OpusLibraryPath),
+        };
+        return new ResamplingAudioCodec(codec, codec is NativeOpusCodec opus ? opus.Parameters.SampleRate : 8000);
+    }
 
     private void SendSignal(Call call, long signal)
     {
@@ -616,7 +719,7 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
             await Task.Delay(timeout <= TimeSpan.Zero ? TimeSpan.Zero : timeout, call.Stop.Token).ConfigureAwait(false);
             lock (_gate)
             {
-                if (ReferenceEquals(_call, call) && _state < before)
+                if (ReferenceEquals(_call, call) && call.TerminationReason is null && _state < before)
                 {
                     call.Link.Teardown();
                     CloseCall(call);
@@ -640,7 +743,18 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
                 call.Link.Teardown();
                 CloseCall(call);
             }
-            else if (_state != CallState.Available) SetState(CallState.Available);
+            else if (!_closing && _state != CallState.Available) SetState(CallState.Available);
+        }
+    }
+
+    public ValueTask HangupAsync(CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            var pending = _pendingDialCompletion?.Task;
+            Hangup();
+            var completion = Task.WhenAll(pending is null ? _cleanup.ToArray() : [.. _cleanup, pending]);
+            return new(completion.WaitAsync(cancellationToken));
         }
     }
 
@@ -656,11 +770,16 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         {
             if (!ReferenceEquals(_call, call)) return;
             _call = null;
+            _closing = true;
             _receiveMuted = false;
             _transmitMuted = false;
+            if (_loudspeakerEnabled)
+            {
+                _loudspeakerEnabled = false;
+                Notify(LoudspeakerChanged, false);
+            }
             call.Stop.Cancel();
-            SetState(CallState.Available);
-            TrackCleanup(CleanupCallAsync(call));
+            TrackCleanup(CleanupAndNotifyAsync(call));
         }
     }
 
@@ -685,9 +804,33 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         await call.Session.DisposeAsync().ConfigureAwait(false);
         call.Transport.Dispose();
         await call.AudioLock.WaitAsync().ConfigureAwait(false);
-        try { call.Encoder?.Dispose(); }
+        try { call.Encoder?.Dispose(); call.Echo?.Dispose(); }
         finally { call.AudioLock.Release(); }
         await call.Deadline.ConfigureAwait(false);
+    }
+
+    private async Task CleanupAndNotifyAsync(Call call)
+    {
+        Task outputChanges;
+        lock (_gate) outputChanges = _outputChanges;
+        var outcome = new TelephoneCallEnded(call.Link.RemoteIdentity?.HexHash, call.TerminationReason, call.EstablishedAt);
+        await Task.Yield();
+        try
+        {
+            await CleanupCallAsync(call).ConfigureAwait(false);
+            try { await outputChanges.ConfigureAwait(false); }
+            catch (Exception) { } // Routing failures must not prevent resetting the caller-owned output.
+            if (_options.OutputControl is { } output) await output.ResetAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_gate)
+            {
+                _closing = false;
+                SetState(CallState.Available);
+            }
+            Notify(CallEnded, outcome);
+        }
     }
 
     private void SetState(CallState state)
@@ -696,7 +839,9 @@ public sealed class TelephoneEndpoint : IAsyncDisposable
         {
             call.UseAutomaticGainControl = _useAutomaticGainControl;
             call.UseBandPass = _useBandPass;
-            call.EstablishedAt = DateTimeOffset.UtcNow;
+            if (_useEchoSuppression && call.Echo is null)
+                call.Echo = new(_options.EchoSuppression, _options.TimeProvider);
+            call.EstablishedAt = _options.TimeProvider.GetUtcNow();
         }
         _state = state;
         Notify(StateChanged, state);

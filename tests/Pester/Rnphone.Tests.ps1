@@ -188,6 +188,10 @@ Describe 'Two Windows native rnphone processes without audio hardware' -Tag Inte
                 Wait-PhoneLine $phone '^State: Established' | Out-Null
                 Wait-PhoneLine $phone '^Audio transmit ready' | Out-Null
                 Wait-PhoneLine $phone '^Audio receive ready' | Out-Null
+                Send-PhoneLine $phone 'loudspeaker'
+                Wait-PhoneLine $phone '^Loudspeaker: True' | Out-Null
+                Send-PhoneLine $phone 'loudspeaker'
+                Wait-PhoneLine $phone '^Loudspeaker: False' | Out-Null
             }
             Wait-PhoneSoak @($first, $second)
             Send-PhoneLine $first 'profile'
@@ -332,6 +336,8 @@ Describe 'Native rnphone configuration and phonebook persistence' -Tag Integrati
             Wait-PhoneLine $phone 'Reticulum Telephone ready' | Out-Null
             $identity = Wait-PhoneLine $phone '^Identity hash:'
             $localHash = [regex]::Match($identity, '[a-f0-9]{32}').Value
+            Send-PhoneLine $phone 'i ignored'
+            (Wait-PhoneLine $phone '^Identity hash:' -Occurrence 2) | Should -BeExactly $identity
             $configuration = $fixture.config.Replace('00000000000000000000000000000000', $localHash)
             $configuration | Set-Content -LiteralPath $path
             Send-PhoneLine $phone 'reload'
@@ -341,7 +347,11 @@ Describe 'Native rnphone configuration and phonebook persistence' -Tag Integrati
                 $alias = $fixture.aliases.($entry.Value)
                 Wait-PhoneLine $phone ("^$alias " + [regex]::Escape($entry.Name) + ': <' + $entry.Value + '>') | Out-Null
             }
-            Send-PhoneLine $phone 'q'
+            Send-PhoneLine $phone 'exit'
+            Send-PhoneLine $phone 'status'
+            Wait-PhoneLine $phone '^Call status: Available' | Out-Null
+            $phone.Process.HasExited | Should -BeFalse
+            Send-PhoneLine $phone 'q ignored'
             Wait-PhoneLine $phone '^Phonebook closed' | Out-Null
             ($phone.Output -join "`n") | Should -Not -Match '(?m)^\d+ Self:'
             $phone.Process.HasExited | Should -BeFalse
@@ -364,7 +374,7 @@ Describe 'Native rnphone configuration and phonebook persistence' -Tag Integrati
             Send-PhoneLine $phone 'b'
             Wait-PhoneLine $phone '^Phonebook closed' -Occurrence 3 | Out-Null
             $configuration.Replace('Alice =', 'Updated =') | Set-Content -LiteralPath $path
-            Send-PhoneLine $phone 'quit'
+            Send-PhoneLine $phone 'quit ignored'
             $phone.Process.WaitForExit(10000) | Should -BeTrue
             $phone.Process.ExitCode | Should -Be 0
             Stop-PhoneProcess $phone
@@ -612,6 +622,10 @@ target_port = $port
                 Wait-PhoneLine $phone '^Audio receive ready' | Out-Null
             }
             Wait-PhoneSinkUsage $pulseAddress 'lxst_ringer' $false
+            Send-PhoneLine $first 'loudspeaker'
+            Wait-PhoneLine $first '^Loudspeaker: True' | Out-Null
+            Send-PhoneLine $first 'loudspeaker'
+            Wait-PhoneLine $first '^Loudspeaker: False' | Out-Null
             Wait-PhoneSoak @($first, $second)
             $firstPath = Join-Path $firstConfig 'config'
             (Get-Content -Raw $firstPath).Replace('speaker = lxst_output', 'speaker = lxst_alternate').
@@ -642,8 +656,9 @@ target_port = $port
             Wait-PhoneLine $second '^Configuration reloaded' | Out-Null
             Send-PhoneLine $second $firstIdentity
             Wait-PhoneLine $second '^State: Busy' | Out-Null
-            Wait-PhoneLine $second '^State: Available' -Occurrence 3 | Out-Null
             Wait-PhoneSinkUsage $pulseAddress 'lxst_busy'
+            Wait-PhoneLine $second '^State: Available' -Occurrence 3 | Out-Null
+            Wait-PhoneSinkUsage $pulseAddress 'lxst_busy' $false
             foreach ($phone in @($first, $second)) {
                 Send-PhoneLine $phone 'quit'
                 $phone.Process.WaitForExit(10000) | Should -BeTrue

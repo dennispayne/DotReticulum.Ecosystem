@@ -25,11 +25,12 @@ def main():
         "frequency": telephony.Telephone.DIAL_TONE_FREQUENCY,
         "ease_ms": telephony.Telephone.DIAL_TONE_EASE_MS,
         "substitutes": "Fake tone/mixer, synchronous thread boundary and deterministic time only; actual cadence jobs and gain methods execute unchanged.",
+        "timing": [],
     }
     original_time, original_threading = telephony.time, telephony.threading
     try:
-        for kind in ["ringback", "busy"]:
-            clock, observed = [0.0], []
+        for kind, duration in [("ringback", 4.25), ("busy", 4.25), ("busy-short", 0.4), ("busy-fractional", 0.501), ("busy-zero", 0)]:
+            clock, observed, timing = [0.0], [], []
             host = telephony.Telephone.__new__(telephony.Telephone)
             class Tone:
                 running = False
@@ -49,12 +50,14 @@ def main():
             host.receive_mixer = Mixer()
             host.dial_tone = Tone()
             host.pipeline_lock = threading.Lock()
-            host.busy_tone_seconds = 4.25
+            host.busy_tone_seconds = duration
             host.active_call = SimpleNamespace(is_outgoing=True)
             host.call_status = telephony.Signalling.STATUS_RINGING
             def sleep(duration):
                 if duration < .5:
                     observed.append({"elapsed": clock[0], "audible": host.dial_tone.gain != 0})
+                for offset in [0, min(0.001, duration / 4), duration / 2, duration - 0.000001]:
+                    timing.append({"elapsed": round(clock[0] + offset, 8), "audible": host.dial_tone.gain != 0})
                 clock[0] = round(clock[0] + duration, 8)
                 if clock[0] >= 7.6:
                     host.active_call = None
@@ -65,6 +68,7 @@ def main():
             else:
                 host._Telephone__play_busy_tone()
             output[kind] = observed
+            output["timing"].append({"kind": kind, "busy_duration": duration, "observations": timing})
     finally:
         telephony.time, telephony.threading = original_time, original_threading
     Path(args.output).write_text(json.dumps(output, indent=2) + "\n")

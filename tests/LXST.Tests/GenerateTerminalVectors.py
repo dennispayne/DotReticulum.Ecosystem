@@ -23,10 +23,13 @@ def main():
     verify_reference(require_lxst=True)
     root = Path(os.environ["DOTRETICULUM_LXST_UPSTREAM"])
     rows = []
-    for state_name in ["available", "ringing", "connecting", "in-call"]:
+    for menu, state_name in [(menu, state) for menu in ["main", "phonebook"]
+                             for state in ["available", "ringing", "connecting", "in-call"]]:
         for command in ["", "quit", "q", "exit", "identity", "i", "desthash", "d",
                         "announce", "a", "anounce", "help", "h", "?", "phonebook",
-                        "p", "redial", "r"]:
+                        "p", "redial", "r", "i extra", "quit trailing", "help anything",
+                        " i", "\ti", "q ", "back", "b", "7", "7 ignored", "unknown",
+                        "0123456789abcdef0123456789abcdef", "quit" + " " * 28]:
             app = rnphone.ReticulumTelephone.__new__(rnphone.ReticulumTelephone)
             actions = []
             app.service = False
@@ -46,18 +49,29 @@ def main():
             app.print_destination = lambda *args: actions.append("desthash")
             app.phonebook_menu = lambda *args: actions.append("phonebook")
             app.redial = lambda *args: actions.append("redial")
+            app.dial = lambda *args: actions.append("dial")
             app.main_menu()
+            if menu == "phonebook":
+                app.phonebook = {"Alice": "0123456789abcdef0123456789abcdef"}
+                app.aliases = {"0123456789abcdef0123456789abcdef": "7"}
+                with contextlib.redirect_stdout(io.StringIO()):
+                    rnphone.ReticulumTelephone.phonebook_menu(app)
             def finish():
                 app.should_run = False
                 return ""
             original = builtins.input
             try:
                 builtins.input = finish
-                with contextlib.redirect_stdout(io.StringIO()):
+                transcript = io.StringIO()
+                with contextlib.redirect_stdout(transcript):
                     app.run()
             finally:
                 builtins.input = original
-            rows.append({"state": state_name, "command": command, "actions": actions})
+            if "Available commands" in transcript.getvalue():
+                actions.append("help")
+            if "Phonebook closed" in transcript.getvalue():
+                actions.append("back")
+            rows.append({"menu": menu, "state": state_name, "command": command, "actions": actions})
     result = {
         "revision": subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip(),
         "source_sha256": hashlib.sha256((root / "LXST" / "Utilities" / "rnphone.py").read_bytes()).hexdigest(),

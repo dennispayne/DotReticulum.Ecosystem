@@ -1,3 +1,180 @@
+Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
+    It 'converts and previews images in both directions with primary ImageData and restores both conversion caches' {
+        if ($env:DOTRETICULUM_NOMADNET_IMAGE_LIVE -ne '1' -or
+            [string]::IsNullOrWhiteSpace($env:DOTRETICULUM_NOMADNET_IMAGE_CONVERTER) -or
+            [string]::IsNullOrWhiteSpace($env:DOTRETICULUM_NOMADNET_BINARY) -or
+            [string]::IsNullOrWhiteSpace($env:DOTRETICULUM_PYTHON) -or
+            [string]::IsNullOrWhiteSpace($env:DOTRETICULUM_NOMADNET_SOURCE)) {
+            Set-ItResult -Skipped -Because 'Select exact native, Python/primary and FFmpeg binaries and enable DOTRETICULUM_NOMADNET_IMAGE_LIVE=1.'
+            return
+        }
+        $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        $work = Join-Path (Get-Location) "artifacts\tests\nomadnet-images-$([Guid]::NewGuid().ToString('N'))"
+        $null = New-Item $work -ItemType Directory -Force
+        $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
+        $pending = @{}
+        $errors = @{}
+        $names = @{}
+        $start = {
+            param([string] $name, [string] $executable, [string[]] $arguments, [string] $backend = 'ffmpeg')
+            $info = [Diagnostics.ProcessStartInfo]::new($executable)
+            $info.UseShellExecute = $false
+            $info.RedirectStandardInput = $true
+            $info.RedirectStandardOutput = $true
+            $info.RedirectStandardError = $true
+            foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
+            $info.Environment['PYTHONPATH'] = $env:DOTRETICULUM_UPSTREAM + [IO.Path]::PathSeparator + $env:DOTRETICULUM_NOMADNET_SOURCE
+            if (-not [string]::IsNullOrWhiteSpace($env:DOTRETICULUM_LXMF_UPSTREAM)) {
+                $info.Environment['PYTHONPATH'] += [IO.Path]::PathSeparator + $env:DOTRETICULUM_LXMF_UPSTREAM
+            }
+            $info.Environment['PATH'] = (Split-Path $env:DOTRETICULUM_NOMADNET_IMAGE_CONVERTER -Parent) + [IO.Path]::PathSeparator + $env:PATH
+            $info.Environment['RNGIT_MEDIA_BACKEND'] = $backend
+            $info.Environment['NOMADNET_IMAGE_BACKEND'] = 'ffmpeg'
+            foreach ($variable in 'TMPDIR', 'TMP', 'TEMP') { $info.Environment[$variable] = $work }
+            $process = [Diagnostics.Process]::new()
+            $process.StartInfo = $info
+            $null = $process.Start()
+            $processes.Add($process)
+            $names[$process.Id] = $name
+            $errors[$process.Id] = $process.StandardError.ReadToEndAsync()
+            return $process
+        }.GetNewClosure()
+        $read = {
+            param($process, [string] $pattern, [int] $seconds = 60)
+            $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+            while ([DateTime]::UtcNow -lt $deadline) {
+                if (-not $pending.ContainsKey($process.Id)) { $pending[$process.Id] = $process.StandardOutput.ReadLineAsync() }
+                try { $line = $pending[$process.Id].WaitAsync([TimeSpan]::FromMilliseconds(500)).GetAwaiter().GetResult() }
+                catch [TimeoutException] { continue }
+                $pending.Remove($process.Id)
+                if ($null -eq $line) { throw "$($names[$process.Id]) closed stdout before '$pattern'." }
+                Add-Content (Join-Path $work "$($names[$process.Id]).stdout") $line
+                if ($line -match '"event"\s*:\s*"(error|failed|request-failed)"' -or $line -match '(^|nomadnet> )Error:') { throw $line }
+                if ($line -match $pattern) { return $line }
+            }
+            throw "$($names[$process.Id]) timed out waiting for '$pattern'; diagnostics: $work"
+        }.GetNewClosure()
+        $send = {
+            param($process, [string] $text)
+            $process.StandardInput.WriteLine($text)
+            $process.StandardInput.Flush()
+        }
+        try {
+            $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+            $listener.Start()
+            $port = $listener.LocalEndpoint.Port
+            $listener.Stop()
+            foreach ($name in 'native', 'python') {
+                $null = New-Item (Join-Path $work "$name-rns") -ItemType Directory -Force
+                $null = New-Item (Join-Path $work "$name\storage\pages") -ItemType Directory -Force
+                $config = @('[reticulum]', '  share_instance = No', '  enable_transport = No', '[logging]', '  loglevel = 2', '[interfaces]')
+                if ($name -eq 'native') {
+                    $config += @('  [[Server]]', '    type = TCPServerInterface', '    enabled = Yes',
+                        '    listen_ip = 127.0.0.1', "    listen_port = $port")
+                }
+                else {
+                    $config += @('  [[Client]]', '    type = TCPClientInterface', '    enabled = Yes',
+                        '    target_host = 127.0.0.1', "    target_port = $port")
+                }
+                $config | Set-Content (Join-Path $work "$name-rns\config") -Encoding utf8
+            }
+            $bootstrap = & $start 'bootstrap' $env:DOTRETICULUM_PYTHON @('-u', '-m', 'nomadnet.nomadnet',
+                '--daemon', '--console', '--config', (Join-Path $work 'python'), '--rnsconfig', (Join-Path $work 'python-rns'))
+            $configuration = Join-Path $work 'python\config'
+            $deadline = [DateTime]::UtcNow.AddSeconds(60)
+            while (-not (Test-Path $configuration) -and [DateTime]::UtcNow -lt $deadline) {
+                if ($bootstrap.HasExited) { throw 'Primary image app bootstrap failed.' }
+                Start-Sleep -Milliseconds 100
+            }
+            (Test-Path $configuration) | Should -BeTrue
+            Start-Sleep -Seconds 1
+            $bootstrap.Kill($true)
+            $bootstrap.WaitForExit()
+            $text = [IO.File]::ReadAllText($configuration).Replace('enable_node = no', 'enable_node = yes').
+                Replace('disable_propagation = no', 'disable_propagation = yes')
+            [IO.File]::WriteAllText($configuration, $text, [Text.UTF8Encoding]::new($false))
+            $fixture = [IO.File]::ReadAllText((Join-Path $root 'tests\NomadNet.Tests\NomadNetImageVectors.json')) | ConvertFrom-Json
+            $vector = @($fixture.vectors | Where-Object { $_.inputWidth -eq 2400 })[0]
+            foreach ($name in 'native', 'python') {
+                $pages = Join-Path $work "$name\storage\pages"
+                [IO.File]::WriteAllBytes((Join-Path $pages 'picture.png'), [Convert]::FromBase64String($vector.input))
+                [IO.File]::WriteAllText((Join-Path $pages 'index.mu'), "#!c=0`nImage application contract`n" + '`(public generated image`/media/picture.png)' + "`n", [Text.UTF8Encoding]::new($false))
+                if (-not [OperatingSystem]::IsWindows()) {
+                    [IO.File]::SetUnixFileMode((Join-Path $pages 'index.mu'), [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite)
+                }
+            }
+            $settingsPath = Join-Path $work 'native\settings.json'
+            $settings = @{ schemaVersion = 1; displayName = 'Image acceptance'; enableNode = $true;
+                mediaConverter = $env:DOTRETICULUM_NOMADNET_IMAGE_CONVERTER }
+            $settings | ConvertTo-Json | Set-Content $settingsPath -Encoding utf8
+            $nativeArgs = @('--config', (Join-Path $work 'native'), '--rnsconfig', (Join-Path $work 'native-rns'))
+            $native = & $start 'native' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
+            $nativeNode = [regex]::Match((& $read $native 'Hosted node address:'), '[0-9a-f]{32}').Value
+            $pythonArgs = @('-u', (Join-Path $root 'tests\Interop\nomadnet_live_node.py'),
+                '--config', (Join-Path $work 'python'), '--rnsconfig', (Join-Path $work 'python-rns'))
+            $python = & $start 'python' $env:DOTRETICULUM_PYTHON $pythonArgs
+            $ready = ((& $read $python '"event"\s*:\s*"ready"').Substring(2) | ConvertFrom-Json)
+            $ready.revision | Should -Be 'f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2'
+            & $send $native "browse $($ready.node)"
+            $null = & $read $native 'Image application contract'
+            & $send $native 'show-media 1'
+            $null = & $read $native 'Image preview complete: 1200x600'
+            & $send $native 'show-media 1 color'
+            $null = & $read $native 'Image preview complete: 1200x600'
+            & $send $native 'media 1 fetched.webp'
+            $null = & $read $native 'Saved .*fetched.webp'
+            & $send $python "request-media $nativeNode /media/picture.png"
+            $image = ((& $read $python '"event"\s*:\s*"image-response"').Substring(2) | ConvertFrom-Json)
+            $image.width | Should -Be 1200
+            $image.height | Should -Be 600
+            $image.source | Should -Be 'WebP'
+            $image.format | Should -Be 'PNG'
+            & $send $python 'quit'
+            $python.WaitForExit(20000) | Should -BeTrue
+            $python = & $start 'python-restarted-cache-only' $env:DOTRETICULUM_PYTHON $pythonArgs 'missing'
+            $restarted = ((& $read $python '"event"\s*:\s*"ready"').Substring(2) | ConvertFrom-Json)
+            $restarted.node | Should -Be $ready.node
+            & $send $native "browse $($ready.node)"
+            $null = & $read $native 'Image application contract'
+            & $send $native 'show-media 1'
+            $null = & $read $native 'Image preview complete: 1200x600'
+            & $send $native 'quit'
+            $native.WaitForExit(20000) | Should -BeTrue
+            $settings.mediaConverter = 'missing-image-converter'
+            $settings | ConvertTo-Json | Set-Content $settingsPath -Encoding utf8
+            $native = & $start 'native-restarted-cache-only' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
+            $restoredNode = [regex]::Match((& $read $native 'Hosted node address:'), '[0-9a-f]{32}').Value
+            $restoredNode | Should -Be $nativeNode
+            & $send $python 'wait-network'
+            $null = & $read $python '"event"\s*:\s*"network-ready"'
+            & $send $native 'announce'
+            $null = & $read $native 'Destinations announced'
+            & $send $python "request-media $nativeNode /media/picture.png"
+            $image = ((& $read $python '"event"\s*:\s*"image-response"').Substring(2) | ConvertFrom-Json)
+            $image.width | Should -Be 1200
+            $image.height | Should -Be 600
+            $image.format | Should -Be 'PNG'
+            @{ binary = (Get-FileHash $env:DOTRETICULUM_NOMADNET_BINARY -Algorithm SHA256).Hash;
+                converter = (Get-FileHash $env:DOTRETICULUM_NOMADNET_IMAGE_CONVERTER -Algorithm SHA256).Hash;
+                primary = $ready.revision; width = $image.width; height = $image.height;
+                nativeRestartCache = $true; primaryRestartCache = $true } |
+                ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
+        }
+        finally {
+            foreach ($process in $processes) {
+                if (-not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+                if ($errors.ContainsKey($process.Id)) {
+                    try { $errors[$process.Id].WaitAsync([TimeSpan]::FromSeconds(5)).GetAwaiter().GetResult() |
+                        Set-Content (Join-Path $work "$($names[$process.Id]).stderr") -Encoding utf8 }
+                    catch [TimeoutException] { }
+                }
+                $process.Dispose()
+            }
+            if ($env:DOTRETICULUM_NOMADNET_KEEP_WORK -ne '1' -and (Test-Path $work)) { Remove-Item $work -Recurse -Force }
+        }
+    }
+}
+
 Describe 'NomadNet mixed propagation and impaired application workflows' -Tag 'Live', 'Propagation' {
     It 'retrieves through both implementations across node restarts, schedules and cancels sync, and recovers a dropped Resource part' {
         if (-not [OperatingSystem]::IsLinux() -or $env:DOTRETICULUM_NOMADNET_PROPAGATION_LIVE -ne '1') {

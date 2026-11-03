@@ -275,6 +275,8 @@ internal static class Program
               anchor <name> | fold <number>    Jump to anchor or toggle section
               partial <number>                Fetch a partial with current form data
               media <number> <name.webp>      Download image bytes (no visual decode)
+              show-media <number> [color]    Decode to text/ANSI true-colour preview
+              image-convert <file> <name.webp> Convert local image into downloads
               reload                          Fetch current page without cache
               bookmark [title] | bookmarks | open-bookmark <number>
               fetch <hash> <file-path> <name> Download a bounded /file response
@@ -605,6 +607,33 @@ internal static class Program
                 var target = NomadNetAddress.ParseUrl(media.Target, _currentNode, media: true);
                 var bytes = await RequestAsync(Convert.FromHexString(target.DestinationHash), "/media",
                     new Dictionary<object, object?> { ["path"] = target.Path, ["key"] = null }, 16 * 1024 * 1024, cancellationToken).ConfigureAwait(false);
+                await SaveDownloadAsync(bytes, parts[2], cancellationToken).ConfigureAwait(false);
+                return false;
+            }
+            if (command.StartsWith("show-media ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = Split(command, 3);
+                if (parts.Length is < 2 or > 3 || parts.Length == 3 && parts[2] != "color")
+                    throw new ArgumentException("Use show-media <number> [color].");
+                var page = _page ?? throw new InvalidOperationException("Browse a page first.");
+                var media = page.Media[ParseIndex(parts[1], page.Media.Count) - 1];
+                var target = NomadNetAddress.ParseUrl(media.Target, _currentNode, media: true);
+                var bytes = await RequestAsync(Convert.FromHexString(target.DestinationHash), "/media",
+                    new Dictionary<object, object?> { ["path"] = target.Path, ["key"] = null }, NomadNetHost.MaximumFileBytes,
+                    cancellationToken).ConfigureAwait(false);
+                var dimensions = NomadNetImages.Dimensions(bytes);
+                Console.WriteLine(await new NomadNetImages(propagation.Settings.MediaConverter, Path.Combine(dataDirectory, "storage", "image-work")).PreviewAsync(bytes,
+                    color: parts.Length == 3, cancellationToken: cancellationToken).ConfigureAwait(false));
+                Console.WriteLine($"Image preview complete: {dimensions.Width}x{dimensions.Height}");
+                return false;
+            }
+            if (command.StartsWith("image-convert ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = Split(command, 3);
+                if (parts.Length != 3) throw new ArgumentException("Use image-convert <file> <name.webp>.");
+                var source = await NomadNetContent.ReadBoundedAsync(parts[1], NomadNetHost.MaximumFileBytes, cancellationToken).ConfigureAwait(false);
+                var bytes = await new NomadNetImages(propagation.Settings.MediaConverter, Path.Combine(dataDirectory, "storage", "image-work")).ConvertAsync(source,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
                 await SaveDownloadAsync(bytes, parts[2], cancellationToken).ConfigureAwait(false);
                 return false;
             }

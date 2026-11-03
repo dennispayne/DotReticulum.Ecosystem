@@ -23,7 +23,7 @@ public sealed class NomadNetHost : IAsyncDisposable
     public NomadNetHost(TransportRouter router, Identity identity, string directory, NomadNetSettings settings)
     {
         _router = router;
-        _content = new NomadNetContent(directory, settings.EnableExecutablePages);
+        _content = new NomadNetContent(directory, settings.EnableExecutablePages, settings.MediaConverter);
         _announceInterval = TimeSpan.FromMinutes(settings.NodeAnnounceIntervalMinutes);
         _destination = new LocalDestination(identity, Destination.Create(DestinationType.Single, "nomadnetwork", ["node"], identity))
         {
@@ -135,15 +135,17 @@ public sealed class NomadNetContent
     private readonly string _pages;
     private readonly string _files;
     private readonly bool _execute;
+    private readonly NomadNetImageCache _images;
     private static readonly byte[] Denied = ">Request Not Allowed\n\nThis identity is not authorised for this resource.\n"u8.ToArray();
 
-    public NomadNetContent(string directory, bool enableExecutablePages = false)
+    public NomadNetContent(string directory, bool enableExecutablePages = false, string mediaConverter = "ffmpeg")
     {
         _pages = Path.GetFullPath(Path.Combine(directory, "storage", "pages"));
         _files = Path.GetFullPath(Path.Combine(directory, "storage", "files"));
         Directory.CreateDirectory(_pages);
         Directory.CreateDirectory(_files);
         _execute = enableExecutablePages;
+        _images = new(directory, new NomadNetImages(mediaConverter, Path.Combine(directory, "storage", "image-work")));
     }
 
     public IEnumerable<string> RequestPaths()
@@ -180,7 +182,8 @@ public sealed class NomadNetContent
         if (relative is null) return media ? false : null;
         var file = Resolve(root, relative);
         if (file is null) return media ? false : null;
-        if (media && !Path.GetExtension(file).Equals(".webp", StringComparison.OrdinalIgnoreCase)) return false;
+        if (media && !new[] { ".webp", ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff" }
+            .Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)) return false;
         if (!await IsAllowedAsync(file, request.RemoteIdentity, request, cancellationToken).ConfigureAwait(false))
             return media ? false : Denied.ToArray();
         if (!File.Exists(file))
@@ -192,6 +195,12 @@ public sealed class NomadNetContent
             return await ExecuteAsync(file, request, MicronText.MaximumPageBytes, cancellationToken).ConfigureAwait(false);
         }
         if (page) return await ReadBoundedAsync(file, MicronText.MaximumPageBytes, cancellationToken).ConfigureAwait(false);
+        if (media && !Path.GetExtension(file).Equals(".webp", StringComparison.OrdinalIgnoreCase))
+        {
+            var converted = await _images.ConvertAsync(file, cancellationToken).ConfigureAwait(false);
+            return new FileResponse(converted, new Dictionary<object, object?>
+            { ["name"] = Encoding.UTF8.GetBytes(Path.GetFileNameWithoutExtension(file) + ".webp") });
+        }
         var bytes = await ReadBoundedAsync(file, NomadNetHost.MaximumFileBytes, cancellationToken).ConfigureAwait(false);
         return new FileResponse(bytes, new Dictionary<object, object?> { ["name"] = Encoding.UTF8.GetBytes(Path.GetFileName(file)) });
     }
@@ -227,7 +236,7 @@ public sealed class NomadNetContent
     private static bool IsExecutable(string file) => !OperatingSystem.IsWindows() && File.Exists(file) &&
         (File.GetUnixFileMode(file) & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute)) != 0;
 
-    private static async Task<byte[]> ReadBoundedAsync(string file, int maximum, CancellationToken cancellationToken)
+    internal static async Task<byte[]> ReadBoundedAsync(string file, int maximum, CancellationToken cancellationToken)
     {
         await using var input = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, 8192, FileOptions.Asynchronous);
         if (input.Length > maximum) throw new InvalidDataException("Hosted content exceeds the response limit.");

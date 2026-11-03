@@ -26,6 +26,7 @@ public sealed record NomadNetSettings
     public DateTimeOffset? LastLxmfSync { get; set; }
     public bool TryPropagationOnSendFail { get; set; } = true;
     public int DeliveryTransferLimitBytes { get; set; } = 1_000_000;
+    public string MediaConverter { get; set; } = "ffmpeg";
 
     public async Task SaveAsync(string directory, CancellationToken cancellationToken = default)
     {
@@ -85,6 +86,7 @@ public sealed record NomadNetSettings
             LxmfSyncLimit is < 0 or > 100000 ||
             TrustedNodes is null || TrustedNodes.Count > 128 ||
             DeliveryTransferLimitBytes is < 1024 or > 64 * 1024 * 1024 ||
+            string.IsNullOrWhiteSpace(MediaConverter) || MediaConverter.Length > 1024 || MediaConverter.Any(char.IsControl) ||
             NodeName is { } nodeName && (string.IsNullOrWhiteSpace(nodeName) || nodeName.Length > 80 || nodeName.Any(char.IsControl)) ||
             EnablePropagation && !EnableNode)
             throw new InvalidDataException("NomadNet settings contain an invalid version or display name.");

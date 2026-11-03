@@ -7,6 +7,7 @@ import threading
 import time
 import subprocess
 import hashlib
+from pathlib import Path
 
 import LXMF
 import RNS
@@ -158,6 +159,18 @@ def main():
                         sync_state=app.message_router.propagation_transfer_state,
                     )
                     continue
+                if parts[0] == "wait-network":
+                    deadline = time.monotonic() + 30
+                    while time.monotonic() < deadline:
+                        clients = [interface for interface in RNS.Transport.interfaces
+                                   if type(interface).__name__ == "TCPClientInterface"]
+                        if clients and all(interface.online for interface in clients):
+                            emit("network-ready", connected=len(clients))
+                            break
+                        time.sleep(0.05)
+                    else:
+                        raise RuntimeError("Configured reference TCP clients did not reconnect")
+                    continue
                 if parts[0] == "announce":
                     app.announce_now()
                     if app.message_router.propagation_node:
@@ -181,7 +194,7 @@ def main():
                     accepted = app.message_router.ingest_lxm_uri(parts[1])
                     emit("ingested", accepted=accepted)
                     continue
-                if parts[0] not in ("send", "send-file", "send-propagated", "paper", "request") or len(parts) != 3:
+                if parts[0] not in ("send", "send-file", "send-propagated", "paper", "request", "request-media") or len(parts) != 3:
                     raise ValueError("expected send, send-file, paper, request, ingest, stats, or quit")
 
                 destination_hash = bytes.fromhex(parts[1])
@@ -202,7 +215,8 @@ def main():
                     emit("failed", reason="No announced identity for destination")
                     continue
 
-                if parts[0] == "request":
+                if parts[0] in ("request", "request-media"):
+                    media_request = parts[0] == "request-media"
                     destination = RNS.Destination(remote_identity, RNS.Destination.OUT, RNS.Destination.SINGLE,
                                                   "nomadnetwork", "node")
                     link = RNS.Link(destination)
@@ -218,10 +232,28 @@ def main():
                             data = data.read()
                         if not isinstance(data, bytes):
                             raise RuntimeError("Expected bytes or file response")
+                        if media_request:
+                            try:
+                                from nomadnet.ui.textui.images._imagedata import ImageData
+                                image_path = Path(args.config) / "reference-media.webp"
+                                image_path.write_bytes(data)
+                                image = ImageData(str(image_path), remote_source=True)
+                                if not image.ok:
+                                    emit("error", reason=image.error)
+                                else:
+                                    emit("image-response", width=image.width, height=image.height,
+                                         source=image.source_format, format=image.format,
+                                         backend=image.conversion_backend, size=len(image.data))
+                            except Exception as error:
+                                emit("error", context="actual-primary-image-load", reason=str(error))
+                            finally:
+                                link.teardown()
+                            return
                         emit("response", size=len(data), sha256=hashlib.sha256(data).hexdigest(),
                              text=data.decode("utf-8", errors="replace") if len(data) < 4096 else None)
                         link.teardown()
-                    link.request(parts[2], response_callback=response,
+                    link.request("/media" if media_request else parts[2],
+                                 data={"path": parts[2], "key": None} if media_request else None, response_callback=response,
                                  failed_callback=lambda receipt: emit("request-failed", status=receipt.status))
                     continue
 

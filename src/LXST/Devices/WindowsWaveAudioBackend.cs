@@ -10,9 +10,16 @@ namespace LXST.Devices;
 public sealed class WindowsWaveAudioBackend : IAudioDeviceBackend
 {
     private readonly IWindowsWaveDriver _driver;
+    private readonly int _maximumChannels;
+    private readonly int _maximumSampleRate;
 
     public WindowsWaveAudioBackend() : this(new WindowsWaveDriver()) { }
-    internal WindowsWaveAudioBackend(IWindowsWaveDriver driver) => _driver = driver;
+    internal WindowsWaveAudioBackend(IWindowsWaveDriver driver, int maximumChannels = 2, int maximumSampleRate = 192000)
+    {
+        _driver = driver;
+        _maximumChannels = maximumChannels;
+        _maximumSampleRate = maximumSampleRate;
+    }
 
     public ValueTask<IReadOnlyList<AudioDeviceInfo>> ListInputsAsync(CancellationToken cancellationToken = default) =>
         ListAsync(true, cancellationToken);
@@ -41,16 +48,18 @@ public sealed class WindowsWaveAudioBackend : IAudioDeviceBackend
     }
 
     private string? ResolveDevice(bool capture, string? device) =>
-        device is null or "default" || uint.TryParse(device, NumberStyles.None, CultureInfo.InvariantCulture, out _)
+        device is null or "default" || device.StartsWith("loopback:", StringComparison.Ordinal) ||
+        uint.TryParse(device, NumberStyles.None, CultureInfo.InvariantCulture, out _)
             ? device : AudioDeviceSelection.Resolve(device, _driver.List(capture), includeLoopback: true).Id;
 
-    private static void Validate(AudioDeviceFormat format, CancellationToken token)
+    private void Validate(AudioDeviceFormat format, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(format);
         token.ThrowIfCancellationRequested();
         format.Validate();
-        if (format.Channels > 2 || format.SampleRate > 192000)
-            throw new ArgumentOutOfRangeException(nameof(format), "Windows waveform PCM supports one or two channels up to 192 kHz.");
+        if (format.Channels > _maximumChannels || format.SampleRate > _maximumSampleRate)
+            throw new ArgumentOutOfRangeException(nameof(format),
+                $"This Windows backend supports at most {_maximumChannels} channels at {_maximumSampleRate} Hz.");
     }
 
     private sealed class Capture(IWindowsWaveDriver driver, string? device, AudioDeviceFormat format) : IAudioCapture

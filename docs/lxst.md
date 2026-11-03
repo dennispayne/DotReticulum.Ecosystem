@@ -5,9 +5,13 @@
 **Partial, independently authored interoperability implementation.** `LXST`
 implements bounded stream envelopes, portable raw audio, native Opus/Codec2 ABI
 adapters, asynchronous stream sessions and device-independent telephony.
-`rnphone` provides a partial executable with Linux PulseAudio capture/playback,
-an original Windows WinMM backend and Linux GPIO/I2C hardware-provider wiring.
-Full upstream API, processing, utility and platform parity is **not complete**.
+`rnphone` implements utility software with Linux PulseAudio capture/playback,
+an original Windows WASAPI backend (plus the retained WinMM alternative) and
+Linux GPIO/I2C hardware-provider wiring.
+Windows/Linux software contracts, intentional differences and evidence limits
+are inventoried below. Full upstream platform/API-shape parity is **not claimed**:
+macOS/Android providers are absent, licensed assets are not bundled, and physical
+capture/acoustic behavior remains unverified.
 
 The project is experimental, AI-assisted and not an official or endorsed LXST
 implementation.
@@ -223,7 +227,7 @@ not implicitly covered by the network interfaces. This is not full API parity:
 | `Mixer.py`: start/stop, gain/mute, per-source frame limits, can-receive, source/sink/codec wiring | Implemented bounded timed `AudioMixer`; source/codec composition uses explicit C# interfaces |
 | `Pipeline.py`: codec/sink/running and start/stop | Implemented original source→codec→typed encoded sink composition, session adapter and lifecycle/replace/stop/disposal; source/codec ownership remains explicit; optional .NET processor execution is not attributed to the unused upstream parameter |
 | `Sources.py`: `get_backend`, backend device listing/recorder ownership; `Loopback`; `LineSource` gain/codec/start/stop; `OpusFileSource` | Typed device enumeration/defaults and owned capture leases, Linux/Windows backends, linear source gain, headless loopback and streaming Opus file source exist; arbitrary Python backend-object shapes and other OS providers are not reproduced |
-| `Sinks.py`: `get_backend`, backend device listing/player ownership; Sink/RemoteSink/LocalSink; LineSink low latency; OpusFileSink queue/finalization | Linux I/O, Ogg Opus recording and executed-reference `BufferedAudioSink` playback queue are implemented; explicit async file backpressure; Linux Backend ignores constructor low_latency and its player lacks runtime enable_low_latency; other platform branches unverified |
+| `Sinks.py`: `get_backend`, backend device listing/player ownership; Sink/RemoteSink/LocalSink; LineSink low latency; OpusFileSink queue/finalization | Linux/Windows I/O software, Ogg Opus recording and executed-reference `BufferedAudioSink` playback queue implemented; explicit async file backpressure; both Linux/Windows Backends ignore constructor low_latency and their players lack runtime enablement; physical I/O and other OS providers are not inferred |
 | `Primitives/Players.py`: FilePlayer state, completion callback, source, loop/start/stop/play | Implemented device-independent `FilePlayer`; callback timing is asynchronous, not Python's polling schedule; source replacement requires stopped playback |
 | `Primitives/Recorders.py`: FileRecorder state, source/output path, start/stop/record | Implemented device-independent `FileRecorder` with a caller-owned source and per-run finalization; effective output-path replacement is an explicit extension over the executed upstream shadow-attribute placeholder |
 | `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Typed backend queries, reusable `TelephoneAudioOutput`, routing/reset, endpoint DSP/gains/mute and timed outcomes implemented; utility composes platform devices and ringtone/tones; no invented low-latency effect for the unsupported Linux branch |
@@ -231,7 +235,7 @@ not implicitly covered by the network interfaces. This is not full API parity:
 | `Primitives/Telephony.py`: Profiles labels/abbreviations/index/next helpers | Implemented `TelephoneProfiles`; executed primary labels, abbreviations, frame durations and ordering; CLI profile cycle follows low latency then ultra-low latency |
 | `Utilities/rnphone.py`: ReticulumTelephone reload/apply config, keypad/hook/display enablement and hardware state; complete terminal menu/redial/status/signal behavior | Software controls, persisted identity, 248 terminal observations and source-observed duration formatting/refresh cadence implemented; literal ANSI/prompt bytes and physical runtime hardware operation unverified |
 | `Primitives/hardware`: LCD print/clear/sleep/wake/close; Keypad hook/key-map/key-state/start/stop | Software implemented: fakeable bus/pin interfaces, Linux OS providers, explicit initialization/ownership, matrix transitions, 150 ms hook debounce, four-key rollover guard, utility controls and scanner restart/error isolation; physical GPIO/I2C remains unverified |
-| `Platforms/{linux,windows,darwin,android}` | Original Linux subprocess and Windows WinMM implementations; macOS/Android providers absent and environments unavailable; no translation or redistribution of upstream platform bindings |
+| `Platforms/{linux,windows,darwin,android}` | Original Linux subprocess and Windows WASAPI/WinMM implementations; WASAPI shared/exclusive selection, loopback and explicit channel maps implemented; macOS/Android providers absent and environments unavailable; no translation or redistribution of upstream platform bindings |
 
 `Processing.py` contains no public function/class implementation in this release;
 `Common.nop` is a no-op helper, not a missing wire contract. Vendored Python
@@ -258,7 +262,7 @@ features to reproduce.
 | `Network.py`: `SignallingReceiver.handle_signalling_from/signalling_received/signal`; `Packetizer.handle_frame/start/stop`; `LinkSource.start/stop` | Typed stream sessions, event callbacks, packetizer and transport adapter implemented; deferred signalling is an upstream placeholder |
 | `Pipeline.py`: `PipelineError`, `Pipeline.codec/sink/running/start/stop` | Original pipeline/error contracts and encoded/audio sink variants implemented; unused reference processor argument is not attributed behavior |
 | `Sources.py`: `Source`, `LocalSource`, `RemoteSource`; `Loopback.start/stop/can_receive/handle_frame/source`; `LineSource.linear_gain/codec/start/stop`; `OpusFileSource.codec/start/stop` | Source interfaces, reusable `DeviceAudioSource`, loopback and file streaming implemented; CLI capture adds reference skip/easing/processing around the common backend |
-| `Sinks.py`: `Sink.handle_frame/can_receive`, `RemoteSink`, `LocalSink`; `LineSink.can_receive/handle_frame/start/stop/enable_low_latency`; `OpusFileSink.frames_waiting/can_receive/handle_frame/start/stop` | Original sink contracts, buffered playback and file recording implemented; runtime Linux low-latency operation is absent upstream; other device backends unverified |
+| `Sinks.py`: `Sink.handle_frame/can_receive`, `RemoteSink`, `LocalSink`; `LineSink.can_receive/handle_frame/start/stop/enable_low_latency`; `OpusFileSink.frames_waiting/can_receive/handle_frame/start/stop` | Original sink contracts, Linux/Windows leased I/O, buffered playback and file recording implemented; runtime Linux/Windows low-latency operation is absent upstream; physical I/O and macOS/Android providers remain outside verified scope |
 | `Sources.py` backends: `get_backend`, `all_microphones`, `default_microphone`, `flush`, `get_recorder`, `release_recorder`; `Sinks.py` backends: `get_backend`, `all_speakers`, `default_speaker`, `flush`, `get_player`, `release_player` | Original generic device enumeration/defaults and owned capture/playback leases with Linux/Windows providers; Python object layout and generic runtime module loading are not emulated |
 | Platform soundcard public enumeration/default/lookup and `get_name/set_name`; Linux `channel_name_map`, Windows `tid`, Darwin `error_number_to_string` | Generic input/output enumeration/defaults and exact identifier selection implemented. Linux `get_name/set_name` changes the Pulse client application name, not a device name; that context-global helper and platform FFI internals are dependency APIs, not additional LXST wire contracts |
 | `Primitives/Players.py`: `FilePlayer.running/playing/finished_callback/set_source/loop/start/stop/play` | Device-independent player implemented; asynchronous callback timing and explicit caller-owned sink |
@@ -492,12 +496,12 @@ durations, the last control gain is retained through the 500 ms tail.
 
 | Environment | Evidence |
 |---|---|
-| Windows x64 | All 54 Opus/seven Codec2 fixture packets encode exactly using independently installed libraries; actual Ogg recording/playback, multichannel files, device enumeration and synthetic-silence WinMM cancellation/reuse execute. NativeAOT phone pair uses headless real Opus, profiles, reverse calls and restart. Three strict Linux-golden PCM tests fail from native rounding differences; no exact cross-platform decode claim. Physical capture/quality unverified |
+| Windows x64 | All 54 Opus/seven Codec2 fixture packets encode exactly using independently installed libraries; strict PCM comparisons pass against independently executed same-DLL Windows reference observations. Actual Ogg files, device enumeration, WASAPI shared synthetic silence/cancellation, loopback activation and WinMM reuse execute. Exclusive float32 rejection matches actual Python/device capability. NativeAOT WASAPI probe and headless phone pair pass. Physical capture/quality unverified |
 | Ubuntu x64 under WSL | libopus 1.6.1 and libcodec2 1.2.0 vectors; real stream/telephone interop; NativeAOT executable and virtual PulseAudio process flow |
 | Physical audio hardware | Unverified; tests use isolated silent/generated virtual devices, never the desktop microphone |
 | macOS, Android, other architectures | Unverified; no device implementation or support claim |
 
-`rnphone` selects Linux PulseAudio or the original Windows WinMM backend, not a
+`rnphone` selects Linux PulseAudio or the original Windows WASAPI backend, not a
 verified cross-platform audio product. Linux identity files are created with owner read/write only;
 filesystems that cannot enforce this (for example default WSL DrvFS mounts)
 are rejected. On Windows, inherited ACLs require operator review.
@@ -550,8 +554,51 @@ enumeration and synthetic-silence default output cancellation/buffer reuse,
 including strict NativeAOT `--help`/`--silence` probes (six input/six output
 entries including defaults). `DOTLXST_WINDOWS_AUDIO=1` opts into silent output
 and the headless Windows process gate; normal Windows enumeration requires no opt-in. No microphone was opened
-for this evidence. Physical input, audio quality, loopback and WASAPI-specific or
-low-latency behavior remain unverified/unimplemented, not inferred from WinMM.
+for this evidence. The separately implemented WASAPI provider below supplies
+mode/loopback/channel-map software; those claims are not inferred from WinMM.
+
+`WindowsWasapiAudioBackend` implements float32 shared/exclusive streams using
+direct, AOT-safe COM ABI calls, not runtime COM wrappers or Python platform code.
+`WindowsWasapiOptions` selects mode, optional loopback enumeration and channel
+map. Defaults use the actual primary's `eConsole` role (0). Device IDs, names,
+substring/fuzzy selection and defaults are available through the typed backend.
+`OpenLoopbackCaptureAsync` selects a rendering endpoint; exclusive loopback fails
+explicitly, as required by WASAPI. `SupportsPlaybackFormatAsync` queries the
+default endpoint without starting audio.
+
+A bounded one-command actor owns each COM stream on one MTA thread, including
+initialization, buffer operations, stop and final releases. The common bounded
+capture/playback leases retain cancellation/disposal/error behavior. Capture
+handles native silent packets, preserves pending frame fragments and maps
+channels; playback maps channels before bounded render writes. Maps cover
+contiguous native indices, may reorder channels, and may repeat capture channels;
+the actual reference rejects repeated playback indices, so .NET does likewise.
+The native format is `WAVEFORMATEXTENSIBLE` float32 with an explicit mask;
+exclusive buffer-alignment failure reactivates the client at its reported
+aligned period. Device failures are contextual exceptions, not simulated success;
+the caller can dispose/reopen a lease. A stalled synchronous OS/driver call is
+not forcibly interrupted.
+
+`GenerateWasapiVectors.py` executes actual `_Player.play`/`_Recorder.record`
+with only native buffers/chunks replaced by synthetic data. Original channel-map
+vectors cover mono, reordered stereo/three-channel audio and repeated capture.
+Native tests enumerate actual endpoints, render only zeros, cancel/reuse output,
+and activate/start/stop loopback without requesting any system-audio buffer.
+On this endpoint both actual Python and .NET reject exclusive 48 kHz stereo
+float32 as unsupported (`RuntimeError("Unsupported format")` versus
+`AUDCLNT_E_UNSUPPORTED_FORMAT`, `0x88890008`). The test first independently queries
+`IsFormatSupported`, then requires either successful silent rendering or that
+exact rejection. This is executed rejection-policy/capability evidence, not
+successful exclusive hardware rendering. No microphone or private loopback
+samples are read. Physical capture, acoustic quality, hardware channel order,
+latency and exclusive rendering on a supporting device remain unverified.
+
+The ABI uses Microsoft's
+[loopback contract](https://learn.microsoft.com/en-us/windows/win32/coreaudio/loopback-recording)
+and documented `IMMDeviceEnumerator`, `IAudioClient`, `IAudioRenderClient`,
+`IAudioCaptureClient` interfaces. Loopback is shared-mode only. Runtime
+low-latency toggling remains unsupported in the actual primary Windows backend,
+not an omitted .NET effect.
 
 `AudioDeviceSelection` matches the primary Linux identifier, name-substring and
 anchored fuzzy lookup, including duplicate-name replacement and monitor
@@ -747,7 +794,7 @@ has no implementation. Their exact disposition is:
 |---|---|
 | Ring/wait/connect timeouts, path requests, periodic announcements | Implemented; exhaustive relative timing/periodic-announcement matrix unverified. Mutable connect deadlines and timeout recovery execute; this is evidence scope, not an absent timer. |
 | Ringing/established/ended/busy/rejected callbacks | Original state event plus typed post-cleanup completion instead of five Python setters; eight actual-reference outcome timing cases; busy/rejected reason is observable before final completion. |
-| Receive/transmit gain, mute, AGC, low-latency output, ringer/device selection | Gain/mute/AGC, Linux/Windows device selection and ringtone implemented. Executed Linux/Windows backend calls ignore the low-latency argument and neither platform player defines runtime enablement. Android backend/OS unavailable; WinMM is not WASAPI/loopback parity. |
+| Receive/transmit gain, mute, AGC, low-latency output, ringer/device selection | Gain/mute/AGC, Linux/Windows device selection, WASAPI modes/loopback/maps and ringtone implemented. Executed Linux/Windows backend calls ignore the low-latency argument and neither platform player defines runtime enablement. Android backend/OS unavailable. |
 | Resample functions, normalize option and supported channel handling | Executed mono/stereo rate conversion and normalization implemented. Arbitrary host-native float128 formats unverified outside the pinned Linux x86 representation; no replacement format is invented. |
 | Line capture/playback, preferred devices, buffers, gain, filters and low latency | Generic and Linux/Windows software exists; successful physical capture/quality/latency and unavailable platform branches unverified. Fake/virtual tests are not physical evidence. |
 | `rnphone`, CLI flags and interactive controls | Installed entry point, listed flags/aliases and controls implemented. Terminal tokens/state/menu actions, elapsed rounding/duration strings and refresh cadence execute source vectors. Help/systemd text, ANSI styling and prompts remain original; exhaustive physical scheduling/terminal byte matrices are not claimed. |
@@ -760,14 +807,10 @@ has no implementation. Their exact disposition is:
 
 - **Unavailable target platforms:** macOS/Android audio providers remain absent;
   no matching OS/runtime exists in the current environment to compile/run their
-  device paths. Windows now has an original, tested WinMM alternative, not a
-  reference WASAPI/loopback/low-latency implementation.
-- **Remaining Windows software, not a hardware-only limitation:** WASAPI
-  exclusive/shared-mode selection, loopback capture and explicit channel-map
-  behavior are not implemented. Installing the codec
-  libraries does not supply these device APIs. WinMM is a working alternative,
-  not completion of those contracts. A separate original WASAPI provider and
-  executable device/recovery tests are required before closing them. The
+  device paths. They are not covered by the Windows/Linux acceptance.
+- **Windows required software disposition:** WASAPI shared/exclusive mode,
+  loopback capture, channel maps and explicit lifecycle/cancellation are
+  implemented and tested with the exact native/software boundaries above. The
   Windows low-latency toggle is an upstream unsupported branch, not another
   missing .NET implementation: actual `WindowsBackend.get_player(...,
   low_latency=True)` forwards only samplerate/blocksize and the platform
@@ -826,20 +869,58 @@ $env:DOTLXST_CODEC2_LIBRARY = Join-Path $native 'libcodec2.dll'
 ```
 
 All **54 Opus and seven Codec2 encoded golden packets** match on Windows with
-these libraries. Decoded counts and finite samples pass. This does **not** make
-the three existing strict Linux-generated PCM comparisons pass:
+these libraries. Native decoded PCM is not universally bit-identical across
+platform builds. Executing unchanged actual pinned Python with the same installed
+Windows DLLs independently reproduces the exact three cross-platform discrepancies:
 
-| Unchanged failing Windows comparison | First discrepancy |
+| Linux versus Windows reference observation | First discrepancy |
 |---|---|
 | `OpusAllProfilesMatchActualReferenceBitstreamAndDecode` | Sample 1788: `0.12790307` versus `0.12787256` |
 | `Codec2AllModesMatchActualReferenceBitstreamAndDecode` | Mode 1200 sample 140: `-0.05038606` versus `-0.050416578` |
 | `ActualReferenceRecordingDecodesWithIdenticalFramesAndSamples` | Sample 845: `0.0105594043` versus `0.0105288858` |
 
-These are native PCM rounding differences, not missing libraries or changed wire
-bytes. Their original assertions/tolerances remain intact and the full Windows
-native run is reported **failed**, not silently filtered into a full-parity pass.
-Linux passes those strict assertions. The new all-profile packet/count/finite
-test separately establishes the narrower Windows evidence.
+These are native PCM rounding differences, not an ABI/normalization defect,
+missing library or changed wire byte. `GenerateWindowsNativeVectors.py` executes
+all original fixture inputs through actual primary codecs/file playback on
+Windows with independently installed libraries. The explicitly disclosed shim
+only selects those native bindings: preload Codec2 before importing pycodec2;
+rebind PyOgg's `libopus`/`libopusfile` with their original ABI declarations.
+No encode/decode/source function is replaced. This is not a claim about the
+reference distribution's bundled, unknown-version Opus DLL.
+
+The separate `lxst-windows-native.json` stores losslessly packed actual-reference
+PCM and source/DLL fingerprints. The original Linux fixture is **unchanged**.
+Both platforms retain the existing 1e-6 codec assertions and exact file-sample
+assertions; Windows selects its independently executed native-build observations,
+guarded by relevant DLL hashes and LF-normalized original fixture hashes.
+Unexpected native builds fail explicitly rather than receiving guessed tolerances.
+Encoded bytes still compare with the original cross-platform fixture on both
+hosts. All three comparisons now pass, and the complete Windows native suite is
+green with the documented runtime.
+
+Exact Windows reference environment:
+
+```powershell
+$env:DOTRETICULUM_UPSTREAM = 'C:\Users\dennis\.copilot\session-state\acfd3d43-fbd3-41f2-b4d5-f670c527895d\files\reference\rns'
+$env:DOTRETICULUM_LXST_UPSTREAM = (Resolve-Path artifacts\builds\lxst-primary-win-054).Path
+$env:PYTHONPATH = "$env:DOTRETICULUM_UPSTREAM;$env:DOTRETICULUM_LXST_UPSTREAM"
+& artifacts\builds\lxst-win-reference\Scripts\python.exe tests\LXST.Tests\GenerateWindowsNativeVectors.py --libraries artifacts\builds\lxst-msys2\ucrt64\bin --output tests\LXST.Tests\Fixtures\lxst-windows-native.json
+& artifacts\builds\lxst-win-reference\Scripts\python.exe tests\LXST.Tests\GenerateWasapiVectors.py --output tests\LXST.Tests\Fixtures\lxst-wasapi.json
+```
+
+The isolated venv has NumPy 2.4.4, pycodec2 4.1.0, CFFI 2.0.0 and LXMF 1.2.1.
+The standalone Windows checkout is the same exact pinned 0.5.4 SHA/tree; it avoids
+the Linux checkout's Windows-inaccessible alternate Git object path. Imported
+source/revision verification passes. Native libopus reports **1.6.1**; Codec2
+is the independently verified **1.2.0** package above. Actual DLL SHA-256 values:
+
+- libopus: `e747edad6bf02cf5cdcce417b95be3b7ba108f93df1b024778be5d73fa6dae39`
+- Codec2: `8e968afdf8bfdbe1a6f3f22e1e5d472028d4bb12bc326da0a1cd167218f11eb6`
+- libopusfile: `577725d815340058304641ffba888d19e829e59cbbc4e197d4514f4371e96cbb`
+
+The actual Windows reference reports an optional filter-acceleration CFFI
+declaration failure and falls back to its Python filters. This does not replace
+its codec methods or establish native acceleration support.
 
 `GenerateMultichannelFileVectors.py` first creates synthetic mapping-family-1
 files using separately installed libopusenc, then executes actual primary
@@ -933,12 +1014,13 @@ native acceptance still runs.
 
 | Exact command, from repository root unless specified | Result |
 |---|---|
-| `dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path artifacts\builds\lxst-audit-win-final --results-directory artifacts\tests\lxst-audit-win-managed-accepted --logger trx --verbosity quiet` | 128 passed, 25 explicit opt-in skips |
-| `/home/dennis/.dotreticulum-dotnet/dotnet test tests/LXST.Tests/LXST.Tests.csproj -c Release --artifacts-path artifacts/builds/lxst-audit-linux-final --results-directory artifacts/tests/lxst-audit-linux-live-accepted --logger trx --verbosity quiet`, with all three Linux opt-ins above | 181 passed, 2 Windows-only skips; complete project including actual Python direct/Python-hop/.NET-hop traffic, codec/profile/loss/recovery, headless contracts and native API/file boundaries |
+| `dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path artifacts\builds\lxst-wasapi-win-managed --results-directory artifacts\tests\lxst-wasapi-win-managed --logger trx --verbosity quiet` | 133 passed, 27 explicit opt-in skips |
+| `/home/dennis/.dotreticulum-dotnet/dotnet test tests/LXST.Tests/LXST.Tests.csproj -c Release --artifacts-path artifacts/builds/lxst-wasapi-linux --results-directory artifacts/tests/lxst-wasapi-linux-frozen --logger trx --verbosity quiet`, with all three Linux opt-ins above | 185 passed, 5 Windows-only skips; complete project including actual Python direct/Python-hop/.NET-hop traffic, codec/profile/loss/recovery, headless contracts and native API/file boundaries |
 | Same Linux SDK: `dotnet test tests/LXST.Tests/LXST.Tests.csproj -c Release --artifacts-path artifacts/builds/lxst-headless-linux-unit-final --results-directory artifacts/tests/lxst-headless-linux-unit-final --filter FullyQualifiedName~EchoSuppressorTests --logger trx --verbosity quiet` | 4 passed, no skips; final stricter noise-consumption/error assertions and concurrent DSP disposal |
-| `dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path artifacts\builds\lxst-audit-win-final --results-directory artifacts\tests\lxst-audit-win-native-current --logger trx --verbosity quiet`, with `DOTLXST_NATIVE=1`, `DOTLXST_WINDOWS_AUDIO=1`, MSYS2 libraries on `PATH` and `DOTLXST_CODEC2_LIBRARY` pointing to `libcodec2.dll` there | **Failed: 145 passed, 3 failed, 5 explicit skips**; failures are the unchanged strict Linux-golden PCM comparisons listed above. Actual native codec/file lifecycles, multichannel data, exact packets, echo wiring and synthetic Wave output execute; no microphone opened |
-| `dotnet publish src\rnphone\rnphone.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\lxst-audit-publish-win -o artifacts\builds\lxst-audit-native-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet`, with MSVC environment in the same process | Passed; binary used for the Windows native gate below |
-| `/home/dennis/.dotreticulum-dotnet/dotnet publish src/rnphone/rnphone.csproj -c Release -r linux-x64 --artifacts-path artifacts/builds/lxst-audit-publish-linux -o artifacts/builds/lxst-audit-native-linux -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet` | Passed; published binary used in Linux native flows |
+| `dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path artifacts\builds\lxst-wasapi-win --results-directory artifacts\tests\lxst-wasapi-native-current --logger trx --verbosity quiet`, with `DOTLXST_NATIVE=1`, `DOTLXST_WINDOWS_AUDIO=1`, MSYS2 libraries on `PATH` and `DOTLXST_CODEC2_LIBRARY` pointing to `libcodec2.dll` there | 155 passed, 5 explicit live skips, no failures; strict independently executed platform-native PCM, unchanged cross-platform encoded bytes, codec/file lifecycles, multichannel data, echo wiring, shared WASAPI silence/cancellation/reuse, loopback activation and exclusive-format capability/rejection execute; no microphone or private loopback data read |
+| `dotnet publish src\rnphone\rnphone.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\lxst-wasapi-publish-win -o artifacts\builds\lxst-wasapi-native-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet`, with MSVC environment in the same process | Passed; frozen binary used for the Windows native gate below |
+| `/home/dennis/.dotreticulum-dotnet/dotnet publish src/rnphone/rnphone.csproj -c Release -r linux-x64 --artifacts-path artifacts/builds/lxst-wasapi-publish-linux -o artifacts/builds/lxst-wasapi-native-linux -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet` | Passed; frozen published binary used in Linux native flows |
+| `dotnet publish artifacts\builds\lxst-wasapi-probe-src\WasapiProbe.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\lxst-wasapi-probe-build -o artifacts\builds\lxst-wasapi-probe-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet`, then `artifacts\builds\lxst-wasapi-probe-win\WasapiProbe.exe`, with MSVC environment in the publish process | Passed; ignored original probe source retained at the stated path. NativeAOT enumeration reports six inputs/three outputs including loopbacks, shared synthetic silence writes succeed, exclusive float32 reports unsupported. No capture data read |
 | `pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Rnphone.Tests.ps1 -Tag NativeWindows`, with `DOTLXST_WINDOWS_AUDIO=1`, `DOTLXST_SOAK_SECONDS=60`, MSYS2 libraries on `PATH` and `DOTLXST_RNPHONE_BINARY` selecting the final Windows binary | 1 passed, no skips; 60 seconds of increasing bidirectional real Opus frame counts using synthetic/discard devices; loudspeaker toggles, abrupt peer-process death, return to available, same-identity restart and a third successful call |
 | `/home/dennis/.dotreticulum-powershell/pwsh -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/tests/run-pester.ps1 -Path /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/tests/Pester/Rnphone.Tests.ps1 -Tag Native`, from `/home/dennis/dotreticulum-ecosystem-acfd3d43/ci-acceptance-checkout`, with `DOTLXST_LIVE=1`, `DOTLXST_VIRTUAL_AUDIO=1`, `DOTLXST_SOAK_SECONDS=60` and final Linux `DOTLXST_RNPHONE_BINARY` | 7 passed, no skips; actual Python direct calls, virtual PulseAudio source-free pair sustaining bidirectional counters for 60 seconds, routing/profile/ringtone/busy flows, tone release after completion, terminal token/submenu behavior and 60-second stdin-closed service SIGTERM/restart/persistence |
 | Same Linux PowerShell runner with `-Path /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/tests/Pester/ReferenceEnvironment.Tests.ps1`, no tag, `DOTRETICULUM_LXMF_UPSTREAM` unset | 7 passed, 2 explicit optional LXMF-source-mode skips; pinned 0.5.4 actual import accepted and extra LXST source rejected |
@@ -949,8 +1031,9 @@ profiles, mode/PTT/follow changes, frame loss, malformed packets, hangup,
 rejection/busy, redial and continued service. Initial half-duplex in both call
 directions is additionally exercised direct. A bounded 60-second call is not an
 hours/days soak. Linux audio evidence uses virtual PulseAudio; Windows headless
-Opus evidence uses synthetic/discard devices. Separate Windows Wave silence
-tests open an enumerated output but do not establish physical speaker quality.
+Opus evidence uses synthetic/discard devices. Separate Windows Wave/WASAPI
+silence tests open an enumerated output but do not establish physical speaker
+quality. WASAPI loopback tests activate/start/stop without reading system audio.
 Successful physical capture, RF, GPIO/I2C, acoustic echo quality, hardware latency
 and macOS/Android execution remain unverified. Managed echo software, reference
 feeds and routing are implemented; synthetic DSP/network tests do not establish
@@ -959,10 +1042,12 @@ physical acoustic effectiveness.
 Final accepted NativeAOT binary SHA-256 values (supplied native libraries are
 separate, not committed):
 
-- `artifacts\builds\lxst-audit-native-win\rnphone.exe`:
-  `382f9adf5bcac799c06bbef24c1df2a8409133ba0004a69835f5126daa35d15e`
-- `artifacts\builds\lxst-audit-native-linux\rnphone`:
-  `87c017ae47606f1ad64ae583125848d8e31b829af926bfd9d7d523f94ece84d1`
+- `artifacts\builds\lxst-wasapi-native-win\rnphone.exe`:
+  `bdf5a3175c9397892c97cc33bffd2b8175467ad812d5268ec58dafb6d9a53cf0`
+- `artifacts\builds\lxst-wasapi-native-linux\rnphone`:
+  `21b8937fc223f0c5d85589db3eb3ea8c9f02dae9b9132cd928d5ffeecd9ec174`
+- `artifacts\builds\lxst-wasapi-probe-win\WasapiProbe.exe`:
+  `1efb79b2e5f11f06e91f65f0b43c0ede836569dd9aa1605725a359ea021575ff`
 
 ### Reticulum adapter guarantees and ownership
 

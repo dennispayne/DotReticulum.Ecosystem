@@ -239,7 +239,8 @@ Describe 'Published rnphone CLI' -Tag Integration, Native -Skip:(!$env:DOTLXST_R
         $help.Code | Should -Be 0
         $help.Output | Should -Match '--list-devices'
         $help.Output | Should -Match 'require accessible kernel devices'
-        $help.Output | Should -Match 'not WASAPI parity'
+        $help.Output | Should -Match 'original WASAPI float32 backend'
+        $help.Output | Should -Match 'physical capture/acoustics are unverified'
         (Invoke-PhoneCommand $script:phoneBinary @('--version')).Output | Should -Match 'rnphone 0\.5\.4'
         (Invoke-PhoneCommand $script:phoneBinary @('--systemd')).Output | Should -Match 'ExecStart=.*rnphone --service'
         (Invoke-PhoneCommand $script:phoneBinary @('--invalid-option')).Code | Should -Be 2

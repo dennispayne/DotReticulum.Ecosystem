@@ -25,7 +25,7 @@ public static class PhoneApp
         call or ends an active call. Requires separately installed libopus,
         libcodec2 and Linux pactl/pacat/parec for audio.
         Linux gpio_4x4 and i2c_lcd1602 controls require accessible kernel devices.
-        Windows audio uses the original WinMM PCM16 backend, not WASAPI parity.
+        Windows audio uses an original WASAPI float32 backend; physical capture/acoustics are unverified.
         """;
 
     public static async Task<int> RunAsync(string[] args, TextReader input, TextWriter output, TextWriter error, CancellationToken stop)
@@ -399,7 +399,7 @@ public static class PhoneApp
     }
 
     private static IAudioDeviceBackend CreateDeviceBackend() => OperatingSystem.IsWindows()
-        ? new LXST.Devices.WindowsWaveAudioBackend()
+        ? new LXST.Devices.WindowsWasapiAudioBackend()
         : OperatingSystem.IsLinux() ? new PulseAudioDeviceBackend()
         : throw new PlatformNotSupportedException("Audio devices are implemented for Linux and Windows only.");
 

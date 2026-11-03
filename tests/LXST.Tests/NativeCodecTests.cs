@@ -111,6 +111,7 @@ public sealed class NativeCodecTests
     public void OpusAllProfilesMatchActualReferenceBitstreamAndDecode()
     {
         using var fixture = StreamPacketTests.LoadVectors();
+        var index = 0;
         foreach (var vector in fixture.RootElement.GetProperty("opus").EnumerateArray())
         {
             using var codec = new NativeOpusCodec((OpusProfile)vector.GetProperty("profile").GetInt32());
@@ -118,7 +119,7 @@ public sealed class NativeCodecTests
             var encoded = codec.Encode(new(samples, vector.GetProperty("sample_rate").GetInt32(), vector.GetProperty("channels").GetInt32()));
             Assert.Equal(Convert.FromHexString(vector.GetProperty("encoded").GetString()!), encoded);
             var decoded = codec.Decode(encoded);
-            AssertClose(vector.GetProperty("decoded").EnumerateArray().Select(v => v.GetSingle()).ToArray(), decoded.Samples.ToArray(), "Opus");
+            AssertClose(NativePcmReference.Expected(vector.GetProperty("decoded"), "opus", index++), decoded.Samples.ToArray(), "Opus");
         }
     }
 
@@ -133,6 +134,7 @@ public sealed class NativeCodecTests
         var module = NativeLibrary.Load(path);
         try
         {
+            var index = 0;
             foreach (var vector in fixture.RootElement.GetProperty("codec2").EnumerateArray())
             {
                 using var codec = new NativeCodec2(vector.GetProperty("mode").GetInt32(), path);
@@ -140,7 +142,7 @@ public sealed class NativeCodecTests
                 var encoded = codec.Encode(new(samples, 8000, 1));
                 Assert.Equal(Convert.FromHexString(vector.GetProperty("encoded").GetString()!), encoded);
                 var decoded = codec.Decode(encoded);
-                AssertClose(vector.GetProperty("decoded").EnumerateArray().Select(v => v.GetSingle()).ToArray(), decoded.Samples.ToArray(), $"Codec2 mode {codec.Mode}");
+                AssertClose(NativePcmReference.Expected(vector.GetProperty("decoded"), "codec2", index++), decoded.Samples.ToArray(), $"Codec2 mode {codec.Mode}");
             }
         }
         finally { NativeLibrary.Free(module); }

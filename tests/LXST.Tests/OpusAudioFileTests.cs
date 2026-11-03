@@ -261,7 +261,7 @@ public sealed class OpusAudioFileTests
                 samples.AddRange(frame.Samples.ToArray());
             }
             Assert.Equal(fixture.RootElement.GetProperty("frame_lengths").EnumerateArray().Select(value => value.GetInt32()), lengths);
-            Assert.Equal(fixture.RootElement.GetProperty("decoded").EnumerateArray().Select(value => value.GetSingle()), samples);
+            Assert.Equal(NativePcmReference.Expected(fixture.RootElement.GetProperty("decoded"), "file"), samples);
         }
         finally { Directory.Delete(root, recursive: true); }
     }

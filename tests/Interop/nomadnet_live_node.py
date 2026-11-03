@@ -176,6 +176,15 @@ def main():
                         {"hash": entry[0], "unread": entry[4], "failures": entry[6]}
                         for entry in app.conversations()])
                     continue
+                if parts[0] == "config-stats":
+                    emit("configuration", enable_node=app.enable_node, node_name=app.node_name,
+                         disable_propagation=app.disable_propagation, announce_interval=app.node_announce_interval,
+                         periodic_lxmf_sync=app.periodic_lxmf_sync, lxmf_sync_interval=app.lxmf_sync_interval,
+                         lxmf_sync_limit=app.lxmf_sync_limit, try_propagation_on_send_fail=app.try_propagation_on_fail,
+                         required_stamp_cost=app.required_stamp_cost, accept_invalid_stamps=app.accept_invalid_stamps,
+                         max_accepted_size=app.lxmf_max_incoming_size, pages_path=app.pagespath,
+                         files_path=app.filespath, downloads_path=app.downloads_path)
+                    continue
                 if parts[0] == "conversation-read" and len(parts) == 2:
                     app.mark_conversation_read(parts[1])
                     emit("conversation-read", hash=parts[1])

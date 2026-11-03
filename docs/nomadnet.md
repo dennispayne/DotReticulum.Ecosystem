@@ -51,7 +51,7 @@ Underlying-library acceptance is not automatically application acceptance.
 
 | Contract and upstream sources | Current status and boundary |
 |---|---|
-| Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`, `--console`, `--textui` accepted. Daemon ignores terminal input and serves until cancellation. `--console` selects the existing console logging; `--textui` selects the original command loop, not Urwid. Extensions: `--help`, `--init`, `--status`. |
+| Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`, `--console`, `--textui` accepted. Daemon ignores terminal input and serves until cancellation. `--console` selects the existing console logging; `--textui` selects the original command loop, not Urwid. Extensions: `--help`, `--init`, `--status`, explicit non-overwriting core `--import-config`. |
 | Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, per-peer direct/propagated/opportunistic preference, unread/failure counters, explicit viewed/read state, latest-activity listing, deletion/failed purge and plain-text export. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. Native opportunistic text is received by the actual primary; direct reply/viewed state and both applications' read counters are exercised. Upstream `.index`/conversation import and full conversation UI remain missing. |
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Encoded image files can be explicitly converted with the local image adapter; automatic conversation-image display remains missing. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
 | Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. Actual primary app ingest/generation tested both ways. QR image generation, QR scan and printer commands are missing. |
@@ -65,13 +65,14 @@ Underlying-library acceptance is not automatically application acceptance.
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways through a Python transport, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron message rendering and complete Channels UI remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop. Urwid menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
-| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Upstream config/directory/peer-settings/conversation/RRC file import and migration, peer-settings backup recovery and full restart policy are missing. |
+| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Complete ConfigObj compatibility, directory/peer-settings/conversation/RRC migration, peer-settings backup recovery and full restart policy remain missing. |
 
 ### Configuration audit
 
-The .NET application uses `settings.json`, not upstream ConfigObj/INI. Existing
-schema-1 files without the new properties still load with defaults. It does not
-silently claim to accept upstream option names.
+The running .NET application uses `settings.json`, not an automatically loaded
+upstream ConfigObj/INI. Existing schema-1 files without new properties still
+load with defaults. The explicit core importer below translates only named
+contracts and reports unsupported keys; it is not complete configuration parity.
 
 | Native setting | Default / behavior |
 |---|---|
@@ -80,6 +81,8 @@ silently claim to accept upstream option names.
 | `nodeAnnounceIntervalMinutes` | 360; validated 1–10080 |
 | `enableExecutablePages` | false; explicit Linux execution/authorization-generator opt-in |
 | `mediaConverter` | `ffmpeg`; local executable name or absolute path; no shell, 1–1024 printable characters; required only for conversion/preview, not cached or native WebP serving |
+| `inboundStampCost`, `acceptInvalidStamps` | null / false; stamp cost null or 1–254; existing LXMF enforces required stamps unless explicitly accepting invalid stamps |
+| `pagesPath`, `filesPath`, `downloadsPath` | null uses native `storage\pages`, `storage\files`, `downloads`; explicit paths override those roots; remote names still cannot escape selected roots |
 | `enablePropagation` | false; requires `enableNode`; uses existing LXMF propagation defaults |
 | `propagationNode`, `usePropagation` | null / true; `propagation <hash|auto|off>` persists manual, trusted automatic or disabled client selection |
 | `trustedNodes` | empty; at most 128 `nomadnetwork.node` hashes, not delivery/propagation hashes |
@@ -98,12 +101,15 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   `required_stamp_cost`, `accept_invalid_stamps`, `max_accepted_size`,
   `compact_announce_stream`, `notify_on_new_message`, `compose_in_markdown`,
   `user_interface` — **partial** only where the explicit native settings or
-  implemented workflows above apply; other application options are **missing**.
+  implemented workflows above apply. Downloads path, required cost, invalid-stamp
+  acceptance and transfer limit are operational/imported; other application
+  options are **missing**.
 - `[node]`: `enable_node`, `node_name`, `disable_propagation`, `announce_at_start`,
   `announce_interval`, `pages_path`, `files_path`, `page_refresh_interval`,
   `file_refresh_interval`, `propagation_cost`, `max_transfer_size`, `max_sync_size`,
   `prioritise_destinations`, `static_peers`, `max_peers`, `message_storage_limit`
-  — **partial** enable/name/announce/manual propagation; the other knobs are
+  — **partial** enable/name/announce interval/manual propagation and custom
+  page/file roots; the other knobs are
   **missing** at the application layer, even where LXMF has corresponding APIs.
 - `[textui]`: `intro_time`, `theme`, `colormode`, `glyphs`, `image_loading`,
   `mouse_enabled`, `editor`, `hide_guide`, `sanitize_names`, `clipboard_copy`
@@ -135,6 +141,7 @@ nomadnet --init --config <app-directory>
 # Edit settings.json to enable the required node/propagation settings.
 nomadnet --config <app-directory> --rnsconfig <reticulum-directory>
 nomadnet --daemon --config <app-directory> --rnsconfig <reticulum-directory>
+nomadnet --import-config <upstream-config-file> --config <new-native-directory>
 ```
 
 `help` lists the actual commands. Hosted content goes in
@@ -143,6 +150,50 @@ nomadnet --daemon --config <app-directory> --rnsconfig <reticulum-directory>
 without an authenticated permitted identity is denied. App identity is stored
 through Reticulum under the selected RNS configuration; preserve **both** app
 data and RNS configuration for restart. Keep private identity material private.
+
+### Core upstream configuration import
+
+`--import-config` reads a bounded 64-KiB strict UTF-8 ConfigObj-style file and
+atomically creates a **new, unoccupied** native data directory. Existing files or
+profiles are rejected, not merged or overwritten. Cancellation/validation failure
+removes the staged profile; source configuration is never changed. This imports
+configuration only: no upstream identity, conversations, contacts or private
+peer-settings files are silently selected/copied.
+
+The fourteen translated keys are `[client] periodic_lxmf_sync`,
+`lxmf_sync_interval`, `lxmf_sync_limit`, `try_propagation_on_send_fail`,
+`required_stamp_cost`, `accept_invalid_stamps`, `max_accepted_size`,
+`downloads_path`; `[node] enable_node`, `disable_propagation`, `node_name`,
+`announce_interval`, `pages_path`, `files_path`. Every other supplied key is
+reported on stderr as unsupported, without printing its value. This does not
+reclassify unimplemented options as optional.
+
+Executed primary rules include minutes-to-seconds sync timing, nonpositive
+sync limit as unlimited, nonpositive max accepted size as 500 decimal KB,
+`None`/nonpositive stamp cost as absent, cost clamping, minimum one-minute node
+announce interval, current-user `~`/`~/` expansion for download paths and case-insensitive
+ConfigObj boolean values. Imported node interval defaults to primary720 minutes;
+legacy native profiles retain native360 unless set. Native record/size/path
+bounds still apply and fail explicitly rather than weakening them.
+
+Scalar quotes, `#` comments outside quotes and flat sections are supported.
+Duplicate/malformed sections/keys, ambiguous scalar lists, nested ConfigObj
+sections, multiline quoted values and lines over4096 characters fail explicitly.
+Named-user home expansion also fails explicitly; supply an explicit path instead.
+This intentionally bounded parser does not claim complete ConfigObj grammar.
+Executable pages remain explicit native opt-in; importing configuration does
+not enable script execution.
+
+**Upstream boundary defect:** primary `applyConfig` clamps required stamp costs
+above255 to255. Actual pinned LXMF1.2.1 `register_delivery_identity` returns a
+destination for255 but its setter rejects it, leaving `stamp_cost` undefined;
+`get_announce_app_data` then raises `AttributeError`. Source:
+`LXMRouter.py`358–404,1045–1055, revision
+`e8ba02483217af43be284a72f1c059c730b7d047`. The executed boundary observation is
+retained at ignored `artifacts\tests\lxmf-stamp-cost-boundary.json`. Config
+vectors preserve the primary's observed255; native import explicitly rejects
+it with the 1–254 explanation. It is not silently converted to254, presented
+as valid delivery, or treated as a missing native protocol capability.
 
 Attachments are stored under `attachments\<message-hash>\<index>.bin`, with
 `.name` and `.sha256` metadata. Remote names are never filesystem paths. Image
@@ -363,6 +414,63 @@ artifacts\builds\nomadnet-browser-solution -v:q` with zero warnings/errors and
 `dotnet test DotReticulum.Ecosystem.slnx -c Release --artifacts-path
 artifacts\builds\nomadnet-browser-solution --no-build -v:q`: **406 passed,
 70 explicit opt-in/platform skips, zero failures** across the five test projects.
+
+### Selected core-configuration acceptance
+
+`GenerateNomadNetConfigVectors.py` executes the real, unmodified primary
+constructor and `applyConfig` in isolated no-interface application subprocesses.
+The adapter only observes attributes; it does not replace constructor,
+configuration, LXMF or RNS behavior. The fixture records exact revision,
+raw source SHA-256, inputs, clamped values and path observations. No private
+identity material is included. This independently checks policy translation;
+the application flow below separately checks operational behavior.
+
+Selected Windows strict NativeAOT:
+`artifacts\builds\nomadnet-config-win\publish\NomadNet\release_win-x64\nomadnet.exe`;
+SHA-256 `957ca4f45d6da55fd2a6968a27979783824d05260de0680f5308d742af49bab8`.
+The strict publish command uses `-r win-x64 --artifacts-path
+artifacts\builds\nomadnet-config-win -p:ILLinkTreatWarningsAsErrors=true
+-p:IlcTreatWarningsAsErrors=true`. Scoped managed tests with the selected
+FFmpeg pass **82 +3 explicit Linux-only skips**; selected Native cases pass
+**4/4**; actual primary image/conversation/configuration case passes **1/1**
+(34.05 seconds).
+
+Selected Linux strict NativeAOT:
+`artifacts/builds/nomadnet-config-linux/publish/NomadNet/release_linux-x64/nomadnet`;
+SHA-256 `0f0ee45e6368ffbc89d698fa89b95a747b74d38a0e5fcf29070a4a27cd663895`.
+The same strict publish uses `-r linux-x64` and the matching
+`nomadnet-config-linux` artifacts root. Linux scoped managed passes **85/85**;
+Native **4/4**, actual primary image/conversation/configuration **1/1**
+(32.30 seconds), actual primary RRC/form/partial **1/1** (21.80 seconds).
+
+The configuration mode additionally sets
+`DOTRETICULUM_NOMADNET_CONFIG_LIVE=1` and runs the actual published import
+command, rejects an occupied target, checks unsupported-key reporting/source
+immutability, then starts with those settings. It serves from non-default page
+and file roots, writes media and conversation export to the non-default download
+root, and persists the configuration through restart. Real primary direct replies
+meet the native required stamp cost13 with enforcement enabled; there is no
+stamp-source replacement or lowered private protocol constant.
+`PYTHON_CPU_COUNT=2` is a disclosed standard Python runtime worker bound in these
+selected runs, not a reference code shim.
+
+The saved ignored Windows script selects frozen DLL/binary/tool/reference paths:
+
+```powershell
+& artifacts\tests\nomadnet-config-win-acceptance.ps1
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-config-linux-acceptance.ps1
+```
+
+Previous image/conversation scripts explicitly clear this new opt-in; their
+accepted frozen binaries remain valid for their matching tests.
+
+The integrated command `dotnet build DotReticulum.Ecosystem.slnx -c Release
+--artifacts-path artifacts\builds\nomadnet-config-solution -v:q` passes with
+**zero warnings/errors**. `dotnet test ... --no-build -v:q --logger trx
+--results-directory artifacts\tests\nomadnet-config-full-final` passes
+**667 tests, 81 explicit opt-in/platform skips, zero failures** across five
+projects. This is not a claim that the remaining unsupported configuration
+keys, complete ConfigObj grammar or upstream profile migration are implemented.
 
 ### Selected conversation/application acceptance
 

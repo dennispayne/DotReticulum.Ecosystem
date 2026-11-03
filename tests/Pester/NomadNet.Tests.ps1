@@ -106,6 +106,50 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
             $settingsPath = Join-Path $work 'native\settings.json'
             $settings = @{ schemaVersion = 1; displayName = 'Image acceptance'; enableNode = $true;
                 mediaConverter = $env:DOTRETICULUM_NOMADNET_IMAGE_CONVERTER }
+            if ($env:DOTRETICULUM_NOMADNET_CONFIG_LIVE -eq '1') {
+                $customPages = Join-Path $work 'configured-pages'
+                $customFiles = Join-Path $work 'configured-files'
+                $customDownloads = Join-Path $work 'configured-downloads'
+                $null = New-Item $customPages, $customFiles -ItemType Directory -Force
+                Copy-Item (Join-Path $work 'native\storage\pages\*') $customPages
+                Remove-Item (Join-Path $work 'native\storage\pages\*')
+                [IO.File]::WriteAllText((Join-Path $customFiles 'public.txt'), 'CONFIGURED_FILE_ROOT')
+                $importSource = Join-Path $work 'upstream-core-config'
+                $importTarget = Join-Path $work 'imported-profile'
+                @"
+[client]
+required_stamp_cost = 13
+accept_invalid_stamps = no
+max_accepted_size = 4000
+downloads_path = '$customDownloads'
+[node]
+enable_node = yes
+disable_propagation = yes
+node_name = 'Configured native node'
+pages_path = '$customPages'
+files_path = '$customFiles'
+[textui]
+image_loading = yes
+"@ | Set-Content $importSource -Encoding utf8
+                $originalConfigHash = (Get-FileHash $importSource).Hash
+                $importer = & $start 'config-import' $env:DOTRETICULUM_NOMADNET_BINARY @(
+                    '--import-config', $importSource, '--config', $importTarget)
+                $null = & $read $importer 'Imported core configuration.*unsupported settings: 1'
+                $importer.WaitForExit(20000) | Should -BeTrue
+                $importer.ExitCode | Should -Be 0
+                $errors[$importer.Id].GetAwaiter().GetResult() | Should -Match 'textui.image_loading'
+                $occupied = & $start 'config-import-occupied' $env:DOTRETICULUM_NOMADNET_BINARY @(
+                    '--import-config', $importSource, '--config', $importTarget)
+                $occupied.WaitForExit(20000) | Should -BeTrue
+                $occupied.ExitCode | Should -Be 1
+                $errors[$occupied.Id].GetAwaiter().GetResult() | Should -Match 'unoccupied target'
+                (Get-FileHash $importSource).Hash | Should -Be $originalConfigHash
+                $settings = [IO.File]::ReadAllText((Join-Path $importTarget 'settings.json')) | ConvertFrom-Json
+                $settings.inboundStampCost | Should -Be 13
+                $settings.acceptInvalidStamps | Should -BeFalse
+                $settings.deliveryTransferLimitBytes | Should -Be 4000000
+                $settings.mediaConverter = $env:DOTRETICULUM_NOMADNET_IMAGE_CONVERTER
+            }
             $settings | ConvertTo-Json | Set-Content $settingsPath -Encoding utf8
             $nativeArgs = @('--config', (Join-Path $work 'native'), '--rnsconfig', (Join-Path $work 'native-rns'))
             $native = & $start 'native' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
@@ -115,6 +159,11 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
             $python = & $start 'python' $env:DOTRETICULUM_PYTHON $pythonArgs
             $ready = ((& $read $python '"event"\s*:\s*"ready"').Substring(2) | ConvertFrom-Json)
             $ready.revision | Should -Be 'f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2'
+            if ($env:DOTRETICULUM_NOMADNET_CONFIG_LIVE -eq '1') {
+                & $send $python "request $nativeNode /file/public.txt"
+                $response = ((& $read $python '"event"\s*:\s*"response"').Substring(2) | ConvertFrom-Json)
+                $response.text | Should -Be 'CONFIGURED_FILE_ROOT'
+            }
             if ($env:DOTRETICULUM_NOMADNET_CONVERSATION_LIVE -eq '1') {
                 $nativeDelivery = [regex]::Match([IO.File]::ReadAllText((Join-Path $work 'native.stdout')),
                     'LXMF delivery address:\s*([0-9a-f]{32})').Groups[1].Value
@@ -156,7 +205,9 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
                 $null = & $read $native 'Conversation command complete'
                 & $send $native "conversation export $($ready.delivery) conversation.txt"
                 $null = & $read $native 'Conversation command complete'
-                [IO.File]::ReadAllText((Join-Path $work 'native\downloads\conversation.txt')) |
+                $export = if ($env:DOTRETICULUM_NOMADNET_CONFIG_LIVE -eq '1') { Join-Path $customDownloads 'conversation.txt' }
+                    else { Join-Path $work 'native\downloads\conversation.txt' }
+                [IO.File]::ReadAllText($export) |
                     Should -Match 'CONVERSATION_ACTIVE_PRIMARY'
                 & $send $native "contact ignore $($ready.delivery) on"
                 $null = & $read $native 'Contact policy saved'
@@ -173,6 +224,10 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
             $null = & $read $native 'Image preview complete: 1200x600'
             & $send $native 'media 1 fetched.webp'
             $null = & $read $native 'Saved .*fetched.webp'
+            if ($env:DOTRETICULUM_NOMADNET_CONFIG_LIVE -eq '1') {
+                Test-Path (Join-Path $customDownloads 'fetched.webp') | Should -BeTrue
+                Test-Path (Join-Path $work 'native\downloads\fetched.webp') | Should -BeFalse
+            }
             & $send $python "request-media $nativeNode /media/picture.png"
             $image = ((& $read $python '"event"\s*:\s*"image-response"').Substring(2) | ConvertFrom-Json)
             $image.width | Should -Be 1200
@@ -243,7 +298,9 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
             @{ binary = (Get-FileHash $env:DOTRETICULUM_NOMADNET_BINARY -Algorithm SHA256).Hash;
                 converter = (Get-FileHash $env:DOTRETICULUM_NOMADNET_IMAGE_CONVERTER -Algorithm SHA256).Hash;
                 primary = $ready.revision; width = $image.width; height = $image.height;
-                nativeRestartCache = $true; primaryRestartCache = $true } |
+                nativeRestartCache = $true; primaryRestartCache = $true;
+                conversations = ($env:DOTRETICULUM_NOMADNET_CONVERSATION_LIVE -eq '1');
+                coreConfiguration = ($env:DOTRETICULUM_NOMADNET_CONFIG_LIVE -eq '1') } |
                 ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
         }
         finally {

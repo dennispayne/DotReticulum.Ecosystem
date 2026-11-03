@@ -29,6 +29,11 @@ public sealed record NomadNetSettings
     public bool TryPropagationOnSendFail { get; set; } = true;
     public int DeliveryTransferLimitBytes { get; set; } = 1_000_000;
     public string MediaConverter { get; set; } = "ffmpeg";
+    public int? InboundStampCost { get; set; }
+    public bool AcceptInvalidStamps { get; set; }
+    public string? PagesPath { get; set; }
+    public string? FilesPath { get; set; }
+    public string? DownloadsPath { get; set; }
 
     public async Task SaveAsync(string directory, CancellationToken cancellationToken = default)
     {
@@ -81,6 +86,8 @@ public sealed record NomadNetSettings
 
     private void Validate()
     {
+        if (InboundStampCost is < 1 or > 254)
+            throw new InvalidDataException("Inbound stamp cost must be null or 1–254; the primary's 255 clamp is unsupported by pinned LXMF 1.2.1.");
         if (SchemaVersion != 1 || string.IsNullOrWhiteSpace(DisplayName) ||
             DisplayName.Trim().Length > 80 || DisplayName.Any(char.IsControl) ||
             NodeAnnounceIntervalMinutes is < 1 or > 10080 ||
@@ -89,6 +96,8 @@ public sealed record NomadNetSettings
             TrustedNodes is null || TrustedNodes.Count > 128 ||
             DeliveryTransferLimitBytes is < 1024 or > 64 * 1024 * 1024 ||
             string.IsNullOrWhiteSpace(MediaConverter) || MediaConverter.Length > 1024 || MediaConverter.Any(char.IsControl) ||
+            new[] { PagesPath, FilesPath, DownloadsPath }.Any(path => path is not null &&
+                (string.IsNullOrWhiteSpace(path) || path.Length > 2048 || path.Any(char.IsControl))) ||
             NodeName is { } nodeName && (string.IsNullOrWhiteSpace(nodeName) || nodeName.Length > 80 || nodeName.Any(char.IsControl)) ||
             EnablePropagation && !EnableNode)
             throw new InvalidDataException("NomadNet settings contain an invalid version or display name.");

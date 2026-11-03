@@ -23,5 +23,6 @@
     <EmbeddedResource Include="NomadNetPropagationVectors.json" />
     <EmbeddedResource Include="NomadNetImageVectors.json" />
     <EmbeddedResource Include="NomadNetConversationVectors.json" />
+    <EmbeddedResource Include="NomadNetConfigVectors.json" />
   </ItemGroup>
 </Project>

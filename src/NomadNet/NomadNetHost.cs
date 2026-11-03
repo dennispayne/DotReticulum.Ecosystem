@@ -23,7 +23,7 @@ public sealed class NomadNetHost : IAsyncDisposable
     public NomadNetHost(TransportRouter router, Identity identity, string directory, NomadNetSettings settings)
     {
         _router = router;
-        _content = new NomadNetContent(directory, settings.EnableExecutablePages, settings.MediaConverter);
+        _content = new NomadNetContent(directory, settings.EnableExecutablePages, settings.MediaConverter, settings.PagesPath, settings.FilesPath);
         _announceInterval = TimeSpan.FromMinutes(settings.NodeAnnounceIntervalMinutes);
         _destination = new LocalDestination(identity, Destination.Create(DestinationType.Single, "nomadnetwork", ["node"], identity))
         {
@@ -138,10 +138,11 @@ public sealed class NomadNetContent
     private readonly NomadNetImageCache _images;
     private static readonly byte[] Denied = ">Request Not Allowed\n\nThis identity is not authorised for this resource.\n"u8.ToArray();
 
-    public NomadNetContent(string directory, bool enableExecutablePages = false, string mediaConverter = "ffmpeg")
+    public NomadNetContent(string directory, bool enableExecutablePages = false, string mediaConverter = "ffmpeg",
+        string? pagesPath = null, string? filesPath = null)
     {
-        _pages = Path.GetFullPath(Path.Combine(directory, "storage", "pages"));
-        _files = Path.GetFullPath(Path.Combine(directory, "storage", "files"));
+        _pages = Path.GetFullPath(pagesPath ?? Path.Combine(directory, "storage", "pages"));
+        _files = Path.GetFullPath(filesPath ?? Path.Combine(directory, "storage", "files"));
         Directory.CreateDirectory(_pages);
         Directory.CreateDirectory(_files);
         _execute = enableExecutablePages;

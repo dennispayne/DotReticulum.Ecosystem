@@ -27,6 +27,14 @@ internal static class Program
         try
         {
             var options = ParseOptions(args);
+            if (options.ImportConfig is { } configuration)
+            {
+                var imported = await NomadNetConfigImport.ImportAsync(configuration, options.DataDirectory).ConfigureAwait(false);
+                foreach (var key in imported.UnsupportedKeys)
+                    Console.Error.WriteLine($"Unsupported upstream setting (not imported): {NomadNetTerminalText.Safe(key)}");
+                Console.WriteLine($"Imported core configuration into {options.DataDirectory}; unsupported settings: {imported.UnsupportedKeys.Count}.");
+                return 0;
+            }
             if (options.Initialize)
             {
                 await InitializeAsync(options.DataDirectory).ConfigureAwait(false);
@@ -77,6 +85,7 @@ internal static class Program
         var initialize = false;
         var showStatus = false;
         var daemon = false;
+        string? importConfig = null;
         for (var index = 0; index < args.Length; index++)
         {
             switch (args[index])
@@ -86,6 +95,9 @@ internal static class Program
                     break;
                 case "--rnsconfig":
                     rnsConfig = ValueAfter(args, ref index);
+                    break;
+                case "--import-config":
+                    importConfig = ValueAfter(args, ref index);
                     break;
                 case "--init":
                     initialize = true;
@@ -105,7 +117,9 @@ internal static class Program
         }
         dataDirectory ??= Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "nomadnet");
         dataDirectory = Path.GetFullPath(dataDirectory);
-        return new Options(dataDirectory, rnsConfig, initialize, showStatus, daemon);
+        if (importConfig is not null && (initialize || showStatus || daemon))
+            throw new ArgumentException("--import-config cannot be combined with --init, --status or --daemon.");
+        return new Options(dataDirectory, rnsConfig, initialize, showStatus, daemon, importConfig);
     }
 
     private static string ValueAfter(string[] args, ref int index)
@@ -148,6 +162,8 @@ internal static class Program
             {
                 StoragePath = Path.Combine(options.DataDirectory, "storage"),
                 DeliveryPerTransferLimit = settings.DeliveryTransferLimitBytes,
+                InboundStampCost = settings.InboundStampCost,
+                EnforceStamps = !settings.AcceptInvalidStamps,
             })
         {
             Log = message => Console.Error.WriteLine($"LXMF: {message}"),
@@ -253,6 +269,7 @@ internal static class Program
         Console.WriteLine("""
             NomadNet .NET client 1.4.4
             Usage: nomadnet [--config <directory>] [--rnsconfig <directory>] [--init | --status | --daemon]
+                   nomadnet --import-config <upstream-INI> --config <new-directory>
                    nomadnet [--console] [--textui]
                    nomadnet --help | --version
 
@@ -312,7 +329,7 @@ internal static class Program
             """);
     }
 
-    private sealed record Options(string DataDirectory, string? RnsConfig, bool Initialize, bool ShowStatus, bool Daemon);
+    private sealed record Options(string DataDirectory, string? RnsConfig, bool Initialize, bool ShowStatus, bool Daemon, string? ImportConfig);
 
     private static IEnumerable<NomadNetPropagationCandidate> FindPropagationCandidates(TransportRouter transport)
     {
@@ -958,7 +975,7 @@ internal static class Program
             if (name.Length == 0 || name != outputName || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
                 name.Any(char.IsControl))
                 throw new ArgumentException("Output name must be a plain file name.");
-            var directory = Path.Combine(dataDirectory, "downloads");
+            var directory = Path.GetFullPath(propagation.Settings.DownloadsPath ?? Path.Combine(dataDirectory, "downloads"));
             Directory.CreateDirectory(directory);
             var output = Path.Combine(directory, name);
             var temporary = output + "." + Guid.NewGuid().ToString("N") + ".new";

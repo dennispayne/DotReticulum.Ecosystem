@@ -1,0 +1,70 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "method": "Actual unmodified NomadNetworkApp constructor/applyConfig in isolated no-interface subprocesses; adapter only observes public attributes. Standard PYTHON_CPU_COUNT=2 bounds workers; no constructor/config handler seam.",
+  "sourceSha256": "beda2e618d67200cb14cf7d636efa34f13b4607f99717575f02a1c91fafcf60b",
+  "vectors": [
+    {
+      "name": "ordinary",
+      "input": "[client]\nperiodic_lxmf_sync = no\nlxmf_sync_interval = 12\nlxmf_sync_limit = 3\ntry_propagation_on_send_fail = off\nrequired_stamp_cost = 13\naccept_invalid_stamps = yes\nmax_accepted_size = 432.5\ndownloads_path = ~/Downloads\n[node]\nenable_node = yes\ndisable_propagation = yes\nnode_name = \"Public = # Config\"\nannounce_interval = 19\n",
+      "observed": {
+        "event": "configuration",
+        "enable_node": true,
+        "node_name": "Public = # Config",
+        "disable_propagation": true,
+        "announce_interval": 19,
+        "periodic_lxmf_sync": false,
+        "lxmf_sync_interval": 720,
+        "lxmf_sync_limit": 3,
+        "try_propagation_on_send_fail": false,
+        "required_stamp_cost": 13,
+        "accept_invalid_stamps": true,
+        "max_accepted_size": 432.5,
+        "pages_path": "C:\\Git\\dennispayne\\DotReticulum.Ecosystem\\artifacts\\tests\\nomadnet-config-reference\\ordinary\\app/storage/pages",
+        "files_path": "C:\\Git\\dennispayne\\DotReticulum.Ecosystem\\artifacts\\tests\\nomadnet-config-reference\\ordinary\\app/storage/files",
+        "downloads_path": "C:\\Users\\dennis/Downloads"
+      }
+    },
+    {
+      "name": "clamped",
+      "input": "[client]\nlxmf_sync_interval = 0\nlxmf_sync_limit = -2\nrequired_stamp_cost = 300\nmax_accepted_size = -5\n[node]\nenable_node = true\ndisable_propagation = on\nnode_name = None\nannounce_interval = 0\n",
+      "observed": {
+        "event": "configuration",
+        "enable_node": true,
+        "node_name": null,
+        "disable_propagation": true,
+        "announce_interval": 1,
+        "periodic_lxmf_sync": true,
+        "lxmf_sync_interval": 21600,
+        "lxmf_sync_limit": null,
+        "try_propagation_on_send_fail": true,
+        "required_stamp_cost": 255,
+        "accept_invalid_stamps": false,
+        "max_accepted_size": 500,
+        "pages_path": "C:\\Git\\dennispayne\\DotReticulum.Ecosystem\\artifacts\\tests\\nomadnet-config-reference\\clamped\\app/storage/pages",
+        "files_path": "C:\\Git\\dennispayne\\DotReticulum.Ecosystem\\artifacts\\tests\\nomadnet-config-reference\\clamped\\app/storage/files",
+        "downloads_path": "C:\\Users\\dennis/Downloads"
+      }
+    },
+    {
+      "name": "no-stamps",
+      "input": "[client]\nrequired_stamp_cost = -1\naccept_invalid_stamps = false\nmax_accepted_size = 1000\n[node]\nenable_node = 1\ndisable_propagation = 1\n",
+      "observed": {
+        "event": "configuration",
+        "enable_node": true,
+        "node_name": null,
+        "disable_propagation": true,
+        "announce_interval": 720,
+        "periodic_lxmf_sync": true,
+        "lxmf_sync_interval": 21600,
+        "lxmf_sync_limit": 8,
+        "try_propagation_on_send_fail": true,
+        "required_stamp_cost": null,
+        "accept_invalid_stamps": false,
+        "max_accepted_size": 1000.0,
+        "pages_path": "C:\\Git\\dennispayne\\DotReticulum.Ecosystem\\artifacts\\tests\\nomadnet-config-reference\\no-stamps\\app/storage/pages",
+        "files_path": "C:\\Git\\dennispayne\\DotReticulum.Ecosystem\\artifacts\\tests\\nomadnet-config-reference\\no-stamps\\app/storage/files",
+        "downloads_path": "C:\\Users\\dennis/Downloads"
+      }
+    }
+  ]
+}

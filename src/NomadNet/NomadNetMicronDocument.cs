@@ -19,14 +19,24 @@ public sealed class NomadNetPageField(string kind, string name, string value, st
 
 public sealed class NomadNetPageFold(int row, int endRow, int depth, bool collapsed)
 {
+    private bool _collapsed = collapsed;
+    internal NomadNetPageFold? Source { get; init; }
     public int Row { get; } = row;
     public int EndRow { get; internal set; } = endRow;
     public int Depth { get; } = depth;
-    public bool Collapsed { get; internal set; } = collapsed;
+    public bool Collapsed
+    {
+        get => Source?.Collapsed ?? _collapsed;
+        internal set { if (Source is { } source) source.Collapsed = value; else _collapsed = value; }
+    }
 }
 
-public sealed record NomadNetPagePartial(string Id, string Target, double? RefreshSeconds, string Fields);
+public sealed record NomadNetPagePartial(string? Id, string Target, double? RefreshSeconds, string Fields)
+{
+    internal int Row { get; init; }
+}
 public sealed record NomadNetPageMedia(string Alt, string Target);
+internal sealed record MicronInlineToken(int Row, int Column, int Length, string Kind, int Index);
 
 public sealed partial record NomadNetRenderedPage
 {
@@ -35,9 +45,42 @@ public sealed partial record NomadNetRenderedPage
     public IReadOnlyList<NomadNetPageFold> Folds { get; init; } = [];
     public IReadOnlyList<NomadNetPagePartial> Partials { get; init; } = [];
     public IReadOnlyList<NomadNetPageMedia> Media { get; init; } = [];
+    internal IReadOnlyList<MicronInlineToken> Tokens { get; init; } = [];
 
-    public string DisplayText => string.Join('\n', Text.Split('\n').Where((_, row) =>
+    public string DisplayText => string.Join('\n', DisplayRows().Where((_, row) =>
         !Folds.Any(fold => fold.Collapsed && row > fold.Row && row < fold.EndRow)));
+
+    internal string TokenText(MicronInlineToken token, int index) => token.Kind switch
+    {
+        "link" => $"[{index + 1}] {Links[token.Index].Label}",
+        "field" => FieldText(Fields[token.Index], index + 1),
+        "media" => $"[image {index + 1}: {Media[token.Index].Alt}; use media {index + 1} <name.webp> to download]",
+        _ => "",
+    };
+
+    private static string FieldText(NomadNetPageField field, int number) =>
+        $"[field {number} {NomadNetTerminalText.Safe(field.Name)}: " +
+        (field.Kind == "field" ? field.DisplayValue : (field.Selected ? "[x] " : "[ ] ") + NomadNetTerminalText.Safe(field.Label)) + "]";
+
+    private IEnumerable<string> DisplayRows()
+    {
+        var rows = Text.Split('\n');
+        var groups = Tokens.GroupBy(token => token.Row).ToDictionary(group => group.Key, group => group.OrderBy(token => token.Column));
+        for (var row = 0; row < rows.Length; row++)
+        {
+            if (!groups.TryGetValue(row, out var tokens)) { yield return rows[row]; continue; }
+            var result = new StringBuilder();
+            var start = 0;
+            foreach (var token in tokens)
+            {
+                result.Append(rows[row].AsSpan(start, token.Column - start));
+                result.Append(TokenText(token, token.Index));
+                start = token.Column + token.Length;
+            }
+            result.Append(rows[row].AsSpan(start));
+            yield return result.ToString();
+        }
+    }
 
     public void SetField(int number, string value)
     {
@@ -97,7 +140,7 @@ public sealed partial record NomadNetRenderedPage
     {
         if (!Anchors.TryGetValue(name, out var row)) throw new ArgumentException("Unknown page anchor: " + name);
         foreach (var fold in Folds.Where(fold => row > fold.Row && row < fold.EndRow)) fold.Collapsed = false;
-        return string.Join('\n', Text.Split('\n').Skip(row));
+        return string.Join('\n', DisplayRows().Skip(row));
     }
 
     public static string HeadingSlug(string text)

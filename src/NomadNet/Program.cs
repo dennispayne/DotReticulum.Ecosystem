@@ -269,6 +269,7 @@ internal static class Program
               fallback <on|off>              Retry failed direct messages via propagation
               messages [hash]                 Show durable conversation history
               browse <hash> [page-path]       Fetch a bounded Nomad Network page
+              page | partials                Show composed page or partial targets
               links | open <number>            Follow a displayed Micron link
               fields | field <number> <value> Edit text or select checkbox/radio (on/off)
               anchor <name> | fold <number>    Jump to anchor or toggle section
@@ -321,15 +322,16 @@ internal static class Program
             () => propagation.Settings.TryPropagationOnSendFail)
         { Log = message => Console.Error.WriteLine(message) };
         private readonly NomadNetPageCache _cache = new(dataDirectory);
-        private readonly List<NomadNetPageLink> _lastLinks = [];
         private string? _currentNode;
         private string _currentPath = NomadNetAddress.DefaultPagePath;
         private RrcClient? _rrc;
-        private NomadNetRenderedPage? _page;
+        private NomadNetMicronBrowser? _browser;
+        private NomadNetRenderedPage? _page => _browser?.Current;
         private object? _currentRequestData;
 
         public async ValueTask DisposeAsync()
         {
+            if (_browser is not null) await _browser.DisposeAsync().ConfigureAwait(false);
             await _delivery.DisposeAsync().ConfigureAwait(false);
             if (_rrc is not null) await _rrc.DisposeAsync().ConfigureAwait(false);
         }
@@ -547,6 +549,18 @@ internal static class Program
                 return false;
             }
             if (command.Equals("links", StringComparison.OrdinalIgnoreCase)) { ShowLinks(); return false; }
+            if (command.Equals("page", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine((_page ?? throw new InvalidOperationException("Browse a page first.")).DisplayText);
+                return false;
+            }
+            if (command.Equals("partials", StringComparison.OrdinalIgnoreCase))
+            {
+                var partials = (_page ?? throw new InvalidOperationException("Browse a page first.")).Partials;
+                for (var index = 0; index < partials.Count; index++)
+                    Console.WriteLine($"Partial {index + 1}: {partials[index].Id ?? "(unnamed)"} -> {partials[index].Target}");
+                return false;
+            }
             if (command.Equals("fields", StringComparison.OrdinalIgnoreCase))
             {
                 var fields = (_page ?? throw new InvalidOperationException("Browse a page first.")).Fields;
@@ -561,27 +575,25 @@ internal static class Program
                 var parts = Split(command, 3);
                 var page = _page ?? throw new InvalidOperationException("Browse a page first.");
                 if (parts.Length < 2) throw new ArgumentException("Use field <number> [value].");
-                page.SetField(ParseIndex(parts[1], page.Fields.Count), parts.Length == 3 ? parts[2].Replace("\\n", "\n", StringComparison.Ordinal) : "");
+                _browser!.SetField(ParseIndex(parts[1], page.Fields.Count), parts.Length == 3 ? parts[2].Replace("\\n", "\n", StringComparison.Ordinal) : "");
                 Console.WriteLine("Field updated.");
                 return false;
             }
             if (command.StartsWith("anchor ", StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine((_page ?? throw new InvalidOperationException("Browse a page first.")).AtAnchor(command[7..]));
+                Console.WriteLine((_browser ?? throw new InvalidOperationException("Browse a page first.")).AtAnchor(command[7..]));
                 return false;
             }
             if (command.StartsWith("fold ", StringComparison.OrdinalIgnoreCase))
             {
                 var page = _page ?? throw new InvalidOperationException("Browse a page first.");
-                page.ToggleFold(ParseIndex(command[5..], page.Folds.Count));
-                Console.WriteLine(page.DisplayText);
+                Console.WriteLine(_browser!.ToggleFold(ParseIndex(command[5..], page.Folds.Count)));
                 return false;
             }
             if (command.StartsWith("partial ", StringComparison.OrdinalIgnoreCase))
             {
                 var page = _page ?? throw new InvalidOperationException("Browse a page first.");
-                var partial = page.Partials[ParseIndex(command[8..], page.Partials.Count) - 1];
-                await FetchPartialAsync(partial, page, cancellationToken).ConfigureAwait(false);
+                await _browser!.RefreshAsync(ParseIndex(command[8..], page.Partials.Count), cancellationToken).ConfigureAwait(false);
                 return false;
             }
             if (command.StartsWith("media ", StringComparison.OrdinalIgnoreCase))
@@ -598,12 +610,13 @@ internal static class Program
             }
             if (command.StartsWith("open ", StringComparison.OrdinalIgnoreCase))
             {
-                var number = ParseIndex(command["open ".Length..], _lastLinks.Count);
-                var link = _lastLinks[number - 1];
+                var links = (_page ?? throw new InvalidOperationException("Browse a page first.")).Links;
+                var number = ParseIndex(command["open ".Length..], links.Count);
+                var link = links[number - 1];
                 var target = link.Target;
                 if (target.StartsWith('#'))
                 {
-                    Console.WriteLine((_page ?? throw new InvalidOperationException("Browse a page first.")).AtAnchor(target[1..]));
+                    Console.WriteLine(_browser!.AtAnchor(target[1..]));
                     return false;
                 }
                 if (target.StartsWith("p:", StringComparison.Ordinal))
@@ -611,8 +624,9 @@ internal static class Program
                     var page = _page ?? throw new InvalidOperationException("Browse a page first.");
                     foreach (var id in target[2..].Split(':'))
                     {
-                        var partial = page.Partials.FirstOrDefault(item => item.Id == id) ?? throw new ArgumentException("Unknown partial: " + id);
-                        await FetchPartialAsync(partial, page, cancellationToken).ConfigureAwait(false);
+                        var index = page.Partials.ToList().FindIndex(item => item.Id == id);
+                        if (index < 0) throw new ArgumentException("Unknown partial: " + id);
+                        await _browser!.RefreshAsync(index + 1, cancellationToken).ConfigureAwait(false);
                     }
                     return false;
                 }
@@ -628,7 +642,7 @@ internal static class Program
                 }
                 var destination = NomadNetAddress.ParseUrl(target, _currentNode);
                 await BrowseAsync(destination.DestinationHash, destination.Path, cancellationToken,
-                    requestData: _page?.Submission(link.Fields)).ConfigureAwait(false);
+                    requestData: _browser?.Submission(link.Fields)).ConfigureAwait(false);
                 return false;
             }
             if (command.Equals("reload", StringComparison.OrdinalIgnoreCase))
@@ -783,30 +797,38 @@ internal static class Program
             var hash = Convert.FromHexString(NomadNetAddress.NormalizeHash(hashText));
             var path = NomadNetAddress.NormalizePagePath(pathText);
             var url = Convert.ToHexStringLower(hash) + ":" + path;
+            if (_browser is { } previous)
+            {
+                _browser = null;
+                await previous.DisposeAsync().ConfigureAwait(false);
+            }
             if (reload) _cache.Remove(url);
             var cached = requestData is null ? await _cache.ReadAsync(url, cancellationToken).ConfigureAwait(false) : null;
             var body = cached ?? await RequestAsync(hash, path, requestData, MicronText.MaximumPageBytes, cancellationToken).ConfigureAwait(false);
             if (cached is null && requestData is null) await _cache.StoreAsync(url, body, cancellationToken).ConfigureAwait(false);
             var page = MicronText.Render(body);
-            _page = page;
             _currentRequestData = requestData;
             _currentNode = Convert.ToHexStringLower(hash);
             _currentPath = path;
-            _lastLinks.Clear();
-            _lastLinks.AddRange(page.Links);
+            var origin = _currentNode;
+            var browser = new NomadNetMicronBrowser(page, async (partial, data, token) =>
+            {
+                var target = NomadNetAddress.ParseUrl(partial.Target, origin);
+                return await RequestAsync(Convert.FromHexString(target.DestinationHash), target.Path, data,
+                    MicronText.MaximumPageBytes, token).ConfigureAwait(false);
+            }) { Log = message => Console.Error.WriteLine(message) };
+            _browser = browser;
+            browser.Changed += updated =>
+            {
+                if (!ReferenceEquals(_browser, browser)) return;
+                Console.WriteLine("--- partials updated ---");
+                Console.WriteLine(updated.DisplayText);
+            };
             Console.WriteLine($"--- {_currentNode}:{_currentPath} ---");
             if (cached is not null) Console.WriteLine("(cached page)");
             Console.WriteLine(page.DisplayText);
             ShowLinks();
-        }
-
-        private async Task FetchPartialAsync(NomadNetPagePartial partial, NomadNetRenderedPage page, CancellationToken cancellationToken)
-        {
-            var target = NomadNetAddress.ParseUrl(partial.Target, _currentNode);
-            var bytes = await RequestAsync(Convert.FromHexString(target.DestinationHash), target.Path, page.Submission(partial.Fields),
-                MicronText.MaximumPageBytes, cancellationToken).ConfigureAwait(false);
-            Console.WriteLine($"--- partial {NomadNetTerminalText.Safe(partial.Id)} ---");
-            Console.WriteLine(MicronText.Render(bytes).DisplayText);
+            browser.Start();
         }
 
         private async Task FetchFileAsync(string hashText, string remotePath, string outputName, CancellationToken cancellationToken)
@@ -875,9 +897,10 @@ internal static class Program
 
         private void ShowLinks()
         {
-            for (var index = 0; index < _lastLinks.Count; index++)
-                Console.WriteLine($"  {index + 1}. {_lastLinks[index].Label} -> {_lastLinks[index].Target}");
-            if (_lastLinks.Count > 0) Console.WriteLine("Use open <number> to follow a link.");
+            var links = _page?.Links ?? [];
+            for (var index = 0; index < links.Count; index++)
+                Console.WriteLine($"  {index + 1}. {links[index].Label} -> {links[index].Target}");
+            if (links.Count > 0) Console.WriteLine("Use open <number> to follow a link.");
         }
 
         private static string[] Split(string text, int maximumParts)

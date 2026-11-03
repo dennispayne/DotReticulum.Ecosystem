@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import threading
+import time
 from types import SimpleNamespace
 
 from reference_environment import verify_reference
@@ -71,6 +73,7 @@ def main():
         for part in MicronParser.make_output(MicronParser.default_state(), text, None) if isinstance(part, dict))}
         for text in fields]
     from nomadnet.ui.textui.Browser import Browser
+    result["browserSourceSha256"] = hashlib.sha256((source / "nomadnet/ui/textui/Browser.py").read_bytes()).hexdigest()
     browser = Browser.__new__(Browser)
     browser.status = Browser.DONE
     browser.attr_maps = MicronParser.markup_to_attrmaps("\n".join(fields))
@@ -83,6 +86,50 @@ def main():
     result["submissionMethod"] = "Browser.handle_link with real parsed Urwid fields; retrieve_url I/O seam captures request arguments, no form logic replaced"
     result["slug"] = [{"source": text, "slug": MicronParser.slugify_micron(text)}
                       for text in ["`!Hello World`!", "日本語 Hello---World!", "`:anchor Heading_Name"]]
+    descriptors = ["/page/once.mu}", "/page/refresh.mu`2`*|pid=summary}",
+                   "/page/static.mu`0`name}", "/page/invalid.mu`bad`*}",
+                   "/page/invalid.mu`1`a`b}"]
+    result["partials"] = []
+    for text in descriptors:
+        parsed = MicronParser.parse_partial(text)
+        widget = parsed[0] if parsed else None
+        result["partials"].append({"source": text, "valid": widget is not None,
+            "id": widget.partial_id if widget else None, "refresh": widget.partial_refresh if widget else None,
+            "fields": widget.partial_fields if widget else None})
+    browser.attr_maps = MicronParser.markup_to_attrmaps("`<root`outer>\n`{/page/child.mu`2`*|pid=child}")
+    browser.page_partials = {}
+    browser.start_partial_updater = lambda: None
+    browser.refresh_page_layout = lambda: None
+    browser.page_foreground_color = browser.page_background_color = None
+    browser.detect_partials()
+    partial = next(iter(browser.page_partials.values()))
+    partial["request_id"] = bytes(range(8))
+    partial["update_requested"] = 100
+    browser.partial_received(SimpleNamespace(request_id=bytes(range(8)), response=b"`<child`inner>\nChild text"))
+    result["composedSubmission"] = browser._Browser__get_partial_request_data(partial)
+    result["emptyPartialSubmission"] = browser._Browser__get_partial_request_data({"fields": [""]})
+    result["partialUpdated"] = partial["updated"]
+    scheduled = []
+    completed = threading.Event()
+    browser.partial_updater_lock = threading.Lock()
+    browser.app = SimpleNamespace(ui=SimpleNamespace(loop=SimpleNamespace(set_alarm_in=lambda seconds, callback: None)))
+    now = time.time()
+    browser.page_partials = {
+        "initial": {"url": "initial", "updated": None, "refresh": None, "failed": False},
+        "due": {"url": "due", "updated": now-10, "refresh": 2, "failed": False},
+        "fresh": {"url": "fresh", "updated": now+100, "refresh": 2, "failed": False},
+        "static": {"url": "static", "updated": now-10, "refresh": None, "failed": False},
+        "failed": {"url": "failed", "updated": None, "refresh": 2, "failed": True}}
+    def observe_load(item):
+        scheduled.append(item["url"])
+        if len(scheduled) == 2:
+            completed.set()
+    browser._Browser__load_partial = observe_load
+    browser.update_partials()
+    if not completed.wait(5):
+        raise RuntimeError("Actual primary partial scheduler did not finish")
+    result["partialScheduled"] = sorted(scheduled)
+    result["partialObservationSeams"] = "Actual parser/detect/partial_received/request-data/scheduler; only layout, alarm installation and network load boundaries captured. No protocol function replaced."
     Path(args.output).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
 
 

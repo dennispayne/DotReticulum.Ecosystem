@@ -220,6 +220,7 @@
       }
     }
   ],
+  "browserSourceSha256": "a36f393f3e6a356a4c5b19f39596ca3f4fe8812aaf5f09be6c05573173d88079",
   "submissions": [
     {
       "fields": [
@@ -278,5 +279,61 @@
       "source": "`:anchor Heading_Name",
       "slug": "heading-name"
     }
-  ]
+  ],
+  "partials": [
+    {
+      "source": "/page/once.mu}",
+      "valid": true,
+      "id": null,
+      "refresh": null,
+      "fields": [
+        ""
+      ]
+    },
+    {
+      "source": "/page/refresh.mu`2`*|pid=summary}",
+      "valid": true,
+      "id": "summary",
+      "refresh": 2.0,
+      "fields": [
+        "*",
+        "pid=summary"
+      ]
+    },
+    {
+      "source": "/page/static.mu`0`name}",
+      "valid": true,
+      "id": null,
+      "refresh": null,
+      "fields": [
+        "name"
+      ]
+    },
+    {
+      "source": "/page/invalid.mu`bad`*}",
+      "valid": false,
+      "id": null,
+      "refresh": null,
+      "fields": null
+    },
+    {
+      "source": "/page/invalid.mu`1`a`b}",
+      "valid": false,
+      "id": null,
+      "refresh": null,
+      "fields": null
+    }
+  ],
+  "composedSubmission": {
+    "var_pid": "child",
+    "field_root": "outer",
+    "field_child": "inner"
+  },
+  "emptyPartialSubmission": {},
+  "partialUpdated": 100,
+  "partialScheduled": [
+    "due",
+    "initial"
+  ],
+  "partialObservationSeams": "Actual parser/detect/partial_received/request-data/scheduler; only layout, alarm installation and network load boundaries captured. No protocol function replaced."
 }

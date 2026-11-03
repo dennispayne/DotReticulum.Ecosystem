@@ -5,7 +5,7 @@ NomadNet **1.4.4**, not an official implementation or a full port. The applicati
 reuses `ReticulumNode`, `ClientLinks` and `LxmRouter`; it does not duplicate LXMF,
 paper encryption, propagation, Reticulum links or Resource protocols.
 **Required software remains missing**, including remaining RRC presentation
-behavior, automatic Micron partial composition and configuration/UI parity. These are implementation gaps, not
+behavior, media conversion/display and configuration/UI parity. These are implementation gaps, not
 hardware or optional-platform blockers. Sideband has its own implementation and
 inventory in [sideband.md](sideband.md); this document does not track it.
 
@@ -61,7 +61,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
 | Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. OS-process tests cover native execution; selected Linux native browser also submits real forms to unmodified Python executable pages across a Python transport. Python-to-native executable-form browser acceptance remains unverified. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
 | Media; `Node.serve_media`, `convert_media_to_webp` | **partial**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` metadata-bearing responses. Conversion of PNG/JPEG/BMP/GIF/TIFF to WebP, conversion cache/quality/dimension settings and image display are missing, not silently substituted. |
-| Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file retrieval, identifies requests, links/bookmarks, reload, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable form and variable submission; named anchor jumps; fold toggles; manual partial requests using current fields; explicit image-byte download. Submitted requests bypass cache, an intentional safety difference. Navigation history, automatic partial refresh/in-place widget composition, visual image decode and interactive file browser remain missing. |
+| Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded identified page/file retrieval, links/bookmarks, reload, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Navigation history, visual image decode and interactive file browser remain missing. |
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways through a Python transport, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron message rendering and complete Channels UI remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop. Urwid menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
@@ -219,13 +219,69 @@ checkbox/radio `on|off`. `open <link-number>` includes the link's selected
 fields/variables. Checkbox values sharing a name comma-join; radios are mutually
 exclusive by name. `anchor <name>` reveals a folded target; `fold <number>`
 toggles section visibility. `partial <number>` or a `p:<id>` link retrieves
-partial text with current form values. Partial refresh intervals are parsed
-but **not scheduled**, and fetched partial widgets are not merged into the
-parent page. `media <number> <name.webp>` downloads bytes through `/media`;
+partial content with current combined form values. Initial loads and valid
+refresh intervals run automatically with a one-second scheduler and four
+concurrent requests; each has a 90-second deadline. Child controls/links/media
+are renumbered structurally, never by rewriting literal user text. Root edits
+and fold state survive refresh; replaced child controls reset to the newly
+received defaults, as in primary widget replacement. `page` displays the current
+composed page, and `partials` lists root targets. Like primary `detect_partials`,
+automatic discovery is root-only: partials embedded inside a fetched partial
+are not recursively scheduled. Native failures display bounded error content;
+later periodic or explicitly forced updates can recover. A malformed target
+is retryable manually rather than permanently disabled as in primary.
+`media <number> <name.webp>` downloads bytes through `/media`;
 it does not decode/display or validate image quality. Forms are limited to
-128 controls and 64 KiB submitted text, independently of upstream layout sizes.
+128 aggregate controls and 64 KiB submitted text; composed encoded text is
+limited to 4 MiB, links to 2,048 and media descriptors to 128. These are safety
+bounds, not primary layout defaults.
 
 ## Validation and reproduction
+
+### Selected automatic Micron/browser acceptance
+
+Use the **browser** binaries with the current expanded Pester test file; the old
+activity binaries do not contain automatic composition and must not be selected
+for these new assertions.
+
+- Windows `artifacts\builds\nomadnet-browser-win\publish\NomadNet\release_win-x64\nomadnet.exe`;
+  SHA-256 `ccd68949660e4e8a104a9ed1afad2228aea757b528b98b79c432d8213492e142`.
+- Linux `artifacts/builds/nomadnet-browser-linux/publish/NomadNet/release_linux-x64/nomadnet`;
+  SHA-256 `2c9dcab9408b3b87a75d5e88b97a27e698053f7696d6d0704b7b10d84d845415`.
+
+Strict NativeAOT publish (`nomadnet-browser-win`, `win-x64`; `nomadnet-browser-linux`,
+`linux-x64`) passed on both hosts. Windows scoped tests passed **57** with two
+explicit Linux-only skips; Linux passed **59/59**. Native Pester passed **4/4
+each**, now including actual automatic initial load/refresh, changed server
+content, retained root edits, child field/link numbering and navigation away.
+The actual primary app + rrcd + native client RRC/form gate passed **1/1**
+(19.37 seconds) through a Python transport. Its executable Python-hosted page
+returns a child field and anchor: automatic initial/periodic updates, explicit
+`p:summary` refresh, submission of edited child fields and child anchor activation
+all run, followed by the group-chat/restart checks above.
+
+The saved ignored `artifacts\tests\nomadnet-browser-acceptance.ps1` freezes both
+the selected Linux native binary and the already-built Linux managed test DLL,
+avoiding shared source/obj races during independent acceptance. It sets the same
+reference paths below and enforces managed exit success, Native4/4 and RRC1/1:
+
+```powershell
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-browser-acceptance.ps1
+```
+
+`GenerateNomadNetVectors.py` executes primary `parse_partial`, `detect_partials`,
+`partial_received`, combined field collection and `update_partials`. The fixture
+records parser/Browser revision and source hashes and discloses layout/alarm/load
+observation seams. These are independent policy/composition vectors, not live
+Python browser automation; actual live acceptance is native browser to primary
+hosted application pages, not an automated Urwid screenshot/pixel comparison.
+
+The matching integrated checkpoint also passed `dotnet build
+DotReticulum.Ecosystem.slnx -c Release --artifacts-path
+artifacts\builds\nomadnet-browser-solution -v:q` with zero warnings/errors and
+`dotnet test DotReticulum.Ecosystem.slnx -c Release --artifacts-path
+artifacts\builds\nomadnet-browser-solution --no-build -v:q`: **406 passed,
+70 explicit opt-in/platform skips, zero failures** across the five test projects.
 
 ### Selected RRC activity acceptance
 

@@ -373,15 +373,16 @@ Describe 'NomadNet RRC primary-client interoperability' -Tag 'Live', 'Rrc' {
 HIDDEN_FORM_SECTION
 >Visible
 VISIBLE_FORM_SECTION
+`[refresh partial`p:summary]
 '@
             [IO.File]::WriteAllText((Join-Path $pages 'form.mu'), $form.Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
             $submit = @'
 #!/bin/sh
-printf '#!c=0\nFORM_RESULT user=%s flags=%s choice=%s mode=%s\n' "$field_user" "$field_flags" "$field_choice" "$var_mode"
+printf '#!c=0\nFORM_RESULT user=%s flags=%s choice=%s mode=%s extra=%s\n' "$field_user" "$field_flags" "$field_choice" "$var_mode" "$field_extra"
 '@
             $partial = @'
 #!/bin/sh
-printf '#!c=0\nPARTIAL_RESULT user=%s flags=%s choice=%s pid=%s\n' "$field_user" "$field_flags" "$field_choice" "$var_pid"
+printf '#!c=0\nPARTIAL_RESULT user=%s flags=%s choice=%s pid=%s extra=%s\n`<extra`initial>\n`[child anchor`#child-anchor]\n>`:child-anchor Child content\n' "$field_user" "$field_flags" "$field_choice" "$var_pid" "$field_extra"
 '@
             foreach ($entry in @{ 'submit.mu' = $submit; 'partial.mu' = $partial }.GetEnumerator()) {
                 $path = Join-Path $pages $entry.Key
@@ -407,6 +408,7 @@ printf '#!c=0\nPARTIAL_RESULT user=%s flags=%s choice=%s pid=%s\n' "$field_user"
             $null = & $read $native 'RRC command complete'
             & $send $native "browse $($appReady.node) /page/form.mu"
             $null = & $read $native 'VISIBLE_FORM_SECTION'
+            $null = & $read $native 'PARTIAL_RESULT user=Alice flags=a choice=one pid=summary'
             & $send $native 'fields'
             $passwordLine = & $read $native 'Field 2: password'
             $passwordLine | Should -Not -Match 'not-a-real-secret'
@@ -415,10 +417,17 @@ printf '#!c=0\nPARTIAL_RESULT user=%s flags=%s choice=%s pid=%s\n' "$field_user"
                 & $send $native $edit
                 $null = & $read $native 'Field updated'
             }
-            & $send $native 'partial 1'
             $null = & $read $native 'PARTIAL_RESULT user=Bob flags=a,b choice=two pid=summary'
+            & $send $native 'field 7 child-edited'
+            $null = & $read $native 'Field updated'
+            & $send $native 'open 3'
+            $null = & $read $native 'PARTIAL_RESULT user=Bob flags=a,b choice=two pid=summary extra=child-edited'
+            & $send $native 'field 7 final-value'
+            $null = & $read $native 'Field updated'
+            & $send $native 'open 2'
+            $null = & $read $native 'Child content'
             & $send $native 'open 1'
-            $null = & $read $native 'FORM_RESULT user=Bob flags=a,b choice=two mode=accepted'
+            $null = & $read $native 'FORM_RESULT user=Bob flags=a,b choice=two mode=accepted extra=final-value'
             foreach ($setting in @('auto-list on', 'auto-who on', 'history-limit 100', 'active lobby')) {
                 & $send $native "rrc $setting"
                 $null = & $read $native 'RRC command complete'
@@ -705,9 +714,20 @@ Describe 'NomadNet native hosted workflows' -Tag 'Native' {
             '{"schemaVersion":1,"displayName":"Native host","enableNode":true,"enablePropagation":true,"deliveryTransferLimitBytes":4000000}' |
                 Set-Content (Join-Path $work 'server\settings.json') -Encoding utf8
             [IO.File]::WriteAllText((Join-Path $work 'server\storage\pages\index.mu'), "#!c=60`n>Hosted native page`nFIRST_PAGE", [Text.UTF8Encoding]::new($false))
+            $partRoot = @'
+#!c=0
+`<root`outer>
+`{/page/child.mu`1`*|pid=live}
+'@
+            [IO.File]::WriteAllText((Join-Path $work 'server\storage\pages\parts.mu'), $partRoot.Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
+            [IO.File]::WriteAllText((Join-Path $work 'server\storage\pages\child.mu'), 'FIRST_PARTIAL' + "`n" + '`<child`initial>' + "`n" + '`[child anchor`#child-anchor]' + "`n" + '>`:child-anchor Child heading', [Text.UTF8Encoding]::new($false))
             if (-not [OperatingSystem]::IsWindows()) {
                 [IO.File]::SetUnixFileMode((Join-Path $work 'server\storage\pages\index.mu'),
                     [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite)
+                foreach ($name in 'parts.mu', 'child.mu') {
+                    [IO.File]::SetUnixFileMode((Join-Path $work "server\storage\pages\$name"),
+                        [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite)
+                }
             }
             $bytes = [byte[]]::new(2200000)
             [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
@@ -725,6 +745,20 @@ Describe 'NomadNet native hosted workflows' -Tag 'Native' {
             $null = & $readUntil $client '\(cached page\)'
             $null = & $readUntil $client 'FIRST_PAGE'
             & $send $client 'reload'
+            $null = & $readUntil $client 'SECOND_PAGE'
+            & $send $client "browse $serverNode /page/parts.mu"
+            $null = & $readUntil $client 'FIRST_PARTIAL'
+            & $send $client 'field 1 edited-root'
+            $null = & $readUntil $client 'Field updated'
+            [IO.File]::WriteAllText((Join-Path $work 'server\storage\pages\child.mu'), 'SECOND_PARTIAL' + "`n" + '`<child`replacement>' + "`n" + '`[child anchor`#child-anchor]' + "`n" + '>`:child-anchor Child heading', [Text.UTF8Encoding]::new($false))
+            $null = & $readUntil $client 'SECOND_PARTIAL'
+            & $send $client 'fields'
+            $null = & $readUntil $client 'Field 1: root \(field\) = edited-root'
+            $null = & $readUntil $client 'Field 2: child \(field\) = replacement'
+            $null = & $readUntil $client 'Fields complete'
+            & $send $client 'open 1'
+            $null = & $readUntil $client 'Child heading'
+            & $send $client "browse $serverNode"
             $null = & $readUntil $client 'SECOND_PAGE'
             & $send $client "fetch $serverNode /file/large.bin downloaded.bin"
             $null = & $readUntil $client 'Saved 2200000 bytes' 120

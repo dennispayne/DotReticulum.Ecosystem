@@ -25,6 +25,7 @@ public static class MicronText
         var folds = new List<NomadNetPageFold>();
         var partials = new List<NomadNetPagePartial>();
         var media = new List<NomadNetPageMedia>();
+        var tokens = new List<MicronInlineToken>();
         var literal = false;
         var table = false;
         var row = 0;
@@ -47,7 +48,9 @@ public static class MicronText
                     if (parts.Length >= 2 && media.Count < 128)
                     {
                         media.Add(new(NomadNetTerminalText.Safe(parts[0].Trim()), NomadNetTerminalText.Safe(parts[^1].Trim())));
-                        output.AppendLine($"[image {media.Count}: {media[^1].Alt}; use media {media.Count} <name.webp> to download]");
+                        var description = $"[image {media.Count}: {media[^1].Alt}; use media {media.Count} <name.webp> to download]";
+                        tokens.Add(new(row, 0, description.Length, "media", media.Count - 1));
+                        output.AppendLine(description);
                     }
                     else output.AppendLine("[invalid image]");
                     row++;
@@ -57,15 +60,16 @@ public static class MicronText
                 {
                     var end = line.IndexOf('}');
                     var parts = end > 2 ? line[2..end].Split('`') : [];
-                    if (parts.Length is >= 1 and <= 3 && parts[0].Length > 0 && partials.Count < 64)
+                    var validRefresh = parts.Length == 1 || (parts.Length >= 2 &&
+                        double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out _));
+                    if (parts.Length is >= 1 and <= 3 && parts[0].Length > 0 && partials.Count < 64 && validRefresh)
                     {
                         double? refresh = parts.Length >= 2 && double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture,
                             out var seconds) && double.IsFinite(seconds) && seconds >= 1 ? seconds : null;
                         var selection = parts.Length == 3 ? parts[2] : "";
-                        var id = selection.Split('|').FirstOrDefault(token => token.StartsWith("pid=", StringComparison.Ordinal))?[4..]
-                            ?? (partials.Count + 1).ToString(CultureInfo.InvariantCulture);
-                        partials.Add(new(id, parts[0], refresh, selection));
-                        output.AppendLine($"[partial {partials.Count}: {NomadNetTerminalText.Safe(id)}; use partial {partials.Count}]");
+                        var id = selection.Split('|').FirstOrDefault(token => token.StartsWith("pid=", StringComparison.Ordinal))?[4..];
+                        partials.Add(new(id, parts[0], refresh, selection) { Row = row });
+                        output.AppendLine($"[partial {partials.Count}: {NomadNetTerminalText.Safe(id ?? parts[0])}; use partial {partials.Count}]");
                     }
                     else output.AppendLine("[invalid partial]");
                     row++;
@@ -90,15 +94,15 @@ public static class MicronText
             }
             else if (line == "`=") { literal = false; continue; }
             if (literal && line == "\\`=") line = "`=";
-            output.AppendLine(RenderInline(line, links, fields, anchors, row, literal));
+            output.AppendLine(RenderInline(line, links, fields, anchors, tokens, row, literal));
             row++;
         }
         return new NomadNetRenderedPage(output.ToString().TrimEnd().Replace("\r\n", "\n", StringComparison.Ordinal), links)
-        { Fields = fields, Anchors = anchors, Folds = folds, Partials = partials, Media = media };
+        { Fields = fields, Anchors = anchors, Folds = folds, Partials = partials, Media = media, Tokens = tokens };
     }
 
     private static string RenderInline(string line, List<NomadNetPageLink> links, List<NomadNetPageField> fields,
-        Dictionary<string, int> anchors, int row, bool literal)
+        Dictionary<string, int> anchors, List<MicronInlineToken> tokens, int row, bool literal)
     {
         var output = new StringBuilder(line.Length);
         if (literal)
@@ -130,7 +134,9 @@ public static class MicronText
                         label = NomadNetTerminalText.Safe(label);
                         if (links.Count >= 2048) throw new InvalidDataException("Micron page exceeds 2048 links.");
                         links.Add(new NomadNetPageLink(label, NomadNetTerminalText.Safe(target), NomadNetTerminalText.Safe(selection)));
+                        var column = output.Length;
                         output.Append('[').Append(links.Count).Append("] ").Append(label);
+                        tokens.Add(new(row, column, output.Length - column, "link", links.Count - 1));
                         index = close;
                         continue;
                     }
@@ -160,8 +166,10 @@ public static class MicronText
                         foreach (var member in fields.Where(item => item.Kind == "radio" && item.Name == name)) member.Selected = false;
                     var field = new NomadNetPageField(kind, name, value, kind == "field" ? "" : initial, flags.Contains('!'), selected, width, rows);
                     fields.Add(field);
+                    var column = output.Length;
                     output.Append("[field ").Append(fields.Count).Append(' ').Append(NomadNetTerminalText.Safe(name)).Append(": ")
                         .Append(kind == "field" ? field.DisplayValue : (selected ? "[x] " : "[ ] ") + NomadNetTerminalText.Safe(initial)).Append(']');
+                    tokens.Add(new(row, column, output.Length - column, "field", fields.Count - 1));
                     index = end;
                     continue;
                 }

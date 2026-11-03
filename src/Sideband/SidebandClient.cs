@@ -10,8 +10,12 @@ namespace Sideband;
 public sealed class SidebandClient : IAsyncDisposable
 {
     private readonly SidebandStateStore _store;
-    private Channel<ReceivedMessage> _inbound = CreateInboundChannel();
+    private readonly SidebandAttachmentStore _attachments;
+    private Channel<ClientUpdate> _inbound = CreateInboundChannel();
     private readonly SemaphoreSlim _lifecycle = new(1, 1);
+    private readonly object _disposeGate = new();
+    private readonly object _cancellationGate = new();
+    private Task? _disposeTask;
     private CancellationTokenSource? _runCancellation;
     private Task? _inboundTask;
     private ReticulumNode? _node;
@@ -23,6 +27,7 @@ public sealed class SidebandClient : IAsyncDisposable
     public SidebandClient(SidebandStateStore store)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
+        _attachments = new SidebandAttachmentStore(store.DataDirectory);
     }
 
     public event Action<SidebandState>? StateChanged;
@@ -30,6 +35,8 @@ public sealed class SidebandClient : IAsyncDisposable
 
     public bool IsConnected => _router is not null;
     public SidebandConnectionInfo? ConnectionInfo { get; private set; }
+    public LxmPropagationTransferState SyncState => _router?.PropagationTransferState ?? LxmPropagationTransferState.Idle;
+    public double SyncProgress => _router?.PropagationTransferProgress ?? 0;
 
     public async Task<SidebandState> LoadAsync(CancellationToken cancellationToken = default) =>
         await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -40,6 +47,7 @@ public sealed class SidebandClient : IAsyncDisposable
         await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
             if (_router is not null) return;
             var state = await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
             var config = string.IsNullOrWhiteSpace(reticulumConfigDirectory)
@@ -63,11 +71,13 @@ public sealed class SidebandClient : IAsyncDisposable
                     StoragePath = _store.DataDirectory,
                     InboundQueueCapacity = 128,
                     OutboundQueueCapacity = 128,
+                    DeliveryPerTransferLimit = 8 * 1024 * 1024,
                 });
                 router.Log = Report;
+                router.OutboundPropagationNode = state.PropagationNode is { } propagationNode ? Convert.FromHexString(propagationNode) : null;
                 router.MessageReceived = message =>
                 {
-                    if (!inbound.Writer.TryWrite(message))
+                    if (!inbound.Writer.TryWrite(new ClientUpdate(Received: message)))
                         Report("Incoming message queue is full; the message was not added to the conversation list.");
                 };
                 _announceHandler = new CallbackAnnounceHandler("lxmf.delivery", ReceivedDeliveryAnnounce);
@@ -76,8 +86,8 @@ public sealed class SidebandClient : IAsyncDisposable
                 _node = node;
                 _identity = identity;
                 _router = router;
-                _runCancellation = runCancellation;
-                _inboundTask = Task.Run(() => ProcessIncomingAsync(inbound.Reader, runCancellation.Token), CancellationToken.None);
+                lock (_cancellationGate) _runCancellation = runCancellation;
+                _inboundTask = Task.Run(() => ProcessIncomingAsync(inbound.Reader), CancellationToken.None);
                 await router.AnnounceAsync(cancellationToken).ConfigureAwait(false);
                 await _store.SetOwnDeliveryHashAsync(router.DeliveryHashHex, cancellationToken).ConfigureAwait(false);
                 ConnectionInfo = new SidebandConnectionInfo(
@@ -91,12 +101,21 @@ public sealed class SidebandClient : IAsyncDisposable
             }
             catch
             {
+                lock (_cancellationGate) _runCancellation = null;
                 if (_announceHandler is not null) node.Router.Engine.DeregisterHandler(_announceHandler);
                 _announceHandler = null;
                 if (router is not null) await router.DisposeAsync().ConfigureAwait(false);
+                inbound.Writer.TryComplete();
+                if (_inboundTask is not null) await _inboundTask.ConfigureAwait(false);
                 if (runCancellation is not null) await runCancellation.CancelAsync().ConfigureAwait(false);
+                runCancellation?.Dispose();
                 if (identity is not null) identity.Dispose();
                 await node.DisposeAsync().ConfigureAwait(false);
+                _router = null;
+                _node = null;
+                _identity = null;
+                _inboundTask = null;
+                ConnectionInfo = null;
                 throw;
             }
         }
@@ -110,26 +129,110 @@ public sealed class SidebandClient : IAsyncDisposable
         PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
     }
 
-    public async Task SendTextAsync(string deliveryHash, string content, CancellationToken cancellationToken = default)
+    public Task SendTextAsync(string deliveryHash, string content, CancellationToken cancellationToken = default) =>
+        SendMessageAsync(deliveryHash, content, null, null, cancellationToken);
+
+    public async Task SendFileAsync(string deliveryHash, string content, string path, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        var name = Path.GetFileName(path);
+        SidebandAttachmentStore.ValidateName(name);
+        var data = await SidebandAttachmentStore.ReadBoundedAsync(path, cancellationToken).ConfigureAwait(false);
+        await SendMessageAsync(deliveryHash, content, name, data, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task ExportAttachmentAsync(string peerHash, Guid messageId, int index, string path, CancellationToken cancellationToken = default)
+    {
+        var messages = await _store.GetMessagesAsync(peerHash, cancellationToken).ConfigureAwait(false);
+        var message = messages.SingleOrDefault(item => item.Id == messageId)
+            ?? throw new ArgumentException("The selected conversation message was not found.", nameof(messageId));
+        if (message.Attachments is not { } attachments || index < 0 || index >= attachments.Count)
+            throw new ArgumentOutOfRangeException(nameof(index), "The selected attachment was not found.");
+        await _attachments.ExportAsync(attachments[index], path, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task SendMessageAsync(string deliveryHash, string content, string? attachmentName, byte[]? attachmentData, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
         if (content.Length > 65_536) throw new ArgumentException("Messages are limited to 65,536 characters.", nameof(content));
         if (!SidebandContact.TryNormalizeDeliveryHash(deliveryHash, out var normalized))
             throw new ArgumentException("An LXMF delivery address must be exactly 32 hexadecimal characters.", nameof(deliveryHash));
 
-        var router = _router ?? throw new InvalidOperationException("Connect to Reticulum before sending messages.");
-        var identity = _identity ?? throw new InvalidOperationException("The local Reticulum identity is unavailable.");
-        var destination = Convert.FromHexString(normalized);
-        if (await _node!.ResolveIdentityAsync(destination, TimeSpan.FromSeconds(15), cancellationToken).ConfigureAwait(false) is null)
-            throw new InvalidOperationException("No announce or path was found for this LXMF delivery address.");
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+            var router = _router ?? throw new InvalidOperationException("Connect to Reticulum before sending messages.");
+            var identity = _identity ?? throw new InvalidOperationException("The local Reticulum identity is unavailable.");
+            using var owned = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _runCancellation!.Token);
+            var state = await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false);
+            var destination = Convert.FromHexString(normalized);
+            if (await _node!.ResolveIdentityAsync(destination, TimeSpan.FromSeconds(15), owned.Token).ConfigureAwait(false) is null)
+                throw new InvalidOperationException("No announce or path was found for this LXMF delivery address.");
 
-        var message = LxMessage.Create(destination, identity, content);
-        var local = new SidebandChatMessage(Guid.NewGuid(), normalized, false, string.Empty, content, DateTimeOffset.UtcNow, "Queued");
-        await _store.AddMessageAsync(local, cancellationToken).ConfigureAwait(false);
-        PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
-        message.StateChanged += changed => _ = PersistDeliveryStateAsync(local.Id, changed.State.ToString());
-        await router.SendAsync(message, cancellationToken).ConfigureAwait(false);
+            var method = state.PropagationByDefault ? LxmMethod.Propagated : LxmMethod.Direct;
+            IReadOnlyList<SidebandAttachment>? attachments = null;
+            Dictionary<object, object?>? fields = null;
+            if (attachmentData is not null && attachmentName is not null)
+            {
+                attachments = [await _attachments.StoreAsync(attachmentName, attachmentData, owned.Token).ConfigureAwait(false)];
+                fields = new Dictionary<object, object?> { [LxmField.FileAttachments] = new object?[] { new object?[] { attachmentName, attachmentData } } };
+            }
+            var message = LxMessage.Create(destination, identity, content, fields: fields, method: method);
+            var local = new SidebandChatMessage(Guid.NewGuid(), normalized, false, string.Empty, content, DateTimeOffset.UtcNow, "Queued", attachments);
+            await _store.AddMessageAsync(local, owned.Token).ConfigureAwait(false);
+            PublishState(await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false));
+            var updates = _inbound;
+            message.StateChanged += changed =>
+            {
+                if (!updates.Writer.TryWrite(new ClientUpdate(MessageId: local.Id, DeliveryState: changed.State.ToString())))
+                    Report("Delivery-state queue is full or closed; a conversation status update could not be saved.");
+            };
+            try { await router.SendAsync(message, owned.Token).ConfigureAwait(false); }
+            catch
+            {
+                await updates.Writer.WriteAsync(new ClientUpdate(MessageId: local.Id,
+                    DeliveryState: owned.IsCancellationRequested ? "Cancelled" : "Failed")).ConfigureAwait(false);
+                throw;
+            }
+        }
+        finally { _lifecycle.Release(); }
     }
+
+    public async Task ConfigurePropagationAsync(string? node, bool byDefault, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+            await _store.SetPropagationAsync(node, byDefault, cancellationToken).ConfigureAwait(false);
+            var state = await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (_router is { } router)
+                router.OutboundPropagationNode = state.PropagationNode is { } selected ? Convert.FromHexString(selected) : null;
+            PublishState(state);
+        }
+        finally { _lifecycle.Release(); }
+    }
+
+    public async Task<int> SynchronizeAsync(int maxMessages = 0, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(maxMessages);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+            var router = _router ?? throw new InvalidOperationException("Connect to Reticulum before synchronizing.");
+            using var owned = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _runCancellation!.Token);
+            return await router.RequestMessagesFromPropagationNodeAsync(maxMessages: maxMessages, cancellationToken: owned.Token).ConfigureAwait(false);
+        }
+        finally { _lifecycle.Release(); }
+    }
+
+    public void CancelSynchronization() => _router?.CancelPropagationNodeRequests();
 
     public Task<IReadOnlyList<SidebandChatMessage>> GetMessagesAsync(string peerHash, CancellationToken cancellationToken = default) =>
         _store.GetMessagesAsync(peerHash, cancellationToken);
@@ -137,21 +240,32 @@ public sealed class SidebandClient : IAsyncDisposable
     public async Task DisconnectAsync()
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await CancelRunAsync().ConfigureAwait(false);
         await _lifecycle.WaitAsync().ConfigureAwait(false);
         try { await DisconnectCoreAsync().ConfigureAwait(false); }
         finally { _lifecycle.Release(); }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
+    {
+        lock (_disposeGate) return new ValueTask(_disposeTask ??= DisposeCoreAsync());
+    }
+
+    private async Task DisposeCoreAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        await CancelRunAsync().ConfigureAwait(false);
         await _lifecycle.WaitAsync().ConfigureAwait(false);
         try { await DisconnectCoreAsync().ConfigureAwait(false); }
         finally
         {
             _lifecycle.Release();
-            _lifecycle.Dispose();
         }
+    }
+
+    private Task CancelRunAsync()
+    {
+        lock (_cancellationGate) return _runCancellation?.CancelAsync() ?? Task.CompletedTask;
     }
 
     private async Task DisconnectCoreAsync()
@@ -159,25 +273,25 @@ public sealed class SidebandClient : IAsyncDisposable
         var node = _node;
         var router = _router;
         var identity = _identity;
-        var cancellation = _runCancellation;
+        CancellationTokenSource? cancellation;
+        lock (_cancellationGate)
+        {
+            cancellation = _runCancellation;
+            _runCancellation = null;
+        }
         if (node is not null && _announceHandler is not null)
             node.Router.Engine.DeregisterHandler(_announceHandler);
         _announceHandler = null;
         _router = null;
         _node = null;
         _identity = null;
-        _runCancellation = null;
         ConnectionInfo = null;
         if (router is not null) await router.DisposeAsync().ConfigureAwait(false);
         if (cancellation is not null)
         {
             await cancellation.CancelAsync().ConfigureAwait(false);
             _inbound.Writer.TryComplete();
-            if (_inboundTask is not null)
-            {
-                try { await _inboundTask.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false); }
-                catch (TimeoutException) { Report("Timed out while draining the incoming message queue."); }
-            }
+            if (_inboundTask is not null) await _inboundTask.ConfigureAwait(false);
             cancellation.Dispose();
         }
 
@@ -190,54 +304,60 @@ public sealed class SidebandClient : IAsyncDisposable
     {
         if (LxmfAppData.DisplayName(announce.AppData) is not { Length: > 0 } displayName) return;
         var contact = new SidebandContact(Convert.ToHexStringLower(announce.DestinationHash), displayName);
-        _ = PersistAnnouncedContactAsync(contact);
+        if (!_inbound.Writer.TryWrite(new ClientUpdate(Contact: contact)))
+            Report("Contact-update queue is full or closed; the discovered contact was not saved.");
     }
 
-    private async Task ProcessIncomingAsync(ChannelReader<ReceivedMessage> reader, CancellationToken cancellationToken)
+    private async Task ProcessIncomingAsync(ChannelReader<ClientUpdate> reader)
     {
-        try
+        await foreach (var update in reader.ReadAllAsync().ConfigureAwait(false))
         {
-            await foreach (var received in reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            try
             {
-                var content = received.Message.Content ?? "[Non-text LXMF content]";
-                var stored = new SidebandChatMessage(
-                    Guid.NewGuid(),
-                    Convert.ToHexStringLower(received.Message.SourceHash),
-                    true,
-                    received.Message.Title,
-                    content,
-                    DateTimeOffset.FromUnixTimeMilliseconds((long)(received.Message.Timestamp * 1000)),
-                    "Received");
-                try
+                if (update.Contact is { } contact)
                 {
-                    await _store.AddMessageAsync(stored, cancellationToken).ConfigureAwait(false);
-                    PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
+                    await _store.AddContactAsync(contact).ConfigureAwait(false);
                 }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { break; }
-                catch (Exception ex) { Report("Could not save an incoming LXMF message: " + ex.Message); }
+                else if (update.DeliveryState is { } deliveryState)
+                {
+                    await _store.UpdateMessageStateAsync(update.MessageId, deliveryState).ConfigureAwait(false);
+                }
+                else if (update.Received is { } received)
+                {
+                    IReadOnlyList<SidebandAttachment>? attachments = null;
+                    if (received.Message.TryGetField(LxmField.FileAttachments, out var field))
+                    {
+                        if (field is not object?[] entries || entries.Length > 8)
+                            throw new InvalidDataException("Malformed file attachment list.");
+                        var accepted = new List<SidebandAttachment>();
+                        long total = 0;
+                        foreach (var entry in entries)
+                        {
+                            if (entry is not object?[] { Length: 2 } pair || pair[0] is not string name || pair[1] is not byte[] data)
+                                throw new InvalidDataException("Malformed file attachment entry.");
+                            total += data.Length;
+                            if (total > SidebandAttachmentStore.MaximumMessageBytes)
+                                throw new InvalidDataException("Message attachments exceed the 4 MiB safety limit.");
+                            accepted.Add(await _attachments.StoreAsync(name, data, CancellationToken.None).ConfigureAwait(false));
+                        }
+                        attachments = accepted;
+                    }
+                    var content = received.Message.Content ?? "[Non-text LXMF content]";
+                    var stored = new SidebandChatMessage(
+                        Guid.NewGuid(),
+                        Convert.ToHexStringLower(received.Message.SourceHash),
+                        true,
+                        received.Message.Title,
+                        content,
+                        DateTimeOffset.FromUnixTimeMilliseconds((long)(received.Message.Timestamp * 1000)),
+                        "Received",
+                        attachments);
+                    await _store.AddMessageAsync(stored).ConfigureAwait(false);
+                }
+                PublishState(await _store.LoadAsync().ConfigureAwait(false));
             }
+            catch (Exception ex) { Report("Could not persist a Sideband conversation update: " + ex.Message); }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
-    }
-
-    private async Task PersistAnnouncedContactAsync(SidebandContact contact)
-    {
-        try
-        {
-            await _store.AddContactAsync(contact).ConfigureAwait(false);
-            PublishState(await _store.LoadAsync().ConfigureAwait(false));
-        }
-        catch (Exception ex) { Report("Could not save a discovered LXMF contact: " + ex.Message); }
-    }
-
-    private async Task PersistDeliveryStateAsync(Guid id, string state)
-    {
-        try
-        {
-            await _store.UpdateMessageStateAsync(id, state).ConfigureAwait(false);
-            PublishState(await _store.LoadAsync().ConfigureAwait(false));
-        }
-        catch (Exception ex) { Report("Could not update message delivery state: " + ex.Message); }
     }
 
     private void PublishState(SidebandState state)
@@ -265,8 +385,10 @@ public sealed class SidebandClient : IAsyncDisposable
         }
     }
 
-    private static Channel<ReceivedMessage> CreateInboundChannel() =>
-        System.Threading.Channels.Channel.CreateBounded<ReceivedMessage>(new BoundedChannelOptions(128)
+    private sealed record ClientUpdate(ReceivedMessage? Received = null, SidebandContact? Contact = null, Guid MessageId = default, string? DeliveryState = null);
+
+    private static Channel<ClientUpdate> CreateInboundChannel() =>
+        System.Threading.Channels.Channel.CreateBounded<ClientUpdate>(new BoundedChannelOptions(128)
         {
             FullMode = BoundedChannelFullMode.Wait,
             SingleReader = true,

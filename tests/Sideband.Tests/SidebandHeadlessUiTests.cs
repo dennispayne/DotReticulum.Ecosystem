@@ -49,6 +49,13 @@ public sealed class SidebandHeadlessUiTests
             Assert.True(window.FindControl<ScrollViewer>("ConnectivityPage")!.IsVisible);
             Assert.Contains(rnsConfig, window.FindControl<TextBlock>("EffectiveConfigPathText")!.Text);
             Assert.Contains("unknown until a connection", window.FindControl<TextBlock>("RuntimeModeText")!.Text);
+            window.FindControl<TextBox>("PropagationNodeBox")!.Text = "00112233445566778899aabbccddeeff";
+            window.FindControl<CheckBox>("PropagationDefaultBox")!.IsChecked = true;
+            window.FindControl<Button>("SavePropagationButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => window.FindControl<TextBlock>("SyncStatusText")?.Text?.StartsWith("Propagation settings saved", StringComparison.Ordinal) == true);
+            var propagationState = await new SidebandStateStore(path).LoadAsync();
+            Assert.Equal("00112233445566778899aabbccddeeff", propagationState.PropagationNode);
+            Assert.True(propagationState.PropagationByDefault);
             window.FindControl<Button>("ConnectButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await WaitForAsync(() => window.FindControl<Button>("DisconnectButton")?.IsEnabled == true);
             Assert.Contains("standalone Reticulum node", window.FindControl<TextBlock>("RuntimeModeText")!.Text);

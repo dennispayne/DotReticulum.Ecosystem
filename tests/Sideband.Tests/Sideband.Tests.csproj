@@ -17,10 +17,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
     <Using Include="Xunit" />
     <Compile Include="..\Interop\PyLinkNode.cs" Link="PyLinkNode.cs" />
     <None Include="..\Interop\live_lxmf_node.py" Link="Interop\live_lxmf_node.py" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Interop\sideband_live_node.py" Link="Interop\sideband_live_node.py" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Interop\sideband_attachment_node.py" Link="Interop\sideband_attachment_node.py" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Interop\reference_environment.py" Link="Interop\reference_environment.py" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

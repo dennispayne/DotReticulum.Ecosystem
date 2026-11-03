@@ -24,6 +24,7 @@ public sealed partial class MainWindow : Window
     private int _smokeStatusChanged;
     private string? _selectedContact;
     private SidebandState? _state;
+    private IReadOnlyList<SidebandChatMessage> _visibleMessages = [];
     private bool _navigationVisible = true;
     private bool _closing;
     private bool _allowClose;
@@ -110,6 +111,8 @@ public sealed partial class MainWindow : Window
             ReticulumConfigBox.Text = _state.ReticulumConfigDirectory;
             DisplayNameBox.Text = _state.DisplayName;
             ThemeSelector.SelectedItem = _state.Theme;
+            PropagationNodeBox.Text = _state.PropagationNode;
+            PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
             ApplyTheme(_state.Theme);
             RefreshContacts();
             RefreshExpandedContacts();
@@ -191,6 +194,64 @@ public sealed partial class MainWindow : Window
 
     private void SavePreferencesClicked(object? sender, RoutedEventArgs e) => TrackOperation(SavePreferencesAsync);
 
+    private void SavePropagationClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
+    {
+        try
+        {
+            await _client.ConfigurePropagationAsync(PropagationNodeBox.Text, PropagationDefaultBox.IsChecked == true, _windowCancellation.Token);
+            SyncStatusText.Text = "Propagation settings saved. Sent means stored at the node, not recipient delivery.";
+        }
+        catch (Exception ex) { ShowError("Could not save propagation settings: " + ex.Message); }
+    });
+
+    private void SyncMessagesClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
+    {
+        SyncMessagesButton.IsEnabled = false;
+        SyncStatusText.Text = "Fetching messages from the configured propagation node...";
+        try
+        {
+            var count = await _client.SynchronizeAsync(cancellationToken: _windowCancellation.Token);
+            SyncStatusText.Text = $"Fetch complete: {count} new messages accepted. Conversation persistence continues on the receive worker.";
+        }
+        catch (OperationCanceledException) { SyncStatusText.Text = "Message fetch cancelled."; }
+        catch (Exception ex) { SyncStatusText.Text = "Message fetch failed: " + ex.Message; ShowError(SyncStatusText.Text); }
+        finally { SyncMessagesButton.IsEnabled = _client.IsConnected; }
+    });
+
+    private void CancelSyncClicked(object? sender, RoutedEventArgs e) => _client.CancelSynchronization();
+
+    private void ImportSettingsClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
+    {
+        try
+        {
+            if (_client.IsConnected) throw new InvalidOperationException("Disconnect before importing settings.");
+            var path = SettingsExchangePathBox.Text;
+            ArgumentException.ThrowIfNullOrWhiteSpace(path);
+            var unsupported = await _store.ImportSettingsAsync(path, _windowCancellation.Token);
+            _state = await _store.LoadAsync(cancellationToken: _windowCancellation.Token);
+            DisplayNameBox.Text = _state.DisplayName;
+            ThemeSelector.SelectedItem = _state.Theme;
+            PropagationNodeBox.Text = _state.PropagationNode;
+            PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
+            ApplyTheme(_state.Theme);
+            PreferencesStatusText.Text = unsupported.Count == 0 ? "Settings imported." :
+                "Settings imported. Preserved but not applied: " + string.Join(", ", unsupported);
+        }
+        catch (Exception ex) { ShowError("Settings import failed: " + ex.Message); }
+    });
+
+    private void ExportSettingsClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
+    {
+        try
+        {
+            var path = SettingsExchangePathBox.Text;
+            ArgumentException.ThrowIfNullOrWhiteSpace(path);
+            await _store.ExportSettingsAsync(path, _windowCancellation.Token);
+            PreferencesStatusText.Text = "Settings exported; identity and conversations are not included.";
+        }
+        catch (Exception ex) { ShowError("Settings export failed: " + ex.Message); }
+    });
+
     private async Task SavePreferencesAsync()
     {
         try
@@ -249,14 +310,33 @@ public sealed partial class MainWindow : Window
         SendButton.IsEnabled = false;
         try
         {
-            await _client.SendTextAsync(_selectedContact, content, _windowCancellation.Token);
+            if (string.IsNullOrWhiteSpace(AttachmentPathBox.Text))
+                await _client.SendTextAsync(_selectedContact, content, _windowCancellation.Token);
+            else
+                await _client.SendFileAsync(_selectedContact, content, AttachmentPathBox.Text, _windowCancellation.Token);
             MessageBox.Text = string.Empty;
+            AttachmentPathBox.Text = string.Empty;
             await RefreshMessagesAsync();
             SetStatus("Message queued for LXMF delivery.");
         }
         catch (Exception ex) { ShowError("Message was not queued: " + ex.Message); }
         finally { SendButton.IsEnabled = true; }
     }
+
+    private void SaveAttachmentClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
+    {
+        try
+        {
+            var index = MessageList.SelectedIndex;
+            if (_selectedContact is null || index < 0 || index >= _visibleMessages.Count)
+                throw new InvalidOperationException("Select a message with an attachment.");
+            var path = AttachmentExportPathBox.Text;
+            ArgumentException.ThrowIfNullOrWhiteSpace(path);
+            await _client.ExportAttachmentAsync(_selectedContact, _visibleMessages[index].Id, 0, path, _windowCancellation.Token);
+            SetStatus("Attachment saved. Received files are never opened automatically.");
+        }
+        catch (Exception ex) { ShowError("Could not save attachment: " + ex.Message); }
+    });
 
     private void ContactSelectionChanged(object? sender, SelectionChangedEventArgs e) =>
         TrackOperation(ContactSelectionChangedAsync);
@@ -318,8 +398,10 @@ public sealed partial class MainWindow : Window
         try
         {
             var messages = await _client.GetMessagesAsync(_selectedContact, cancellationToken);
+            _visibleMessages = messages;
             MessageList.ItemsSource = messages.Select(message =>
-                $"{message.Timestamp.LocalDateTime:g}  {(message.Incoming ? "Received" : message.DeliveryState)}\n{message.Content}")
+                $"{message.Timestamp.LocalDateTime:g}  {(message.Incoming ? "Received" : message.DeliveryState)}\n{message.Content}" +
+                (message.Attachments is { Count: > 0 } files ? "\nFiles: " + string.Join(", ", files.Select(file => $"{file.Name} ({file.Length} bytes)")) : string.Empty))
                 .ToArray();
             if (messages.Count > 0) MessageList.ScrollIntoView(messages.Count - 1);
         }
@@ -335,6 +417,8 @@ public sealed partial class MainWindow : Window
         DisconnectButton.IsEnabled = connected;
         SaveConfigButton.IsEnabled = !connected;
         ReticulumConfigBox.IsEnabled = !connected;
+        SyncMessagesButton.IsEnabled = connected;
+        ImportSettingsButton.IsEnabled = !connected;
         ToolbarStatusText.Text = connected ? "Connected" : "Offline";
 
         if (!connected)

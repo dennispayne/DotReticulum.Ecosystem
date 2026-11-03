@@ -6,6 +6,36 @@ NativeAOT acceptance, and unioned production-code coverage. A successful command
 means its selected checks passed, **not** that the ecosystem has full upstream
 parity. Missing features, skipped cases and untested hardware remain visible.
 
+## Baseline provenance
+
+At `daa304d680d67cf6a8fa330f65f83b2be2b0fc2c`, local
+`git submodule update --init`, Release solution build and full non-opt-in test
+run passed; the build had zero warnings/errors. The xUnit 3.2.2 pin in
+Sideband.Tests is required by Avalonia.Headless.XUnit 12.1.4's discovery API;
+upgrading it alone to xUnit 4 is not compatible.
+
+Hosted scheduled Test run `41643993895` completed successfully and its downloaded
+`test-summary-1` records **producing commit `daa304d`**, despite workflow head
+`0e49bee`. It passed selected Windows/Linux managed/native-tooling checks, not
+Python-peer, GUI or physical-hardware gates. Hosted run `41504361342` failed
+Windows `IdlePropagationLinks_ExpireStrictlyAfter180SecondsAndReconnect` at
+producing merge commit `2f079f0`; a later green run does not erase that failure
+or prove absence of a race. Build run `41502113530` built that merge commit,
+including macOS build/help-only acceptance. Workflow head SHAs and badge color
+alone are not source-provenance evidence. No workflows were dispatched to
+validate subsequent unpushed local changes.
+
+The integrated local gate
+`& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-unified -OutputDirectory
+artifacts\tests\fleet-unified-final` passed after synchronizing the LXST 0.5.4
+reference/catalog and release-tag expectation. It retains TRX, per-case
+compatibility evidence and merged coverage for all eight production assemblies.
+Its absent live/native prerequisites remain explicit skips; the separately
+selected published/real-peer application gates are recorded in each project's
+reference doc. This local result is not hosted evidence or a complete-parity
+claim.
+
 ## Entry points
 
 ```powershell

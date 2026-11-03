@@ -60,7 +60,7 @@ Describe 'Executable release tags' -Tag Integration {
         $result = Invoke-TagHelper -Application rnphone -Project $script:lxst
         $result.ExitCode | Should -Be 0 -Because $result.Output
         $tag = git -C $script:fixture tag --list
-        $tag | Should -Match '^rnphone-v0\.4\.5\.\d+$'
+        $tag | Should -Match '^rnphone-v0\.5\.4\.\d+$'
         git -C $script:fixture cat-file -t "refs/tags/$tag" | Should -Be 'tag'
     }
 

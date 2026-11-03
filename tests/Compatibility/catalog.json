@@ -3,7 +3,7 @@
   "references": [
     { "id": "RNS", "version": "1.5.7", "revision": "a29bfb51c468945c96a1ee22cae0114e993e2391", "source": "rns://7649a50d84610232d1416b41d2896aff/reticulum/reticulum" },
     { "id": "LXMF", "version": "1.2.1", "revision": "e8ba02483217af43be284a72f1c059c730b7d047", "source": "rns://7649a50d84610232d1416b41d2896aff/reticulum/lxmf" },
-    { "id": "LXST", "version": "0.4.5", "revision": "3b596f48ddd252ddc9c315ef8f3020cfd3688223", "source": "rns://7649a50d84610232d1416b41d2896aff/reticulum/lxst" },
+    { "id": "LXST", "version": "0.5.4", "revision": "eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f", "source": "rns://7649a50d84610232d1416b41d2896aff/reticulum/lxst" },
     { "id": "NomadNet", "version": "1.4.4", "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2", "source": "rns://7649a50d84610232d1416b41d2896aff/reticulum/nomadnet" },
     { "id": "Sideband", "version": "2.2.0", "revision": "d069122af14880e43607aed0b71add4c7806fbe0", "source": "rns://7649a50d84610232d1416b41d2896aff/reticulum/sideband" }
   ],
@@ -28,13 +28,17 @@
     { "id": "C18", "family": "Telemetry", "title": "Native telemetry format rejects unknown versions and publishes directly and through a transport hop", "source": "docs/telemetry.md", "boundary": "A .NET-only format, no upstream compatibility target." },
     { "id": "C19", "family": "NomadNet", "title": "Native address, Micron subset and state-store contracts remain bounded", "source": "nomadnet/Node.py; docs/nomadnet.md", "boundary": "Initial textual subset; not full Micron/Urwid parity." },
     { "id": "C20", "family": "NomadNet", "title": "Published terminal client retains identity and local state", "source": "nomadnet/NomadNetworkApp.py", "boundary": "Native CLI/process behavior, no reference peer." },
-    { "id": "C21", "family": "NomadNet", "title": "Actual upstream node serves pages/files and exchanges messages with native client", "source": "nomadnet/Node.py; nomadnet/NomadNetworkApp.py", "boundary": "Linux single-hop TCP; declared upstream dependency minimums exceed tested pins." },
+    { "id": "C21", "family": "NomadNet", "title": "Actual upstream node serves pages/files and exchanges messages with native client", "source": "nomadnet/Node.py; nomadnet/NomadNetworkApp.py", "boundary": "Linux direct/Python-hop/native-hop selections are separate runs; no impaired-network or full application-parity claim. Declared upstream dependency minimums exceed tested pins." },
     { "id": "C22", "family": "Sideband", "title": "Original desktop navigation, preferences, validation and shutdown preserve application state", "source": "sbapp/ui; docs/sideband.md", "boundary": "Original Avalonia UI subset, not pixel or feature parity." },
     { "id": "C23", "family": "Sideband", "title": "Application core exchanges direct text messages with pinned Python LXMF", "source": "sbapp/sideband/core.py", "boundary": "LXMF peer, not the complete upstream Sideband GUI or shared-instance coexistence." },
     { "id": "C24", "family": "Sideband", "title": "Published native application preserves identity and renders validation feedback", "source": "docs/sideband.md", "boundary": "Actual window/renderer on selected display; no hardware audio." },
     { "id": "C25", "family": "Reference", "title": "Actual reference imports reject source drift and incorrect checkouts", "source": "tests/Interop/reference_environment.py", "boundary": "Module/revision/hash verification, not publisher authentication or a fresh network fetch." },
-    { "id": "C26", "family": "Sideband", "title": "Voice, attachments, maps, telemetry, plugins and LAN repository mirror", "source": "docs/sideband.md", "boundary": "Not implemented; no tests imply support.", "implementation": "Not implemented" },
-    { "id": "C27", "family": "Hardware", "title": "Physical RF mesh and physical audio interoperability", "source": "docs/lxmf.md; docs/lxst.md", "boundary": "One read-only identified board and synthetic audio do not establish this.", "implementation": "Unverified" }
+    { "id": "C26", "family": "Sideband", "title": "Voice, image/audio messages, maps, telemetry, plugins and LAN repository mirror", "source": "docs/sideband.md", "boundary": "Not implemented; file-field tests do not imply these features.", "implementation": "Not implemented" },
+    { "id": "C27", "family": "Hardware", "title": "Physical RF mesh and physical audio interoperability", "source": "docs/lxmf.md; docs/lxst.md", "boundary": "One read-only identified board and synthetic audio do not establish this.", "implementation": "Unverified" },
+    { "id": "C28", "family": "Sideband", "title": "Upstream-shaped JSON settings import/export applies supported keys and preserves unsupported keys", "source": "sbapp/main.py:209-273", "boundary": "Executed export statements and native settings exchange; not upstream SQLite, identity or binary config migration." },
+    { "id": "C29", "family": "Sideband", "title": "Manual propagation messaging and inbox retrieval recover across application restart", "source": "sbapp/sideband/core.py:5156-5227,5634-5644", "boundary": "Actual Python client and Python transport/propagation node; no automatic discovery, scheduled sync or impaired-network application claim." },
+    { "id": "C30", "family": "Sideband", "title": "Disconnect/disposal cancels pending lookup and drains bounded conversation persistence", "source": "docs/sideband.md", "boundary": "Managed application lifecycle and isolated observers; no prolonged-operation soak claim." },
+    { "id": "C31", "family": "Sideband", "title": "Bounded file attachments exchange with Python LXMF and remain exportable after restart", "source": "sbapp/sideband/core.py:5189-5196", "boundary": "Two-way 2 MiB direct LXMF fields; not audio/image handling, an upstream Sideband app peer or published-native file flow." }
   ],
   "tests": [
     { "id": "T1", "claimId": "C1", "runner": "xunit", "suite": "LXMF.Tests", "pattern": "LXMF.Tests.LxmfVectorTests.*", "evidence": "V/U" },
@@ -70,7 +74,7 @@
     { "id": "T31", "claimId": "C21", "runner": "pester", "suite": "NomadNet.Tests.ps1", "pattern": "NomadNet upstream node interoperability.*", "evidence": "L/P/N", "reference": "NomadNet" },
     { "id": "T32", "claimId": "C22", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandHeadlessUiTests.*", "evidence": "U/headless UI" },
     { "id": "T33", "claimId": "C22", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandStateStoreTests.*", "evidence": "U" },
-    { "id": "T34", "claimId": "C23", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandLiveInteropTests.*", "evidence": "L", "reference": "LXMF" },
+    { "id": "T34", "claimId": "C23", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandLiveInteropTests.DesktopClientSendsAndReceivesAgainstPinnedPythonLxmfNode", "evidence": "L", "reference": "LXMF" },
     { "id": "T35", "claimId": "C24", "runner": "pester", "suite": "Sideband.Tests.ps1", "pattern": "sideband native acceptance.*", "evidence": "P/N" },
     { "id": "T36", "claimId": "C24", "runner": "pester", "suite": "Sideband.Tests.ps1", "pattern": "sideband desktop GUI acceptance.*", "evidence": "P/N/GUI" },
     { "id": "T37", "claimId": "C25", "runner": "pester", "suite": "ReferenceEnvironment.Tests.ps1", "pattern": "*", "evidence": "P/provenance" },
@@ -79,6 +83,12 @@
     { "id": "T40", "claimId": "C3", "runner": "xunit", "suite": "LXMF.Tests", "pattern": "LXMF.Tests.LiveLxmfTests.CachedRetrieval_*", "evidence": "L", "reference": "LXMF" },
     { "id": "T41", "claimId": "C7", "runner": "xunit", "suite": "LXMF.Tests", "pattern": "LXMF.Tests.LxmdCommandTests.*", "evidence": "U" },
     { "id": "T42", "claimId": "C15", "runner": "xunit", "suite": "LXST.Tests", "pattern": "LXST.Tests.PhoneCommandTests.*", "evidence": "U" },
-    { "id": "T43", "claimId": "C21", "runner": "pester", "suite": "NomadNet.Tests.ps1", "pattern": "NomadNet live LXMF interoperability.*", "evidence": "L/P/N", "reference": "LXMF" }
+    { "id": "T43", "claimId": "C21", "runner": "pester", "suite": "NomadNet.Tests.ps1", "pattern": "NomadNet live LXMF interoperability.*", "evidence": "L/P/N", "reference": "LXMF" },
+    { "id": "T44", "claimId": "C28", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandSettingsTests.*", "evidence": "V/U" },
+    { "id": "T45", "claimId": "C28", "runner": "pester", "suite": "Sideband.Tests.ps1", "pattern": "sideband native acceptance.imports upstream JSON settings*", "evidence": "P/N" },
+    { "id": "T46", "claimId": "C29", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandLiveInteropTests.PropagationFetchPersistsPythonMessagesAndSettingsAcrossClientRestart", "evidence": "L", "reference": "LXMF" },
+    { "id": "T47", "claimId": "C30", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandLifecycleTests.*", "evidence": "U" },
+    { "id": "T48", "claimId": "C31", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandAttachmentTests.*", "evidence": "U" },
+    { "id": "T49", "claimId": "C31", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandLiveInteropTests.FilesExchangeWithActualPythonAndRemainExportableAfterRestart", "evidence": "L", "reference": "LXMF" }
   ]
 }

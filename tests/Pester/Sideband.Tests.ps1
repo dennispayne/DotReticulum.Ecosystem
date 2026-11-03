@@ -27,6 +27,33 @@ Describe 'sideband native acceptance' -Tag 'Native' {
         $check | Should -Match ([regex]::Escape("Identity: $firstHash"))
     }
 
+    It 'imports upstream JSON settings, reports unsupported keys and exports them across native restarts' {
+        $inputPath = Join-Path $root 'input.json'
+        $outputPath = Join-Path $root 'export.json'
+        @{
+            display_name = 'Native settings peer'
+            dark_ui = $false
+            lxmf_propagation_node = '00112233445566778899aabbccddeeff'
+            propagation_by_default = $true
+            unsupported_reference_setting = @(1, 'retained')
+        } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $inputPath
+        $imported = & $binary --config $data --import-settings $inputPath 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 0
+        $imported | Should -Match 'Preserved but not applied: unsupported_reference_setting'
+        & $binary --config $data --export-settings $outputPath
+        $LASTEXITCODE | Should -Be 0
+        $settings = Get-Content -LiteralPath $outputPath -Raw | ConvertFrom-Json
+        $settings.display_name | Should -Be 'Native settings peer'
+        $settings.dark_ui | Should -BeFalse
+        $settings.lxmf_propagation_node | Should -Be '00112233445566778899aabbccddeeff'
+        $settings.unsupported_reference_setting[1] | Should -Be 'retained'
+        $original = Get-FileHash -LiteralPath (Join-Path $data 'state.json')
+        '{"display_name":"must not replace","lxmf_propagation_node":"bad"}' | Set-Content -LiteralPath $inputPath
+        & $binary --config $data --import-settings $inputPath 2>&1 | Out-Null
+        $LASTEXITCODE | Should -Be 1
+        (Get-FileHash -LiteralPath (Join-Path $data 'state.json')).Hash | Should -Be $original.Hash
+    }
+
     AfterAll {
         if ($root -and (Test-Path -LiteralPath $root)) { Remove-Item -LiteralPath $root -Recurse -Force }
     }

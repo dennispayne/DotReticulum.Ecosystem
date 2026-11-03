@@ -115,6 +115,86 @@ public sealed class SidebandStateStore
         await MutateAsync(state => state with { DisplayName = normalizedName, Theme = theme }, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task SetPropagationAsync(string? node, bool byDefault, CancellationToken cancellationToken = default)
+    {
+        string? normalized = null;
+        if (!string.IsNullOrWhiteSpace(node) && !SidebandContact.TryNormalizeDeliveryHash(node, out normalized))
+            throw new ArgumentException("A propagation address must be exactly 32 hexadecimal characters.", nameof(node));
+        if (byDefault && normalized is null)
+            throw new ArgumentException("Select a propagation node before enabling propagated delivery.", nameof(node));
+        await MutateAsync(state => state with { PropagationNode = normalized, PropagationByDefault = byDefault }, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<string>> ImportSettingsAsync(string path, CancellationToken cancellationToken = default)
+    {
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 16_384, FileOptions.Asynchronous);
+        if (stream.Length > MaximumStateBytes) throw new InvalidDataException("Settings exceed the 8 MiB safety limit.");
+        var settings = await JsonSerializer.DeserializeAsync(stream,
+            SidebandStateJsonContext.Default.DictionaryStringJsonElement, cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidDataException("Settings must be a JSON object.");
+        foreach (var key in new[] { "lxmf_propagation_node", "last_lxmf_propagation_node", "nn_home_node", "telemetry_collector" })
+        {
+            if (settings.TryGetValue(key, out var address) && address.ValueKind != JsonValueKind.Null &&
+                (address.ValueKind != JsonValueKind.String || !SidebandContact.TryNormalizeDeliveryHash(address.GetString(), out _)))
+                throw new InvalidDataException($"Setting '{key}' must be null or a 32-character hexadecimal address.");
+        }
+
+        await MutateAsync(state =>
+        {
+            var name = settings.TryGetValue("display_name", out var display) ? display.GetString() : state.DisplayName;
+            var theme = settings.TryGetValue("dark_ui", out var dark) ? dark.GetBoolean() ? "Dark" : "Light" : state.Theme;
+            var node = settings.TryGetValue("lxmf_propagation_node", out var configured) ? configured.GetString() : state.PropagationNode;
+            if (node is null && settings.TryGetValue("last_lxmf_propagation_node", out var previous)) node = previous.GetString();
+            var byDefault = settings.TryGetValue("propagation_by_default", out var propagation) ? propagation.GetBoolean() : state.PropagationByDefault;
+            if (node is not null) node = node.ToLowerInvariant();
+            return state with
+            {
+                DisplayName = name ?? throw new InvalidDataException("Display name cannot be null."),
+                Theme = theme,
+                PropagationNode = node,
+                PropagationByDefault = byDefault,
+                ImportedSettings = settings,
+            };
+        }, cancellationToken).ConfigureAwait(false);
+        return settings.Keys.Where(key => key is not ("display_name" or "dark_ui" or "lxmf_propagation_node" or
+            "last_lxmf_propagation_node" or "propagation_by_default")).Order(StringComparer.Ordinal).ToArray();
+    }
+
+    public async Task ExportSettingsAsync(string path, CancellationToken cancellationToken = default)
+    {
+        var state = await LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        var settings = state.ImportedSettings is null
+            ? new Dictionary<string, JsonElement>(StringComparer.Ordinal)
+            : state.ImportedSettings.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        settings["display_name"] = JsonSerializer.SerializeToElement(state.DisplayName, SidebandStateJsonContext.Default.String);
+        settings["dark_ui"] = JsonSerializer.SerializeToElement(state.Theme == "Dark", SidebandStateJsonContext.Default.Boolean);
+        settings["lxmf_propagation_node"] = JsonSerializer.SerializeToElement(state.PropagationNode, SidebandStateJsonContext.Default.String);
+        settings["last_lxmf_propagation_node"] = JsonSerializer.SerializeToElement(state.PropagationNode, SidebandStateJsonContext.Default.String);
+        settings["propagation_by_default"] = JsonSerializer.SerializeToElement(state.PropagationByDefault, SidebandStateJsonContext.Default.Boolean);
+        var target = Path.GetFullPath(path);
+        if (string.Equals(target, StatePath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            throw new ArgumentException("Export cannot overwrite the application's state file.", nameof(path));
+        var temporary = target + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            await using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 16_384,
+                FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(temporary, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                await JsonSerializer.SerializeAsync(stream, settings, SidebandStateJsonContext.Default.DictionaryStringJsonElement, cancellationToken).ConfigureAwait(false);
+                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                stream.Flush(flushToDisk: true);
+                if (stream.Length > MaximumStateBytes) throw new InvalidDataException("Settings exceed the 8 MiB safety limit.");
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            File.Move(temporary, target);
+        }
+        finally
+        {
+            if (File.Exists(temporary)) File.Delete(temporary);
+        }
+    }
+
     public async Task<IReadOnlyList<SidebandChatMessage>> GetMessagesAsync(string peerHash, CancellationToken cancellationToken = default)
     {
         if (!SidebandContact.TryNormalizeDeliveryHash(peerHash, out var normalized))
@@ -224,6 +304,10 @@ public sealed class SidebandStateStore
             throw new InvalidDataException("Sideband display name is missing or invalid.");
         if (state.Theme is not ("Dark" or "Light"))
             throw new InvalidDataException("Sideband theme is unsupported.");
+        if (state.PropagationNode is not null && !SidebandContact.TryNormalizeDeliveryHash(state.PropagationNode, out _))
+            throw new InvalidDataException("The saved propagation-node address is invalid.");
+        if (state.PropagationByDefault && state.PropagationNode is null)
+            throw new InvalidDataException("Propagated delivery requires a manually selected node; automatic discovery is not implemented.");
         if (state.OwnDeliveryHash is not null && !SidebandContact.TryNormalizeDeliveryHash(state.OwnDeliveryHash, out _))
             throw new InvalidDataException("The saved local LXMF delivery address is invalid.");
         foreach (var contact in state.Contacts)
@@ -243,6 +327,12 @@ public sealed class SidebandStateStore
         if (message.Title is null || message.Content is null || message.DeliveryState is null ||
             message.Title.Length > 512 || message.Content.Length > 65_536 || message.DeliveryState.Length > 32)
             throw new InvalidDataException("A saved message exceeds a field size limit.");
+        if (message.Attachments is { } attachments)
+        {
+            foreach (var attachment in attachments) SidebandAttachmentStore.Validate(attachment);
+            if (attachments.Count > 8 || attachments.Sum(attachment => (long)attachment.Length) > SidebandAttachmentStore.MaximumMessageBytes)
+                throw new InvalidDataException("A saved message exceeds attachment count or size limits.");
+        }
     }
 
     private void RestrictDirectoryOnUnix()

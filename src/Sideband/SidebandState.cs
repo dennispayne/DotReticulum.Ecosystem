@@ -7,7 +7,8 @@ public sealed record SidebandChatMessage(
     string Title,
     string Content,
     DateTimeOffset Timestamp,
-    string DeliveryState);
+    string DeliveryState,
+    IReadOnlyList<SidebandAttachment>? Attachments = null);
 
 public sealed record SidebandState(
     int SchemaVersion,
@@ -16,7 +17,10 @@ public sealed record SidebandState(
     IReadOnlyList<SidebandContact> Contacts,
     IReadOnlyList<SidebandChatMessage> Messages,
     string DisplayName = "Sideband",
-    string Theme = "Dark")
+    string Theme = "Dark",
+    string? PropagationNode = null,
+    bool PropagationByDefault = false,
+    IReadOnlyDictionary<string, System.Text.Json.JsonElement>? ImportedSettings = null)
 {
     public const int CurrentSchemaVersion = 1;
 

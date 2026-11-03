@@ -1,0 +1,17 @@
+{
+    "display_name": "Reference Peer",
+    "dark_ui": false,
+    "lxmf_propagation_node": "00112233445566778899aabbccddeeff",
+    "last_lxmf_propagation_node": null,
+    "nn_home_node": "ffeeddccbbaa99887766554433221100",
+    "telemetry_collector": null,
+    "propagation_by_default": true,
+    "lxmf_try_propagation_on_fail": true,
+    "plugin_settings": {
+        "example": [
+            false,
+            42,
+            "not activated"
+        ]
+    }
+}

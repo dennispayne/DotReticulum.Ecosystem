@@ -57,7 +57,7 @@
             <Button HorizontalContentAlignment="Left" Content="Telemetry · unavailable"
                     IsEnabled="False" ToolTip.Tip="Telemetry is not implemented in this build." />
             <Button x:Name="VoiceUnavailableButton" HorizontalContentAlignment="Left" Content="Voice · unavailable"
-                    IsEnabled="False" ToolTip.Tip="This build targets LXST 0.4.5; Sideband's current voice integration requires LXST 0.5.4." />
+                    IsEnabled="False" ToolTip.Tip="Desktop call controls and device integration are not implemented." />
             <Button HorizontalContentAlignment="Left" Content="Hardware · unavailable"
                     IsEnabled="False" ToolTip.Tip="Hardware configuration is managed by Reticulum outside this app." />
             <Button HorizontalContentAlignment="Left" Content="Plugins · unavailable"
@@ -87,8 +87,14 @@
               <ListBox x:Name="MessageList" Grid.Row="1" MinHeight="280" />
               <TextBox x:Name="MessageBox" Grid.Row="2" AcceptsReturn="True" MinHeight="88"
                        MaxLength="65536" PlaceholderText="Write a text message" />
-              <Button x:Name="SendButton" Grid.Row="3" HorizontalAlignment="Right"
-                      Content="Send securely" Click="SendClicked" />
+              <StackPanel Grid.Row="3" Spacing="6">
+                <TextBox x:Name="AttachmentPathBox" PlaceholderText="Optional file attachment path (up to 2 MiB)" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBox x:Name="AttachmentExportPathBox" MinWidth="180" PlaceholderText="Save selected message's first file to..." />
+                  <Button x:Name="SaveAttachmentButton" Content="Save file" Click="SaveAttachmentClicked" />
+                  <Button x:Name="SendButton" Content="Send securely" Click="SendClicked" />
+                </StackPanel>
+              </StackPanel>
             </Grid>
           </Grid>
         </ScrollViewer>
@@ -124,6 +130,16 @@
             </StackPanel>
             <TextBlock x:Name="EffectiveConfigPathText" TextWrapping="Wrap"
                        Foreground="{DynamicResource SecondaryTextBrush}" />
+            <TextBlock FontSize="17" FontWeight="SemiBold" Text="LXMF propagation" />
+            <TextBox x:Name="PropagationNodeBox" MaxLength="32" PlaceholderText="Propagation node address (32 hex, not its delivery address)" />
+            <CheckBox x:Name="PropagationDefaultBox" Content="Send through this propagation node by default" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="SavePropagationButton" Content="Save propagation" Click="SavePropagationClicked" />
+              <Button x:Name="SyncMessagesButton" Content="Fetch messages" Click="SyncMessagesClicked" />
+              <Button x:Name="CancelSyncButton" Content="Cancel fetch" Click="CancelSyncClicked" />
+            </StackPanel>
+            <TextBlock x:Name="SyncStatusText" TextWrapping="Wrap"
+                       Text="Propagation confirms storage at the node, not delivery to the recipient." />
             <Border Padding="18" CornerRadius="8" Background="{DynamicResource CardBackgroundBrush}">
               <StackPanel Spacing="8">
                 <TextBlock FontSize="17" FontWeight="SemiBold" Text="Connectivity details" />
@@ -157,6 +173,14 @@
                     Content="Save preferences" Click="SavePreferencesClicked" />
             <TextBlock x:Name="PreferencesStatusText" Foreground="{DynamicResource SecondaryTextBrush}"
                        TextWrapping="Wrap" />
+            <TextBlock FontSize="17" FontWeight="SemiBold" Text="Upstream settings exchange" />
+            <TextBlock Text="JSON settings only: display name, appearance and propagation are applied. Other keys are retained and reported, not activated. Identity and SQLite conversation import are not included. Disconnect before importing."
+                       TextWrapping="Wrap" />
+            <TextBox x:Name="SettingsExchangePathBox" PlaceholderText="Settings JSON file path" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="ImportSettingsButton" Content="Import settings" Click="ImportSettingsClicked" />
+              <Button x:Name="ExportSettingsButton" Content="Export settings" Click="ExportSettingsClicked" />
+            </StackPanel>
           </StackPanel>
         </ScrollViewer>
         <ScrollViewer x:Name="UtilitiesPage" IsVisible="False" Margin="24">
@@ -176,7 +200,7 @@
                        TextWrapping="Wrap" />
             <TextBlock Text="Before connecting, check the selected config path on the Connectivity screen. The default may point to an existing user Reticulum configuration; Sideband never repairs or resets it automatically."
                        TextWrapping="Wrap" />
-            <TextBlock Text="This initial desktop build supports text conversations, contacts, and local history. Voice, attachment transfer, maps, telemetry, plugins, and the upstream LAN repository mirror are not available."
+            <TextBlock Text="This desktop build supports text conversations, bounded file attachments, contacts, manual propagation, settings exchange and local history. Voice, image/audio messages, maps, telemetry, plugins, and the upstream LAN repository mirror are not available."
                        TextWrapping="Wrap" />
             <Button Content="Open Connectivity" HorizontalAlignment="Left" Click="OpenConnectivityClicked" />
           </StackPanel>

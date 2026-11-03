@@ -300,6 +300,7 @@ internal static class Program
               fallback <on|off>              Retry failed direct messages via propagation
               messages [hash]                 Show durable conversation history
               browse <hash> [page-path]       Fetch a bounded Nomad Network page
+              history | back | forward       Show/replay session browser navigation
               page | partials                Show composed page or partial targets
               links | open <number>            Follow a displayed Micron link
               fields | field <number> <value> Edit text or select checkbox/radio (on/off)
@@ -361,6 +362,7 @@ internal static class Program
         private NomadNetMicronBrowser? _browser;
         private NomadNetRenderedPage? _page => _browser?.Current;
         private object? _currentRequestData;
+        private readonly NomadNetNavigationHistory _navigation = new();
 
         public async ValueTask DisposeAsync()
         {
@@ -773,6 +775,23 @@ internal static class Program
                 await BrowseAsync(_currentNode, _currentPath, cancellationToken, reload: true, requestData: _currentRequestData).ConfigureAwait(false);
                 return false;
             }
+            if (command.Equals("history", StringComparison.OrdinalIgnoreCase))
+            {
+                var entries = _navigation.Snapshot();
+                for (var index = 0; index < entries.Count; index++)
+                    Console.WriteLine($"History {index + 1}{(index + 1 == _navigation.Position ? "*" : "")}: {entries[index].DestinationHash}:{entries[index].Path}");
+                Console.WriteLine($"History complete: {_navigation.Position}/{entries.Count}.");
+                return false;
+            }
+            if (command.Equals("back", StringComparison.OrdinalIgnoreCase) || command.Equals("forward", StringComparison.OrdinalIgnoreCase))
+            {
+                var back = command.Equals("back", StringComparison.OrdinalIgnoreCase);
+                var entry = back ? _navigation.Back() : _navigation.Forward();
+                if (entry is null) Console.WriteLine(back ? "No back history." : "No forward history.");
+                else await BrowseAsync(entry.DestinationHash, entry.Path, cancellationToken,
+                    requestData: entry.RequestData, replay: true).ConfigureAwait(false);
+                return false;
+            }
             if (command.Equals("bookmark", StringComparison.OrdinalIgnoreCase) || command.StartsWith("bookmark ", StringComparison.OrdinalIgnoreCase))
             {
                 var title = command.Length > "bookmark".Length ? command["bookmark".Length..].Trim() : $"{_currentNode}:{_currentPath}";
@@ -920,7 +939,7 @@ internal static class Program
             if (peers.Count > 256) Console.WriteLine($"Showing 256 of {peers.Count} destinations.");
         }
 
-        private async Task BrowseAsync(string hashText, string pathText, CancellationToken cancellationToken, bool reload = false, object? requestData = null)
+        private async Task BrowseAsync(string hashText, string pathText, CancellationToken cancellationToken, bool reload = false, object? requestData = null, bool replay = false)
         {
             var hash = Convert.FromHexString(NomadNetAddress.NormalizeHash(hashText));
             var path = NomadNetAddress.NormalizePagePath(pathText);
@@ -938,6 +957,7 @@ internal static class Program
             _currentRequestData = requestData;
             _currentNode = Convert.ToHexStringLower(hash);
             _currentPath = path;
+            if (!reload && !replay) _navigation.Visit(_currentNode, path, requestData);
             var origin = _currentNode;
             var browser = new NomadNetMicronBrowser(page, async (partial, data, token) =>
             {

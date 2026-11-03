@@ -99,6 +99,12 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
                 $pages = Join-Path $work "$name\storage\pages"
                 [IO.File]::WriteAllBytes((Join-Path $pages 'picture.png'), [Convert]::FromBase64String($vector.input))
                 [IO.File]::WriteAllText((Join-Path $pages 'index.mu'), "#!c=0`nImage application contract`n" + '`(public generated image`/media/picture.png)' + "`n", [Text.UTF8Encoding]::new($false))
+                if ($env:DOTRETICULUM_NOMADNET_HISTORY_LIVE -eq '1') {
+                    [IO.File]::WriteAllText((Join-Path $pages 'history.mu'), "#!c=0`nHISTORY_BRANCH", [Text.UTF8Encoding]::new($false))
+                    if (-not [OperatingSystem]::IsWindows()) {
+                        [IO.File]::SetUnixFileMode((Join-Path $pages 'history.mu'), [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite)
+                    }
+                }
                 if (-not [OperatingSystem]::IsWindows()) {
                     [IO.File]::SetUnixFileMode((Join-Path $pages 'index.mu'), [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite)
                 }
@@ -159,6 +165,18 @@ image_loading = yes
             $python = & $start 'python' $env:DOTRETICULUM_PYTHON $pythonArgs
             $ready = ((& $read $python '"event"\s*:\s*"ready"').Substring(2) | ConvertFrom-Json)
             $ready.revision | Should -Be 'f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2'
+            if ($env:DOTRETICULUM_NOMADNET_HISTORY_LIVE -eq '1') {
+                foreach ($step in @(
+                    @("browse $($ready.node)", 'Image application contract'),
+                    @("browse $($ready.node) /page/history.mu", 'HISTORY_BRANCH'),
+                    @('back', 'Image application contract'), @('forward', 'HISTORY_BRANCH'),
+                    @('reload', 'HISTORY_BRANCH'), @('history', 'History complete: 2/2\.'),
+                    @('back', 'Image application contract'), @("browse $($ready.node)", 'Image application contract'),
+                    @('forward', 'No forward history\.'), @('history', 'History complete: 2/2\.'))) {
+                    & $send $native $step[0]
+                    $null = & $read $native $step[1]
+                }
+            }
             if ($env:DOTRETICULUM_NOMADNET_CONFIG_LIVE -eq '1') {
                 & $send $python "request $nativeNode /file/public.txt"
                 $response = ((& $read $python '"event"\s*:\s*"response"').Substring(2) | ConvertFrom-Json)
@@ -250,6 +268,10 @@ image_loading = yes
             $native = & $start 'native-restarted-cache-only' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
             $restoredNode = [regex]::Match((& $read $native 'Hosted node address:'), '[0-9a-f]{32}').Value
             $restoredNode | Should -Be $nativeNode
+            if ($env:DOTRETICULUM_NOMADNET_HISTORY_LIVE -eq '1') {
+                & $send $native 'history'
+                $null = & $read $native 'History complete: 0/0\.'
+            }
             if ($env:DOTRETICULUM_NOMADNET_CONVERSATION_LIVE -eq '1') {
                 & $send $native 'contacts'
                 $line = & $read $native "$($ready.delivery).*trust=255 ignored=True delivery=3"
@@ -300,7 +322,8 @@ image_loading = yes
                 primary = $ready.revision; width = $image.width; height = $image.height;
                 nativeRestartCache = $true; primaryRestartCache = $true;
                 conversations = ($env:DOTRETICULUM_NOMADNET_CONVERSATION_LIVE -eq '1');
-                coreConfiguration = ($env:DOTRETICULUM_NOMADNET_CONFIG_LIVE -eq '1') } |
+                coreConfiguration = ($env:DOTRETICULUM_NOMADNET_CONFIG_LIVE -eq '1');
+                navigation = ($env:DOTRETICULUM_NOMADNET_HISTORY_LIVE -eq '1') } |
                 ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
         }
         finally {
@@ -748,6 +771,17 @@ printf '#!c=0\nPARTIAL_RESULT user=%s flags=%s choice=%s pid=%s extra=%s\n`<extr
             $null = & $read $native 'Child content'
             & $send $native 'open 1'
             $null = & $read $native 'FORM_RESULT user=Bob flags=a,b choice=two mode=accepted extra=final-value'
+            if ($env:DOTRETICULUM_NOMADNET_HISTORY_LIVE -eq '1') {
+                & $send $native 'back'
+                $null = & $read $native 'Application form'
+                $null = & $read $native 'PARTIAL_RESULT user=Alice flags=a choice=one pid=summary'
+                & $send $native 'forward'
+                $null = & $read $native 'FORM_RESULT user=Bob flags=a,b choice=two mode=accepted extra=final-value'
+                & $send $native 'reload'
+                $null = & $read $native 'FORM_RESULT user=Bob flags=a,b choice=two mode=accepted extra=final-value'
+                & $send $native 'history'
+                $null = & $read $native 'History complete: 2/2\.'
+            }
             foreach ($setting in @('auto-list on', 'auto-who on', 'history-limit 100', 'active lobby')) {
                 & $send $native "rrc $setting"
                 $null = & $read $native 'RRC command complete'

@@ -61,7 +61,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
 | Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. OS-process tests cover native execution; selected Linux native browser also submits real forms to unmodified Python executable pages across a Python transport. Python-to-native executable-form browser acceptance remains unverified. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
 | Media; `Node.serve_media`, `convert_media_to_webp` | **partial, live-verified core**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` responses and PNG/JPEG/BMP/GIF/TIFF conversion through configured external FFmpeg. Primary quality85/dimension1200 and content-hash cache naming, 256-file/192-MiB quota, corruption regeneration and restart/cache-only serving are exercised. `show-media` decodes browser images to ASCII or explicit ANSI true-colour half-blocks. Actual primary `ImageData` decodes native-served images and native previews primary-served images on Windows/Linux. Animated/multipage, alpha/EXIF behavior, automatic inline loading and Kitty graphics remain unverified/missing. |
-| Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded identified page/file/media retrieval, links/bookmarks, reload, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Explicit image previews work; navigation history, automatic inline image widgets and interactive file browser remain missing. |
+| Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded identified page/file/media retrieval, links/bookmarks, reload, session navigation history with back/forward and submitted-field replay, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Explicit image previews work; automatic inline image widgets and interactive file browser remain missing. |
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways through a Python transport, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron message rendering and complete Channels UI remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop. Urwid menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
@@ -310,6 +310,25 @@ compatibility with the primary's MessagePack/index/unread files.
 Oversized contact-policy changes reject and restore their in-memory policy
 without evicting message history or modifying the existing disk snapshot.
 
+### Browser navigation
+
+`history` lists successful root-page navigations and the one-based current
+position, without printing submitted field values. `back` and `forward` replay
+the recorded destination, path and original submitted fields; later editing of
+the redisplayed form cannot change those snapshots. A fresh navigation after
+going back discards the forward branch. Reload and partial/anchor updates do not
+add history entries. Reload still bypasses the page cache; submitted history
+entries always bypass it.
+
+History is session-local, not restored after restart and never written to state
+or cache, since it can include password fields. Native bounds are 64 entries,
+64 KiB of UTF-8 form keys/values and at most 1,024 form pairs per entry
+(approximately 4 MiB total form text). Oldest entries are evicted. As in the
+primary, back/forward move the history cursor before retrieval; a failed replay
+does not roll the cursor back. A failed fresh retrieval does not append an entry.
+The terminal serializes navigation commands; partial refreshes cannot alter
+history.
+
 ### Group chat and interactive pages
 
 RRC uses the same application identity but an independent identified `rrc.hub`
@@ -369,6 +388,57 @@ limited to 4 MiB, links to 2,048 and media descriptors to 128. These are safety
 bounds, not primary layout defaults.
 
 ## Validation and reproduction
+
+### Selected navigation/application acceptance
+
+`GenerateNomadNetNavigationVectors.py` executes the pinned actual primary
+`Browser.write_history`, `back` and `forward` with a disclosed retrieval observer,
+not a translated history implementation. The fixture records source SHA-256
+`a36f393f3e6a356a4c5b19f39596ca3f4fe8812aaf5f09be6c05573173d88079`.
+It covers bounds on back/forward, submitted-field replay and forward-branch
+truncation. Four native unit tests additionally cover immutable snapshots,
+64-entry eviction, invalid input and oversized forms without mutation.
+
+Selected strict NativeAOT binaries:
+
+- Windows `artifacts\builds\nomadnet-navigation-win\publish\NomadNet\release_win-x64\nomadnet.exe`;
+  SHA-256 `1f4d092326132a9d4e78acf54e682ff5eefa7dc7417b4a9c45cb398d39dd9b6f`.
+- Linux `artifacts/builds/nomadnet-navigation-linux/publish/NomadNet/release_linux-x64/nomadnet`;
+  SHA-256 `a827dafdb077c2c4bb1ff4a0c6afcf29b77835cfd01cbaf9381385e5d9c009b7`.
+
+Both `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r <rid>
+--artifacts-path artifacts\builds\nomadnet-navigation-<host>
+-p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v:q`
+commands pass. Windows scoped managed tests with the selected converter pass
+**86 +3 explicit Linux-only skips**; Linux passes **89/89**. Each selected binary
+passes **Native 4/4** and the actual primary image/conversation/configuration/
+navigation case **1/1** (Windows 37.48 seconds; Linux 26 seconds).
+Linux additionally passes actual primary RRC/form/partial **1/1**
+(19.14 seconds), including a back/forward/reload round trip to the unmodified
+primary executable form through a Python transport. Back recreates the initial
+form and partial fields; forward/reload still submit the earlier edited values,
+not those new defaults. Windows verifies static primary-page navigation,
+reload, branch truncation and empty history after restart, not executable forms.
+
+The saved ignored recipes explicitly select binaries, managed DLLs, converters
+and references and enable `DOTRETICULUM_NOMADNET_HISTORY_LIVE=1` in addition to
+the image/conversation/configuration modes:
+
+```powershell
+& artifacts\tests\nomadnet-navigation-win-acceptance.ps1
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-navigation-linux-acceptance.ps1
+```
+
+The image case writes the selected binary hash and explicit `navigation` flag
+to its `acceptance.json`; an older frozen binary must not enable the new mode.
+This does not implement the remaining file-browser, inline-image or complete
+terminal UI workflows.
+
+The integrated `dotnet build DotReticulum.Ecosystem.slnx -c Release
+--artifacts-path artifacts\builds\nomadnet-navigation-solution -v:q` passes
+with zero warnings/errors. The matching `dotnet test ... --no-build -v:q
+--logger trx --results-directory artifacts\tests\nomadnet-navigation-full-final`
+passes **702 tests, 81 explicit skips, zero failures** across all five projects.
 
 ### Selected automatic Micron/browser acceptance
 

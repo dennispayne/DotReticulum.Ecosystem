@@ -1,0 +1,161 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sourceSha256": "a36f393f3e6a356a4c5b19f39596ca3f4fe8812aaf5f09be6c05573173d88079",
+  "method": "Actual Browser.write_history/back/forward; retrieve_url is an observation boundary, and load-completion flags are cleared between actions. No live UI or transport claim.",
+  "steps": [
+    {
+      "action": "visit",
+      "path": "/page/a.mu",
+      "data": null,
+      "position": 1,
+      "paths": [
+        "/page/a.mu"
+      ],
+      "request": null
+    },
+    {
+      "action": "visit",
+      "path": "/page/b.mu",
+      "data": {
+        "field_user": "one"
+      },
+      "position": 2,
+      "paths": [
+        "/page/a.mu",
+        "/page/b.mu"
+      ],
+      "request": null
+    },
+    {
+      "action": "visit",
+      "path": "/page/c.mu",
+      "data": {
+        "field_user": "two"
+      },
+      "position": 3,
+      "paths": [
+        "/page/a.mu",
+        "/page/b.mu",
+        "/page/c.mu"
+      ],
+      "request": null
+    },
+    {
+      "action": "back",
+      "path": null,
+      "data": null,
+      "position": 2,
+      "paths": [
+        "/page/a.mu",
+        "/page/b.mu",
+        "/page/c.mu"
+      ],
+      "request": {
+        "url": "11111111111111111111111111111111:/page/b.mu",
+        "data": {
+          "field_user": "one"
+        }
+      }
+    },
+    {
+      "action": "back",
+      "path": null,
+      "data": null,
+      "position": 1,
+      "paths": [
+        "/page/a.mu",
+        "/page/b.mu",
+        "/page/c.mu"
+      ],
+      "request": {
+        "url": "11111111111111111111111111111111:/page/a.mu",
+        "data": null
+      }
+    },
+    {
+      "action": "back",
+      "path": null,
+      "data": null,
+      "position": 1,
+      "paths": [
+        "/page/a.mu",
+        "/page/b.mu",
+        "/page/c.mu"
+      ],
+      "request": null
+    },
+    {
+      "action": "forward",
+      "path": null,
+      "data": null,
+      "position": 2,
+      "paths": [
+        "/page/a.mu",
+        "/page/b.mu",
+        "/page/c.mu"
+      ],
+      "request": {
+        "url": "11111111111111111111111111111111:/page/b.mu",
+        "data": {
+          "field_user": "one"
+        }
+      }
+    },
+    {
+      "action": "visit",
+      "path": "/page/d.mu",
+      "data": null,
+      "position": 3,
+      "paths": [
+        "/page/a.mu",
+        "/page/b.mu",
+        "/page/d.mu"
+      ],
+      "request": null
+    },
+    {
+      "action": "forward",
+      "path": null,
+      "data": null,
+      "position": 3,
+      "paths": [
+        "/page/a.mu",
+        "/page/b.mu",
+        "/page/d.mu"
+      ],
+      "request": null
+    },
+    {
+      "action": "back",
+      "path": null,
+      "data": null,
+      "position": 2,
+      "paths": [
+        "/page/a.mu",
+        "/page/b.mu",
+        "/page/d.mu"
+      ],
+      "request": {
+        "url": "11111111111111111111111111111111:/page/b.mu",
+        "data": {
+          "field_user": "one"
+        }
+      }
+    },
+    {
+      "action": "forward",
+      "path": null,
+      "data": null,
+      "position": 3,
+      "paths": [
+        "/page/a.mu",
+        "/page/b.mu",
+        "/page/d.mu"
+      ],
+      "request": {
+        "url": "11111111111111111111111111111111:/page/d.mu",
+        "data": null
+      }
+    }
+  ]
+}

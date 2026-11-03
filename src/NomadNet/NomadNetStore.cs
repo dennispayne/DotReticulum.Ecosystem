@@ -237,13 +237,18 @@ public static class NomadNetAddress
         return path;
     }
 
-    public static (string DestinationHash, string Path) ParseUrl(string target, string? currentHash = null)
+    public static (string DestinationHash, string Path) ParseUrl(string target, string? currentHash = null, bool media = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
         var separator = target.IndexOf(':');
         string hash;
         string path;
-        if (separator < 0)
+        if (separator < 0 && target.StartsWith('/'))
+        {
+            hash = NormalizeHash(currentHash ?? throw new ArgumentException("Relative link has no current node.", nameof(target)));
+            path = target;
+        }
+        else if (separator < 0)
         {
             hash = NormalizeHash(target);
             path = DefaultPagePath;
@@ -258,6 +263,13 @@ public static class NomadNetAddress
             else
                 hash = NormalizeHash(prefix);
             if (path.Length == 0) path = DefaultPagePath;
+        }
+        if (media)
+        {
+            if (!path.StartsWith("/media/", StringComparison.Ordinal) || path.Length > 512 || path.Contains('\\') ||
+                path.Any(char.IsControl) || path.Split('/').Any(part => part is "." or ".."))
+                throw new ArgumentException("Invalid Nomad Network media path.", nameof(target));
+            return (hash, path);
         }
         return (hash, NormalizePagePath(path));
     }

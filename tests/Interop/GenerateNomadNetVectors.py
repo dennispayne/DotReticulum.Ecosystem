@@ -62,6 +62,27 @@ def main():
     result["inlineSourceSha256"] = hashlib.sha256((source / "nomadnet/ui/textui/MicronParser.py").read_bytes()).hexdigest()
     result["inline"] = [{"source": text, "text": "".join(part[1] for part in MicronParser.make_output(
         MicronParser.default_state(), text, None) or [] if isinstance(part, tuple))} for text in inline]
+    fields = ["`<name`Alice>", "`<!12|password`not-a-real-secret>",
+              "`<40x3|message`initial text>", "`<?|flags|a|*`Alpha>",
+              "`<?|flags|b|*`Beta>", "`<?|unchecked|x`No>",
+              "`<^|choice|one|*`One>", "`<^|choice|two`Two>"]
+    result["fields"] = [{"source": text, "field": next(
+        {key: value for key, value in part.items() if key != "style"}
+        for part in MicronParser.make_output(MicronParser.default_state(), text, None) if isinstance(part, dict))}
+        for text in fields]
+    from nomadnet.ui.textui.Browser import Browser
+    browser = Browser.__new__(Browser)
+    browser.status = Browser.DONE
+    browser.attr_maps = MicronParser.markup_to_attrmaps("\n".join(fields))
+    observed = []
+    browser.retrieve_url = lambda target, data: observed.append({"target": target, "data": data})
+    for submission in [["*", "mode=test"], ["name", "flags", "mode=selected"], ["unchecked"], ["bad=x=y"]]:
+        Browser.handle_link(browser, ":/page/submit.mu", submission)
+    result["submissions"] = [{"fields": selection, **observation} for selection, observation in zip(
+        [["*", "mode=test"], ["name", "flags", "mode=selected"], ["unchecked"], ["bad=x=y"]], observed)]
+    result["submissionMethod"] = "Browser.handle_link with real parsed Urwid fields; retrieve_url I/O seam captures request arguments, no form logic replaced"
+    result["slug"] = [{"source": text, "slug": MicronParser.slugify_micron(text)}
+                      for text in ["`!Hello World`!", "日本語 Hello---World!", "`:anchor Heading_Name"]]
     Path(args.output).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
 
 

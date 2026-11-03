@@ -50,13 +50,15 @@ public sealed class MicronTextTests
     }
 
     [Fact]
-    public void Render_RejectsOversizedPagesAndMarksUnsupportedMedia()
+    public void Render_RejectsOversizedPagesAndExposesBoundedMediaAndPartials()
     {
         Assert.Throws<InvalidDataException>(() => MicronText.Render(new byte[MicronText.MaximumPageBytes + 1]));
 
         var page = MicronText.Render("`(alt`w=12`/media/picture.webp)\n`{/page/partial.mu}\n"u8);
-        Assert.Contains("[image content is not rendered]", page.Text);
-        Assert.Contains("[dynamic page content is not rendered]", page.Text);
+        Assert.Equal("/media/picture.webp", Assert.Single(page.Media).Target);
+        Assert.Equal("/page/partial.mu", Assert.Single(page.Partials).Target);
+        Assert.Contains("use media 1", page.Text);
+        Assert.Contains("use partial 1", page.Text);
     }
 
     [Fact]

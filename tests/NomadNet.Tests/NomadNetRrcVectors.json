@@ -1,0 +1,148 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "method": "nomadnet.RRC._make_envelope and nomadnet.vendor.cbor.encode/decode",
+  "sourceSha256": "cc133649fd10f8f6d712a1045f28ade20bcf79fddf4a786dfe03ea380259e8d9",
+  "vectors": [
+    {
+      "name": "hello",
+      "type": 1,
+      "wire": "a60001010102480001020304050607031b0000018bcfe5687b0450000102030405060708090a0b0c0d0e0f06a300686e6f6d61646e65740163302e3102a200f501f5"
+    },
+    {
+      "name": "welcome",
+      "type": 2,
+      "wire": "a60001010202480001020304050607031b0000018bcfe5687b0450000102030405060708090a0b0c0d0e0f06a4006d7265666572656e6365206875620163302e3102a200f501f503a50018200118400219015e0318200418f0"
+    },
+    {
+      "name": "join",
+      "type": 10,
+      "wire": "a80001010a02480001020304050607031b0000018bcfe5687b0450000102030405060708090a0b0c0d0e0f05656c6f626279066f7365637265742d726f6f6d2d6b65790765416c696365"
+    },
+    {
+      "name": "joined",
+      "type": 11,
+      "wire": "a80001010b02480001020304050607031b0000018bcfe5687b0450000102030405060708090a0b0c0d0e0f05656c6f626279068250000102030405060708090a0b0c0d0e0f50101112131415161718191a1b1c1d1e1f0765416c696365"
+    },
+    {
+      "name": "part",
+      "type": 12,
+      "wire": "a70001010c02480001020304050607031b0000018bcfe5687b0450000102030405060708090a0b0c0d0e0f05656c6f6262790765416c696365"
+    },
+    {
+      "name": "message",
+      "type": 20,
+      "wire": "a80001011402480001020304050607031b0000018bcfe5687b0450000102030405060708090a0b0c0d0e0f05656c6f62627906781848656c6c6f2040426f6220e2809420e697a5e69cace8aa9e0765416c696365"
+    },
+    {
+      "name": "action",
+      "type": 22,
+      "wire": "a80001011602480001020304050607031b0000018bcfe5687b0450000102030405060708090a0b0c0d0e0f05656c6f626279066577617665730765416c696365"
+    },
+    {
+      "name": "ping",
+      "type": 30,
+      "wire": "a6000101181e02480001020304050607031b0000018bcfe5687b0450000102030405060708090a0b0c0d0e0f06480001020304050607"
+    },
+    {
+      "name": "pong",
+      "type": 31,
+      "wire": "a6000101181f02480001020304050607031b0000018bcfe5687b0450000102030405060708090a0b0c0d0e0f06480001020304050607"
+    },
+    {
+      "name": "error",
+      "type": 40,
+      "wire": "a7000101182802480001020304050607031b0000018bcfe5687b0450000102030405060708090a0b0c0d0e0f05656c6f626279066a6e6f74206a6f696e6564"
+    },
+    {
+      "name": "notice",
+      "type": 21,
+      "wire": "a60001011502480001020304050607031b0000018bcfe5687b0450000102030405060708090a0b0c0d0e0f0678266d656d6265727320696e206c6f6262793a20416c696365202830303031303230333034303529"
+    },
+    {
+      "name": "resource",
+      "type": 50,
+      "wire": "a6000101183202480001020304050607031b0000018bcfe5687b0450000102030405060708090a0b0c0d0e0f06a50048000102030405060701646d6f746402191000035820000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f04657574662d38"
+    }
+  ],
+  "mentions": [
+    {
+      "nick": "Alice",
+      "text": "hello @aLiCe!",
+      "match": true
+    },
+    {
+      "nick": "Alice",
+      "text": "x@Alice",
+      "match": false
+    },
+    {
+      "nick": "Alice",
+      "text": "@Alice_something",
+      "match": false
+    },
+    {
+      "nick": "Alice",
+      "text": "(@Alice)",
+      "match": true
+    }
+  ],
+  "who": [
+    {
+      "text": "members in Lobby: Alice (000102030405), user (alt) (101112131415)",
+      "result": [
+        "lobby",
+        [
+          [
+            "Alice",
+            "000102030405"
+          ],
+          [
+            "user (alt)",
+            "101112131415"
+          ]
+        ]
+      ]
+    },
+    {
+      "text": "members in empty: (none)",
+      "result": [
+        "empty",
+        []
+      ]
+    },
+    {
+      "text": "members in lobby: abababababababababababababababababababababababababababababababab",
+      "result": [
+        "lobby",
+        [
+          [
+            null,
+            "abababababababababababababababababababababababababababababababab"
+          ]
+        ]
+      ]
+    },
+    {
+      "text": "unrelated notice",
+      "result": null
+    }
+  ],
+  "roomLists": [
+    {
+      "text": "Registered public rooms:\n  lobby - Main room\n  #support\n  empty - ",
+      "result": {
+        "lobby": "Main room",
+        "support": null,
+        "empty -": null
+      }
+    },
+    {
+      "text": "No public rooms registered",
+      "result": {}
+    },
+    {
+      "text": "unrelated notice",
+      "result": null
+    }
+  ]
+}

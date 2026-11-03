@@ -1,3 +1,233 @@
+Describe 'NomadNet RRC primary-client interoperability' -Tag 'Live', 'Rrc' {
+    It 'exchanges group messages and actions, restores room history, and submits Micron forms to primary executable pages' {
+        if (-not [OperatingSystem]::IsLinux() -or $env:DOTRETICULUM_NOMADNET_RRC_LIVE -ne '1') {
+            Set-ItResult -Skipped -Because 'Enable Linux actual-app RRC acceptance with DOTRETICULUM_NOMADNET_RRC_LIVE=1.'
+            return
+        }
+        foreach ($name in @('DOTRETICULUM_PYTHON', 'DOTRETICULUM_UPSTREAM', 'DOTRETICULUM_LXMF_UPSTREAM',
+            'DOTRETICULUM_NOMADNET_SOURCE', 'DOTRETICULUM_NOMADNET_RRCD_SOURCE', 'DOTRETICULUM_NOMADNET_BINARY')) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) { throw "$name is required." }
+        }
+        $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        $base = if ($env:DOTRETICULUM_NOMADNET_WORK) { $env:DOTRETICULUM_NOMADNET_WORK } else { Join-Path $root 'artifacts\tests\nomadnet-rrc' }
+        $work = "$base-$([Guid]::NewGuid().ToString('N'))"
+        $null = New-Item $work -ItemType Directory -Force
+        $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
+        $pending = @{}
+        $errors = @{}
+        $names = @{}
+        $environment = @{
+            PYTHONPATH = "$env:DOTRETICULUM_NOMADNET_SOURCE`:$env:DOTRETICULUM_UPSTREAM`:$env:DOTRETICULUM_LXMF_UPSTREAM`:$root/tests/Interop"
+        }
+        $start = {
+            param([string] $name, [string] $binary, [string[]] $arguments)
+            $info = [Diagnostics.ProcessStartInfo]::new($binary)
+            $info.WorkingDirectory = $root
+            $info.UseShellExecute = $false
+            $info.RedirectStandardInput = $true
+            $info.RedirectStandardOutput = $true
+            $info.RedirectStandardError = $true
+            foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
+            foreach ($entry in $environment.GetEnumerator()) { $info.Environment[$entry.Key] = $entry.Value }
+            $process = [Diagnostics.Process]::new()
+            $process.StartInfo = $info
+            $null = $process.Start()
+            $processes.Add($process)
+            $errors[$process.Id] = $process.StandardError.ReadToEndAsync()
+            $names[$process.Id] = $name
+            return $process
+        }.GetNewClosure()
+        $read = {
+            param($process, [string] $pattern, [int] $seconds = 60)
+            $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+            while ([DateTime]::UtcNow -lt $deadline) {
+                if (-not $pending.ContainsKey($process.Id)) { $pending[$process.Id] = $process.StandardOutput.ReadLineAsync() }
+                try { $line = $pending[$process.Id].WaitAsync([TimeSpan]::FromMilliseconds(500)).GetAwaiter().GetResult() }
+                catch [TimeoutException] { continue }
+                $pending.Remove($process.Id)
+                if ($null -eq $line) { throw "$($names[$process.Id]) closed stdout before '$pattern'." }
+                Add-Content (Join-Path $work "$($names[$process.Id]).stdout") $line
+                if ($line -match '"event"\s*:\s*"error"') { throw $line }
+                if ($line -match $pattern) { return $line }
+            }
+            throw "$($names[$process.Id]) timed out waiting for '$pattern'; diagnostics: $work"
+        }.GetNewClosure()
+        $send = {
+            param($process, [string] $text)
+            $process.StandardInput.WriteLine($text)
+            $process.StandardInput.Flush()
+        }
+        $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+        $listener.Start()
+        $port = $listener.LocalEndpoint.Port
+        $listener.Stop()
+        foreach ($name in @('hub', 'python', 'native')) {
+            $null = New-Item (Join-Path $work "$name-rns") -ItemType Directory -Force
+            $null = New-Item (Join-Path $work $name) -ItemType Directory -Force
+            $lines = @('[reticulum]', '  share_instance = No', '  enable_transport = No', '[logging]', '  loglevel = 2', '[interfaces]')
+            if ($name -eq 'hub') {
+                $lines[2] = '  enable_transport = Yes'
+                $lines += @('  [[Server]]', '    type = TCPServerInterface', '    enabled = Yes',
+                    '    listen_ip = 127.0.0.1', "    listen_port = $port")
+            }
+            else {
+                $lines += @('  [[Client]]', '    type = TCPClientInterface', '    enabled = Yes',
+                    '    target_host = 127.0.0.1', "    target_port = $port")
+            }
+            $lines | Set-Content (Join-Path $work "$name-rns\config") -Encoding utf8
+        }
+        try {
+            $bootstrap = & $start 'bootstrap' $env:DOTRETICULUM_PYTHON @('-u', '-m', 'nomadnet.nomadnet',
+                '--daemon', '--console', '--config', (Join-Path $work 'python'), '--rnsconfig', (Join-Path $work 'python-rns'))
+            $configuration = Join-Path $work 'python\config'
+            $deadline = [DateTime]::UtcNow.AddSeconds(60)
+            while (-not (Test-Path $configuration) -and [DateTime]::UtcNow -lt $deadline) {
+                if ($bootstrap.HasExited) { throw 'Primary app bootstrap failed.' }
+                Start-Sleep -Milliseconds 100
+            }
+            (Test-Path $configuration) | Should -BeTrue
+            Start-Sleep -Seconds 1
+            Stop-Process -Id $bootstrap.Id -Force
+            $bootstrap.WaitForExit()
+            $text = [IO.File]::ReadAllText($configuration).Replace('enable_node = no', 'enable_node = yes')
+            [IO.File]::WriteAllText($configuration, $text, [Text.UTF8Encoding]::new($false))
+            $pages = Join-Path $work 'python\storage\pages'
+            $null = New-Item $pages -ItemType Directory -Force
+            $form = @'
+#!c=0
+>Application form
+`<user`Alice>
+`<!|password`not-a-real-secret>
+`<?|flags|a|*`Alpha>
+`<?|flags|b`Beta>
+`<^|choice|one|*`One>
+`<^|choice|two`Two>
+`[submit`:/page/submit.mu`*|mode=accepted]
+`{/page/partial.mu`2`*|pid=summary}
+`->Folded
+HIDDEN_FORM_SECTION
+>Visible
+VISIBLE_FORM_SECTION
+'@
+            [IO.File]::WriteAllText((Join-Path $pages 'form.mu'), $form.Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
+            $submit = @'
+#!/bin/sh
+printf '#!c=0\nFORM_RESULT user=%s flags=%s choice=%s mode=%s\n' "$field_user" "$field_flags" "$field_choice" "$var_mode"
+'@
+            $partial = @'
+#!/bin/sh
+printf '#!c=0\nPARTIAL_RESULT user=%s flags=%s choice=%s pid=%s\n' "$field_user" "$field_flags" "$field_choice" "$var_pid"
+'@
+            foreach ($entry in @{ 'submit.mu' = $submit; 'partial.mu' = $partial }.GetEnumerator()) {
+                $path = Join-Path $pages $entry.Key
+                [IO.File]::WriteAllText($path, $entry.Value.Replace("`r`n", "`n") + "`n", [Text.UTF8Encoding]::new($false))
+                [IO.File]::SetUnixFileMode($path, [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
+            }
+            $hubArgs = @('-u', (Join-Path $root 'tests\Interop\nomadnet_rrc_hub.py'),
+                '--config', (Join-Path $work 'hub'), '--rnsconfig', (Join-Path $work 'hub-rns'))
+            $hub = & $start 'hub' $env:DOTRETICULUM_PYTHON $hubArgs
+            $ready = ((& $read $hub '"event"\s*:\s*"hub-ready"').Substring(2) | ConvertFrom-Json)
+            $ready.revision | Should -Be 'f6d7e9d72bf83c70d7a9373ae8c5edaa052a7bf2'
+            $python = & $start 'python' $env:DOTRETICULUM_PYTHON @('-u', (Join-Path $root 'tests\Interop\nomadnet_live_node.py'),
+                '--config', (Join-Path $work 'python'), '--rnsconfig', (Join-Path $work 'python-rns'))
+            $appReady = ((& $read $python '"event"\s*:\s*"ready"').Substring(2) | ConvertFrom-Json)
+            & $send $python "rrc-connect $($ready.hash) Python"
+            $null = & $read $python '"event"\s*:\s*"rrc-connected"'
+            & $send $python 'rrc-join lobby'
+            $null = & $read $python '"event"\s*:\s*"rrc-joined"'
+            $nativeArgs = @('--config', (Join-Path $work 'native'), '--rnsconfig', (Join-Path $work 'native-rns'))
+            $native = & $start 'native' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
+            $null = & $read $native 'LXMF delivery address:'
+            & $send $native "rrc connect $($ready.hash) Native"
+            $null = & $read $native 'RRC command complete'
+            & $send $native "browse $($appReady.node) /page/form.mu"
+            $null = & $read $native 'VISIBLE_FORM_SECTION'
+            & $send $native 'fields'
+            $passwordLine = & $read $native 'Field 2: password'
+            $passwordLine | Should -Not -Match 'not-a-real-secret'
+            $null = & $read $native 'Fields complete'
+            foreach ($edit in @('field 1 Bob', 'field 4 on', 'field 6 on')) {
+                & $send $native $edit
+                $null = & $read $native 'Field updated'
+            }
+            & $send $native 'partial 1'
+            $null = & $read $native 'PARTIAL_RESULT user=Bob flags=a,b choice=two pid=summary'
+            & $send $native 'open 1'
+            $null = & $read $native 'FORM_RESULT user=Bob flags=a,b choice=two mode=accepted'
+            & $send $native 'rrc join lobby'
+            $null = & $read $native 'RRC command complete'
+            & $send $native 'rrc who lobby'
+            $null = & $read $native 'members in lobby:'
+            & $send $native 'rrc members lobby'
+            $null = & $read $native 'RRC member [0-9a-f]+: Python'
+            $null = & $read $native 'RRC command complete'
+            & $send $native 'rrc send lobby native-group-message'
+            $null = & $read $native 'RRC command complete'
+            $line = & $read $python '"text"\s*:\s*"native-group-message"'
+            ($line.Substring(2) | ConvertFrom-Json).nick | Should -Be 'Native'
+            & $send $python 'rrc-send lobby python-group-message'
+            $null = & $read $native 'Python: python-group-message'
+            & $send $native 'rrc action lobby native-group-action'
+            $null = & $read $python '"kind"\s*:\s*"action".*"text"\s*:\s*"native-group-action"'
+            & $send $python 'rrc-action lobby python-group-action'
+            $null = & $read $native 'Python: python-group-action'
+            & $send $native 'rrc ping'
+            $null = & $read $native 'RRC pong:'
+            & $send $native 'rrc history'
+            $null = & $read $native 'RRC_RESOURCE_MOTD_'
+            $null = & $read $native 'RRC command complete'
+            & $send $native ('rrc send lobby ' + ('x' * 351))
+            $null = & $read $native "Error: Message is empty or exceeds the hub's UTF-8 byte limit"
+            & $send $native 'rrc disconnect'
+            $null = & $read $native 'RRC command complete'
+            & $send $native 'rrc reconnect'
+            $null = & $read $native 'RRC command complete'
+            & $send $python 'rrc-send lobby after-link-reconnect'
+            $null = & $read $native 'Python: after-link-reconnect'
+            & $send $native 'quit'
+            $native.WaitForExit(20000) | Should -BeTrue
+            $native.ExitCode | Should -Be 0
+            $native = & $start 'native-restarted' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
+            $null = & $read $native 'LXMF delivery address:'
+            & $send $native "rrc connect $($ready.hash)"
+            $null = & $read $native 'RRC command complete'
+            & $send $native 'rrc status'
+            $null = & $read $native 'nick: Native; rooms: lobby'
+            & $send $native 'rrc history lobby'
+            $null = & $read $native 'python-group-message'
+            $null = & $read $native 'after-link-reconnect'
+            $null = & $read $native 'RRC command complete'
+            & $send $python 'rrc-send lobby after-process-restart'
+            $null = & $read $native 'Python: after-process-restart'
+            & $send $native 'rrc auto-reconnect on'
+            $null = & $read $native 'RRC command complete'
+            & $send $hub 'quit'
+            $hub.WaitForExit(10000) | Should -BeTrue
+            $hub = & $start 'hub-restarted' $env:DOTRETICULUM_PYTHON $hubArgs
+            $restartedHub = ((& $read $hub '"event"\s*:\s*"hub-ready"').Substring(2) | ConvertFrom-Json)
+            $restartedHub.hash | Should -Be $ready.hash
+            $null = & $read $native 'RRC connected:' 90
+            & $send $python "rrc-connect $($ready.hash) Python"
+            $null = & $read $python '"event"\s*:\s*"rrc-connected"'
+            & $send $python 'rrc-join lobby'
+            $null = & $read $python '"event"\s*:\s*"rrc-joined"'
+            & $send $python 'rrc-send lobby after-hub-restart'
+            $null = & $read $native 'Python: after-hub-restart'
+        }
+        finally {
+            foreach ($process in $processes) {
+                if (-not $process.HasExited) {
+                    try { & $send $process 'quit' } catch {}
+                    if (-not $process.WaitForExit(5000)) { Stop-Process -Id $process.Id -Force; $process.WaitForExit() }
+                }
+                [IO.File]::WriteAllText((Join-Path $work "$($names[$process.Id]).stderr"), $errors[$process.Id].GetAwaiter().GetResult())
+                $process.Dispose()
+            }
+            if ($env:DOTRETICULUM_NOMADNET_KEEP_WORK -ne '1') { Remove-Item $work -Recurse -Force }
+        }
+    }
+}
+
 Describe 'NomadNet native executable' -Tag 'Native' {
     BeforeAll {
         $script:NomadNetBinary = $env:DOTRETICULUM_NOMADNET_BINARY

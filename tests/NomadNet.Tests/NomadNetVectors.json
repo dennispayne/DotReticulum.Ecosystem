@@ -134,5 +134,149 @@
       "source": "one\\\\two",
       "text": "one\\two"
     }
+  ],
+  "fields": [
+    {
+      "source": "`<name`Alice>",
+      "field": {
+        "type": "field",
+        "name": "name",
+        "width": 24,
+        "rows": 1,
+        "masked": false,
+        "data": "Alice"
+      }
+    },
+    {
+      "source": "`<!12|password`not-a-real-secret>",
+      "field": {
+        "type": "field",
+        "name": "password",
+        "width": 12,
+        "rows": 1,
+        "masked": true,
+        "data": "not-a-real-secret"
+      }
+    },
+    {
+      "source": "`<40x3|message`initial text>",
+      "field": {
+        "type": "field",
+        "name": "message",
+        "width": 40,
+        "rows": 3,
+        "masked": false,
+        "data": "initial text"
+      }
+    },
+    {
+      "source": "`<?|flags|a|*`Alpha>",
+      "field": {
+        "type": "checkbox",
+        "name": "flags",
+        "value": "a",
+        "label": "Alpha",
+        "prechecked": true
+      }
+    },
+    {
+      "source": "`<?|flags|b|*`Beta>",
+      "field": {
+        "type": "checkbox",
+        "name": "flags",
+        "value": "b",
+        "label": "Beta",
+        "prechecked": true
+      }
+    },
+    {
+      "source": "`<?|unchecked|x`No>",
+      "field": {
+        "type": "checkbox",
+        "name": "unchecked",
+        "value": "x",
+        "label": "No",
+        "prechecked": false
+      }
+    },
+    {
+      "source": "`<^|choice|one|*`One>",
+      "field": {
+        "type": "radio",
+        "name": "choice",
+        "value": "one",
+        "label": "One",
+        "prechecked": true
+      }
+    },
+    {
+      "source": "`<^|choice|two`Two>",
+      "field": {
+        "type": "radio",
+        "name": "choice",
+        "value": "two",
+        "label": "Two",
+        "prechecked": false
+      }
+    }
+  ],
+  "submissions": [
+    {
+      "fields": [
+        "*",
+        "mode=test"
+      ],
+      "target": ":/page/submit.mu",
+      "data": {
+        "var_mode": "test",
+        "field_name": "Alice",
+        "field_password": "not-a-real-secret",
+        "field_message": "initial text",
+        "field_flags": "a,b",
+        "field_choice": "one"
+      }
+    },
+    {
+      "fields": [
+        "name",
+        "flags",
+        "mode=selected"
+      ],
+      "target": ":/page/submit.mu",
+      "data": {
+        "var_mode": "selected",
+        "field_name": "Alice",
+        "field_flags": "a,b"
+      }
+    },
+    {
+      "fields": [
+        "unchecked"
+      ],
+      "target": ":/page/submit.mu",
+      "data": {}
+    },
+    {
+      "fields": [
+        "bad=x=y"
+      ],
+      "target": ":/page/submit.mu",
+      "data": {}
+    }
+  ],
+  "submissionMethod": "Browser.handle_link with real parsed Urwid fields; retrieve_url I/O seam captures request arguments, no form logic replaced",
+  "slug": [
+    {
+      "source": "`!Hello World`!",
+      "slug": "hello-world"
+    },
+    {
+      "source": "\u65e5\u672c\u8a9e Hello---World!",
+      "slug": "hello-world"
+    },
+    {
+      "source": "`:anchor Heading_Name",
+      "slug": "heading-name"
+    }
   ]
 }

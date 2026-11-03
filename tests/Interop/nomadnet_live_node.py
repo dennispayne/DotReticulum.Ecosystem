@@ -73,6 +73,10 @@ def main():
                 delivery=app.lxmf_destination.hash.hex(),
                 revision=revision,
             )
+            app.rrc.set_message_callback(lambda hub, message: emit(
+                "rrc-message", kind=message.kind, room=message.room, text=message.text,
+                nick=message.nick, source=message.src.hex() if isinstance(message.src, bytes) else None))
+            rrc_hub = None
 
             for raw_line in sys.stdin:
                 if len(raw_line) > 65536:
@@ -83,6 +87,33 @@ def main():
                 if parts[0] == "quit":
                     app.exit_handler()
                     os._exit(0)
+                if parts[0] == "rrc-connect" and len(parts) >= 2:
+                    rrc_hub = app.rrc.add_hub(bytes.fromhex(parts[1]))
+                    rrc_hub.nick_override = parts[2] if len(parts) == 3 else "Python"
+                    rrc_hub.connect()
+                    deadline = time.monotonic() + 40
+                    while not rrc_hub.welcomed and time.monotonic() < deadline:
+                        time.sleep(0.05)
+                    if not rrc_hub.welcomed:
+                        raise RuntimeError("The actual primary RRC client did not receive WELCOME")
+                    emit("rrc-connected", hub=rrc_hub.hub_hash.hex())
+                    continue
+                if parts[0] == "rrc-join" and len(parts) >= 2:
+                    rrc_hub.join_room(parts[1])
+                    deadline = time.monotonic() + 20
+                    while parts[1] in rrc_hub._pending_joins and time.monotonic() < deadline:
+                        time.sleep(0.05)
+                    if parts[1] in rrc_hub._pending_joins or parts[1] not in rrc_hub.rooms:
+                        raise RuntimeError("The actual primary RRC client did not join the room")
+                    emit("rrc-joined", room=parts[1])
+                    continue
+                if parts[0] in ("rrc-send", "rrc-action") and len(parts) == 3:
+                    if parts[0] == "rrc-send":
+                        rrc_hub.send_message(parts[1], parts[2])
+                    else:
+                        rrc_hub.send_action(parts[1], parts[2])
+                    emit("rrc-sent")
+                    continue
                 if parts[0] == "stats":
                     emit(
                         "stats",

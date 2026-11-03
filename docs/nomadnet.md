@@ -4,8 +4,8 @@ Experimental, independently authored .NET terminal application targeting primary
 NomadNet **1.4.4**, not an official implementation or a full port. The application
 reuses `ReticulumNode`, `ClientLinks` and `LxmRouter`; it does not duplicate LXMF,
 paper encryption, propagation, Reticulum links or Resource protocols.
-**Required software remains missing**, especially RRC group chat, complete Micron
-interaction and configuration/UI parity. These are implementation gaps, not
+**Required software remains missing**, including remaining RRC presentation
+behavior, automatic Micron partial composition and configuration/UI parity. These are implementation gaps, not
 hardware or optional-platform blockers. Sideband has its own implementation and
 inventory in [sideband.md](sideband.md); this document does not track it.
 
@@ -59,13 +59,13 @@ Underlying-library acceptance is not automatically application acceptance.
 | Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names. Trusted/untrusted/unknown warning policies, blacklist/ignore UI, node/propagation classification and upstream directory import are missing. |
 | Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **partial**: `nomadnetwork.node`, UTF-8 name app-data, default index, nested static pages, six-second startup announce and periodic node announce; explicit refresh and five-second directory scans. New/deleted paths update handlers. `.allowed` identity lists enforced. Source-specific counters, refresh interval settings and upstream default assets are not implemented. |
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
-| Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. Deterministic OS-process tests, not Python live execution acceptance. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
+| Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. OS-process tests cover native execution; selected Linux native browser also submits real forms to unmodified Python executable pages across a Python transport. Python-to-native executable-form browser acceptance remains unverified. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
 | Media; `Node.serve_media`, `convert_media_to_webp` | **partial**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` metadata-bearing responses. Conversion of PNG/JPEG/BMP/GIF/TIFF to WebP, conversion cache/quality/dimension settings and image display are missing, not silently substituted. |
-| Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file retrieval, identifies requests, links/bookmarks, reload, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Form-submission cache keys, navigation history, anchor jumps, partial updates, media requests/display and interactive file browser remain missing. |
-| Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked as text. Primary-executed inline vectors. Bare `[brackets]` are ordinary text. No full style/layout parity, editable fields, radio/check boxes, table layout, fold state, partial rendering or image widgets. Unsupported images/partials/forms are labelled. |
-| RRC; `RRC.py`, `ui/textui/Channels.py` | **missing required software**: hub connection/HELLO/WELCOME, CBOR envelope version 1, join/part, message/action/notice, nickname/member/mention state, ping/pong, resource envelopes, `/list`/`/who`, reconnect and durable per-room history. No invented chat format or substitute LXMF multicast is supplied. |
+| Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file retrieval, identifies requests, links/bookmarks, reload, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable form and variable submission; named anchor jumps; fold toggles; manual partial requests using current fields; explicit image-byte download. Submitted requests bypass cache, an intentional safety difference. Navigation history, automatic partial refresh/in-place widget composition, visual image decode and interactive file browser remain missing. |
+| Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
+| RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` commands and parsed directory state including fragmented list notices; manual reconnect and opt-in automatic exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange group messages/actions both directions, including hub/client restarts. Unread/active-room state, automatic list/who policy, per-room retention settings, Markdown/Micron message rendering and complete Channels UI remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop. Urwid menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
-| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contacts/messages/bookmarks, LXMF storage, attachment byte files and page cache; application identity/history/cache survive restart. Upstream config/directory/peer-settings/conversation/RRC file import and migration, peer-settings backup recovery and full restart policy are missing. |
+| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contacts/messages/bookmarks, LXMF storage, attachment byte files, page cache and separate bounded CBOR RRC hub profiles/history; application identity/history/cache and RRC nick/rooms/history survive restart. Upstream config/directory/peer-settings/conversation/RRC file import and migration, peer-settings backup recovery and full restart policy are missing. |
 
 ### Configuration audit
 
@@ -107,7 +107,9 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   `max_accepted_resource_size`, `ephemeral_notices`, `justify_msgs`, `space_msgs`,
   `nick_colors`, `mention_color`, `color_mention_timestamps`, `nick_colors_theme`,
   `render_markdown`, `render_micron`, `show_gutters`, `enable_esoterics`
-  — **missing**, together with the required RRC implementation.
+  — **missing as configurable options**. The implemented RRC core uses the
+  upstream 256 KiB resource default, a local 1,000-item/2 MiB aggregate history
+  bound and terminal-safe plain display; these are not configuration parity.
 - `[utilities] enable_utilities`; `[printing] print_messages`, `print_command`,
   `print_from` — **missing**.
 
@@ -116,7 +118,7 @@ bounds, no symlink/hidden/alternate-stream traversal, executable-page opt-in,
 short execution deadlines, separate attachment bytes rather than embedding them
 in history (256 MiB/4096-file attachment quota; exhaustion preserves text and
 reports rejected attachments), and bounded cache eviction (128 pages/32 MiB). The native cache
-binary layout and JSON/attachment layout are .NET-local persistence formats,
+binary layout, RRC profile layout and JSON/attachment layout are .NET-local persistence formats,
 not new wire protocols. Media conversion and authorised executable-page support
 are separate capabilities; one does not prove the other.
 
@@ -141,6 +143,40 @@ Attachments are stored under `attachments\<message-hash>\<index>.bin`, with
 and audio commands send existing encoded bytes; there is no hardware playback,
 capture or conversion claim. `paper` needs the recipient's announced identity.
 
+### Group chat and interactive pages
+
+RRC uses the same application identity but an independent identified `rrc.hub`
+Link, as required by the primary reference. It does not duplicate or repurpose
+LXMF. `rrc connect <hub-hash> [nick]`, `rrc join <room> [key]`,
+`rrc send <room> <text>`, `rrc action`, `rrc part`, `rrc list`, `rrc who`,
+`rrc ping`, `rrc history`, `rrc disconnect` and `rrc reconnect` operate the
+session. `rrc auto-reconnect on|off` persists optional recovery (default off,
+matching primary NomadNet). Reconnect waits grow exponentially to 60 seconds;
+HELLO is attempted five times with RTT-adjusted spacing. Each envelope must
+fit the negotiated Link MDU: larger chat messages are rejected, not fragmented
+with an invented format. Hub nickname/room/message/room-count/rate limits are
+enforced. Unsolicited resource data is not displayed; expected notice/MOTD data
+is size-matched, optionally SHA-256 checked, and bounded to 256 KiB.
+
+Profiles live at `rrc\<hub-hash>.cbor`; they atomically retain nick, desired
+rooms, optional reconnect policy and bounded history. They are **not** primary
+NomadNet `rrc_hubs`/concatenated history files. Room keys are not persisted.
+Only one hub is active in the terminal; stored profiles for other hubs remain.
+The receive queue, members, nick map and resource expectations are bounded;
+observer failures are reported without disabling core processing.
+
+After browsing, `fields` lists controls without disclosing masked values;
+`field <number> <value>` edits text (literal `\n` inserts a newline) or selects
+checkbox/radio `on|off`. `open <link-number>` includes the link's selected
+fields/variables. Checkbox values sharing a name comma-join; radios are mutually
+exclusive by name. `anchor <name>` reveals a folded target; `fold <number>`
+toggles section visibility. `partial <number>` or a `p:<id>` link retrieves
+partial text with current form values. Partial refresh intervals are parsed
+but **not scheduled**, and fetched partial widgets are not merged into the
+parent page. `media <number> <name.webp>` downloads bytes through `/media`;
+it does not decode/display or validate image quality. Forms are limited to
+128 controls and 64 KiB submitted text, independently of upstream layout sizes.
+
 ## Validation and reproduction
 
 Select exact native binaries with `DOTRETICULUM_NOMADNET_BINARY`; do not infer
@@ -158,6 +194,16 @@ under `artifacts\builds`; process evidence/work is under `artifacts\tests`.
   uninitialised upstream app supplies dark theme, real Urwid screen and
   256-colour settings for parser execution; no parser method is replaced.
   This is **not** full UI or live-node evidence.
+- The same generator executes real Urwid field parsing and
+  `Browser.handle_link`; only its `retrieve_url` I/O boundary is captured to
+  observe generated request dictionaries. This disclosed generator seam does
+  not replace form logic and is not the live executable-page test.
+- `GenerateNomadNetRrcVectors.py tests\NomadNet.Tests\NomadNetRrcVectors.json`
+  executes primary `RRC._make_envelope` and vendored CBOR encode/decode for
+  twelve packet types, recording full revision and raw source SHA-256
+  (checkout line endings affect raw-file hashes). C# byte-for-byte codec
+  round trips, malformed/deep/duplicate data, UTF-8 limits, resource integrity,
+  echo suppression, bounded state and disposal-cancelled path lookup pass.
 - Windows NativeAOT:
   `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64
   --artifacts-path artifacts\builds\nomadnet-functional-win
@@ -195,8 +241,8 @@ under `artifacts\builds`; process evidence/work is under `artifacts\tests`.
 
 ### Recorded acceptance
 
-- Windows scoped managed: **24 passed, 2 explicit Linux-only skips**.
-- Linux scoped managed: **26 passed, 0 skipped**.
+- Windows scoped managed: **40 passed, 2 explicit Linux-only skips**.
+- Linux scoped managed: **42 passed, 0 skipped**.
 - Windows and Linux selected NativeAOT binaries: **4/4 Native cases each**.
 - Windows selected NativeAOT against Python LXMF: **1 passed**; the explicitly
   Linux-only primary-app case **skipped**.
@@ -207,17 +253,54 @@ under `artifacts\builds`; process evidence/work is under `artifacts\tests`.
   inferred hardware or `rnsd` packaging claim.
 - Full Windows solution at this integrated source state:
   `dotnet build DotReticulum.Ecosystem.slnx -c Release
-  --artifacts-path artifacts\builds\nomadnet-solution-acceptance` —
+  --artifacts-path artifacts\builds\nomadnet-rrc-full` —
   **0 warnings/errors**; corresponding `dotnet test ... --no-build` —
-  **268 passed, 51 skipped, 0 failed** across five projects.
+  **302 passed, 52 skipped, 0 failed** across five projects.
 
 The harness waits for durable direct `delivered` state before shutting down
 its sending process. An application race where stale callbacks could overwrite
 terminal delivery status was fixed with atomic status updates; a regression
 test preserves terminal states. Test work directories are isolated across hosts.
 
+#### RRC and executable-form application acceptance
+
+The supplemental hub is the upstream-linked canonical GitHub repository
+`https://github.com/kc1awv/rrcd`, version **0.3.2**, pinned to
+`f6d7e9d72bf83c70d7a9373ae8c5edaa052a7bf2`. It is not a replacement for the
+primary NomadNet pin. `nomadnet_rrc_hub.py` verifies clean revision/import and
+calls the unmodified `HubService`; the existing app adapter calls the actual
+primary `NomadNetworkApp.rrc` APIs. No RRC handler is replaced. Declared missing
+`cbor2` and `tomlkit` dependencies were installed into the isolated reference
+venv; the pinned RNS/LXMF source selection remains verified.
+
+`Invoke-Pester -Path tests\Pester\NomadNet.Tests.ps1 -Tag Rrc`:
+**1 passed, 0 skipped** on Linux selected NativeAOT. Set
+`DOTRETICULUM_NOMADNET_RRC_LIVE=1`,
+`DOTRETICULUM_NOMADNET_RRCD_SOURCE` and the existing primary-source, Python,
+RNS, LXMF and exact binary variables. The topology has native and actual
+Python app clients attached to a real Python rrcd hub. Group chat is directly
+to the hub; the Python app's executable page is reached across the hub's
+enabled RNS transport (two hops). Tests exchange messages/actions both ways,
+receive a 2 KiB Resource MOTD, observe `/who` and ping, reject over-limit text,
+reconnect a link, restart the native client with durable room/history/nick,
+restart the hub with retained identity, and verify automatic client recovery.
+The native browser edits text/checkbox/radio fields and submits exact
+`field_*`/`var_*` values to real Python executable form and partial pages.
+This does not claim upstream Urwid interaction, Windows RRC live acceptance,
+large-file chat, packet-loss recovery, or automatic partial composition.
+
+Selected RRC/form binaries:
+
+- Windows: `artifacts\builds\nomadnet-rrc-win\publish\NomadNet\release_win-x64\nomadnet.exe`;
+  SHA-256 `41b34ad2c111cb586f9de27ef0ba54cebcd180f6461c9df0fd2990fa49569e8b`.
+- Linux: `artifacts\builds\nomadnet-rrc-linux\publish\NomadNet\release_linux-x64\nomadnet`;
+  SHA-256 `3304813e3a59e63f0a76b27f98d71ef38a40e2f9d41ef5f150398e03a2774dbb`.
+
+Both use the publish commands above with their `nomadnet-rrc-*` artifacts paths,
+trim/AOT warnings as errors. Windows and Linux selected Native cases pass **4/4 each**.
+
 Packet-loss/latency impairment, RF, physical audio/printers, macOS and other
 operating systems remain **unverified**. No new DotReticulum API gap was needed
-for this bounded slice. Group chat, full Micron, media conversion, configuration
+for this bounded slice. Remaining RRC behaviors, full Micron, media conversion, configuration
 parity and mixed Python application-level propagation acceptance remain required
 work rather than a claim of completed NomadNet parity.

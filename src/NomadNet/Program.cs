@@ -175,7 +175,7 @@ internal static class Program
         await router.AnnounceAsync(cancellationToken).ConfigureAwait(false);
         if (propagation is not null) await propagation.AnnounceAsync(cancellationToken).ConfigureAwait(false);
         var receiver = PersistIncomingAsync(inbox.Reader, state, options.DataDirectory, cancellationToken);
-        var session = new TerminalSession(node, identity, router, state, options.DataDirectory, settings, host);
+        await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, settings, host);
 
         Console.WriteLine("NomadNet .NET client (scoped native implementation; type help for commands)");
         Console.WriteLine($"LXMF delivery address: {router.DeliveryHashHex}");
@@ -259,10 +259,22 @@ internal static class Program
               messages [hash]                 Show durable conversation history
               browse <hash> [page-path]       Fetch a bounded Nomad Network page
               links | open <number>            Follow a displayed Micron link
+              fields | field <number> <value> Edit text or select checkbox/radio (on/off)
+              anchor <name> | fold <number>    Jump to anchor or toggle section
+              partial <number>                Fetch a partial with current form data
+              media <number> <name.webp>      Download image bytes (no visual decode)
               reload                          Fetch current page without cache
               bookmark [title] | bookmarks | open-bookmark <number>
               fetch <hash> <file-path> <name> Download a bounded /file response
               node refresh | node announce    Refresh or announce hosted content
+              rrc connect <hub> [nick]        Connect to an identified rrc.hub
+              rrc join <room> [key] | rrc part <room>
+              rrc send|action <room> <text>  Send group message/action
+              rrc list | rrc who <room>       Request hub rooms/membership
+              rrc rooms | rrc members <room> Show parsed directory/member state
+              rrc nick <name> | rrc ping
+              rrc auto-reconnect <on|off>     Persist optional hub recovery policy
+              rrc status | rrc history [room] | rrc disconnect | rrc reconnect
               help | quit
 
             The app stores its identity, contacts, conversations, and bookmarks below --config.
@@ -272,13 +284,21 @@ internal static class Program
     private sealed record Options(string DataDirectory, string? RnsConfig, bool Initialize, bool ShowStatus, bool Daemon);
 
     private sealed class TerminalSession(ReticulumNode node, Identity identity, LxmRouter router, NomadNetStore store,
-        string dataDirectory, NomadNetSettings settings, NomadNetHost? host)
+        string dataDirectory, NomadNetSettings settings, NomadNetHost? host) : IAsyncDisposable
     {
         private NomadNetSettings _settings = settings;
         private readonly NomadNetPageCache _cache = new(dataDirectory);
         private readonly List<NomadNetPageLink> _lastLinks = [];
         private string? _currentNode;
         private string _currentPath = NomadNetAddress.DefaultPagePath;
+        private RrcClient? _rrc;
+        private NomadNetRenderedPage? _page;
+        private object? _currentRequestData;
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_rrc is not null) await _rrc.DisposeAsync().ConfigureAwait(false);
+        }
 
         public async Task RunAsync(CancellationToken cancellationToken)
         {
@@ -314,6 +334,11 @@ internal static class Program
             if (command.Equals("quit", StringComparison.OrdinalIgnoreCase) || command.Equals("exit", StringComparison.OrdinalIgnoreCase))
                 return true;
             if (command.Equals("help", StringComparison.OrdinalIgnoreCase)) { PrintHelp(); return false; }
+            if (command.StartsWith("rrc ", StringComparison.OrdinalIgnoreCase))
+            {
+                await ExecuteRrcAsync(command[4..], cancellationToken).ConfigureAwait(false);
+                return false;
+            }
             if (command.Equals("status", StringComparison.OrdinalIgnoreCase))
             {
                 Console.WriteLine($"LXMF delivery address: {router.DeliveryHashHex}");
@@ -321,6 +346,7 @@ internal static class Program
                 Console.WriteLine(node.IsConnectedToSharedInstance ? "Connected to shared Reticulum instance." : "Using local Reticulum instance.");
                 return false;
             }
+
             if (command.Equals("peers", StringComparison.OrdinalIgnoreCase)) { await ShowPeersAsync(cancellationToken).ConfigureAwait(false); return false; }
             if (command.Equals("node refresh", StringComparison.OrdinalIgnoreCase))
             {
@@ -435,18 +461,94 @@ internal static class Program
                 return false;
             }
             if (command.Equals("links", StringComparison.OrdinalIgnoreCase)) { ShowLinks(); return false; }
+            if (command.Equals("fields", StringComparison.OrdinalIgnoreCase))
+            {
+                var fields = (_page ?? throw new InvalidOperationException("Browse a page first.")).Fields;
+                for (var index = 0; index < fields.Count; index++)
+                    Console.WriteLine($"Field {index + 1}: {NomadNetTerminalText.Safe(fields[index].Name)} ({fields[index].Kind}) = " +
+                        (fields[index].Kind == "field" ? fields[index].DisplayValue : fields[index].Selected ? "on" : "off"));
+                Console.WriteLine("Fields complete.");
+                return false;
+            }
+            if (command.StartsWith("field ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = Split(command, 3);
+                var page = _page ?? throw new InvalidOperationException("Browse a page first.");
+                if (parts.Length < 2) throw new ArgumentException("Use field <number> [value].");
+                page.SetField(ParseIndex(parts[1], page.Fields.Count), parts.Length == 3 ? parts[2].Replace("\\n", "\n", StringComparison.Ordinal) : "");
+                Console.WriteLine("Field updated.");
+                return false;
+            }
+            if (command.StartsWith("anchor ", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine((_page ?? throw new InvalidOperationException("Browse a page first.")).AtAnchor(command[7..]));
+                return false;
+            }
+            if (command.StartsWith("fold ", StringComparison.OrdinalIgnoreCase))
+            {
+                var page = _page ?? throw new InvalidOperationException("Browse a page first.");
+                page.ToggleFold(ParseIndex(command[5..], page.Folds.Count));
+                Console.WriteLine(page.DisplayText);
+                return false;
+            }
+            if (command.StartsWith("partial ", StringComparison.OrdinalIgnoreCase))
+            {
+                var page = _page ?? throw new InvalidOperationException("Browse a page first.");
+                var partial = page.Partials[ParseIndex(command[8..], page.Partials.Count) - 1];
+                await FetchPartialAsync(partial, page, cancellationToken).ConfigureAwait(false);
+                return false;
+            }
+            if (command.StartsWith("media ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = Split(command, 3);
+                var page = _page ?? throw new InvalidOperationException("Browse a page first.");
+                if (parts.Length != 3) throw new ArgumentException("Use media <number> <name.webp>.");
+                var media = page.Media[ParseIndex(parts[1], page.Media.Count) - 1];
+                var target = NomadNetAddress.ParseUrl(media.Target, _currentNode, media: true);
+                var bytes = await RequestAsync(Convert.FromHexString(target.DestinationHash), "/media",
+                    new Dictionary<object, object?> { ["path"] = target.Path, ["key"] = null }, 16 * 1024 * 1024, cancellationToken).ConfigureAwait(false);
+                await SaveDownloadAsync(bytes, parts[2], cancellationToken).ConfigureAwait(false);
+                return false;
+            }
             if (command.StartsWith("open ", StringComparison.OrdinalIgnoreCase))
             {
                 var number = ParseIndex(command["open ".Length..], _lastLinks.Count);
-                var target = _lastLinks[number - 1].Target;
+                var link = _lastLinks[number - 1];
+                var target = link.Target;
+                if (target.StartsWith('#'))
+                {
+                    Console.WriteLine((_page ?? throw new InvalidOperationException("Browse a page first.")).AtAnchor(target[1..]));
+                    return false;
+                }
+                if (target.StartsWith("p:", StringComparison.Ordinal))
+                {
+                    var page = _page ?? throw new InvalidOperationException("Browse a page first.");
+                    foreach (var id in target[2..].Split(':'))
+                    {
+                        var partial = page.Partials.FirstOrDefault(item => item.Id == id) ?? throw new ArgumentException("Unknown partial: " + id);
+                        await FetchPartialAsync(partial, page, cancellationToken).ConfigureAwait(false);
+                    }
+                    return false;
+                }
+                if (target.StartsWith("rrc://", StringComparison.Ordinal) || target.StartsWith("rrc@", StringComparison.Ordinal))
+                {
+                    var address = target[(target.StartsWith("rrc://", StringComparison.Ordinal) ? 6 : 4)..].Split('/', 2);
+                    var hub = address[0].Split(':');
+                    if (hub.Length > 1 && hub[1] != "rrc.hub") throw new ArgumentException("Only the primary rrc.hub destination is supported.");
+                    await ExecuteRrcAsync("connect " + hub[0], cancellationToken).ConfigureAwait(false);
+                    if (address.Length == 2 && address[1].TrimStart('#').Length > 0)
+                        await _rrc!.JoinAsync(address[1].TrimStart('#'), cancellationToken: cancellationToken).ConfigureAwait(false);
+                    return false;
+                }
                 var destination = NomadNetAddress.ParseUrl(target, _currentNode);
-                await BrowseAsync(destination.DestinationHash, destination.Path, cancellationToken).ConfigureAwait(false);
+                await BrowseAsync(destination.DestinationHash, destination.Path, cancellationToken,
+                    requestData: _page?.Submission(link.Fields)).ConfigureAwait(false);
                 return false;
             }
             if (command.Equals("reload", StringComparison.OrdinalIgnoreCase))
             {
                 if (_currentNode is null) throw new InvalidOperationException("Browse a page first.");
-                await BrowseAsync(_currentNode, _currentPath, cancellationToken, reload: true).ConfigureAwait(false);
+                await BrowseAsync(_currentNode, _currentPath, cancellationToken, reload: true, requestData: _currentRequestData).ConfigureAwait(false);
                 return false;
             }
             if (command.Equals("bookmark", StringComparison.OrdinalIgnoreCase) || command.StartsWith("bookmark ", StringComparison.OrdinalIgnoreCase))
@@ -479,6 +581,63 @@ internal static class Program
                 return false;
             }
             throw new ArgumentException("Unknown command. Type help for available commands.");
+        }
+
+        private async Task ExecuteRrcAsync(string command, CancellationToken cancellationToken)
+        {
+            var parts = Split(command, 3);
+            if (parts.Length == 0) throw new ArgumentException("Use rrc connect <hub> [nick].");
+            if (parts[0].Equals("connect", StringComparison.OrdinalIgnoreCase))
+            {
+                if (parts.Length < 2) throw new ArgumentException("Use rrc connect <hub> [nick].");
+                if (_rrc is not null) await _rrc.DisposeAsync().ConfigureAwait(false);
+                _rrc = await RrcClient.OpenAsync(node, identity, dataDirectory, parts[1], cancellationToken).ConfigureAwait(false);
+                _rrc.Log = message => Console.WriteLine(NomadNetTerminalText.Safe(message));
+                _rrc.MessageReceived += message => Console.WriteLine($"RRC [{NomadNetTerminalText.Safe(message.Room ?? "hub")}] " +
+                    $"{NomadNetTerminalText.Safe(message.Nick ?? message.Source)}: {NomadNetTerminalText.Safe(message.Text)}");
+                if (parts.Length == 3) await _rrc.SetNickAsync(parts[2], cancellationToken).ConfigureAwait(false);
+                await _rrc.ConnectAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                var client = _rrc ?? throw new InvalidOperationException("Connect to an RRC hub first.");
+                switch (parts[0].ToLowerInvariant())
+                {
+                    case "disconnect": await client.DisconnectAsync(cancellationToken).ConfigureAwait(false); break;
+                    case "reconnect": await client.ConnectAsync(cancellationToken).ConfigureAwait(false); break;
+                    case "status": Console.WriteLine(await client.StatusAsync(cancellationToken).ConfigureAwait(false)); break;
+                    case "nick" when parts.Length >= 2:
+                        await client.SetNickAsync(command[5..], cancellationToken).ConfigureAwait(false); break;
+                    case "auto-reconnect" when parts.Length == 2 && parts[1] is "on" or "off":
+                        await client.SetAutoReconnectAsync(parts[1] == "on", cancellationToken).ConfigureAwait(false); break;
+                    case "join" when parts.Length >= 2:
+                        await client.JoinAsync(parts[1], parts.Length == 3 ? parts[2] : null, cancellationToken).ConfigureAwait(false); break;
+                    case "part" when parts.Length == 2:
+                        await client.PartAsync(parts[1], cancellationToken).ConfigureAwait(false); break;
+                    case "send" or "action" when parts.Length == 3:
+                        await client.SendMessageAsync(parts[1], parts[2], parts[0].Equals("action", StringComparison.OrdinalIgnoreCase), cancellationToken)
+                            .ConfigureAwait(false); break;
+                    case "list": await client.SendMessageAsync(null, "/list", cancellationToken: cancellationToken).ConfigureAwait(false); break;
+                    case "rooms":
+                        foreach (var (room, topic) in await client.RoomsAsync(cancellationToken).ConfigureAwait(false))
+                            Console.WriteLine($"RRC room {NomadNetTerminalText.Safe(room)}: {NomadNetTerminalText.Safe(topic ?? "")}");
+                        break;
+                    case "members" when parts.Length == 2:
+                        foreach (var member in await client.MembersAsync(parts[1], cancellationToken).ConfigureAwait(false))
+                            Console.WriteLine($"RRC member {member.Hash}: {NomadNetTerminalText.Safe(member.Nick ?? "")}");
+                        break;
+                    case "who" when parts.Length == 2:
+                        await client.SendMessageAsync(parts[1], "/who " + parts[1], cancellationToken: cancellationToken).ConfigureAwait(false); break;
+                    case "ping": await client.PingAsync(cancellationToken).ConfigureAwait(false); break;
+                    case "history":
+                        foreach (var message in await client.HistoryAsync(parts.Length >= 2 ? parts[1] : null, cancellationToken).ConfigureAwait(false))
+                            Console.WriteLine($"RRC history [{NomadNetTerminalText.Safe(message.Room ?? "hub")}] " +
+                                $"{NomadNetTerminalText.Safe(message.Nick ?? message.Source)}: {NomadNetTerminalText.Safe(message.Text)}");
+                        break;
+                    default: throw new ArgumentException("Unknown/incomplete RRC command; use help.");
+                }
+            }
+            Console.WriteLine("RRC command complete.");
         }
 
         private async Task SendAsync(string destinationText, string content, CancellationToken cancellationToken,
@@ -533,24 +692,35 @@ internal static class Program
             return Task.CompletedTask;
         }
 
-        private async Task BrowseAsync(string hashText, string pathText, CancellationToken cancellationToken, bool reload = false)
+        private async Task BrowseAsync(string hashText, string pathText, CancellationToken cancellationToken, bool reload = false, object? requestData = null)
         {
             var hash = Convert.FromHexString(NomadNetAddress.NormalizeHash(hashText));
             var path = NomadNetAddress.NormalizePagePath(pathText);
             var url = Convert.ToHexStringLower(hash) + ":" + path;
             if (reload) _cache.Remove(url);
-            var cached = await _cache.ReadAsync(url, cancellationToken).ConfigureAwait(false);
-            var body = cached ?? await RequestAsync(hash, path, null, MicronText.MaximumPageBytes, cancellationToken).ConfigureAwait(false);
-            if (cached is null) await _cache.StoreAsync(url, body, cancellationToken).ConfigureAwait(false);
+            var cached = requestData is null ? await _cache.ReadAsync(url, cancellationToken).ConfigureAwait(false) : null;
+            var body = cached ?? await RequestAsync(hash, path, requestData, MicronText.MaximumPageBytes, cancellationToken).ConfigureAwait(false);
+            if (cached is null && requestData is null) await _cache.StoreAsync(url, body, cancellationToken).ConfigureAwait(false);
             var page = MicronText.Render(body);
+            _page = page;
+            _currentRequestData = requestData;
             _currentNode = Convert.ToHexStringLower(hash);
             _currentPath = path;
             _lastLinks.Clear();
             _lastLinks.AddRange(page.Links);
             Console.WriteLine($"--- {_currentNode}:{_currentPath} ---");
             if (cached is not null) Console.WriteLine("(cached page)");
-            Console.WriteLine(page.Text);
+            Console.WriteLine(page.DisplayText);
             ShowLinks();
+        }
+
+        private async Task FetchPartialAsync(NomadNetPagePartial partial, NomadNetRenderedPage page, CancellationToken cancellationToken)
+        {
+            var target = NomadNetAddress.ParseUrl(partial.Target, _currentNode);
+            var bytes = await RequestAsync(Convert.FromHexString(target.DestinationHash), target.Path, page.Submission(partial.Fields),
+                MicronText.MaximumPageBytes, cancellationToken).ConfigureAwait(false);
+            Console.WriteLine($"--- partial {NomadNetTerminalText.Safe(partial.Id)} ---");
+            Console.WriteLine(MicronText.Render(bytes).DisplayText);
         }
 
         private async Task FetchFileAsync(string hashText, string remotePath, string outputName, CancellationToken cancellationToken)
@@ -559,11 +729,16 @@ internal static class Program
             if (!remotePath.StartsWith("/file/", StringComparison.Ordinal) || remotePath.Length > 512 ||
                 remotePath.Contains('\\') || remotePath.Split('/').Any(segment => segment is "." or ".."))
                 throw new ArgumentException("Remote files must use a safe Nomad Network /file path.");
+            var bytes = await RequestAsync(hash, remotePath, null, 16 * 1024 * 1024, cancellationToken).ConfigureAwait(false);
+            await SaveDownloadAsync(bytes, outputName, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task SaveDownloadAsync(byte[] bytes, string outputName, CancellationToken cancellationToken)
+        {
             var name = Path.GetFileName(outputName);
             if (name.Length == 0 || name != outputName || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
                 name.Any(char.IsControl))
                 throw new ArgumentException("Output name must be a plain file name.");
-            var bytes = await RequestAsync(hash, remotePath, null, 16 * 1024 * 1024, cancellationToken).ConfigureAwait(false);
             var directory = Path.Combine(dataDirectory, "downloads");
             Directory.CreateDirectory(directory);
             var output = Path.Combine(directory, name);

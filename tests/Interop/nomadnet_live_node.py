@@ -23,6 +23,27 @@ def emit(event, **values):
         sys.stdout.flush()
 
 
+def command_lines():
+    # Upstream forks stamp workers. A blocked BufferedReader lock survives fork
+    # and deadlocks child stdin closure; raw OS reads do not hold that Python lock.
+    pending = bytearray()
+    while True:
+        chunk = os.read(sys.stdin.fileno(), 4096)
+        if not chunk:
+            if pending:
+                yield pending.decode("utf-8")
+            return
+        pending.extend(chunk)
+        while b"\n" in pending:
+            line, _, remaining = pending.partition(b"\n")
+            pending = bytearray(remaining)
+            if len(line) > 65536:
+                raise ValueError("adapter command exceeds 64 KiB")
+            yield line.decode("utf-8")
+        if len(pending) > 65536:
+            raise ValueError("adapter command exceeds 64 KiB")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
@@ -71,14 +92,24 @@ def main():
                 module=nomadnet.__file__,
                 node=app.node.destination.hash.hex(),
                 delivery=app.lxmf_destination.hash.hex(),
+                propagation=(app.message_router.propagation_destination.hash.hex()
+                             if app.message_router.propagation_node else None),
                 revision=revision,
             )
             app.rrc.set_message_callback(lambda hub, message: emit(
                 "rrc-message", kind=message.kind, room=message.room, text=message.text,
                 nick=message.nick, source=message.src.hex() if isinstance(message.src, bytes) else None))
+            def observe_delivery(message):
+                app.lxmf_delivery(message)
+                files = message.fields.get(LXMF.FIELD_FILE_ATTACHMENTS, [])
+                emit("received", content=message.content.decode("utf-8", errors="replace"),
+                     method=message.method,
+                     files=[{"size": len(item[1]), "sha256": hashlib.sha256(item[1]).hexdigest()}
+                            for item in files])
+            app.message_router.register_delivery_callback(observe_delivery)
             rrc_hub = None
 
-            for raw_line in sys.stdin:
+            for raw_line in command_lines():
                 if len(raw_line) > 65536:
                     raise ValueError("adapter command exceeds 64 KiB")
                 parts = raw_line.rstrip("\r\n").split(" ", 2)
@@ -86,6 +117,8 @@ def main():
                     continue
                 if parts[0] == "quit":
                     app.exit_handler()
+                    app.message_router.exit_handler()
+                    RNS.Reticulum.exit_handler()
                     os._exit(0)
                 if parts[0] == "rrc-connect" and len(parts) >= 2:
                     rrc_hub = app.rrc.add_hub(bytes.fromhex(parts[1]))
@@ -121,13 +154,34 @@ def main():
                         served_files=app.peer_settings["served_file_requests"],
                         page_directory=app.pagespath,
                         registered_pages=app.node.servedpages,
+                        propagation_messages=len(app.message_router.propagation_entries),
+                        sync_state=app.message_router.propagation_transfer_state,
                     )
+                    continue
+                if parts[0] == "announce":
+                    app.announce_now()
+                    if app.message_router.propagation_node:
+                        app.message_router.announce_propagation_node()
+                    emit("announced")
+                    continue
+                if parts[0] == "propagation" and len(parts) >= 2:
+                    app.set_user_selected_propagation_node(bytes.fromhex(parts[1]))
+                    emit("propagation-selected", node=app.message_router.get_outbound_propagation_node().hex())
+                    continue
+                if parts[0] == "sync":
+                    app.request_lxmf_sync(limit=int(parts[1]) if len(parts) >= 2 else None)
+                    deadline = time.monotonic() + 120
+                    while (app.message_router.propagation_transfer_state < LXMF.LXMRouter.PR_COMPLETE
+                           and time.monotonic() < deadline):
+                        time.sleep(0.1)
+                    emit("synced", state=app.message_router.propagation_transfer_state,
+                         result=app.message_router.propagation_transfer_last_result)
                     continue
                 if parts[0] == "ingest" and len(parts) >= 2:
                     accepted = app.message_router.ingest_lxm_uri(parts[1])
                     emit("ingested", accepted=accepted)
                     continue
-                if parts[0] not in ("send", "send-file", "paper", "request") or len(parts) != 3:
+                if parts[0] not in ("send", "send-file", "send-propagated", "paper", "request") or len(parts) != 3:
                     raise ValueError("expected send, send-file, paper, request, ingest, stats, or quit")
 
                 destination_hash = bytes.fromhex(parts[1])
@@ -188,7 +242,9 @@ def main():
                     app.lxmf_destination,
                     content,
                     "",
-                    desired_method=LXMF.LXMessage.PAPER if parts[0] == "paper" else LXMF.LXMessage.DIRECT,
+                    desired_method=(LXMF.LXMessage.PAPER if parts[0] == "paper"
+                                    else LXMF.LXMessage.PROPAGATED if parts[0] == "send-propagated"
+                                    else LXMF.LXMessage.DIRECT),
                     fields=fields,
                 )
                 if parts[0] == "paper":

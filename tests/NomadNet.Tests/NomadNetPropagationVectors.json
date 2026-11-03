@@ -1,0 +1,127 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "method": "Actual autoselect_propagation_node/request_lxmf_sync/message_notification; network, persistence and directory observation seams only",
+  "sourceSha256": {
+    "NomadNetworkApp.py": "beda2e618d67200cb14cf7d636efa34f13b4607f99717575f02a1c91fafcf60b",
+    "Conversation.py": "38c419564248cc8777669ec77a055f8dcebcdf0e94a71ee4f7970c7d76640df5",
+    "Directory.py": "2c1e333044d0417573eef7c280737a849d34f5942303142891770aed05cf8744"
+  },
+  "selection": [
+    {
+      "manual": null,
+      "nodes": [
+        [
+          1,
+          255,
+          4
+        ],
+        [
+          2,
+          255,
+          2
+        ],
+        [
+          3,
+          2,
+          1
+        ]
+      ],
+      "previous": null,
+      "selected": 2
+    },
+    {
+      "manual": null,
+      "nodes": [
+        [
+          1,
+          255,
+          2
+        ],
+        [
+          2,
+          255,
+          2
+        ]
+      ],
+      "previous": null,
+      "selected": 1
+    },
+    {
+      "manual": null,
+      "nodes": [
+        [
+          1,
+          2,
+          1
+        ]
+      ],
+      "previous": 9,
+      "selected": 9
+    },
+    {
+      "manual": 8,
+      "nodes": [
+        [
+          1,
+          255,
+          1
+        ]
+      ],
+      "previous": null,
+      "selected": 8
+    }
+  ],
+  "sync": [
+    {
+      "state": 0,
+      "started": true,
+      "persistedBeforeRequest": true
+    },
+    {
+      "state": 1,
+      "started": false,
+      "persistedBeforeRequest": false
+    },
+    {
+      "state": 6,
+      "started": false,
+      "persistedBeforeRequest": false
+    },
+    {
+      "state": 7,
+      "started": true,
+      "persistedBeforeRequest": true
+    },
+    {
+      "state": 240,
+      "started": true,
+      "persistedBeforeRequest": true
+    }
+  ],
+  "fallback": [
+    {
+      "failed": true,
+      "enabled": true,
+      "stampFailure": false,
+      "retry": true
+    },
+    {
+      "failed": true,
+      "enabled": true,
+      "stampFailure": true,
+      "retry": false
+    },
+    {
+      "failed": true,
+      "enabled": false,
+      "stampFailure": false,
+      "retry": false
+    },
+    {
+      "failed": false,
+      "enabled": true,
+      "stampFailure": false,
+      "retry": false
+    }
+  ]
+}

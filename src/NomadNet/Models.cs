@@ -18,6 +18,13 @@ public sealed record NomadNetSettings
     public bool EnableExecutablePages { get; set; }
     public bool EnablePropagation { get; set; }
     public string? PropagationNode { get; set; }
+    public bool UsePropagation { get; set; } = true;
+    public List<string> TrustedNodes { get; set; } = [];
+    public bool PeriodicLxmfSync { get; set; } = true;
+    public int LxmfSyncIntervalMinutes { get; set; } = 360;
+    public int LxmfSyncLimit { get; set; } = 8;
+    public DateTimeOffset? LastLxmfSync { get; set; }
+    public bool TryPropagationOnSendFail { get; set; } = true;
     public int DeliveryTransferLimitBytes { get; set; } = 1_000_000;
 
     public async Task SaveAsync(string directory, CancellationToken cancellationToken = default)
@@ -55,13 +62,18 @@ public sealed record NomadNetSettings
             finally { if (File.Exists(temporary)) File.Delete(temporary); }
         }
 
-        if (new FileInfo(path).Length > 4096) throw new InvalidDataException("NomadNet settings exceed the size limit.");
+        if (new FileInfo(path).Length > 16 * 1024) throw new InvalidDataException("NomadNet settings exceed the size limit.");
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         var settings = await System.Text.Json.JsonSerializer.DeserializeAsync(stream, NomadNetJsonContext.Default.NomadNetSettings,
             cancellationToken).ConfigureAwait(false) ?? throw new InvalidDataException("NomadNet settings file is empty.");
         settings.Validate();
-        return settings with { DisplayName = settings.DisplayName.Trim() };
+        return settings with
+        {
+            DisplayName = settings.DisplayName.Trim(),
+            PropagationNode = settings.PropagationNode is null ? null : NomadNetAddress.NormalizeHash(settings.PropagationNode),
+            TrustedNodes = settings.TrustedNodes.Select(NomadNetAddress.NormalizeHash).Distinct(StringComparer.Ordinal).ToList(),
+        };
     }
 
     private void Validate()
@@ -69,11 +81,15 @@ public sealed record NomadNetSettings
         if (SchemaVersion != 1 || string.IsNullOrWhiteSpace(DisplayName) ||
             DisplayName.Trim().Length > 80 || DisplayName.Any(char.IsControl) ||
             NodeAnnounceIntervalMinutes is < 1 or > 10080 ||
+            LxmfSyncIntervalMinutes is < 1 or > 525600 ||
+            LxmfSyncLimit is < 0 or > 100000 ||
+            TrustedNodes is null || TrustedNodes.Count > 128 ||
             DeliveryTransferLimitBytes is < 1024 or > 64 * 1024 * 1024 ||
             NodeName is { } nodeName && (string.IsNullOrWhiteSpace(nodeName) || nodeName.Length > 80 || nodeName.Any(char.IsControl)) ||
             EnablePropagation && !EnableNode)
             throw new InvalidDataException("NomadNet settings contain an invalid version or display name.");
         if (PropagationNode is not null) _ = NomadNetAddress.NormalizeHash(PropagationNode);
+        foreach (var hash in TrustedNodes) _ = NomadNetAddress.NormalizeHash(hash);
     }
 }
 

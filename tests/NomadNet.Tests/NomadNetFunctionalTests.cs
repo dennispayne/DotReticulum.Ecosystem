@@ -180,7 +180,7 @@ public sealed class NomadNetFunctionalTests
         {
             var settings = new NomadNetSettings { EnableNode = true, EnablePropagation = true, PropagationNode = new string('b', 32), NodeName = "Test" };
             await settings.SaveAsync(directory);
-            Assert.Equal(settings, await NomadNetSettings.OpenAsync(directory));
+            Assert.Equivalent(settings, await NomadNetSettings.OpenAsync(directory), strict: true);
             await Assert.ThrowsAsync<InvalidDataException>(() => (settings with { NodeAnnounceIntervalMinutes = 0 }).SaveAsync(directory));
             await Assert.ThrowsAsync<InvalidDataException>(() => (settings with { EnableNode = false }).SaveAsync(directory));
         }

@@ -165,7 +165,14 @@ internal static class Program
             catch (ChannelClosedException) { }
         };
         router.Start();
-        if (settings.PropagationNode is not null) router.OutboundPropagationNode = Convert.FromHexString(settings.PropagationNode);
+        await using var propagationPolicy = new NomadNetPropagation(options.DataDirectory, settings,
+            () => FindPropagationCandidates(node.Router),
+            hash => router.OutboundPropagationNode = hash is null ? null : Convert.FromHexString(hash),
+            (limit, token) => router.RequestMessagesFromPropagationNodeAsync(maxMessages: limit, cancellationToken: token),
+            router.CancelPropagationNodeRequests)
+        { Log = message => Console.WriteLine(message) };
+        await propagationPolicy.RefreshSelectionAsync(cancellationToken).ConfigureAwait(false);
+        propagationPolicy.Start();
         var propagation = settings.EnablePropagation ? router.EnablePropagationNode() : null;
         await using var host = settings.EnableNode ? new NomadNetHost(node.Router, identity, options.DataDirectory, settings)
         {
@@ -175,7 +182,7 @@ internal static class Program
         await router.AnnounceAsync(cancellationToken).ConfigureAwait(false);
         if (propagation is not null) await propagation.AnnounceAsync(cancellationToken).ConfigureAwait(false);
         var receiver = PersistIncomingAsync(inbox.Reader, state, options.DataDirectory, cancellationToken);
-        await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, settings, host);
+        await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host);
 
         Console.WriteLine("NomadNet .NET client (scoped native implementation; type help for commands)");
         Console.WriteLine($"LXMF delivery address: {router.DeliveryHashHex}");
@@ -245,6 +252,7 @@ internal static class Program
 
             Interactive commands:
               status                         Show identity and Reticulum connectivity
+              announce                       Reannounce delivery and hosted destinations
               peers                          List announced Reticulum destinations
               contact add <hash> <name>      Save a known LXMF destination
               contacts | contact remove <hash>
@@ -254,8 +262,11 @@ internal static class Program
               image|audio <hash> <file>      Send encoded image/audio (no transcoding)
               paper <hash> <message>         Generate an encrypted lxm:// URI
               ingest <lxm://uri>             Ingest a paper URI for this identity
-              propagation <hash|off>         Select and persist propagation node
-              sync                           Retrieve messages from selected node
+              propagation <hash|auto|off>    Select and persist propagation node
+              trust-node <node-hash> <on|off> Trust node identity for automatic selection
+              sync [limit] | sync status|cancel|wait
+              sync schedule <on|off> [minutes] [limit]
+              fallback <on|off>              Retry failed direct messages via propagation
               messages [hash]                 Show durable conversation history
               browse <hash> [page-path]       Fetch a bounded Nomad Network page
               links | open <number>            Follow a displayed Micron link
@@ -283,10 +294,29 @@ internal static class Program
 
     private sealed record Options(string DataDirectory, string? RnsConfig, bool Initialize, bool ShowStatus, bool Daemon);
 
-    private sealed class TerminalSession(ReticulumNode node, Identity identity, LxmRouter router, NomadNetStore store,
-        string dataDirectory, NomadNetSettings settings, NomadNetHost? host) : IAsyncDisposable
+    private static IEnumerable<NomadNetPropagationCandidate> FindPropagationCandidates(TransportRouter transport)
     {
-        private NomadNetSettings _settings = settings;
+        foreach (var entry in transport.Engine.Known.ExportSnapshot())
+        {
+            if (!LxmfPropagationAnnounce.TryParse(entry.Entry.AppData, out var announce) || !announce!.Enabled) continue;
+            var peer = transport.Engine.Known.Recall(entry.DestinationHash);
+            if (peer is null) continue;
+            var expected = Destination.ComputeHashFromNameAndIdentity("lxmf.propagation", peer.Hash);
+            if (!expected.AsSpan().SequenceEqual(entry.DestinationHash)) continue;
+            var hops = transport.HopsTo(entry.DestinationHash);
+            if (hops is null) continue;
+            yield return new NomadNetPropagationCandidate(
+                Convert.ToHexStringLower(Destination.ComputeHashFromNameAndIdentity("nomadnetwork.node", peer.Hash)),
+                Convert.ToHexStringLower(entry.DestinationHash), hops.Value);
+        }
+    }
+
+    private sealed class TerminalSession(ReticulumNode node, Identity identity, LxmRouter router, NomadNetStore store,
+        string dataDirectory, NomadNetPropagation propagation, NomadNetHost? host) : IAsyncDisposable
+    {
+        private readonly NomadNetDelivery _delivery = new(router, identity, store,
+            () => propagation.Settings.TryPropagationOnSendFail)
+        { Log = message => Console.Error.WriteLine(message) };
         private readonly NomadNetPageCache _cache = new(dataDirectory);
         private readonly List<NomadNetPageLink> _lastLinks = [];
         private string? _currentNode;
@@ -297,6 +327,7 @@ internal static class Program
 
         public async ValueTask DisposeAsync()
         {
+            await _delivery.DisposeAsync().ConfigureAwait(false);
             if (_rrc is not null) await _rrc.DisposeAsync().ConfigureAwait(false);
         }
 
@@ -344,6 +375,15 @@ internal static class Program
                 Console.WriteLine($"LXMF delivery address: {router.DeliveryHashHex}");
                 Console.WriteLine($"Reticulum interfaces: {node.Interfaces.Count}; known destinations: {node.Router.Engine.Known.Count}");
                 Console.WriteLine(node.IsConnectedToSharedInstance ? "Connected to shared Reticulum instance." : "Using local Reticulum instance.");
+                if (router.PropagationNode is { } stored) Console.WriteLine($"Propagation stored messages: {stored.MessageCount}");
+                return false;
+            }
+            if (command.Equals("announce", StringComparison.OrdinalIgnoreCase))
+            {
+                await router.AnnounceAsync(cancellationToken).ConfigureAwait(false);
+                if (host is not null) await host.AnnounceAsync(cancellationToken).ConfigureAwait(false);
+                if (router.PropagationNode is { } hosted) await hosted.AnnounceAsync(cancellationToken).ConfigureAwait(false);
+                Console.WriteLine("Destinations announced.");
                 return false;
             }
 
@@ -363,18 +403,61 @@ internal static class Program
             if (command.StartsWith("propagation ", StringComparison.OrdinalIgnoreCase))
             {
                 var value = command["propagation ".Length..].Trim();
-                var hash = value.Equals("off", StringComparison.OrdinalIgnoreCase) ? null : NomadNetAddress.NormalizeHash(value);
-                var changed = _settings with { PropagationNode = hash };
-                await changed.SaveAsync(dataDirectory, cancellationToken).ConfigureAwait(false);
-                router.OutboundPropagationNode = hash is null ? null : Convert.FromHexString(hash);
-                _settings = changed;
+                var automatic = value.Equals("auto", StringComparison.OrdinalIgnoreCase);
+                var disabled = value.Equals("off", StringComparison.OrdinalIgnoreCase);
+                var hash = automatic || disabled ? null : NomadNetAddress.NormalizeHash(value);
+                await propagation.UpdateSettingsAsync(current => current with
+                    { PropagationNode = hash, UsePropagation = !disabled }, cancellationToken).ConfigureAwait(false);
                 Console.WriteLine("Propagation selection saved.");
                 return false;
             }
-            if (command.Equals("sync", StringComparison.OrdinalIgnoreCase))
+            if (command.StartsWith("trust-node ", StringComparison.OrdinalIgnoreCase))
             {
-                var count = await router.RequestMessagesFromPropagationNodeAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-                Console.WriteLine($"Propagation sync: {count} messages ({router.PropagationTransferState}).");
+                var parts = Split(command, 3);
+                if (parts.Length != 3 || parts[2] is not ("on" or "off"))
+                    throw new ArgumentException("Usage: trust-node <nomadnetwork.node hash> <on|off>");
+                var hash = NomadNetAddress.NormalizeHash(parts[1]);
+                await propagation.UpdateSettingsAsync(current => current with
+                {
+                    TrustedNodes = parts[2] == "on"
+                        ? current.TrustedNodes.Append(hash).Distinct(StringComparer.Ordinal).ToList()
+                        : current.TrustedNodes.Where(item => item != hash).ToList(),
+                }, cancellationToken).ConfigureAwait(false);
+                Console.WriteLine("Node trust saved.");
+                return false;
+            }
+            if (command.StartsWith("fallback ", StringComparison.OrdinalIgnoreCase))
+            {
+                var value = command["fallback ".Length..].Trim();
+                if (value is not ("on" or "off")) throw new ArgumentException("Usage: fallback <on|off>");
+                await propagation.UpdateSettingsAsync(current => current with { TryPropagationOnSendFail = value == "on" },
+                    cancellationToken).ConfigureAwait(false);
+                Console.WriteLine("Fallback policy saved.");
+                return false;
+            }
+            if (command.Equals("sync", StringComparison.OrdinalIgnoreCase) || command.StartsWith("sync ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 2 && parts[1] == "status")
+                    Console.WriteLine($"Propagation sync: {propagation.Status}; node {propagation.Selected ?? "none"}; {router.PropagationTransferState} {router.PropagationTransferProgress:P0}");
+                else if (parts.Length == 2 && parts[1] == "cancel")
+                    await propagation.CancelSyncAsync(cancellationToken).ConfigureAwait(false);
+                else if (parts.Length == 2 && parts[1] == "wait")
+                    await propagation.WaitForSyncAsync(cancellationToken).ConfigureAwait(false);
+                else if (parts.Length is >= 3 and <= 5 && parts[1] == "schedule" && parts[2] is "on" or "off")
+                    await propagation.UpdateSettingsAsync(current => current with
+                    {
+                        PeriodicLxmfSync = parts[2] == "on",
+                        LxmfSyncIntervalMinutes = parts.Length >= 4 ? int.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture) : current.LxmfSyncIntervalMinutes,
+                        LxmfSyncLimit = parts.Length >= 5 ? int.Parse(parts[4], System.Globalization.CultureInfo.InvariantCulture) : current.LxmfSyncLimit,
+                    }, cancellationToken).ConfigureAwait(false);
+                else if (parts.Length <= 2 && (parts.Length == 1 || int.TryParse(parts[1], out _)))
+                {
+                    var limit = parts.Length == 1 ? 0 : int.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture);
+                    Console.WriteLine(await propagation.BeginSyncAsync(limit, cancellationToken).ConfigureAwait(false)
+                        ? "Propagation sync started." : "Propagation sync already in progress.");
+                }
+                else throw new ArgumentException("Usage: sync [limit|status|cancel|wait] or sync schedule <on|off> [minutes] [limit]");
                 return false;
             }
             if (command.StartsWith("ingest ", StringComparison.OrdinalIgnoreCase))
@@ -644,26 +727,13 @@ internal static class Program
             Dictionary<object, object?>? fields = null, LxmMethod method = LxmMethod.Direct)
         {
             var destination = Convert.FromHexString(NomadNetAddress.NormalizeHash(destinationText));
+            if (method == LxmMethod.Propagated)
+                _ = await RecallAsync(destination, cancellationToken).ConfigureAwait(false);
             var message = LxMessage.Create(destination, identity, content, "", fields, method);
             var id = Guid.NewGuid().ToString("N");
-            await store.SaveMessageAsync(new NomadNetMessage(id, Convert.ToHexStringLower(destination), "outbound",
+            await _delivery.QueueAsync(message, new NomadNetMessage(id, Convert.ToHexStringLower(destination), "outbound",
                 DateTimeOffset.UtcNow, "", content, "queued"), cancellationToken).ConfigureAwait(false);
-            message.StateChanged += changed =>
-            {
-                _ = UpdateDeliveryStateAsync(id, changed.State);
-            };
-            await router.SendAsync(message, cancellationToken).ConfigureAwait(false);
-            await UpdateDeliveryStateAsync(id, message.State).ConfigureAwait(false);
             Console.WriteLine($"Message queued: {message.State}");
-        }
-
-        private async Task UpdateDeliveryStateAsync(string id, LxmState state)
-        {
-            try
-            {
-                await store.UpdateMessageStatusAsync(id, state.ToString().ToLowerInvariant()).ConfigureAwait(false);
-            }
-            catch (Exception exception) { Console.Error.WriteLine($"Could not update delivery status: {exception.Message}"); }
         }
 
         private async Task ShowMessagesAsync(string? peer, CancellationToken cancellationToken)

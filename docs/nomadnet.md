@@ -52,11 +52,11 @@ Underlying-library acceptance is not automatically application acceptance.
 | Contract and upstream sources | Current status and boundary |
 |---|---|
 | Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`, `--console`, `--textui` accepted. Daemon ignores terminal input and serves until cancellation. `--console` selects the existing console logging; `--textui` selects the original command loop, not Urwid. Extensions: `--help`, `--init`, `--status`. |
-| Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, contacts, names; live direct text both ways. No application selector for opportunistic delivery, retry-as-propagated policy, read/unread state, conversation deletion/export or upstream `.index` compatibility. |
+| Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, contacts, names; live direct text both ways. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. No application selector for opportunistic delivery, read/unread state, conversation deletion/export or upstream `.index` compatibility. |
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Images/audio are stored/sent as encoded bytes, not decoded, played, recorded, transcoded or visually displayed; those application workflows are missing. |
 | Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. Actual primary app ingest/generation tested both ways. QR image generation, QR scan and printer commands are missing. |
-| Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial**: persisted manual selection, explicit propagated send, `sync`, optional hosted propagation node using `LxmRouter`. Native process retrieval/deletion is tested separately from Python application flows. Trusted-node autoselection, scheduled sync, direct-failure fallback, sync-limit UI/cancel and app-level mixed Python propagation/peering acceptance remain missing/unverified. |
-| Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names. Trusted/untrusted/unknown warning policies, blacklist/ignore UI, node/propagation classification and upstream directory import are missing. |
+| Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; optional hosted propagation node using `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Propagation-node peering and broader configuration remain unverified/incomplete at the application layer. |
+| Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; explicit trusted node identities and validated active propagation-node classification for automatic selection. General trusted/untrusted/unknown warning policies, blacklist/ignore UI, full directory classification and upstream directory import are missing. |
 | Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **partial**: `nomadnetwork.node`, UTF-8 name app-data, default index, nested static pages, six-second startup announce and periodic node announce; explicit refresh and five-second directory scans. New/deleted paths update handlers. `.allowed` identity lists enforced. Source-specific counters, refresh interval settings and upstream default assets are not implemented. |
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
 | Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. OS-process tests cover native execution; selected Linux native browser also submits real forms to unmodified Python executable pages across a Python transport. Python-to-native executable-form browser acceptance remains unverified. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
@@ -80,7 +80,11 @@ silently claim to accept upstream option names.
 | `nodeAnnounceIntervalMinutes` | 360; validated 1–10080 |
 | `enableExecutablePages` | false; explicit Linux execution/authorization-generator opt-in |
 | `enablePropagation` | false; requires `enableNode`; uses existing LXMF propagation defaults |
-| `propagationNode` | null or 32-hex propagation destination; `propagation <hash|off>` persists selection |
+| `propagationNode`, `usePropagation` | null / true; `propagation <hash|auto|off>` persists manual, trusted automatic or disabled client selection |
+| `trustedNodes` | empty; at most 128 `nomadnetwork.node` hashes, not delivery/propagation hashes |
+| `periodicLxmfSync`, `lxmfSyncIntervalMinutes`, `lxmfSyncLimit` | true / 360 / 8; interval 1–525600 minutes, limit 0–100000 (0 is unlimited); five-second scheduler after 90-second startup deferral |
+| `lastLxmfSync` | absent until first attempt; persisted UTC timestamp before retrieval; failure/cancellation do not erase it |
+| `tryPropagationOnSendFail` | true; one propagation attempt after failed direct delivery if a node is selected |
 | `deliveryTransferLimitBytes` | 1,000,000; validated 1 KiB–64 MiB. Independent attachment extraction limit is 16 MiB. |
 
 Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
@@ -143,6 +147,36 @@ Attachments are stored under `attachments\<message-hash>\<index>.bin`, with
 and audio commands send existing encoded bytes; there is no hardware playback,
 capture or conversion claim. `paper` needs the recipient's announced identity.
 
+### Propagation and recovery
+
+`trust-node <nomadnetwork.node-hash> on|off` maintains explicit node trust.
+`propagation auto` chooses the nearest trusted identity with an active, valid
+`lxmf.propagation` announce and a known propagation path. The identity-derived
+propagation destination must match the announced destination. Untrusted nodes
+are never automatically selected; tied candidates keep snapshot order.
+`propagation <propagation-hash>` overrides automatic selection;
+`propagation off` is a native extension disabling client selection, not the
+separate hosted-node setting.
+
+`sync [limit]` starts retrieval without blocking the command loop.
+`sync status`, `sync cancel` and `sync wait` observe/cancel/await that attempt.
+Concurrent sync requests do not create overlapping retrievals. Manual sync
+defaults to unlimited; `sync schedule on|off [minutes] [limit]` configures the
+separate periodic limit. Attempts persist their timestamp **before** LXMF I/O.
+Disposal cancels and joins outstanding retrieval and outbound supervision.
+`fallback on|off` controls a single direct-failure propagation retry, not a
+second direct delivery loop. A propagation `sent` status proves node acceptance,
+not recipient delivery. `announce` reannounces delivery and hosted destinations.
+
+Three deliberate policy corrections differ from the pinned primary: its
+autoselector forwards a saved node's `source_hash` directly rather than deriving
+the propagation hash, no-candidate selection retains a previously selected node,
+and its job loop does not consult the parsed `periodic_lxmf_sync` flag. Native
+selection uses the associated propagation destination, clears revoked/unavailable
+automatic trust selections, and honors the disable flag. These are not claimed
+as bug-for-bug parity. The executed primary policy fixture records the original
+selection/failure decisions, with storage/network observation seams disclosed.
+
 ### Group chat and interactive pages
 
 RRC uses the same application identity but an independent identified `rrc.hub`
@@ -204,6 +238,11 @@ under `artifacts\builds`; process evidence/work is under `artifacts\tests`.
   (checkout line endings affect raw-file hashes). C# byte-for-byte codec
   round trips, malformed/deep/duplicate data, UTF-8 limits, resource integrity,
   echo suppression, bounded state and disposal-cancelled path lookup pass.
+- `GenerateNomadNetPropagationVectors.py tests\NomadNet.Tests\NomadNetPropagationVectors.json`
+  executes the primary application's selection, sync initiation and conversation
+  fallback methods. Only directory/path lookup, persistence and outbound I/O
+  boundaries are observed/faked; the actual policy methods are not replaced.
+  The fixture records the revision and executed raw-file SHA-256 values.
 - Windows NativeAOT:
   `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64
   --artifacts-path artifacts\builds\nomadnet-functional-win
@@ -238,11 +277,15 @@ under `artifacts\builds`; process evidence/work is under `artifacts\tests`.
   node (two Reticulum hops). Linux test work must use a native Linux filesystem,
   selected with `DOTRETICULUM_NOMADNET_WORK`; WSL mount executable-bit reporting
   is not an executable-page test.
+- `Invoke-Pester -Path tests\Pester\NomadNet.Tests.ps1 -Tag Propagation` is
+  opt-in with `DOTRETICULUM_NOMADNET_PROPAGATION_LIVE=1` on Linux. It uses the
+  same explicit Python/RNS/LXMF/primary-source/binary variables. Other hosts
+  explicitly skip rather than imply actual-primary-app coverage.
 
 ### Recorded acceptance
 
-- Windows scoped managed: **40 passed, 2 explicit Linux-only skips**.
-- Linux scoped managed: **42 passed, 0 skipped**.
+- Windows scoped managed: **48 passed, 2 explicit Linux-only skips**.
+- Linux scoped managed: **50 passed, 0 skipped** (native Linux filesystem artifacts).
 - Windows and Linux selected NativeAOT binaries: **4/4 Native cases each**.
 - Windows selected NativeAOT against Python LXMF: **1 passed**; the explicitly
   Linux-only primary-app case **skipped**.
@@ -253,9 +296,9 @@ under `artifacts\builds`; process evidence/work is under `artifacts\tests`.
   inferred hardware or `rnsd` packaging claim.
 - Full Windows solution at this integrated source state:
   `dotnet build DotReticulum.Ecosystem.slnx -c Release
-  --artifacts-path artifacts\builds\nomadnet-rrc-full` —
+  --artifacts-path artifacts\builds\nomadnet-propagation-baseline` —
   **0 warnings/errors**; corresponding `dotnet test ... --no-build` —
-  **302 passed, 52 skipped, 0 failed** across five projects.
+  **332 passed, 59 skipped, 0 failed** across five projects.
 
 The harness waits for durable direct `delivered` state before shutting down
 its sending process. An application race where stale callbacks could overwrite
@@ -289,18 +332,85 @@ The native browser edits text/checkbox/radio fields and submits exact
 This does not claim upstream Urwid interaction, Windows RRC live acceptance,
 large-file chat, packet-loss recovery, or automatic partial composition.
 
-Selected RRC/form binaries:
+Selected application binaries (including rerun RRC/form acceptance):
 
-- Windows: `artifacts\builds\nomadnet-rrc-win\publish\NomadNet\release_win-x64\nomadnet.exe`;
-  SHA-256 `41b34ad2c111cb586f9de27ef0ba54cebcd180f6461c9df0fd2990fa49569e8b`.
-- Linux: `artifacts\builds\nomadnet-rrc-linux\publish\NomadNet\release_linux-x64\nomadnet`;
-  SHA-256 `3304813e3a59e63f0a76b27f98d71ef38a40e2f9d41ef5f150398e03a2774dbb`.
+- Windows: `artifacts\builds\nomadnet-propagation-win\publish\NomadNet\release_win-x64\nomadnet.exe`;
+  SHA-256 `c05b6ee01cb771aaa201270c7d8b9fa4ec10069d43836a75ef84401c9cd1026b`.
+- Linux: `artifacts\builds\nomadnet-propagation-linux\publish\NomadNet\release_linux-x64\nomadnet`;
+  SHA-256 `5d3054b81e9033919a7a02808f523959e64ddc6b7a0921079d7893e78da2d83f`.
 
-Both use the publish commands above with their `nomadnet-rrc-*` artifacts paths,
+Both use the publish commands above with their `nomadnet-propagation-*` artifacts paths,
 trim/AOT warnings as errors. Windows and Linux selected Native cases pass **4/4 each**.
+The propagation slice's Linux SDK is 10.0.402; Windows uses 10.0.403.
 
-Packet-loss/latency impairment, RF, physical audio/printers, macOS and other
-operating systems remain **unverified**. No new DotReticulum API gap was needed
-for this bounded slice. Remaining RRC behaviors, full Micron, media conversion, configuration
-parity and mixed Python application-level propagation acceptance remain required
-work rather than a claim of completed NomadNet parity.
+The actual primary-app adapter reads bounded command lines with `os.read`,
+not Python's buffered stdin iterator. This avoids an inherited buffered-reader
+lock when the unmodified upstream stamp manager forks children. Only adapter
+command transport changes; application, router and stamp code remain unmodified.
+The mixed propagation harness sets Python 3.14's standard `PYTHON_CPU_COUNT=2`
+runtime option to bound worker count, without replacing `cpu_count` or changing
+stamp cost. Primary and native propagation costs remain the default 16.
+
+#### Mixed propagation, restart and impaired TCP acceptance
+
+The selected Linux binary passes the **1/1 Propagation case**, including:
+
+- Four actual application processes: Python PN with RNS transport/server,
+  native PN, primary Python client (node enabled, propagation hosting disabled)
+  and native client. Clients use separate TCP interfaces; the native client
+  passes through a bounded test-only C# HDLC impairment proxy.
+- Primary client retrieval from native PN across the Python transport after
+  native PN restart; native client retrieval from primary Python PN after its
+  restart. Identities remain stable. An empty repeat sync in each direction
+  verifies retrieval acknowledgment/deletion. These are client retrieval flows,
+  not a claim of propagation-node peer synchronization.
+- Trusted node autoselection maps the primary node identity to its distinct
+  propagation destination. Manual override, cancellation of a pending unknown
+  path and subsequent recovery pass. A real scheduled attempt downloads one
+  message with a one-minute interval/one-message limit; it does not invoke a
+  synthetic timer callback.
+- A SHA-256-checked **2,200,000-byte** native-to-primary file attachment with
+  **one actual Resource-part drop** and **5 ms delay per forwarded HDLC frame**;
+  final direct `delivered` state and reverse application text after impairment.
+  The recorded run forwarded **302 frames / 2,242,737 encoded bytes** overall.
+  Frame count is observed, not inferred from a fixed MTU: these links negotiate
+  larger frames. Reverse multi-megabyte impairment and burst/random loss are
+  not claimed.
+- Primary client exit, actual native direct failure and automatic one-time
+  propagation fallback, then primary client restart and retrieval of that
+  message. Node acceptance (`sent`) is checked separately from final primary
+  reception. No artificial router failure state or shortened retry policy is
+  injected.
+
+The thin adapter uses actual `NomadNetworkApp` selection/sync and registered
+delivery/persistence callbacks. Origination calls that app's actual LXMF router;
+this is not an automated Urwid composition/UI test. Graceful adapter shutdown
+invokes the real application, LXMF and RNS exit handlers to persist node state.
+Non-default peer settings are `enable_node=yes`, PN `disable_propagation=no`,
+native `enablePropagation=true`, and 4000 KB/4,000,000-byte delivery limits.
+The scheduled native client uses a one-minute/one-message sync configuration.
+No reference source or stamp code is patched.
+
+For the provisioned WSL environment, complete selected-binary reproduction
+commands are retained as ignored operational scripts:
+
+```powershell
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-propagation-acceptance.ps1
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-propagation-regression.ps1
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-propagation-primary-regression.ps1
+```
+
+Results: propagation **1/1**, scoped Linux managed **50/50**, Native **4/4**,
+RRC/form **1/1**, and primary-app direct/Python-hop/native-hop **1/1 each**.
+The scripts select source
+`/home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/builds/nomadnet-primary-reference`,
+venv `/home/dennis/dotreticulum-ecosystem-acfd3d43/reference-venv/bin/python`,
+and its adjacent `rns`/`lxmf` pinned checkouts; they reject failed or missing
+expected passes. They are environment-specific conveniences, not distributed
+test prerequisites; the committed Pester cases and variables define acceptance.
+
+RF, physical audio/printers, macOS and other operating systems remain
+**unverified**. No new DotReticulum API gap was needed for this slice.
+Remaining RRC behaviors, automatic Micron partial composition, media conversion,
+configuration/import parity and propagation-node peering acceptance remain
+required work rather than a claim of completed NomadNet parity.

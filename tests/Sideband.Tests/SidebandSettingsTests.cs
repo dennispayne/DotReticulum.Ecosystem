@@ -51,15 +51,47 @@ public sealed class SidebandSettingsTests
         {
             var token = TestContext.Current.CancellationToken;
             var store = new SidebandStateStore(root);
+            await Assert.ThrowsAsync<ArgumentException>(() => store.SetPropagationAsync(null, true, token));
             await store.SetPropagationAsync(new string('A', 32), true, token);
             var reloaded = await new SidebandStateStore(root).LoadAsync(cancellationToken: token);
             Assert.Equal(new string('a', 32), reloaded.PropagationNode);
             Assert.True(reloaded.PropagationByDefault);
             await Assert.ThrowsAsync<ArgumentException>(() => store.SetPropagationAsync("bad", true, token));
-            await Assert.ThrowsAsync<ArgumentException>(() => store.SetPropagationAsync(null, true, token));
+            await store.SetPropagationAsync(null, true, token);
+            reloaded = await new SidebandStateStore(root).LoadAsync(cancellationToken: token);
+            Assert.Null(reloaded.PropagationNode);
+            Assert.Equal(new string('a', 32), reloaded.LastPropagationNode);
+            Assert.True(reloaded.PropagationByDefault);
             await Assert.ThrowsAsync<ArgumentException>(() => store.ExportSettingsAsync(store.StatePath, token));
             await store.SetPropagationAsync(null, false, token);
             Assert.Null((await new SidebandStateStore(root).LoadAsync(cancellationToken: token)).PropagationNode);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public async Task LegacyManualSelectionCanBecomeAutomaticWithoutLosingItsKnownNode()
+    {
+        var root = Path.Combine(AppContext.BaseDirectory, "sideband-settings-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var token = TestContext.Current.CancellationToken;
+            var store = new SidebandStateStore(root);
+            await File.WriteAllTextAsync(store.StatePath, """
+                {"SchemaVersion":1,"ReticulumConfigDirectory":"isolated","Contacts":[],"Messages":[],
+                 "PropagationNode":"00112233445566778899aabbccddeeff","PropagationByDefault":true}
+                """, token);
+            await store.SetPropagationAsync(null, true, token);
+            var state = await new SidebandStateStore(root).LoadAsync(cancellationToken: token);
+            Assert.Null(state.PropagationNode);
+            Assert.Equal("00112233445566778899aabbccddeeff", state.LastPropagationNode);
+            Assert.True(state.PropagationByDefault);
+            var output = Path.Combine(root, "export.json");
+            await store.ExportSettingsAsync(output, token);
+            using var exported = JsonDocument.Parse(await File.ReadAllTextAsync(output, token));
+            Assert.Equal(JsonValueKind.Null, exported.RootElement.GetProperty("lxmf_propagation_node").ValueKind);
+            Assert.Equal(state.LastPropagationNode, exported.RootElement.GetProperty("last_lxmf_propagation_node").GetString());
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
     }

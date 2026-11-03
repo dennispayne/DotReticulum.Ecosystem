@@ -20,7 +20,8 @@ public sealed record SidebandState(
     string Theme = "Dark",
     string? PropagationNode = null,
     bool PropagationByDefault = false,
-    IReadOnlyDictionary<string, System.Text.Json.JsonElement>? ImportedSettings = null)
+    IReadOnlyDictionary<string, System.Text.Json.JsonElement>? ImportedSettings = null,
+    string? LastPropagationNode = null)
 {
     public const int CurrentSchemaVersion = 1;
 

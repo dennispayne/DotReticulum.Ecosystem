@@ -13,6 +13,7 @@ public sealed class SidebandClient : IAsyncDisposable
     private readonly SidebandAttachmentStore _attachments;
     private Channel<ClientUpdate> _inbound = CreateInboundChannel();
     private readonly SemaphoreSlim _lifecycle = new(1, 1);
+    private readonly SemaphoreSlim _propagationGate = new(1, 1);
     private readonly object _disposeGate = new();
     private readonly object _cancellationGate = new();
     private Task? _disposeTask;
@@ -22,6 +23,7 @@ public sealed class SidebandClient : IAsyncDisposable
     private Identity? _identity;
     private LxmRouter? _router;
     private CallbackAnnounceHandler? _announceHandler;
+    private CallbackAnnounceHandler? _propagationHandler;
     private int _disposed;
 
     public SidebandClient(SidebandStateStore store)
@@ -74,7 +76,8 @@ public sealed class SidebandClient : IAsyncDisposable
                     DeliveryPerTransferLimit = 8 * 1024 * 1024,
                 });
                 router.Log = Report;
-                router.OutboundPropagationNode = state.PropagationNode is { } propagationNode ? Convert.FromHexString(propagationNode) : null;
+                router.OutboundPropagationNode = (state.PropagationNode ?? state.LastPropagationNode) is { } propagationNode
+                    ? Convert.FromHexString(propagationNode) : null;
                 router.MessageReceived = message =>
                 {
                     if (!inbound.Writer.TryWrite(new ClientUpdate(Received: message)))
@@ -82,6 +85,8 @@ public sealed class SidebandClient : IAsyncDisposable
                 };
                 _announceHandler = new CallbackAnnounceHandler("lxmf.delivery", ReceivedDeliveryAnnounce);
                 node.Router.Engine.RegisterHandler(_announceHandler);
+                _propagationHandler = new CallbackAnnounceHandler("lxmf.propagation", ReceivedPropagationAnnounce);
+                node.Router.Engine.RegisterHandler(_propagationHandler);
                 router.Start();
                 _node = node;
                 _identity = identity;
@@ -103,7 +108,12 @@ public sealed class SidebandClient : IAsyncDisposable
             {
                 lock (_cancellationGate) _runCancellation = null;
                 if (_announceHandler is not null) node.Router.Engine.DeregisterHandler(_announceHandler);
+                if (_propagationHandler is not null) node.Router.Engine.DeregisterHandler(_propagationHandler);
                 _announceHandler = null;
+                _propagationHandler = null;
+                await _propagationGate.WaitAsync().ConfigureAwait(false);
+                try { _router = null; _node = null; }
+                finally { _propagationGate.Release(); }
                 if (router is not null) await router.DisposeAsync().ConfigureAwait(false);
                 inbound.Writer.TryComplete();
                 if (_inboundTask is not null) await _inboundTask.ConfigureAwait(false);
@@ -208,11 +218,17 @@ public sealed class SidebandClient : IAsyncDisposable
         try
         {
             ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-            await _store.SetPropagationAsync(node, byDefault, cancellationToken).ConfigureAwait(false);
-            var state = await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (_router is { } router)
-                router.OutboundPropagationNode = state.PropagationNode is { } selected ? Convert.FromHexString(selected) : null;
-            PublishState(state);
+            await _propagationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await _store.SetPropagationAsync(node, byDefault, cancellationToken).ConfigureAwait(false);
+                var state = await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (_router is { } router)
+                    router.OutboundPropagationNode = (state.PropagationNode ?? state.LastPropagationNode) is { } selected
+                        ? Convert.FromHexString(selected) : null;
+                PublishState(state);
+            }
+            finally { _propagationGate.Release(); }
         }
         finally { _lifecycle.Release(); }
     }
@@ -270,22 +286,30 @@ public sealed class SidebandClient : IAsyncDisposable
 
     private async Task DisconnectCoreAsync()
     {
+        await _propagationGate.WaitAsync().ConfigureAwait(false);
         var node = _node;
         var router = _router;
         var identity = _identity;
-        CancellationTokenSource? cancellation;
-        lock (_cancellationGate)
+        CancellationTokenSource? cancellation = null;
+        try
         {
-            cancellation = _runCancellation;
-            _runCancellation = null;
+            lock (_cancellationGate)
+            {
+                cancellation = _runCancellation;
+                _runCancellation = null;
+            }
+            if (node is not null && _announceHandler is not null)
+                node.Router.Engine.DeregisterHandler(_announceHandler);
+            if (node is not null && _propagationHandler is not null)
+                node.Router.Engine.DeregisterHandler(_propagationHandler);
+            _announceHandler = null;
+            _propagationHandler = null;
+            _router = null;
+            _node = null;
+            _identity = null;
+            ConnectionInfo = null;
         }
-        if (node is not null && _announceHandler is not null)
-            node.Router.Engine.DeregisterHandler(_announceHandler);
-        _announceHandler = null;
-        _router = null;
-        _node = null;
-        _identity = null;
-        ConnectionInfo = null;
+        finally { _propagationGate.Release(); }
         if (router is not null) await router.DisposeAsync().ConfigureAwait(false);
         if (cancellation is not null)
         {
@@ -308,13 +332,52 @@ public sealed class SidebandClient : IAsyncDisposable
             Report("Contact-update queue is full or closed; the discovered contact was not saved.");
     }
 
+    private void ReceivedPropagationAnnounce(AnnounceReceived announce)
+    {
+        if (!LxmfPropagationAnnounce.TryParse(announce.AppData, out var data) || data is null)
+        {
+            Report("Ignored malformed propagation-node announce.");
+            return;
+        }
+        if (data.Timebase - DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000d > 300)
+        {
+            Report("Ignored propagation-node announce timestamp more than 300 seconds in the future.");
+            return;
+        }
+        if (!_inbound.Writer.TryWrite(new ClientUpdate(Propagation: new PropagationCandidate(
+            Convert.ToHexStringLower(announce.DestinationHash), announce.Hops, data.Timebase))))
+            Report("Propagation-discovery queue is full or closed; the announce was not processed.");
+    }
+
+    private async Task ProcessPropagationAsync(PropagationCandidate candidate)
+    {
+        await _propagationGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (_node is not { } node || _router is not { } router) return;
+            var state = await _store.LoadAsync().ConfigureAwait(false);
+            var active = state.PropagationNode ?? state.LastPropagationNode;
+            var previousHops = active is null ? null : node.Router.HopsTo(Convert.FromHexString(active));
+            if (!SidebandPropagationPolicy.ShouldSelect(state.PropagationNode is not null, previousHops,
+                candidate.Hops, candidate.Emitted, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000d)) return;
+            await _store.RememberPropagationNodeAsync(candidate.Hash).ConfigureAwait(false);
+            state = await _store.LoadAsync().ConfigureAwait(false);
+            router.OutboundPropagationNode = Convert.FromHexString(state.PropagationNode ?? state.LastPropagationNode!);
+        }
+        finally { _propagationGate.Release(); }
+    }
+
     private async Task ProcessIncomingAsync(ChannelReader<ClientUpdate> reader)
     {
         await foreach (var update in reader.ReadAllAsync().ConfigureAwait(false))
         {
             try
             {
-                if (update.Contact is { } contact)
+                if (update.Propagation is { } candidate)
+                {
+                    await ProcessPropagationAsync(candidate).ConfigureAwait(false);
+                }
+                else if (update.Contact is { } contact)
                 {
                     await _store.AddContactAsync(contact).ConfigureAwait(false);
                 }
@@ -385,7 +448,9 @@ public sealed class SidebandClient : IAsyncDisposable
         }
     }
 
-    private sealed record ClientUpdate(ReceivedMessage? Received = null, SidebandContact? Contact = null, Guid MessageId = default, string? DeliveryState = null);
+    private sealed record PropagationCandidate(string Hash, int Hops, long Emitted);
+    private sealed record ClientUpdate(ReceivedMessage? Received = null, SidebandContact? Contact = null,
+        Guid MessageId = default, string? DeliveryState = null, PropagationCandidate? Propagation = null);
 
     private static Channel<ClientUpdate> CreateInboundChannel() =>
         System.Threading.Channels.Channel.CreateBounded<ClientUpdate>(new BoundedChannelOptions(128)

@@ -120,9 +120,25 @@ public sealed class SidebandStateStore
         string? normalized = null;
         if (!string.IsNullOrWhiteSpace(node) && !SidebandContact.TryNormalizeDeliveryHash(node, out normalized))
             throw new ArgumentException("A propagation address must be exactly 32 hexadecimal characters.", nameof(node));
-        if (byDefault && normalized is null)
-            throw new ArgumentException("Select a propagation node before enabling propagated delivery.", nameof(node));
-        await MutateAsync(state => state with { PropagationNode = normalized, PropagationByDefault = byDefault }, cancellationToken).ConfigureAwait(false);
+        await MutateAsync(state =>
+        {
+            var lastNode = normalized ?? state.LastPropagationNode ?? state.PropagationNode;
+            if (byDefault && normalized is null && lastNode is null)
+                throw new ArgumentException("Select or discover a propagation node before enabling propagated delivery.", nameof(node));
+            return state with
+            {
+                PropagationNode = normalized,
+                LastPropagationNode = lastNode,
+                PropagationByDefault = byDefault,
+            };
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task RememberPropagationNodeAsync(string node, CancellationToken cancellationToken = default)
+    {
+        if (!SidebandContact.TryNormalizeDeliveryHash(node, out var normalized))
+            throw new ArgumentException("A propagation address must be exactly 32 hexadecimal characters.", nameof(node));
+        await MutateAsync(state => state with { LastPropagationNode = normalized }, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<string>> ImportSettingsAsync(string path, CancellationToken cancellationToken = default)
@@ -144,7 +160,8 @@ public sealed class SidebandStateStore
             var name = settings.TryGetValue("display_name", out var display) ? display.GetString() : state.DisplayName;
             var theme = settings.TryGetValue("dark_ui", out var dark) ? dark.GetBoolean() ? "Dark" : "Light" : state.Theme;
             var node = settings.TryGetValue("lxmf_propagation_node", out var configured) ? configured.GetString() : state.PropagationNode;
-            if (node is null && settings.TryGetValue("last_lxmf_propagation_node", out var previous)) node = previous.GetString();
+            var lastNode = settings.TryGetValue("last_lxmf_propagation_node", out var previous)
+                ? previous.GetString() : state.LastPropagationNode ?? state.PropagationNode;
             var byDefault = settings.TryGetValue("propagation_by_default", out var propagation) ? propagation.GetBoolean() : state.PropagationByDefault;
             if (node is not null) node = node.ToLowerInvariant();
             return state with
@@ -152,6 +169,7 @@ public sealed class SidebandStateStore
                 DisplayName = name ?? throw new InvalidDataException("Display name cannot be null."),
                 Theme = theme,
                 PropagationNode = node,
+                LastPropagationNode = node ?? lastNode?.ToLowerInvariant(),
                 PropagationByDefault = byDefault,
                 ImportedSettings = settings,
             };
@@ -169,7 +187,7 @@ public sealed class SidebandStateStore
         settings["display_name"] = JsonSerializer.SerializeToElement(state.DisplayName, SidebandStateJsonContext.Default.String);
         settings["dark_ui"] = JsonSerializer.SerializeToElement(state.Theme == "Dark", SidebandStateJsonContext.Default.Boolean);
         settings["lxmf_propagation_node"] = JsonSerializer.SerializeToElement(state.PropagationNode, SidebandStateJsonContext.Default.String);
-        settings["last_lxmf_propagation_node"] = JsonSerializer.SerializeToElement(state.PropagationNode, SidebandStateJsonContext.Default.String);
+        settings["last_lxmf_propagation_node"] = JsonSerializer.SerializeToElement(state.LastPropagationNode ?? state.PropagationNode, SidebandStateJsonContext.Default.String);
         settings["propagation_by_default"] = JsonSerializer.SerializeToElement(state.PropagationByDefault, SidebandStateJsonContext.Default.Boolean);
         var target = Path.GetFullPath(path);
         if (string.Equals(target, StatePath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
@@ -306,8 +324,10 @@ public sealed class SidebandStateStore
             throw new InvalidDataException("Sideband theme is unsupported.");
         if (state.PropagationNode is not null && !SidebandContact.TryNormalizeDeliveryHash(state.PropagationNode, out _))
             throw new InvalidDataException("The saved propagation-node address is invalid.");
-        if (state.PropagationByDefault && state.PropagationNode is null)
-            throw new InvalidDataException("Propagated delivery requires a manually selected node; automatic discovery is not implemented.");
+        if (state.LastPropagationNode is not null && !SidebandContact.TryNormalizeDeliveryHash(state.LastPropagationNode, out _))
+            throw new InvalidDataException("The saved discovered propagation-node address is invalid.");
+        if (state.PropagationByDefault && state.PropagationNode is null && state.LastPropagationNode is null)
+            throw new InvalidDataException("Propagated delivery requires a selected or discovered propagation node.");
         if (state.OwnDeliveryHash is not null && !SidebandContact.TryNormalizeDeliveryHash(state.OwnDeliveryHash, out _))
             throw new InvalidDataException("The saved local LXMF delivery address is invalid.");
         foreach (var contact in state.Contacts)

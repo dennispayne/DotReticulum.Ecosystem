@@ -77,16 +77,23 @@ public sealed class SidebandLiveInteropTests
             await using var propagation = await PyLinkNode.StartAsync("SidebandPropagation", tcpServerPort: port, harness: "sideband_live_node.py",
                 extraArguments: ["--transport"]);
             await using var python = await PyLinkNode.StartAsync("SidebandSender", rnsdPort: port, harness: "sideband_live_node.py");
-            var ready = await propagation.Command("enable-pn", "pn-ready", TimeSpan.FromSeconds(30));
-            var pn = ready.GetProperty("dest").GetString()!;
-            await python.Command("use-pn " + pn, "pn-selected", TimeSpan.FromSeconds(10));
+            string pn;
             string hash;
             await using (var client = new SidebandClient(new SidebandStateStore(data)))
             {
-                await client.ConfigurePropagationAsync(pn, true, token);
                 await client.ConnectAsync(rns, token);
                 hash = (await client.LoadAsync(token)).OwnDeliveryHash!;
                 await python.WaitForAnnounce(Convert.FromHexString(hash), TimeSpan.FromSeconds(30));
+                var ready = await propagation.Command("enable-pn", "pn-ready", TimeSpan.FromSeconds(30));
+                pn = ready.GetProperty("dest").GetString()!;
+                await python.Command("use-pn " + pn, "pn-selected", TimeSpan.FromSeconds(10));
+                var discoveryDeadline = DateTime.UtcNow.AddSeconds(30);
+                while ((await client.LoadAsync(token)).LastPropagationNode != pn && DateTime.UtcNow < discoveryDeadline)
+                    await Task.Delay(20, token);
+                var discovered = await client.LoadAsync(token);
+                Assert.Null(discovered.PropagationNode);
+                Assert.Equal(pn, discovered.LastPropagationNode);
+                await client.ConfigurePropagationAsync(pn, true, token);
                 await python.Command($"send {hash} propagated 64 sideband propagated-note", "sent_queued", TimeSpan.FromSeconds(30));
                 var deadline = DateTime.UtcNow.AddSeconds(90);
                 var count = 0;
@@ -122,12 +129,14 @@ public sealed class SidebandLiveInteropTests
                 await cancelled.CancelAsync();
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.SynchronizeAsync(cancellationToken: cancelled.Token));
                 Assert.Equal(0, await client.SynchronizeAsync(cancellationToken: token));
+                await client.ConfigurePropagationAsync(null, true, token);
             }
             await using var restarted = new SidebandClient(new SidebandStateStore(data));
             await restarted.ConnectAsync(rns, token);
             var state = await restarted.LoadAsync(token);
             Assert.Equal(hash, state.OwnDeliveryHash);
-            Assert.Equal(pn, state.PropagationNode);
+            Assert.Null(state.PropagationNode);
+            Assert.Equal(pn, state.LastPropagationNode);
             Assert.True(state.PropagationByDefault);
             Assert.Equal("propagated-note", Assert.Single(await restarted.GetMessagesAsync(python.HashHex, token), message => message.Incoming).Title);
             Assert.Equal(0, await restarted.SynchronizeAsync(cancellationToken: token));

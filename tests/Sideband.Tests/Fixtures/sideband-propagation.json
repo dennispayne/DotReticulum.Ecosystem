@@ -1,0 +1,88 @@
+{
+    "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+    "source_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+    "method": "actual PropagationNodeDetector; injected clock/hop/stat dependencies",
+    "cases": [
+        {
+            "name": "first",
+            "manual": false,
+            "previous_hops": null,
+            "hops": 2,
+            "now": 1000000,
+            "announce": "lwDOAA9CQMPNAQDNBACTEAMSgA==",
+            "selected": true
+        },
+        {
+            "name": "closer",
+            "manual": false,
+            "previous_hops": 3,
+            "hops": 2,
+            "now": 1000000,
+            "announce": "lwDOAA9CQMPNAQDNBACTEAMSgA==",
+            "selected": true
+        },
+        {
+            "name": "equal",
+            "manual": false,
+            "previous_hops": 2,
+            "hops": 2,
+            "now": 1000000,
+            "announce": "lwDOAA9CQMPNAQDNBACTEAMSgA==",
+            "selected": true
+        },
+        {
+            "name": "farther",
+            "manual": false,
+            "previous_hops": 1,
+            "hops": 2,
+            "now": 1000000,
+            "announce": "lwDOAA9CQMPNAQDNBACTEAMSgA==",
+            "selected": false
+        },
+        {
+            "name": "manual",
+            "manual": true,
+            "previous_hops": 3,
+            "hops": 1,
+            "now": 1000000,
+            "announce": "lwDOAA9CQMPNAQDNBACTEAMSgA==",
+            "selected": false
+        },
+        {
+            "name": "future-boundary",
+            "manual": false,
+            "previous_hops": null,
+            "hops": 1,
+            "now": 1000000,
+            "announce": "lwDOAA9DbMPNAQDNBACTEAMSgA==",
+            "selected": true
+        },
+        {
+            "name": "future-rejected",
+            "manual": false,
+            "previous_hops": null,
+            "hops": 1,
+            "now": 1000000,
+            "announce": "lwDOAA9DbcPNAQDNBACTEAMSgA==",
+            "selected": false
+        },
+        {
+            "name": "old-accepted",
+            "manual": false,
+            "previous_hops": null,
+            "hops": 1,
+            "now": 1000000,
+            "announce": "lwDOAA3wwMPNAQDNBACTEAMSgA==",
+            "selected": true
+        },
+        {
+            "name": "disabled-flag-ignored",
+            "manual": false,
+            "previous_hops": null,
+            "hops": 1,
+            "now": 1000000,
+            "announce": "lwDOAA9CQMLNAQDNBACTEAMSgA==",
+            "selected": true
+        }
+    ]
+}

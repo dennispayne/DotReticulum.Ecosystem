@@ -420,6 +420,9 @@ public sealed partial class MainWindow : Window
         SyncMessagesButton.IsEnabled = connected;
         ImportSettingsButton.IsEnabled = !connected;
         ToolbarStatusText.Text = connected ? "Connected" : "Offline";
+        ActivePropagationNodeText.Text = (_state?.PropagationNode ?? _state?.LastPropagationNode) is { } propagationNode
+            ? $"{(_state?.PropagationNode is null ? "Automatic/remembered" : "Manual")} propagation node: {propagationNode}"
+            : "No propagation node selected or discovered.";
 
         if (!connected)
         {

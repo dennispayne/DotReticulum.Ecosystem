@@ -9,7 +9,7 @@ libraries, with bounded local JSON persistence. Windows NativeAOT publishing,
 CLI maintenance modes, a headless UI workflow, and native Pester acceptance
 have been exercised. Live direct-peer interoperability against the pinned
 Python RNS/LXMF node has passed in both messaging directions over a real
-Reticulum TCP interface. Manual propagation-node selection, inbox retrieval,
+Reticulum TCP interface. Manual/automatic propagation-node selection, inbox retrieval,
 restart persistence and upstream-shaped JSON settings exchange are implemented.
 Bounded file attachments can be sent, received, persisted and explicitly saved.
 Image/audio composition and playback, voice, telemetry,
@@ -79,7 +79,7 @@ runtime evidence.
 |---|---|---|
 | App shell and interaction | partial | Original Avalonia UI uses an upstream-inspired dark/teal top bar, collapsible navigation, and Conversations, Contacts, Connectivity, Backup & Keys, Preferences, Utilities, and Guide screens. Supported screens expose real local contacts/history, runtime connection state, effective config path, public identity hashes, and persisted display/theme settings. The announce stream, objects/devices, map, voice, telemetry, hardware management, plugins, and other upstream screens are visibly unavailable rather than simulated; upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
 | Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Trust controls, peer appearance/settings, groups, broadcasts and voice conversations are absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
-| LXMF messaging and propagation UI | partial | Text send/receive, manual propagation-node selection, persisted propagated-delivery default, fetch/cancel controls and restart retrieval reuse `LxmRouter`. Direct messaging and Python-node retrieval have live evidence; automatic propagation discovery, scheduled inbox fetches and fallback-on-direct-failure remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:5156–5227,5634–5644`, `docs/lxmf.md`. |
+| LXMF messaging and propagation UI | partial | Text send/receive, automatic nearest/equal-hop selection or manual override, persisted last-node/default, fetch/cancel controls and restart retrieval reuse `LxmRouter`. Actual Python propagation announces select a node without manual configuration. Scheduled inbox fetches and fallback-on-direct-failure remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,5156–5227,5634–5644`, `docs/lxmf.md`. |
 | Text, image/file and audio messages | partial | Text and file composition, receipt, content-addressed persistence and explicit file export exist. Two-way 2 MiB file fields execute actual pinned Python LXMF and survive native-client restart. The UI displays filenames/sizes and can save the selected message's first file; no received content opens automatically. Image/audio composition, rendering/playback and recording remain missing; `src/Sideband/SidebandAttachmentStore.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `tests/Interop/sideband_attachment_node.py`, `sbapp/sideband/core.py:5189–5196`. |
 | Paper messages and `lxm://` imports | missing | No paper-message/QR creation or import flow, identity import, camera/QR, export or URI handling; `README.md`, `sbapp/main.py`, `sbapp/ui/keys.py`. |
 | LXST calls and push-to-talk | missing | A disabled UI button explicitly reports voice unavailability. No Sideband audio devices, call authorization, duplex controls or call history are implemented. The LXST library now targets Sideband's required 0.5.4, but that does not implement application-level voice integration; `src/Sideband.Desktop/MainWindow.axaml`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`, `docs/lxst.md`. |
@@ -144,10 +144,16 @@ upstream replacement.
 
 ## Settings, propagation and lifecycle acceptance
 
-The Connectivity screen persists a manually selected `lxmf.propagation` address
-and propagated-send default, fetches the local identity's inbox, and exposes
-cancellation and contextual failures. There is no automatic node discovery or
-scheduled fetch claim. Receive, announce and delivery-state persistence share a
+The Connectivity screen persists a manual `lxmf.propagation` override or leaves
+it empty for automatic selection, displays the selected/remembered node, fetches
+the local identity's inbox, and exposes cancellation and contextual failures.
+Manual and last-selected addresses are stored/exported separately. Selection
+preserves upstream's equal-or-fewer-hop replacement and rejects timestamps more
+than 300 seconds in the future. Valid older announcements remain eligible.
+The inspected reference ignores its decoded `node_active` flag; vectors record
+that upstream defect and native selection preserves it. A selected inactive
+node may reject transfers; selection is not a storage/delivery guarantee.
+There is no scheduled fetch claim. Receive, announce and delivery-state persistence share a
 bounded serial worker (128 updates), with explicit overload reporting; shutdown
 drains accepted updates. Disconnect/disposal cancel pending path lookup and
 retrieval before releasing the node/identity. Concurrent disposers await the
@@ -160,6 +166,15 @@ and actual RNS helpers. Source SHA-256 is
 It does not launch upstream's GUI, initialize its full defaults or establish
 SQLite import compatibility. Unsupported JSON settings round-trip without
 claiming their corresponding functionality.
+
+The same generator's `--propagation-output` executes the actual primary
+`PropagationNodeDetector` with injected clock, path-hop and link-stat dependencies;
+it uses the actual pinned LXMF announce validator and MessagePack functions.
+The nine cases include manual priority, closer/equal/farther nodes, the exact
+future boundary, aged announces and the ignored inactive flag. Canonical
+`core.py` SHA-256 is
+`8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25`.
+These dependency-controlled policy vectors are not live peer evidence.
 
 Windows validation uses `--artifacts-path artifacts\builds\fleet-sideband`:
 `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release` with
@@ -176,13 +191,16 @@ not exercise physical audio or arbitrary desktop environments.
 
 With the pinned Windows reference environment, `dotnet test
 tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path
-artifacts\builds\fleet-sideband` passed 20/20 with `DOTRETICULUM_LIVE=1`.
+artifacts\builds\fleet-sideband` passed 22/22 with `DOTRETICULUM_LIVE=1`.
 The direct topology is native Sideband to actual Python LXMF over TCP.
 The propagation topology is native Sideband and a separate actual Python
 client connected to a Python transport/propagation node: messages deposit and
 retrieve in both directions, retrieval deduplicates, and local history/identity
-and propagation settings survive restart. These are LXMF-peer tests, not an
-actual upstream Sideband application or GUI peer. The Linux equivalent passed 20/20 using
+and propagation settings survive restart. The Python node's actual announce
+automatically selects the node; switching to manual and back retains its
+remembered address over restart. Legacy manual-only JSON state can also switch
+to automatic selection without losing its known node. These are LXMF-peer tests, not an
+actual upstream Sideband application or GUI peer. The Linux equivalent passed 22/22 using
 `--artifacts-path /home/dennis/fleet-sideband-managed` and the isolated Linux
 reference environment. No application-level impairment or hours-long soak is implied.
 
@@ -225,8 +243,8 @@ Validated commands and outcomes:
 | Command | Result |
 |---|---|
 | `dotnet build DotReticulum.Ecosystem.slnx -c Release --artifacts-path artifacts\builds\fleet-resume` | Passed, zero warnings/errors |
-| `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path artifacts\builds\fleet-sideband` with pinned reference variables and `DOTRETICULUM_LIVE=1` | Windows: 20/20 passed, including real direct/propagated LXMF and 2 MiB file fields, restart, settings/UI/lifecycle and bounded-storage failures |
-| Linux equivalent with `--artifacts-path /home/dennis/fleet-sideband-managed` and the isolated Linux reference | 20/20 passed; same cases and actual Python peers, not physical hardware |
+| `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path artifacts\builds\fleet-sideband` with pinned reference variables and `DOTRETICULUM_LIVE=1` | Windows: 22/22 passed, including real direct/propagated LXMF and 2 MiB file fields, automatic discovery, restart, settings/UI/lifecycle and bounded-storage failures |
+| Linux equivalent with `--artifacts-path /home/dennis/fleet-sideband-managed` and the isolated Linux reference | 22/22 passed; same cases and actual Python peers, not physical hardware |
 | `dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\fleet-sideband-native -p:RuntimeIdentifiers=win-x64 -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` | Passed; strict Windows NativeAOT |
 | Linux `dotnet publish src/Sideband.Desktop/Sideband.Desktop.csproj -c Release -r linux-x64 --artifacts-path /home/dennis/fleet-sideband-native -p:RuntimeIdentifiers=linux-x64 -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` | Passed; strict Linux NativeAOT |
 | `& .\tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1 -Tag @('Native','GUI')` with `DOTRETICULUM_SIDEBAND_BINARY` set to the Windows publish | 3/3 passed: help/version, identity restart, transactional settings exchange/errors and actual rendered send validation |
@@ -236,8 +254,8 @@ SHA-256 of the accepted published executables:
 
 | Executable | SHA-256 |
 |---|---|
-| Windows `artifacts\builds\fleet-sideband-native\publish\Sideband.Desktop\release_win-x64\sideband.exe` | `7711bb1ac448fbb9efd267e10e455e77b2efa1aca3ddb17fec718aa3c58dc603` |
-| Linux `/home/dennis/fleet-sideband-native/publish/Sideband.Desktop/release_linux-x64/sideband` | `bb600a654fff32a1fe2b42703a0e6247513718a25d6438b22e4c958af10417b4` |
+| Windows `artifacts\builds\fleet-sideband-native\publish\Sideband.Desktop\release_win-x64\sideband.exe` | `bcf4062e8a6ed18397d9871c004a740e7a0d60c21160ad5e90bee4cb0e223d8d` |
+| Linux `/home/dennis/fleet-sideband-native/publish/Sideband.Desktop/release_linux-x64/sideband` | `0233e74518a400db7be531a3daa2364ea0552ec31e5132891b81ebc402a6b40a` |
 
 The Windows output contains `sideband.exe` and native GUI dependencies
 `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, and `libSkiaSharp.dll`. Linux output

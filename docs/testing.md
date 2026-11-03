@@ -28,8 +28,9 @@ validate subsequent unpushed local changes.
 The integrated local gate
 `& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
 artifacts\builds\fleet-unified -OutputDirectory
-artifacts\tests\fleet-unified-final` passed after synchronizing the LXST 0.5.4
-reference/catalog and release-tag expectation. It retains TRX, per-case
+artifacts\tests\fleet-automatic-final` passed with automatic Sideband propagation
+selection and the synchronized LXST 0.5.4 reference/catalog and release-tag
+expectation. It retains TRX, per-case
 compatibility evidence and merged coverage for all eight production assemblies.
 Its absent live/native prerequisites remain explicit skips; the separately
 selected published/real-peer application gates are recorded in each project's

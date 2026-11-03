@@ -1,0 +1,86 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sourceSha256": "2c1e333044d0417573eef7c280737a849d34f5942303142891770aed05cf8744",
+  "method": "Actual Directory.known_nodes, should_identify_on_connect, set_identify_on_connect and remember with real RNS.Identity.remember and actual directory persistence; ephemeral identity is not exported.",
+  "inputs": [
+    {
+      "hash": "01010101010101010101010101010101",
+      "name": "Rank 100",
+      "rank": 100,
+      "trust": 255,
+      "node": true
+    },
+    {
+      "hash": "02020202020202020202020202020202",
+      "name": "Unknown",
+      "rank": null,
+      "trust": 2,
+      "node": true
+    },
+    {
+      "hash": "03030303030303030303030303030303",
+      "name": "Trusted",
+      "rank": null,
+      "trust": 255,
+      "node": true
+    },
+    {
+      "hash": "04040404040404040404040404040404",
+      "name": "Warning",
+      "rank": null,
+      "trust": 0,
+      "node": true
+    },
+    {
+      "hash": "05050505050505050505050505050505",
+      "name": "Rank minus",
+      "rank": -3,
+      "trust": 0,
+      "node": true
+    },
+    {
+      "hash": "06060606060606060606060606060606",
+      "name": "Rank 34",
+      "rank": 34,
+      "trust": 255,
+      "node": true
+    },
+    {
+      "hash": "07070707070707070707070707070707",
+      "name": "\ue000",
+      "rank": 12,
+      "trust": 2,
+      "node": true
+    },
+    {
+      "hash": "08080808080808080808080808080808",
+      "name": "\ud83d\ude00",
+      "rank": 12,
+      "trust": 2,
+      "node": true
+    },
+    {
+      "hash": "09090909090909090909090909090909",
+      "name": "Peer only",
+      "rank": -100,
+      "trust": 255,
+      "node": false
+    }
+  ],
+  "ordering": [
+    "05050505050505050505050505050505",
+    "07070707070707070707070707070707",
+    "08080808080808080808080808080808",
+    "06060606060606060606060606060606",
+    "03030303030303030303030303030303",
+    "02020202020202020202020202020202",
+    "04040404040404040404040404040404",
+    "01010101010101010101010101010101"
+  ],
+  "identify": [
+    false,
+    false,
+    true
+  ],
+  "associatedTrust": 255
+}

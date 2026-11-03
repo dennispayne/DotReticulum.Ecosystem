@@ -301,6 +301,9 @@ internal static class Program
               messages [hash]                 Show durable conversation history
               browse <hash> [page-path]       Fetch a bounded Nomad Network page
               history | back | forward       Show/replay session browser navigation
+              nodes | open-node <number>     Browse saved nodes in primary directory order
+              contact node|identify <hash> <on|off>
+              contact rank <hash> <integer|none>
               page | partials                Show composed page or partial targets
               links | open <number>            Follow a displayed Micron link
               fields | field <number> <value> Edit text or select checkbox/radio (on/off)
@@ -413,6 +416,7 @@ internal static class Program
             if (command.Equals("status", StringComparison.OrdinalIgnoreCase))
             {
                 Console.WriteLine($"LXMF delivery address: {router.DeliveryHashHex}");
+                Console.WriteLine($"Reticulum identity: {Convert.ToHexStringLower(identity.Hash)}");
                 Console.WriteLine($"Reticulum interfaces: {node.Interfaces.Count}; known destinations: {node.Router.Engine.Known.Count}");
                 Console.WriteLine(node.IsConnectedToSharedInstance ? "Connected to shared Reticulum instance." : "Using local Reticulum instance.");
                 if (router.PropagationNode is { } stored) Console.WriteLine($"Propagation stored messages: {stored.MessageCount}");
@@ -553,10 +557,13 @@ internal static class Program
             if (command.StartsWith("contact trust ", StringComparison.OrdinalIgnoreCase) ||
                 command.StartsWith("contact ignore ", StringComparison.OrdinalIgnoreCase) ||
                 command.StartsWith("contact delivery ", StringComparison.OrdinalIgnoreCase) ||
-                command.StartsWith("contact notes ", StringComparison.OrdinalIgnoreCase))
+                command.StartsWith("contact notes ", StringComparison.OrdinalIgnoreCase) ||
+                command.StartsWith("contact node ", StringComparison.OrdinalIgnoreCase) ||
+                command.StartsWith("contact identify ", StringComparison.OrdinalIgnoreCase) ||
+                command.StartsWith("contact rank ", StringComparison.OrdinalIgnoreCase))
             {
                 var parts = Split(command, 4);
-                if (parts.Length != 4) throw new ArgumentException("Use contact trust|ignore|delivery|notes <hash> <value>.");
+                if (parts.Length != 4) throw new ArgumentException("Use contact trust|ignore|delivery|notes|node|identify|rank <hash> <value>.");
                 var hash = NomadNetAddress.NormalizeHash(parts[2]);
                 var contact = await store.FindContactAsync(hash, cancellationToken).ConfigureAwait(false) ??
                     new NomadNetContact(hash, hash) { Ignored = await store.IsIgnoredAsync(hash, cancellationToken).ConfigureAwait(false) };
@@ -568,9 +575,13 @@ internal static class Program
                     "delivery" => contact with { PreferredDelivery = parts[3] switch
                         { "direct" => 1, "propagated" => 2, "opportunistic" => 3, _ => throw new ArgumentException("Invalid delivery method.") } },
                     "notes" => contact with { Notes = parts[3] },
+                    "node" when parts[3] is "on" or "off" => contact with { HostsNode = parts[3] == "on" },
+                    "identify" when parts[3] is "on" or "off" => contact with { IdentifyOnConnect = parts[3] == "on" },
+                    "rank" => contact with { SortRank = parts[3] == "none" ? null :
+                        int.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture) },
                     _ => throw new ArgumentException("Invalid contact command."),
                 };
-                await store.SaveContactAsync(contact, cancellationToken).ConfigureAwait(false);
+                await SaveDirectoryContactAsync(contact, cancellationToken).ConfigureAwait(false);
                 if (contact.Ignored) router.IgnoreDestination(Convert.FromHexString(hash));
                 else router.UnignoreDestination(Convert.FromHexString(hash));
                 Console.WriteLine("Contact policy saved.");
@@ -580,7 +591,9 @@ internal static class Program
             {
                 var parts = Split(command["contact add ".Length..], 2);
                 if (parts.Length != 2) throw new ArgumentException("Usage: contact add <32-hex-hash> <name>");
-                await store.AddContactAsync(parts[0], parts[1], cancellationToken).ConfigureAwait(false);
+                var existing = await store.FindContactAsync(parts[0], cancellationToken).ConfigureAwait(false) ??
+                    new NomadNetContact(parts[0], parts[1]) { Ignored = await store.IsIgnoredAsync(parts[0], cancellationToken).ConfigureAwait(false) };
+                await SaveDirectoryContactAsync(existing with { Name = parts[1] }, cancellationToken).ConfigureAwait(false);
                 Console.WriteLine("Contact saved.");
                 return false;
             }
@@ -814,6 +827,25 @@ internal static class Program
                 await BrowseAsync(bookmark.DestinationHash, bookmark.Path, cancellationToken).ConfigureAwait(false);
                 return false;
             }
+            if (command.Equals("nodes", StringComparison.OrdinalIgnoreCase))
+            {
+                var entries = await store.KnownNodesAsync(cancellationToken).ConfigureAwait(false);
+                for (var index = 0; index < entries.Count; index++)
+                {
+                    var entry = entries[index];
+                    Console.WriteLine($"Node {index + 1}: {entry.DestinationHash} {NomadNetTerminalText.Safe(entry.Name)} " +
+                        $"trust={entry.TrustLevel} rank={entry.SortRank?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "none"} identify={entry.IdentifyOnConnect}");
+                }
+                Console.WriteLine("Nodes complete.");
+                return false;
+            }
+            if (command.StartsWith("open-node ", StringComparison.OrdinalIgnoreCase))
+            {
+                var entries = await store.KnownNodesAsync(cancellationToken).ConfigureAwait(false);
+                var entry = entries[ParseIndex(command["open-node ".Length..], entries.Count) - 1];
+                await BrowseAsync(entry.DestinationHash, NomadNetAddress.DefaultPagePath, cancellationToken).ConfigureAwait(false);
+                return false;
+            }
             if (command.StartsWith("fetch ", StringComparison.OrdinalIgnoreCase))
             {
                 var parts = Split(command, 4);
@@ -1015,7 +1047,8 @@ internal static class Program
             var link = connected.Link;
             try
             {
-                link.Identify(identity);
+                var contact = await store.FindContactAsync(Convert.ToHexStringLower(destinationHash), cancellationToken).ConfigureAwait(false);
+                if (NomadNetDirectoryPolicy.ShouldIdentify(contact)) link.Identify(identity);
                 var receipt = link.Request(path, data, timeout: 60, maxResponseSize: maximumBytes,
                     cancellationToken: cancellationToken) ?? throw new IOException("The Reticulum request could not be started.");
                 var response = await receipt.ResponseTask.WaitAsync(TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
@@ -1031,7 +1064,16 @@ internal static class Program
                     _ => throw new InvalidDataException($"Unsupported page response type: {response.GetType().Name}."),
                 };
             }
+
             finally { link.Teardown(); }
+        }
+
+        private Task SaveDirectoryContactAsync(NomadNetContact contact, CancellationToken cancellationToken)
+        {
+            var known = node.Router.Engine.Known.Recall(Convert.FromHexString(NomadNetAddress.NormalizeHash(contact.DestinationHash)));
+            var associated = known is null ? null :
+                Convert.ToHexStringLower(Destination.ComputeHashFromNameAndIdentity("nomadnetwork.node", known.Hash));
+            return store.SaveContactAsync(contact, cancellationToken, associated);
         }
 
         private async Task<Identity> RecallAsync(byte[] hash, CancellationToken cancellationToken)

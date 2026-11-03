@@ -92,6 +92,7 @@ def main():
                 version=version,
                 module=nomadnet.__file__,
                 node=app.node.destination.hash.hex(),
+                identity=app.identity.hash.hex(),
                 delivery=app.lxmf_destination.hash.hex(),
                 propagation=(app.message_router.propagation_destination.hash.hex()
                              if app.message_router.propagation_node else None),
@@ -108,6 +109,24 @@ def main():
                      files=[{"size": len(item[1]), "sha256": hashlib.sha256(item[1]).hexdigest()}
                             for item in files])
             app.message_router.register_delivery_callback(observe_delivery)
+            browser_links = []
+            browser_lock = threading.Lock()
+            browser_overflow = threading.Event()
+            observing_browser = False
+
+            def observe_browser_connected(link):
+                app.node.peer_connected(link)
+
+                def closed(current):
+                    app.node.peer_disconnected(current)
+                    remote = current.get_remote_identity()
+                    with browser_lock:
+                        if len(browser_links) < 64:
+                            browser_links.append(remote.hash.hex() if remote else None)
+                        else:
+                            browser_overflow.set()
+
+                link.set_link_closed_callback(closed)
             rrc_hub = None
 
             for raw_line in command_lines():
@@ -170,6 +189,31 @@ def main():
                         time.sleep(0.05)
                     else:
                         raise RuntimeError("Configured reference TCP clients did not reconnect")
+                    continue
+                if parts[0] == "observe-browser-links":
+                    if observing_browser:
+                        raise RuntimeError("Browser observation already enabled")
+                    app.node.destination.set_link_established_callback(observe_browser_connected)
+                    observing_browser = True
+                    emit("observing-browser-links")
+                    continue
+                if parts[0] == "browser-links" and len(parts) == 2:
+                    count = int(parts[1])
+                    if not observing_browser or not 0 <= count <= 64:
+                        raise RuntimeError("Enable browser observation and use a bounded count")
+                    if browser_overflow.is_set():
+                        raise RuntimeError("Browser observation overflow; evidence is incomplete")
+                    deadline = time.monotonic() + 10
+                    while time.monotonic() < deadline:
+                        with browser_lock:
+                            if len(browser_links) >= count:
+                                observed = list(browser_links)
+                                browser_links.clear()
+                                break
+                        time.sleep(0.01)
+                    else:
+                        raise RuntimeError("Browser observation did not reach expected link count")
+                    emit("browser-links", identities=observed)
                     continue
                 if parts[0] == "conversation-stats":
                     emit("conversations", entries=[

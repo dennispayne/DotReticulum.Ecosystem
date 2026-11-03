@@ -105,6 +105,15 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
                         [IO.File]::SetUnixFileMode((Join-Path $pages 'history.mu'), [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite)
                     }
                 }
+                if ($env:DOTRETICULUM_NOMADNET_DIRECTORY_LIVE -eq '1') {
+                    [IO.File]::WriteAllText((Join-Path $pages 'private.mu'), "#!c=0`nDIRECTORY_PRIVATE", [Text.UTF8Encoding]::new($false))
+                    [IO.File]::WriteAllText((Join-Path $pages 'private.mu.allowed'), '', [Text.UTF8Encoding]::new($false))
+                    if (-not [OperatingSystem]::IsWindows()) {
+                        foreach ($file in 'private.mu', 'private.mu.allowed') {
+                            [IO.File]::SetUnixFileMode((Join-Path $pages $file), [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite)
+                        }
+                    }
+                }
                 if (-not [OperatingSystem]::IsWindows()) {
                     [IO.File]::SetUnixFileMode((Join-Path $pages 'index.mu'), [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite)
                 }
@@ -182,6 +191,54 @@ image_loading = yes
                 $response = ((& $read $python '"event"\s*:\s*"response"').Substring(2) | ConvertFrom-Json)
                 $response.text | Should -Be 'CONFIGURED_FILE_ROOT'
             }
+            if ($env:DOTRETICULUM_NOMADNET_DIRECTORY_LIVE -eq '1') {
+                & $send $native 'status'
+                $identity = [regex]::Match((& $read $native 'Reticulum identity:'), '[0-9a-f]{32}').Value
+                $identity | Should -Match '^[0-9a-f]{32}$'
+                [IO.File]::WriteAllText((Join-Path $work 'python\storage\pages\private.mu.allowed'), $identity, [Text.UTF8Encoding]::new($false))
+                $nativePages = if ($env:DOTRETICULUM_NOMADNET_CONFIG_LIVE -eq '1') { $customPages } else { Join-Path $work 'native\storage\pages' }
+                [IO.File]::WriteAllText((Join-Path $nativePages 'private.mu.allowed'), $ready.identity, [Text.UTF8Encoding]::new($false))
+                & $send $python 'observe-browser-links'
+                $null = & $read $python '"event"\s*:\s*"observing-browser-links"'
+                foreach ($command in @("contact add $($ready.node) Saved primary node",
+                    "contact node $($ready.node) on", "contact rank $($ready.node) -5")) {
+                    & $send $native $command
+                    $null = & $read $native 'Contact (policy )?saved'
+                }
+                & $send $native 'nodes'
+                $null = & $read $native "Node 1: $($ready.node).*trust=2 rank=-5 identify=False"
+                $null = & $read $native 'Nodes complete'
+                & $send $native "browse $($ready.node) /page/private.mu"
+                $null = & $read $native 'Request Not Allowed'
+                & $send $python 'browser-links 1'
+                $observed = ((& $read $python '"event"\s*:\s*"browser-links"').Substring(2) | ConvertFrom-Json)
+                $observed.identities.Count | Should -Be 1
+                $observed.identities[0] | Should -BeNullOrEmpty
+                & $send $native "contact identify $($ready.node) on"
+                $null = & $read $native 'Contact policy saved'
+                & $send $native 'reload'
+                # Windows primary executes every .allowed file due to os.access(X_OK);
+                # the plain-text list fails as an executable. Observe identification
+                # separately instead of disguising that upstream authorization defect.
+                $expected = if ([OperatingSystem]::IsWindows()) { 'Request Not Allowed' } else { 'DIRECTORY_PRIVATE' }
+                $null = & $read $native $expected
+                & $send $python 'browser-links 1'
+                $observed = ((& $read $python '"event"\s*:\s*"browser-links"').Substring(2) | ConvertFrom-Json)
+                @($observed.identities) | Should -Be @($identity)
+                & $send $native "contact identify $($ready.node) off"
+                $null = & $read $native 'Contact policy saved'
+                & $send $native 'reload'
+                $null = & $read $native 'Request Not Allowed'
+                & $send $python 'browser-links 1'
+                $observed = ((& $read $python '"event"\s*:\s*"browser-links"').Substring(2) | ConvertFrom-Json)
+                $observed.identities.Count | Should -Be 1
+                $observed.identities[0] | Should -BeNullOrEmpty
+                & $send $native 'open-node 1'
+                $null = & $read $native 'Image application contract'
+                & $send $python "request $nativeNode /page/private.mu"
+                $response = ((& $read $python '"event"\s*:\s*"response"').Substring(2) | ConvertFrom-Json)
+                $response.text | Should -Match 'DIRECTORY_PRIVATE'
+            }
             if ($env:DOTRETICULUM_NOMADNET_CONVERSATION_LIVE -eq '1') {
                 $nativeDelivery = [regex]::Match([IO.File]::ReadAllText((Join-Path $work 'native.stdout')),
                     'LXMF delivery address:\s*([0-9a-f]{32})').Groups[1].Value
@@ -211,6 +268,13 @@ image_loading = yes
                     Start-Sleep -Milliseconds 50
                 } while ([DateTime]::UtcNow -lt $deadline)
                 @($state.conversationAlerts | Where-Object peerHash -EQ $ready.delivery)[0].unread | Should -Be 1
+                if ($env:DOTRETICULUM_NOMADNET_DIRECTORY_LIVE -eq '1') {
+                    & $send $native "contact trust $($ready.delivery) trusted"
+                    $null = & $read $native 'Contact policy saved'
+                    & $send $native 'nodes'
+                    $null = & $read $native "Node 1: $($ready.node).*trust=255 rank=-5 identify=False"
+                    $null = & $read $native 'Nodes complete'
+                }
                 & $send $native 'conversations'
                 $null = & $read $native "Conversation $($ready.delivery) unread=1 failed=0"
                 $null = & $read $native 'Conversations complete'
@@ -272,6 +336,20 @@ image_loading = yes
                 & $send $native 'history'
                 $null = & $read $native 'History complete: 0/0\.'
             }
+            if ($env:DOTRETICULUM_NOMADNET_DIRECTORY_LIVE -eq '1') {
+                & $send $native 'nodes'
+                $null = & $read $native "Node 1: $($ready.node).*trust=255 rank=-5 identify=False"
+                $null = & $read $native 'Nodes complete'
+                & $send $native "contact identify $($ready.node) on"
+                $null = & $read $native 'Contact policy saved'
+                & $send $native "browse $($ready.node) /page/private.mu"
+                $null = & $read $native 'Request Not Allowed'
+                & $send $python 'wait-network'
+                $null = & $read $python '"event"\s*:\s*"network-ready"'
+                & $send $native 'reload'
+                $expected = if ([OperatingSystem]::IsWindows()) { 'Request Not Allowed' } else { 'DIRECTORY_PRIVATE' }
+                $null = & $read $native $expected
+            }
             if ($env:DOTRETICULUM_NOMADNET_CONVERSATION_LIVE -eq '1') {
                 & $send $native 'contacts'
                 $line = & $read $native "$($ready.delivery).*trust=255 ignored=True delivery=3"
@@ -323,7 +401,9 @@ image_loading = yes
                 nativeRestartCache = $true; primaryRestartCache = $true;
                 conversations = ($env:DOTRETICULUM_NOMADNET_CONVERSATION_LIVE -eq '1');
                 coreConfiguration = ($env:DOTRETICULUM_NOMADNET_CONFIG_LIVE -eq '1');
-                navigation = ($env:DOTRETICULUM_NOMADNET_HISTORY_LIVE -eq '1') } |
+                navigation = ($env:DOTRETICULUM_NOMADNET_HISTORY_LIVE -eq '1');
+                directory = ($env:DOTRETICULUM_NOMADNET_DIRECTORY_LIVE -eq '1');
+                primaryStaticAuthorization = if ([OperatingSystem]::IsWindows()) { 'upstream Windows X_OK defect; actual identity observed instead' } else { 'allowed and denied' } } |
                 ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
         }
         finally {

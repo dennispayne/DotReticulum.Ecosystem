@@ -56,12 +56,12 @@ Underlying-library acceptance is not automatically application acceptance.
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Encoded image files can be explicitly converted with the local image adapter; automatic conversation-image display remains missing. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
 | Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. Actual primary app ingest/generation tested both ways. QR image generation, QR scan and printer commands are missing. |
 | Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; optional hosted propagation node using `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Propagation-node peering and broader configuration remain unverified/incomplete at the application layer. |
-| Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Node/identify/rank metadata have storage APIs but not yet full UI behavior. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Associated-identity trust propagation, full node-directory presentation and upstream directory import remain missing. |
+| Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Saved-node listing/opening, primary rank/trust/name ordering, explicit browser identification consent and existing associated-node trust updates are operational. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Complete announce-stream/node-directory presentation and upstream directory import remain missing. |
 | Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **partial**: `nomadnetwork.node`, UTF-8 name app-data, default index, nested static pages, six-second startup announce and periodic node announce; explicit refresh and five-second directory scans. New/deleted paths update handlers. `.allowed` identity lists enforced. Source-specific counters, refresh interval settings and upstream default assets are not implemented. |
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
 | Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. OS-process tests cover native execution; selected Linux native browser also submits real forms to unmodified Python executable pages across a Python transport. Python-to-native executable-form browser acceptance remains unverified. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
 | Media; `Node.serve_media`, `convert_media_to_webp` | **partial, live-verified core**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` responses and PNG/JPEG/BMP/GIF/TIFF conversion through configured external FFmpeg. Primary quality85/dimension1200 and content-hash cache naming, 256-file/192-MiB quota, corruption regeneration and restart/cache-only serving are exercised. `show-media` decodes browser images to ASCII or explicit ANSI true-colour half-blocks. Actual primary `ImageData` decodes native-served images and native previews primary-served images on Windows/Linux. Animated/multipage, alpha/EXIF behavior, automatic inline loading and Kitty graphics remain unverified/missing. |
-| Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded identified page/file/media retrieval, links/bookmarks, reload, session navigation history with back/forward and submitted-field replay, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Explicit image previews work; automatic inline image widgets and interactive file browser remain missing. |
+| Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file/media retrieval with explicit identification consent, links/bookmarks, reload, session navigation history with back/forward and submitted-field replay, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Explicit image previews work; automatic inline image widgets and interactive file browser remain missing. |
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways through a Python transport, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron message rendering and complete Channels UI remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop. Urwid menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
@@ -276,8 +276,29 @@ existing LXMF `IgnoreDestination`/`UnignoreDestination`. Ignored delivery source
 are also checked before storing queued incoming messages/attachments, and hidden
 from the application peer listing. Forgetting a contact does not remove its
 blacklist entry. This does not remove the Reticulum stack's own identity/path
-knowledge. Automatic propagation trust remains the distinct `trust-node` policy;
-changing a contact's trust does not yet update associated node entries.
+knowledge. Automatic propagation trust remains the distinct `trust-node` policy.
+Saving a contact with a recalled Reticulum identity also updates an already-saved
+associated `nomadnetwork.node` entry's trust, in the same atomic state write.
+It preserves that node's name, notes, rank and identification consent, and does
+not invent a node entry or infer associations from display names.
+
+`contact node <hash> on|off` marks a saved entry as a node.
+`contact rank <hash> <integer|none>` sets its signed 32-bit rank.
+`nodes` lists saved nodes and `open-node <number>` browses their default pages.
+Ordering matches the actual primary: rank, descending trust, Unicode-code-point
+name order. The primary's unranked fallback expression is Python `2^32`, which
+evaluates to **34**, not 4,294,967,296; this observed behavior is preserved.
+Saved nodes are not silently removed from that list by LXMF blacklisting.
+
+`contact identify <node-hash> on|off` persists browser identification consent.
+Unknown nodes and saved entries without consent are **anonymous by default**;
+trust alone does not disclose identity. This corrects the earlier native
+browser's unconditional identification. The policy covers page, partial, file
+and media requests, not the distinct LXMF/RRC protocols that require identity.
+Changing consent affects new network requests: use `reload` to bypass a cached
+page, since a cached authorization denial or previously authorized response
+can otherwise still be shown. Manual identification of a retained browser link
+is not implemented; native browsing currently opens a new link per request.
 
 `contact delivery <hash> direct|propagated|opportunistic` controls ordinary text
 and attachment sends through the existing LXMF methods. Explicit
@@ -388,6 +409,74 @@ limited to 4 MiB, links to 2,048 and media descriptors to 128. These are safety
 bounds, not primary layout defaults.
 
 ## Validation and reproduction
+
+### Selected directory/application acceptance
+
+`GenerateNomadNetDirectoryVectors.py` executes actual primary
+`Directory.known_nodes`, identification getters/setters and `remember`, using a
+real isolated RNS runtime and actual directory persistence. The ephemeral test
+identity is not exported. The fixture records primary source SHA-256
+`2c1e333044d0417573eef7c280737a849d34f5942303142891770aed05cf8744`;
+vectors include the XOR rank fallback, non-BMP Unicode sorting, default/no
+identification consent and associated-node trust. Native tests additionally
+exercise atomic metadata preservation, cancellation and absent/invalid
+associations without creating nodes.
+
+Exact strict NativeAOT binaries:
+
+- Windows `artifacts\builds\nomadnet-directory-win\publish\NomadNet\release_win-x64\nomadnet.exe`;
+  SHA-256 `0f8c8effc358c71e4206ed1cf19b98a781e54ac2bbd54c9b68e638ca80bf862b`.
+- Linux `artifacts/builds/nomadnet-directory-linux/publish/NomadNet/release_linux-x64/nomadnet`;
+  SHA-256 `30cc87c563138a99188ffd69d9decd8bb4f4c0be6c0cb1dab6fe8cabb0658184`.
+
+Both strict `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r <rid>
+--artifacts-path artifacts\builds\nomadnet-directory-<host>
+-p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v:q`
+commands pass. Scoped managed tests with the selected converter pass
+**Windows 90 +3 explicit Linux-only skips**, **Linux 93/93**. Both selected
+binaries pass **Native 4/4** and actual primary image/conversation/configuration/
+navigation/directory **1/1** (Windows 29.4 seconds; Linux 25.54 seconds).
+Linux also passes actual primary RRC/form/partial/replay **1/1** (18.72 seconds).
+
+The directory mode verifies saved-node UI, opening, rank and trust propagation,
+anonymous/identified/anonymous requests, native authorization of an actual
+primary request, persisted node policy and restart/cache behavior. The thin
+adapter observes real link-close identities via supported callbacks, chaining
+the original primary `peer_connected`/`peer_disconnected` methods; it does not
+replace authorization, requests, identity processing or transport. Observations
+are bounded and overflow/insufficient evidence fails explicitly.
+
+**Primary Windows defect:** `Node.request_allowed` treats a plain `.allowed`
+list as executable because Windows `os.access(path, X_OK)` returns true, then
+fails with **WinError 193**. Correctly identified requests are still rejected.
+The Windows gate records actual identity disclosure separately and verifies
+native static-list authorization in the reverse direction; it does not claim
+successful primary static-list authorization on Windows. The unmodified Linux
+primary permits the whitelisted identity and denies anonymous requests.
+No reference shim suppresses this defect. A previously cached denial survived
+restart as expected; the test explicitly reloads rather than weakening the
+authorization assertion.
+
+Saved ignored recipes select exact DLLs, binaries, converters and pinned primary
+environments and enable `DOTRETICULUM_NOMADNET_DIRECTORY_LIVE=1` alongside
+the preceding modes:
+
+```powershell
+& artifacts\tests\nomadnet-directory-win-acceptance.ps1
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-directory-linux-acceptance.ps1
+```
+
+Prerequisites remain the selected .NET 10 SDK, local strict-AOT toolchain,
+PowerShell/Pester, pinned Python environment/source, and external FFmpeg
+described below. Linux executable-page test work stays on the native Linux
+filesystem. Python worker count2 remains a disclosed standard runtime bound.
+Older frozen acceptance recipes explicitly clear the directory opt-in.
+
+The final integrated `dotnet build DotReticulum.Ecosystem.slnx -c Release
+--artifacts-path artifacts\builds\nomadnet-directory-solution -v:q` passes
+with zero warnings/errors; matching `dotnet test ... --no-build -v:q --logger trx
+--results-directory artifacts\tests\nomadnet-directory-full-final` passes
+**1,654 tests, 81 explicit skips, zero failures** across all five projects.
 
 ### Selected navigation/application acceptance
 

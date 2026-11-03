@@ -99,9 +99,11 @@ public sealed class NomadNetStore
         finally { _gate.Release(); }
     }
 
-    public async Task SaveContactAsync(NomadNetContact contact, CancellationToken cancellationToken = default)
+    public async Task SaveContactAsync(NomadNetContact contact, CancellationToken cancellationToken = default,
+        string? associatedNodeHash = null)
     {
         var normalized = NormalizeContact(contact);
+        if (associatedNodeHash is not null) associatedNodeHash = NomadNetAddress.NormalizeHash(associatedNodeHash);
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         var contacts = _state.Contacts;
         var ignored = _state.IgnoredDestinations;
@@ -119,10 +121,13 @@ public sealed class NomadNetStore
             else if (!normalized.Ignored) _state.IgnoredDestinations.Remove(normalized.DestinationHash);
             if (index >= 0) _state.Contacts[index] = normalized;
             else _state.Contacts.Add(normalized);
+            var associated = _state.Contacts.FindIndex(item => item.DestinationHash == associatedNodeHash);
+            if (associated >= 0) _state.Contacts[associated] = _state.Contacts[associated] with { TrustLevel = normalized.TrustLevel };
             if (JsonSerializer.SerializeToUtf8Bytes(_state, NomadNetJsonContext.Default.NomadNetState).Length > MaximumStateBytes)
                 throw new InvalidDataException("Contact policy exceeds the state size limit; history was not evicted.");
             await PersistAsync(cancellationToken).ConfigureAwait(false);
         }
+
         catch
         {
             _state.Contacts = contacts;
@@ -131,6 +136,9 @@ public sealed class NomadNetStore
         }
         finally { _gate.Release(); }
     }
+
+    public async Task<IReadOnlyList<NomadNetContact>> KnownNodesAsync(CancellationToken cancellationToken = default) =>
+        NomadNetDirectoryPolicy.KnownNodes(await ContactsAsync(cancellationToken).ConfigureAwait(false));
 
     public async Task<IReadOnlyList<string>> IgnoredDestinationsAsync(CancellationToken cancellationToken = default)
     {

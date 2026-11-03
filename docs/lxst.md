@@ -186,11 +186,11 @@ capture/playback quality claim follows from these headless processing tests.
 | Console entry point `rnphone` | implemented software; differences below | Native executable and controls exist; physical and presentation limits are not full CLI/daemon compatibility |
 | `--help`, `-l/--list-devices`, `--config`, `--rnsconfig`, `-s/--service`, `--systemd`, `--version`, repeated `-v/--verbose` | implemented; presentation differs | Flags implemented; Linux/Windows device listing; original help/systemd text |
 | Interactive dial/redial, answer/hangup, identity/destination display, phonebook and profile controls | implemented software; original presentation | 248 executed state/menu/token cases, bidirectional native calls, phonebook/reload/restart and profile cycle; first-space tokenization, hash priority and submenu close semantics tested; no byte-identical ANSI/prompt claim |
-| Service mode, signals, shutdown cleanup, systemd example | implemented software; long soak unverified | Native service ignores closed stdin for 60 seconds and exits cleanly on targeted SIGTERM; identity retained across restart; hours/days operation remains unverified |
+| Service mode, signals, shutdown cleanup, systemd example | implemented software; one-hour native acceptance | Native Linux service ignores closed stdin for one hour and exits cleanly on targeted SIGTERM; identity retained across restart; days-long operation remains unverified |
 | Configuration directory precedence, default config creation and first-run behavior | implemented except bundled assets | Precedence implemented; minimal original default config, no bundled assets |
 | Identity generation/load/failure and `storage` directory | implemented | Native Pester restart test; owner-only Unix creation; buffers zeroed |
 | Bundled ringtone copying and ringtone/ringer output | partial | No upstream sounds redistributed; user-supplied Opus ringtone loops on a separate selected sink and stops on answer; real native virtual-sink acceptance |
-| `[telephone]`: `speaker`, `microphone`, `ringer`, `ringtone`, `allowed_callers`, `blocked_callers` | implemented software; platform coverage bounded | Runtime sink/capture reconfiguration tested; Linux identifier/substring/fuzzy selection and monitor exclusion match executed primary lookup; Windows uses explicit numeric/default identifiers |
+| `[telephone]`: `speaker`, `microphone`, `ringer`, `ringtone`, `allowed_callers`, `blocked_callers` | implemented software; platform coverage bounded | Runtime sink/capture reconfiguration tested; Linux/Windows identifier/name/substring/fuzzy selection matches executed primary lookup; Linux monitor exclusion tested |
 | `[phonebook]`: names, identity hashes, optional filtered numeric aliases, authorization integration | implemented | Actual primary ConfigObj/apply_config/load_phonebook/menu fixtures cover quoted comma values, inline comments, ASCII numeric filtering, self exclusion, trailing-comma allowed/blocked lists, ignored extra columns and skipped malformed phonebook rows; native menu/reload/restart acceptance |
 | `[hardware]`: `keypad`, `keypad_hook_pin`, `display` | implemented software; physical execution unverified | `gpio_4x4`, integer hook pin and `i2c_lcd1602` select owned Linux providers; unknown drivers/platforms and unavailable devices fail explicitly before identity creation; changing hardware settings on reload requires restart |
 | Commented amplifier-mute options | upstream-placeholder | Default config mentions `amp_mute_pin`/`amp_mute_level`; `apply_config` does not consume them |
@@ -783,7 +783,8 @@ calls before either receives the other's request: both observe Busy, then a
 subsequent call succeeds. The
 reference busy-tone duration is explicitly set to zero in these policy cases;
 they do not verify busy-tone playback. Exhaustive cross-dial/timeout timing
-matrices, hardware I/O and long-duration recovery remain unverified.
+matrices, hardware I/O and prolonged Python-peer recovery remain unverified.
+Separate one-hour native-to-native and idle-service acceptance is recorded below.
 
 ### Remaining software versus environment limits
 
@@ -798,7 +799,7 @@ has no implementation. Their exact disposition is:
 | Resample functions, normalize option and supported channel handling | Executed mono/stereo rate conversion and normalization implemented. Arbitrary host-native float128 formats unverified outside the pinned Linux x86 representation; no replacement format is invented. |
 | Line capture/playback, preferred devices, buffers, gain, filters and low latency | Generic and Linux/Windows software exists; successful physical capture/quality/latency and unavailable platform branches unverified. Fake/virtual tests are not physical evidence. |
 | `rnphone`, CLI flags and interactive controls | Installed entry point, listed flags/aliases and controls implemented. Terminal tokens/state/menu actions, elapsed rounding/duration strings and refresh cadence execute source vectors. Help/systemd text, ANSI styling and prompts remain original; exhaustive physical scheduling/terminal byte matrices are not claimed. |
-| Service mode/signals/shutdown/systemd | Implemented; 60 seconds with stdin closed, then SIGTERM/restart verified; hours/days operation unverified. Original systemd example paths/text, not a copied asset. |
+| Service mode/signals/shutdown/systemd | Implemented; one hour with stdin closed, then SIGTERM/restart verified; days-long operation unverified. Original systemd example paths/text, not a copied asset. |
 | Configuration precedence/default/first-run and bundled ringtone copying | Precedence/default creation/identity implemented. No upstream licensed sounds/default-comment template is redistributed; user-supplied Opus ringtone flow is verified. |
 | Sources/Sinks/backend and Telephone device/default helper rows | Generic enumeration/defaults and leased device I/O exist and utility composition uses them. Device-independent endpoint deliberately does not own devices or emulate Python backend object layouts; OS methods live in `IAudioDeviceBackend`, not a missing factory. |
 | Hardware enablement/state/display rows | Linux provider/wiring and primary-executed software controls implemented. No GPIO/I2C devices are exposed by current WSL; successful physical transactions, board line-offset mapping and arm64 kernel execution unverified. |
@@ -825,7 +826,8 @@ has no implementation. Their exact disposition is:
 - **Unavailable execution environments:** physical audio/GPIO/I2C/RNode,
   macOS/Android device platforms, big-endian and IEEE binary128 hosts. No physical
   quality, device latency or support claim follows from virtual/fake tests.
-  Exhaustive timing matrices and long-duration operation remain unverified.
+  Exhaustive timing matrices, days-long operation and prolonged Python-peer
+  operation remain unverified; the one-hour native scope is recorded below.
 
 ### Executed file/native-library audit
 
@@ -1012,6 +1014,14 @@ enables counter-based sustained-call checks in Pester and the 60-second
 stdin-closed service check. Without this optional variable the normal bounded
 native acceptance still runs.
 
+The call soak uses monotonic elapsed time and samples both native processes'
+receive/transmit counters on a 30-second schedule, requiring each counter to
+increase at every observation. It records process working-set snapshots and
+elapsed time beneath the run's `artifacts\tests\rnphone-soak-*.json`; these are
+observations, not an asserted memory bound or proof of leak-free operation.
+The service case keeps stdin closed for the requested interval, then verifies
+SIGTERM, clean exit and restart with the same persisted identity.
+
 | Exact command, from repository root unless specified | Result |
 |---|---|
 | `dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path artifacts\builds\lxst-wasapi-win-managed --results-directory artifacts\tests\lxst-wasapi-win-managed --logger trx --verbosity quiet` | 133 passed, 27 explicit opt-in skips |
@@ -1029,8 +1039,9 @@ The Linux managed live suite exercises stream and telephone traffic with either
 side originating, direct and via separate Python/.NET transport nodes, codec
 profiles, mode/PTT/follow changes, frame loss, malformed packets, hangup,
 rejection/busy, redial and continued service. Initial half-duplex in both call
-directions is additionally exercised direct. A bounded 60-second call is not an
-hours/days soak. Linux audio evidence uses virtual PulseAudio; Windows headless
+directions is additionally exercised direct. The separate one-hour native
+acceptance below does not extend the shorter Python interoperability calls or
+establish days-long operation. Linux audio evidence uses virtual PulseAudio; Windows headless
 Opus evidence uses synthetic/discard devices. Separate Windows Wave/WASAPI
 silence tests open an enumerated output but do not establish physical speaker
 quality. WASAPI loopback tests activate/start/stop without reading system audio.
@@ -1048,6 +1059,104 @@ separate, not committed):
   `21b8937fc223f0c5d85589db3eb3ea8c9f02dae9b9132cd928d5ffeecd9ec174`
 - `artifacts\builds\lxst-wasapi-probe-win\WasapiProbe.exe`:
   `1efb79b2e5f11f06e91f65f0b43c0ede836569dd9aa1605725a359ea021575ff`
+
+### One-hour native call and service acceptance
+
+Three isolated cases ran concurrently on 2026-11-03, using the unchanged frozen
+Windows/Linux binaries and SHA-256 values above. Each selected exactly one case
+from `tests\Pester\Rnphone.Tests.ps1` with `DOTLXST_SOAK_SECONDS=3600`.
+Windows used Pester 6.2.0; Linux used Pester 5.7.1.
+All three completed with **one passed, zero failed, zero skipped**:
+
+| Selected case | UTC start → finish | Requested hold and measured duration | Topology and post-hold assertions |
+|---|---|---|---|
+| `NativeWindows` | `22:22:27.9278654Z` → `23:22:31.5072968Z` | Call soak `3600.074 s`; complete runner `3603.505 s` | Two NativeAOT Windows processes, direct loopback TCP Reticulum link, real Opus with synthetic-silence capture/discard playback. After the hour: profile change, hangup/reverse-originated call, abrupt peer termination, return to Available, same-identity peer restart, third successful call and clean exits. |
+| `NativeStandalone` | `22:22:30.4399209Z` → `23:22:39.8584199Z` | Call soak `3600.074 s`; complete runner `3609.419 s` | Two NativeAOT Linux processes over direct loopback TCP, private PulseAudio daemon with null sources/sinks. After the hour: capture/playback device reload, profile change, hangup/reverse-originated call, authorization-busy tone/release and clean exits. |
+| Full name `*runs service mode without reading commands and handles SIGTERM cleanly before restart` | `22:22:30.4394177Z` → `23:22:33.0024993Z` | `3600 s` stdin-closed service hold; test `3601.23 s`; complete runner `3602.565 s` | Separate idle Linux service, no network interfaces/audio devices. Closed stdin and `quit` do not terminate service; targeted SIGTERM exits successfully, identity persists across restart, second SIGTERM exits successfully. |
+
+Both call cases produced 121 observations per endpoint: baseline plus 120
+strictly increasing receive/transmit intervals on a 30-second monotonic schedule.
+No microphone, physical speaker or private system-loopback audio was captured.
+
+| Host and original endpoint PID | Received / transmitted frame increase during hold | Minimum receive / transmit increase per observed interval |
+|---|---|---|
+| Windows `72764` | `57478 / 57529` | `456 / 457` |
+| Windows `40792` | `57529 / 57477` | `457 / 455` |
+| Linux `605480` | `60001 / 60002` | `499 / 499` |
+| Linux `605489` | `60001 / 60001` | `499 / 499` |
+
+Maximum observed sample gaps were `30.126 s` on Windows and `30.072 s` on
+Linux. Maximum sampled working sets were `52,146,176` and `62,353,408` bytes
+respectively. Working sets increased from the initial observations; no plateau,
+memory bound or leak-free claim is inferred from these measurements.
+
+The retained ignored runner is
+`artifacts\tests\lxst-hour-soak\Run-RnphoneSoak.ps1`; it checks the exact binary
+hash before and after each run, writes NUnit XML/transcript/JSON summary, and
+requires exactly one passing selected case with no skips. Its SHA-256 is
+`d326856a023e9e321567f1b43e12dffe514ba9b9778a0b9509d741916cd27589`.
+Exact invocations:
+
+```powershell
+# Windows, from the repository root.
+$native = (Resolve-Path artifacts\builds\lxst-msys2\ucrt64\bin).Path
+$env:PATH = "$native;$env:PATH"
+$env:DOTLXST_WINDOWS_AUDIO = '1'
+$env:DOTLXST_SOAK_SECONDS = '3600'
+$env:DOTLXST_RNPHONE_BINARY = (Resolve-Path artifacts\builds\lxst-wasapi-native-win\rnphone.exe).Path
+pwsh -NoProfile -File artifacts\tests\lxst-hour-soak\Run-RnphoneSoak.ps1 -Case WindowsPair
+```
+
+In two independent WSL shells, from
+`/home/dennis/dotreticulum-ecosystem-acfd3d43/ci-acceptance-checkout`:
+
+```sh
+export DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet
+export PATH="$DOTNET_ROOT:$PATH"
+export TMPDIR=/mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/lxst-headless-linux-scratch
+export DOTLXST_SOAK_SECONDS=3600
+export DOTLXST_RNPHONE_BINARY=/mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/builds/lxst-wasapi-native-linux/rnphone
+# Shell 1: the source-free virtual call.
+export DOTLXST_VIRTUAL_AUDIO=1
+/home/dennis/.dotreticulum-powershell/pwsh -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/lxst-hour-soak/Run-RnphoneSoak.ps1 -Case LinuxPair
+# Shell 2: the service case, with the same common exports above.
+/home/dennis/.dotreticulum-powershell/pwsh -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/lxst-hour-soak/Run-RnphoneSoak.ps1 -Case LinuxService
+```
+
+The runner's selectors are `Filter.Tag = 'NativeWindows'`,
+`Filter.Tag = 'NativeStandalone'`, or **only**
+`Filter.FullName = '*runs service mode without reading commands and handles SIGTERM cleanly before restart'`
+on a `New-PesterConfiguration` whose `Run.Path` is the existing phone test
+script and `Run.PassThru` is true. Do not combine a tag and full-name selector
+for the service case: Pester's OR selection would also include the phonebook
+case. Selecting the roles separately avoids serial one-hour holds.
+
+Durable evidence directories:
+
+- Windows: `artifacts\tests\lxst-hour-soak\WindowsPair-20261103-222227`.
+- Linux, beneath the native checkout's `artifacts/tests/lxst-hour-soak`:
+  `LinuxPair-20261103-222227` and `LinuxService-20261103-222227`.
+- Each directory contains `summary.json`, `results.xml`, `transcript.txt`;
+  call observations are in its `artifacts/tests/rnphone-soak-*.json`.
+  Aggregate counter summaries are `windows-results.json` and
+  `linux-results.json` in their respective host's soak root, generated by the
+  retained `artifacts\tests\lxst-hour-soak\Read-RnphoneSoak.ps1`.
+
+Initial one-second Linux preflights failed before readiness because the Windows
+shared mount cannot enforce owner-only identity permissions. Config/state was
+moved to the existing protected native checkout; permission checks were not
+weakened. Corrected preflights and the three full-duration cases passed.
+Diagnostic-only approved-verb/information-stream cleanup also passed separate
+one-second preflights for all three roles. PowerShell analysis reports five
+pre-existing warnings and no new warnings.
+
+This is **one-hour native-to-native/idle-service evidence**, not a days-long
+soak or prolonged Python interoperability. Failure/restart and reverse calls
+occur after the sustained call, not repeatedly throughout the hour. The Windows
+call uses headless devices: it does not extend the shorter WASAPI synthetic
+render/loopback-activation checks to one-hour device I/O. Physical audio quality,
+acoustics, microphone/loopback capture, RF, impaired transport hops, repeated
+multi-day recovery and unavailable platforms remain unverified.
 
 ### Reticulum adapter guarantees and ownership
 

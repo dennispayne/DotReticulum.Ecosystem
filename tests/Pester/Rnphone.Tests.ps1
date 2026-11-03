@@ -121,19 +121,57 @@ BeforeAll {
             @([long] $match.Groups[1].Value, [long] $match.Groups[2].Value)
         }
         $before = @{}
-        foreach ($running in $Phones) { $before[$running.Process.Id] = Read-CallCounters $running }
-        $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
-        while ([DateTime]::UtcNow -lt $deadline) {
-            foreach ($running in $Phones) {
-                Read-PhoneProcess $running
-                $running.Process.HasExited | Should -BeFalse
+        $observations = [Collections.Generic.List[object]]::new()
+        $watch = [Diagnostics.Stopwatch]::StartNew()
+        $started = [DateTime]::UtcNow
+        $record = Join-Path $script:phoneArtifacts ('rnphone-soak-' + [Guid]::NewGuid().ToString('N') + '.json')
+        function Write-CallObservation {
+            param($Running, [long[]] $Counters)
+            $Running.Process.Refresh()
+            $observation = [ordered]@{
+                elapsedSeconds = $watch.Elapsed.TotalSeconds
+                processId = $Running.Process.Id
+                received = $Counters[0]
+                transmitted = $Counters[1]
+                workingSetBytes = $Running.Process.WorkingSet64
             }
-            Start-Sleep -Milliseconds 50
+            $observations.Add([pscustomobject] $observation)
+            Write-Information ("rnphone soak: {0:N1}s pid={1} received={2} transmitted={3} workingSet={4}" -f
+                $observation.elapsedSeconds, $observation.processId, $observation.received,
+                $observation.transmitted, $observation.workingSetBytes) -InformationAction Continue
         }
-        foreach ($running in $Phones) {
-            $after = Read-CallCounters $running
-            $after[0] | Should -BeGreaterThan $before[$running.Process.Id][0]
-            $after[1] | Should -BeGreaterThan $before[$running.Process.Id][1]
+        try {
+            foreach ($running in $Phones) {
+                $before[$running.Process.Id] = Read-CallCounters $running
+                Write-CallObservation $running $before[$running.Process.Id]
+            }
+            $nextObservation = [Math]::Min(30, $seconds)
+            while ($true) {
+                foreach ($running in $Phones) {
+                    Read-PhoneProcess $running
+                    $running.Process.HasExited | Should -BeFalse
+                }
+                if ($watch.Elapsed.TotalSeconds -ge $nextObservation) {
+                    foreach ($running in $Phones) {
+                        $after = Read-CallCounters $running
+                        Write-CallObservation $running $after
+                        $after[0] | Should -BeGreaterThan $before[$running.Process.Id][0]
+                        $after[1] | Should -BeGreaterThan $before[$running.Process.Id][1]
+                        $before[$running.Process.Id] = $after
+                    }
+                    if ($watch.Elapsed.TotalSeconds -ge $seconds) { break }
+                    $nextObservation = [Math]::Min($nextObservation + 30, $seconds)
+                }
+                Start-Sleep -Milliseconds 50
+            }
+        } finally {
+            [ordered]@{
+                startedUtc = $started.ToString('o')
+                requestedSeconds = $seconds
+                elapsedSeconds = $watch.Elapsed.TotalSeconds
+                observations = $observations.ToArray()
+            } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $record
+            Write-Information "rnphone soak observations: $record" -InformationAction Continue
         }
     }
 

@@ -19,6 +19,7 @@ public sealed class SidebandClient : IAsyncDisposable
     private Task? _disposeTask;
     private CancellationTokenSource? _runCancellation;
     private Task? _inboundTask;
+    private Task? _periodicTask;
     private ReticulumNode? _node;
     private Identity? _identity;
     private LxmRouter? _router;
@@ -93,6 +94,8 @@ public sealed class SidebandClient : IAsyncDisposable
                 _router = router;
                 lock (_cancellationGate) _runCancellation = runCancellation;
                 _inboundTask = Task.Run(() => ProcessIncomingAsync(inbound.Reader), CancellationToken.None);
+                var runToken = runCancellation.Token;
+                _periodicTask = Task.Run(() => ProcessPeriodicAsync(runToken), CancellationToken.None);
                 await router.AnnounceAsync(cancellationToken).ConfigureAwait(false);
                 await _store.SetOwnDeliveryHashAsync(router.DeliveryHashHex, cancellationToken).ConfigureAwait(false);
                 ConnectionInfo = new SidebandConnectionInfo(
@@ -107,6 +110,7 @@ public sealed class SidebandClient : IAsyncDisposable
             catch
             {
                 lock (_cancellationGate) _runCancellation = null;
+                if (runCancellation is not null) await runCancellation.CancelAsync().ConfigureAwait(false);
                 if (_announceHandler is not null) node.Router.Engine.DeregisterHandler(_announceHandler);
                 if (_propagationHandler is not null) node.Router.Engine.DeregisterHandler(_propagationHandler);
                 _announceHandler = null;
@@ -117,7 +121,7 @@ public sealed class SidebandClient : IAsyncDisposable
                 if (router is not null) await router.DisposeAsync().ConfigureAwait(false);
                 inbound.Writer.TryComplete();
                 if (_inboundTask is not null) await _inboundTask.ConfigureAwait(false);
-                if (runCancellation is not null) await runCancellation.CancelAsync().ConfigureAwait(false);
+                if (_periodicTask is not null) await _periodicTask.ConfigureAwait(false);
                 runCancellation?.Dispose();
                 if (identity is not null) identity.Dispose();
                 await node.DisposeAsync().ConfigureAwait(false);
@@ -125,6 +129,7 @@ public sealed class SidebandClient : IAsyncDisposable
                 _node = null;
                 _identity = null;
                 _inboundTask = null;
+                _periodicTask = null;
                 ConnectionInfo = null;
                 throw;
             }
@@ -248,6 +253,13 @@ public sealed class SidebandClient : IAsyncDisposable
         finally { _lifecycle.Release(); }
     }
 
+    public async Task ConfigurePeriodicSynchronizationAsync(bool enabled, int intervalSeconds = 43_200, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _store.SetPeriodicSynchronizationAsync(enabled, intervalSeconds, cancellationToken).ConfigureAwait(false);
+        PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
+    }
+
     public void CancelSynchronization() => _router?.CancelPropagationNodeRequests();
 
     public Task<IReadOnlyList<SidebandChatMessage>> GetMessagesAsync(string peerHash, CancellationToken cancellationToken = default) =>
@@ -316,10 +328,12 @@ public sealed class SidebandClient : IAsyncDisposable
             await cancellation.CancelAsync().ConfigureAwait(false);
             _inbound.Writer.TryComplete();
             if (_inboundTask is not null) await _inboundTask.ConfigureAwait(false);
+            if (_periodicTask is not null) await _periodicTask.ConfigureAwait(false);
             cancellation.Dispose();
         }
 
         _inboundTask = null;
+        _periodicTask = null;
         if (node is not null) await node.DisposeAsync().ConfigureAwait(false);
         identity?.Dispose();
     }
@@ -330,6 +344,46 @@ public sealed class SidebandClient : IAsyncDisposable
         var contact = new SidebandContact(Convert.ToHexStringLower(announce.DestinationHash), displayName);
         if (!_inbound.Writer.TryWrite(new ClientUpdate(Contact: contact)))
             Report("Contact-update queue is full or closed; the discovered contact was not saved.");
+    }
+
+    private async Task ProcessPeriodicAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(60));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+            {
+                try
+                {
+                    var state = await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                    var router = _router;
+                    if (router is null) continue;
+                    var transferState = router.PropagationTransferState;
+                    var accepted = transferState == LxmPropagationTransferState.Idle ||
+                        (int)transferState >= (int)LxmPropagationTransferState.Complete;
+                    var decision = SidebandSynchronizationPolicy.Advance(state.PeriodicSynchronization,
+                        state.SynchronizationIntervalSeconds, state.LastSynchronization, state.SynchronizationRetrying,
+                        DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000d, accepted);
+                    if (decision.LastSync != state.LastSynchronization || decision.Retrying != state.SynchronizationRetrying)
+                    {
+                        await _store.SetSynchronizationStateAsync(decision.LastSync, decision.Retrying, cancellationToken).ConfigureAwait(false);
+                        PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
+                    }
+                    if (!decision.Attempted || !accepted) continue;
+                    await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        if (ReferenceEquals(router, _router))
+                            await router.RequestMessagesFromPropagationNodeAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                    }
+                    finally { _lifecycle.Release(); }
+                    PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { break; }
+                catch (Exception ex) { Report("Scheduled propagation synchronization failed: " + ex.Message); }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
     }
 
     private void ReceivedPropagationAnnounce(AnnounceReceived announce)

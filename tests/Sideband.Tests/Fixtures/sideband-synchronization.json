@@ -1,0 +1,103 @@
+{
+    "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+    "source_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+    "method": "actual periodic-sync branch; injected clock/persistence/request dependencies",
+    "cases": [
+        {
+            "name": "disabled",
+            "enabled": false,
+            "last": null,
+            "retrying": false,
+            "accepted": true,
+            "interval": 10,
+            "now": 1000000,
+            "next_last": null,
+            "next_retrying": false,
+            "requested": false
+        },
+        {
+            "name": "initialize",
+            "enabled": true,
+            "last": null,
+            "retrying": false,
+            "accepted": true,
+            "interval": 10,
+            "now": 1000000,
+            "next_last": 1000000,
+            "next_retrying": false,
+            "requested": false
+        },
+        {
+            "name": "before",
+            "enabled": true,
+            "last": 999991,
+            "retrying": false,
+            "accepted": true,
+            "interval": 10,
+            "now": 1000000,
+            "next_last": 999991,
+            "next_retrying": false,
+            "requested": false
+        },
+        {
+            "name": "exact-deadline",
+            "enabled": true,
+            "last": 999990,
+            "retrying": false,
+            "accepted": true,
+            "interval": 10,
+            "now": 1000000,
+            "next_last": 999990,
+            "next_retrying": false,
+            "requested": false
+        },
+        {
+            "name": "accepted",
+            "enabled": true,
+            "last": 999989,
+            "retrying": false,
+            "accepted": true,
+            "interval": 10,
+            "now": 1000000,
+            "next_last": 1000000,
+            "next_retrying": false,
+            "requested": true
+        },
+        {
+            "name": "first-busy",
+            "enabled": true,
+            "last": 999989,
+            "retrying": false,
+            "accepted": false,
+            "interval": 10,
+            "now": 1000000,
+            "next_last": 1000349,
+            "next_retrying": true,
+            "requested": true
+        },
+        {
+            "name": "second-busy",
+            "enabled": true,
+            "last": 999989,
+            "retrying": true,
+            "accepted": false,
+            "interval": 10,
+            "now": 1000000,
+            "next_last": 1000000,
+            "next_retrying": false,
+            "requested": true
+        },
+        {
+            "name": "accepted-after-retry",
+            "enabled": true,
+            "last": 999989,
+            "retrying": true,
+            "accepted": true,
+            "interval": 10,
+            "now": 1000000,
+            "next_last": 1000000,
+            "next_retrying": false,
+            "requested": true
+        }
+    ]
+}

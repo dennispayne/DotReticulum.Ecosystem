@@ -97,6 +97,42 @@ public sealed class SidebandSettingsTests
     }
 
     [Fact]
+    public async Task ScheduleSettingsAndRetryStatePersistAndMalformedIntervalsAreTransactional()
+    {
+        var root = Path.Combine(AppContext.BaseDirectory, "sideband-settings-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var token = TestContext.Current.CancellationToken;
+            var store = new SidebandStateStore(root);
+            var initial = await store.LoadAsync(cancellationToken: token);
+            Assert.False(initial.PeriodicSynchronization);
+            Assert.Equal(43_200, initial.SynchronizationIntervalSeconds);
+            await store.SetPeriodicSynchronizationAsync(true, 60, token);
+            await store.SetSynchronizationStateAsync(1_000_000, true, token);
+            var state = await new SidebandStateStore(root).LoadAsync(cancellationToken: token);
+            Assert.True(state.PeriodicSynchronization);
+            Assert.Equal(60, state.SynchronizationIntervalSeconds);
+            Assert.Equal(1_000_000d, state.LastSynchronization);
+            Assert.True(state.SynchronizationRetrying);
+            await Assert.ThrowsAsync<InvalidDataException>(() => store.SetSynchronizationStateAsync(double.NaN, false, token));
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => store.SetPeriodicSynchronizationAsync(true, 0, token));
+            var input = Path.Combine(root, "import.json");
+            await File.WriteAllTextAsync(input, """{"lxmf_periodic_sync":false,"lxmf_sync_interval":1.5}""", token);
+            await Assert.ThrowsAsync<InvalidDataException>(() => store.ImportSettingsAsync(input, token));
+            Assert.True((await store.LoadAsync(cancellationToken: token)).PeriodicSynchronization);
+            await File.WriteAllTextAsync(input, """{"lxmf_periodic_sync":false,"lxmf_sync_interval":86400}""", token);
+            Assert.Empty(await store.ImportSettingsAsync(input, token));
+            var output = Path.Combine(root, "export.json");
+            await store.ExportSettingsAsync(output, token);
+            using var exported = JsonDocument.Parse(await File.ReadAllTextAsync(output, token));
+            Assert.False(exported.RootElement.GetProperty("lxmf_periodic_sync").GetBoolean());
+            Assert.Equal(86_400, exported.RootElement.GetProperty("lxmf_sync_interval").GetInt32());
+            Assert.Equal(1_000_000d, (await store.LoadAsync(cancellationToken: token)).LastSynchronization);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public async Task InvalidTypesOversizeAndCancellationLeaveExistingSettingsUnchanged()
     {
         var root = Path.Combine(AppContext.BaseDirectory, "sideband-settings-" + Guid.NewGuid().ToString("N"));

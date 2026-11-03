@@ -113,6 +113,8 @@ public sealed partial class MainWindow : Window
             ThemeSelector.SelectedItem = _state.Theme;
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
+            PeriodicSyncBox.IsChecked = _state.PeriodicSynchronization;
+            SyncIntervalBox.Text = _state.SynchronizationIntervalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
             ApplyTheme(_state.Theme);
             RefreshContacts();
             RefreshExpandedContacts();
@@ -220,6 +222,19 @@ public sealed partial class MainWindow : Window
 
     private void CancelSyncClicked(object? sender, RoutedEventArgs e) => _client.CancelSynchronization();
 
+    private void SaveSyncScheduleClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
+    {
+        try
+        {
+            if (!int.TryParse(SyncIntervalBox.Text, System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var seconds) || seconds <= 0)
+                throw new ArgumentException("Enter a positive whole number of seconds for the synchronization interval.");
+            await _client.ConfigurePeriodicSynchronizationAsync(PeriodicSyncBox.IsChecked == true, seconds, _windowCancellation.Token);
+            SyncStatusText.Text = "Synchronization schedule saved. Checks run every 60 seconds while connected.";
+        }
+        catch (Exception ex) { ShowError("Could not save synchronization schedule: " + ex.Message); }
+    });
+
     private void ImportSettingsClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
     {
         try
@@ -233,6 +248,8 @@ public sealed partial class MainWindow : Window
             ThemeSelector.SelectedItem = _state.Theme;
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
+            PeriodicSyncBox.IsChecked = _state.PeriodicSynchronization;
+            SyncIntervalBox.Text = _state.SynchronizationIntervalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
             ApplyTheme(_state.Theme);
             PreferencesStatusText.Text = unsupported.Count == 0 ? "Settings imported." :
                 "Settings imported. Preserved but not applied: " + string.Join(", ", unsupported);
@@ -423,6 +440,9 @@ public sealed partial class MainWindow : Window
         ActivePropagationNodeText.Text = (_state?.PropagationNode ?? _state?.LastPropagationNode) is { } propagationNode
             ? $"{(_state?.PropagationNode is null ? "Automatic/remembered" : "Manual")} propagation node: {propagationNode}"
             : "No propagation node selected or discovered.";
+        SyncScheduleStatusText.Text = _state?.PeriodicSynchronization == true
+            ? $"Automatic fetch interval: {_state.SynchronizationIntervalSeconds} seconds; checks every 60 seconds. Last scheduled attempt: {_state.LastSynchronization?.ToString("F0", System.Globalization.CultureInfo.InvariantCulture) ?? "not initialized"}. Retry pending: {_state.SynchronizationRetrying}."
+            : "Automatic fetch is disabled. Schedule state is retained over restart.";
 
         if (!connected)
         {

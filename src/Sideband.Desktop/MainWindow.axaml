@@ -141,6 +141,13 @@
             </StackPanel>
             <TextBlock x:Name="SyncStatusText" TextWrapping="Wrap"
                        Text="Propagation confirms storage at the node, not delivery to the recipient." />
+            <CheckBox x:Name="PeriodicSyncBox" Content="Automatically fetch propagated messages while connected" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBox x:Name="SyncIntervalBox" Width="140" Text="43200" PlaceholderText="Interval in seconds" />
+              <Button Content="Save schedule" Click="SaveSyncScheduleClicked" />
+            </StackPanel>
+            <TextBlock x:Name="SyncScheduleStatusText" TextWrapping="Wrap"
+                       Text="Scheduled checks run every 60 seconds; the default fetch interval is 12 hours." />
             <Border Padding="18" CornerRadius="8" Background="{DynamicResource CardBackgroundBrush}">
               <StackPanel Spacing="8">
                 <TextBlock FontSize="17" FontWeight="SemiBold" Text="Connectivity details" />

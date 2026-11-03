@@ -35,6 +35,8 @@ Describe 'sideband native acceptance' -Tag 'Native' {
             dark_ui = $false
             lxmf_propagation_node = '00112233445566778899aabbccddeeff'
             propagation_by_default = $true
+            lxmf_periodic_sync = $true
+            lxmf_sync_interval = 120
             unsupported_reference_setting = @(1, 'retained')
         } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $inputPath
         $imported = & $binary --config $data --import-settings $inputPath 2>&1 | Out-String
@@ -46,9 +48,15 @@ Describe 'sideband native acceptance' -Tag 'Native' {
         $settings.display_name | Should -Be 'Native settings peer'
         $settings.dark_ui | Should -BeFalse
         $settings.lxmf_propagation_node | Should -Be '00112233445566778899aabbccddeeff'
+        $settings.lxmf_periodic_sync | Should -BeTrue
+        $settings.lxmf_sync_interval | Should -Be 120
         $settings.unsupported_reference_setting[1] | Should -Be 'retained'
         $original = Get-FileHash -LiteralPath (Join-Path $data 'state.json')
         '{"display_name":"must not replace","lxmf_propagation_node":"bad"}' | Set-Content -LiteralPath $inputPath
+        & $binary --config $data --import-settings $inputPath 2>&1 | Out-Null
+        $LASTEXITCODE | Should -Be 1
+        (Get-FileHash -LiteralPath (Join-Path $data 'state.json')).Hash | Should -Be $original.Hash
+        '{"display_name":"must not replace","lxmf_sync_interval":1.5}' | Set-Content -LiteralPath $inputPath
         & $binary --config $data --import-settings $inputPath 2>&1 | Out-Null
         $LASTEXITCODE | Should -Be 1
         (Get-FileHash -LiteralPath (Join-Path $data 'state.json')).Hash | Should -Be $original.Hash

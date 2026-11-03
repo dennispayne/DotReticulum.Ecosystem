@@ -68,11 +68,60 @@ def propagation_vectors(source_root, output):
                                  "cases": cases}, indent=4) + "\n", encoding="utf-8")
 
 
+def synchronization_vectors(source_root, output):
+    source = subprocess.check_output(
+        ["git", "-C", str(source_root), "show", f"{PIN}:sbapp/sideband/core.py"])
+    if hashlib.sha256(source).hexdigest() != CORE_SHA256:
+        raise RuntimeError("Unexpected core.py digest")
+    core = next(node for node in ast.parse(source).body
+                if isinstance(node, ast.ClassDef) and node.name == "SidebandCore")
+    jobs = next(node for node in core.body
+                if isinstance(node, ast.FunctionDef) and node.name == "_periodic_jobs")
+    block = next(node for node in ast.walk(jobs)
+                 if isinstance(node, ast.If) and isinstance(node.test, ast.Compare)
+                 and isinstance(node.test.left, ast.Subscript)
+                 and isinstance(node.test.left.slice, ast.Constant)
+                 and node.test.left.slice.value == "lxmf_periodic_sync")
+    now = 1_000_000
+    cases = []
+    for name, enabled, last, retrying, accepted in [
+        ("disabled", False, None, False, True),
+        ("initialize", True, None, False, True),
+        ("before", True, now - 9, False, True),
+        ("exact-deadline", True, now - 10, False, True),
+        ("accepted", True, now - 11, False, True),
+        ("first-busy", True, now - 11, False, False),
+        ("second-busy", True, now - 11, True, False),
+        ("accepted-after-retry", True, now - 11, True, True),
+    ]:
+        persistent = {"lxmf.lastsync": last, "lxmf.syncretrying": retrying}
+        requests = []
+        owner = SimpleNamespace(
+            config={"lxmf_periodic_sync": enabled, "lxmf_sync_interval": 10},
+            getpersistent=persistent.get,
+            setpersistent=lambda key, value: persistent.__setitem__(key, value),
+            request_lxmf_sync=lambda: requests.append(True) or accepted)
+        namespace = {"self": owner, "time": SimpleNamespace(time=lambda: now),
+                     "SidebandCore": SimpleNamespace(PERIODIC_SYNC_RETRY=360),
+                     "RNS": SimpleNamespace(sl=lambda _: False, LOG_EXTREME=0, LOG_DEBUG=0,
+                                            log=lambda *_, **__: None, prettytime=str)}
+        exec(compile(ast.Module(body=[block], type_ignores=[]), "core.py", "exec"), namespace)
+        cases.append({"name": name, "enabled": enabled, "last": last, "retrying": retrying,
+                      "accepted": accepted, "interval": 10, "now": now,
+                      "next_last": persistent["lxmf.lastsync"],
+                      "next_retrying": persistent["lxmf.syncretrying"],
+                      "requested": bool(requests)})
+    output.write_text(json.dumps({"revision": PIN, "source_sha256": CORE_SHA256,
+                                 "method": "actual periodic-sync branch; injected clock/persistence/request dependencies",
+                                 "cases": cases}, indent=4) + "\n", encoding="utf-8")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--propagation-output", type=Path)
+    parser.add_argument("--synchronization-output", type=Path)
     args = parser.parse_args()
     revision = subprocess.check_output(
         ["git", "-C", str(args.source), "rev-parse", "HEAD"], text=True).strip()
@@ -113,6 +162,8 @@ def main():
                       "rns_path": RNS.__file__}))
     if args.propagation_output:
         propagation_vectors(args.source, args.propagation_output)
+    if args.synchronization_output:
+        synchronization_vectors(args.source, args.synchronization_output)
 
 
 if __name__ == "__main__":

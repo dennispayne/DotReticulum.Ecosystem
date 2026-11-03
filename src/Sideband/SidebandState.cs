@@ -21,7 +21,11 @@ public sealed record SidebandState(
     string? PropagationNode = null,
     bool PropagationByDefault = false,
     IReadOnlyDictionary<string, System.Text.Json.JsonElement>? ImportedSettings = null,
-    string? LastPropagationNode = null)
+    string? LastPropagationNode = null,
+    bool PeriodicSynchronization = false,
+    int SynchronizationIntervalSeconds = 43_200,
+    double? LastSynchronization = null,
+    bool SynchronizationRetrying = false)
 {
     public const int CurrentSchemaVersion = 1;
 

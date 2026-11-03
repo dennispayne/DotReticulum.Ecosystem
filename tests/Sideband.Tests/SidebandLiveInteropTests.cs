@@ -130,6 +130,17 @@ public sealed class SidebandLiveInteropTests
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.SynchronizeAsync(cancellationToken: cancelled.Token));
                 Assert.Equal(0, await client.SynchronizeAsync(cancellationToken: token));
                 await client.ConfigurePropagationAsync(null, true, token);
+                await python.Command($"send {hash} propagated 64 sideband periodic-note", "sent_queued", TimeSpan.FromSeconds(30));
+                await client.ConfigurePeriodicSynchronizationAsync(true, 1, token);
+                deadline = DateTime.UtcNow.AddSeconds(150);
+                while (!(await client.GetMessagesAsync(python.HashHex, token)).Any(message => message.Title == "periodic-note") &&
+                    DateTime.UtcNow < deadline)
+                    await Task.Delay(100, token);
+                Assert.Single(await client.GetMessagesAsync(python.HashHex, token), message => message.Title == "periodic-note");
+                var scheduled = await client.LoadAsync(token);
+                Assert.True(scheduled.PeriodicSynchronization);
+                Assert.NotNull(scheduled.LastSynchronization);
+                Assert.False(scheduled.SynchronizationRetrying);
             }
             await using var restarted = new SidebandClient(new SidebandStateStore(data));
             await restarted.ConnectAsync(rns, token);
@@ -138,7 +149,12 @@ public sealed class SidebandLiveInteropTests
             Assert.Null(state.PropagationNode);
             Assert.Equal(pn, state.LastPropagationNode);
             Assert.True(state.PropagationByDefault);
-            Assert.Equal("propagated-note", Assert.Single(await restarted.GetMessagesAsync(python.HashHex, token), message => message.Incoming).Title);
+            Assert.True(state.PeriodicSynchronization);
+            Assert.Equal(1, state.SynchronizationIntervalSeconds);
+            var incomingHistory = (await restarted.GetMessagesAsync(python.HashHex, token)).Where(message => message.Incoming).ToArray();
+            Assert.Equal(2, incomingHistory.Length);
+            Assert.Single(incomingHistory, message => message.Title == "propagated-note");
+            Assert.Single(incomingHistory, message => message.Title == "periodic-note");
             Assert.Equal(0, await restarted.SynchronizeAsync(cancellationToken: token));
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }

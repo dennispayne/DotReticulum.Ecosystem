@@ -141,6 +141,19 @@ public sealed class SidebandStateStore
         await MutateAsync(state => state with { LastPropagationNode = normalized }, cancellationToken).ConfigureAwait(false);
     }
 
+    public Task SetPeriodicSynchronizationAsync(bool enabled, int intervalSeconds, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(intervalSeconds);
+        return MutateAsync(state => state with
+        {
+            PeriodicSynchronization = enabled,
+            SynchronizationIntervalSeconds = intervalSeconds,
+        }, cancellationToken);
+    }
+
+    public Task SetSynchronizationStateAsync(double? lastSync, bool retrying, CancellationToken cancellationToken = default) =>
+        MutateAsync(state => state with { LastSynchronization = lastSync, SynchronizationRetrying = retrying }, cancellationToken);
+
     public async Task<IReadOnlyList<string>> ImportSettingsAsync(string path, CancellationToken cancellationToken = default)
     {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 16_384, FileOptions.Asynchronous);
@@ -163,6 +176,11 @@ public sealed class SidebandStateStore
             var lastNode = settings.TryGetValue("last_lxmf_propagation_node", out var previous)
                 ? previous.GetString() : state.LastPropagationNode ?? state.PropagationNode;
             var byDefault = settings.TryGetValue("propagation_by_default", out var propagation) ? propagation.GetBoolean() : state.PropagationByDefault;
+            var periodic = settings.TryGetValue("lxmf_periodic_sync", out var sync) ? sync.GetBoolean() : state.PeriodicSynchronization;
+            var interval = state.SynchronizationIntervalSeconds;
+            if (settings.TryGetValue("lxmf_sync_interval", out var syncInterval) &&
+                (syncInterval.ValueKind != JsonValueKind.Number || !syncInterval.TryGetInt32(out interval)))
+                throw new InvalidDataException("The synchronization interval must be a positive whole number of seconds.");
             if (node is not null) node = node.ToLowerInvariant();
             return state with
             {
@@ -171,11 +189,13 @@ public sealed class SidebandStateStore
                 PropagationNode = node,
                 LastPropagationNode = node ?? lastNode?.ToLowerInvariant(),
                 PropagationByDefault = byDefault,
+                PeriodicSynchronization = periodic,
+                SynchronizationIntervalSeconds = interval,
                 ImportedSettings = settings,
             };
         }, cancellationToken).ConfigureAwait(false);
         return settings.Keys.Where(key => key is not ("display_name" or "dark_ui" or "lxmf_propagation_node" or
-            "last_lxmf_propagation_node" or "propagation_by_default")).Order(StringComparer.Ordinal).ToArray();
+            "last_lxmf_propagation_node" or "propagation_by_default" or "lxmf_periodic_sync" or "lxmf_sync_interval")).Order(StringComparer.Ordinal).ToArray();
     }
 
     public async Task ExportSettingsAsync(string path, CancellationToken cancellationToken = default)
@@ -189,6 +209,8 @@ public sealed class SidebandStateStore
         settings["lxmf_propagation_node"] = JsonSerializer.SerializeToElement(state.PropagationNode, SidebandStateJsonContext.Default.String);
         settings["last_lxmf_propagation_node"] = JsonSerializer.SerializeToElement(state.LastPropagationNode ?? state.PropagationNode, SidebandStateJsonContext.Default.String);
         settings["propagation_by_default"] = JsonSerializer.SerializeToElement(state.PropagationByDefault, SidebandStateJsonContext.Default.Boolean);
+        settings["lxmf_periodic_sync"] = JsonSerializer.SerializeToElement(state.PeriodicSynchronization, SidebandStateJsonContext.Default.Boolean);
+        settings["lxmf_sync_interval"] = JsonSerializer.SerializeToElement(state.SynchronizationIntervalSeconds, SidebandStateJsonContext.Default.Int32);
         var target = Path.GetFullPath(path);
         if (string.Equals(target, StatePath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             throw new ArgumentException("Export cannot overwrite the application's state file.", nameof(path));
@@ -328,6 +350,9 @@ public sealed class SidebandStateStore
             throw new InvalidDataException("The saved discovered propagation-node address is invalid.");
         if (state.PropagationByDefault && state.PropagationNode is null && state.LastPropagationNode is null)
             throw new InvalidDataException("Propagated delivery requires a selected or discovered propagation node.");
+        if (state.SynchronizationIntervalSeconds <= 0 ||
+            state.LastSynchronization is { } lastSync && !double.IsFinite(lastSync))
+            throw new InvalidDataException("The saved synchronization schedule is invalid.");
         if (state.OwnDeliveryHash is not null && !SidebandContact.TryNormalizeDeliveryHash(state.OwnDeliveryHash, out _))
             throw new InvalidDataException("The saved local LXMF delivery address is invalid.");
         foreach (var contact in state.Contacts)

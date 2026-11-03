@@ -36,9 +36,10 @@
     { "id": "C26", "family": "Sideband", "title": "Voice, image/audio messages, maps, telemetry, plugins and LAN repository mirror", "source": "docs/sideband.md", "boundary": "Not implemented; file-field tests do not imply these features.", "implementation": "Not implemented" },
     { "id": "C27", "family": "Hardware", "title": "Physical RF mesh and physical audio interoperability", "source": "docs/lxmf.md; docs/lxst.md", "boundary": "One read-only identified board and synthetic audio do not establish this.", "implementation": "Unverified" },
     { "id": "C28", "family": "Sideband", "title": "Upstream-shaped JSON settings import/export applies supported keys and preserves unsupported keys", "source": "sbapp/main.py:209-273", "boundary": "Executed export statements and native settings exchange; not upstream SQLite, identity or binary config migration." },
-    { "id": "C29", "family": "Sideband", "title": "Automatic/manual propagation selection and inbox retrieval recover across application restart", "source": "sbapp/sideband/core.py:48-93,5156-5227,5634-5644", "boundary": "Actual Python announcement/client and Python transport/propagation node; reference ignores the inactive flag. No scheduled sync or impaired-network application claim." },
+    { "id": "C29", "family": "Sideband", "title": "Automatic/manual propagation selection and inbox retrieval recover across application restart", "source": "sbapp/sideband/core.py:48-93,5156-5227,5634-5644", "boundary": "Actual Python announcement/client and Python transport/propagation node; reference ignores the inactive flag. No impaired-network application claim." },
     { "id": "C30", "family": "Sideband", "title": "Disconnect/disposal cancels pending lookup and drains bounded conversation persistence", "source": "docs/sideband.md", "boundary": "Managed application lifecycle and isolated observers; no prolonged-operation soak claim." },
-    { "id": "C31", "family": "Sideband", "title": "Bounded file attachments exchange with Python LXMF and remain exportable after restart", "source": "sbapp/sideband/core.py:5189-5196", "boundary": "Two-way 2 MiB direct LXMF fields; not audio/image handling, an upstream Sideband app peer or published-native file flow." }
+    { "id": "C31", "family": "Sideband", "title": "Bounded file attachments exchange with Python LXMF and remain exportable after restart", "source": "sbapp/sideband/core.py:5189-5196", "boundary": "Two-way 2 MiB direct LXMF fields; not audio/image handling, an upstream Sideband app peer or published-native file flow." },
+    { "id": "C32", "family": "Sideband", "title": "Periodic propagation inbox checks preserve strict timing and retry state across restart", "source": "sbapp/sideband/core.py:3966-4001", "boundary": "Executed policy vectors and a real two-minute managed-app/Python-node run; not an hours-long soak or published-native scheduled-transfer flow. Native intervals are positive whole seconds." }
   ],
   "tests": [
     { "id": "T1", "claimId": "C1", "runner": "xunit", "suite": "LXMF.Tests", "pattern": "LXMF.Tests.LxmfVectorTests.*", "evidence": "V/U" },
@@ -90,6 +91,8 @@
     { "id": "T47", "claimId": "C30", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandLifecycleTests.*", "evidence": "U" },
     { "id": "T48", "claimId": "C31", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandAttachmentTests.*", "evidence": "U" },
     { "id": "T49", "claimId": "C31", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandLiveInteropTests.FilesExchangeWithActualPythonAndRemainExportableAfterRestart", "evidence": "L", "reference": "LXMF" },
-    { "id": "T50", "claimId": "C29", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandPropagationPolicyTests.*", "evidence": "V/U" }
+    { "id": "T50", "claimId": "C29", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandPropagationPolicyTests.*", "evidence": "V/U" },
+    { "id": "T51", "claimId": "C32", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandSynchronizationPolicyTests.*", "evidence": "V/U" },
+    { "id": "T52", "claimId": "C32", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandLiveInteropTests.PropagationFetchPersistsPythonMessagesAndSettingsAcrossClientRestart", "evidence": "L", "reference": "LXMF" }
   ]
 }

@@ -9,6 +9,78 @@ namespace Sideband.Tests;
 [Trait("Category", "Integration")]
 public sealed class SidebandLiveInteropTests
 {
+    [Theory(SkipWhen = nameof(ApplicationInteropIsDisabled), Skip = "Actual Sideband application interop requires DOTSIDEBAND_LIVE=1, DOTRETICULUM_LIVE=1, pinned reference paths and DOTRETICULUM_SIDEBAND_UPSTREAM.")]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("Category", "Live")]
+    public async Task ActualPrimarySidebandDaemonPersistsBidirectionalApplicationMessages(bool propagated)
+    {
+        var token = TestContext.Current.CancellationToken;
+        var source = Environment.GetEnvironmentVariable("DOTRETICULUM_SIDEBAND_UPSTREAM")
+            ?? throw new InvalidOperationException("Set DOTRETICULUM_SIDEBAND_UPSTREAM to the clean pinned Sideband checkout.");
+        int port;
+        using (var listener = new TcpListener(IPAddress.Loopback, 0))
+        {
+            listener.Start();
+            port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        }
+        var root = Path.Combine(AppContext.BaseDirectory, "sideband-application-" + Guid.NewGuid().ToString("N"));
+        var rns = Path.Combine(root, "rns");
+        Directory.CreateDirectory(rns);
+        await File.WriteAllTextAsync(Path.Combine(rns, "config"),
+            $"[reticulum]\n  enable_transport = No\n  share_instance = No\n\n[logging]\n  loglevel = 4\n\n[interfaces]\n  [[PythonApplication]]\n    type = TCPClientInterface\n    enabled = yes\n    target_host = 127.0.0.1\n    target_port = {port}\n", token);
+        try
+        {
+            await using var propagation = propagated ? await PyLinkNode.StartAsync("ActualSidebandPropagation",
+                tcpServerPort: port, harness: "sideband_live_node.py", extraArguments: ["--transport"]) : null;
+            await using var python = await PyLinkNode.StartAsync("ActualSideband", tcpServerPort: propagated ? 0 : port,
+                rnsdPort: propagated ? port : 0,
+                harness: "sideband_application_node.py", extraArguments: ["--source", source]);
+            await using var client = new SidebandClient(new SidebandStateStore(Path.Combine(root, "data")));
+            await client.ConnectAsync(rns, token);
+            var local = (await client.LoadAsync(token)).OwnDeliveryHash!;
+            await python.WaitForAnnounce(Convert.FromHexString(local), TimeSpan.FromSeconds(30));
+            await python.Command("announce", "announced", TimeSpan.FromSeconds(30));
+            if (propagation is not null)
+            {
+                var ready = await propagation.Command("enable-pn", "pn-ready", TimeSpan.FromSeconds(30));
+                var pn = ready.GetProperty("dest").GetString()!;
+                await client.ConfigurePropagationAsync(pn, true, token);
+                await python.Command("use-pn " + pn, "pn-selected", TimeSpan.FromSeconds(10));
+            }
+            const string outgoing = "native to actual primary Sideband";
+            await client.SendTextAsync(python.HashHex, outgoing, token);
+            if (propagation is not null)
+            {
+                await WaitForPropagationCountAsync(propagation, 1, token);
+                await python.Command("retrieve", "retrieved", TimeSpan.FromSeconds(90));
+            }
+            var expected = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(outgoing)));
+            var found = false;
+            var deadline = DateTime.UtcNow.AddSeconds(90);
+            while (!found && DateTime.UtcNow < deadline)
+            {
+                var snapshot = await python.Command("snapshot " + local, "snapshot", TimeSpan.FromSeconds(10));
+                found = snapshot.GetProperty("messages").EnumerateArray().Any(message =>
+                    message.GetProperty("incoming").GetBoolean() && message.GetProperty("sha256").GetString() == expected);
+                if (!found) await Task.Delay(100, token);
+            }
+            Assert.True(found, "The actual Sideband application's list_messages API did not return the incoming message.");
+            const string incoming = "actual primary Sideband to native";
+            await python.Command((propagated ? "send-propagated " : "send ") + local + " " + Convert.ToBase64String(Encoding.UTF8.GetBytes(incoming)),
+                "sent_queued", TimeSpan.FromSeconds(30));
+            if (propagation is not null)
+            {
+                await WaitForPropagationCountAsync(propagation, 1, token);
+                Assert.Equal(1, await client.SynchronizeAsync(cancellationToken: token));
+            }
+            var received = await WaitForMessageAsync(client, python.HashHex, token);
+            Assert.Equal(incoming, received.Content);
+            Assert.Equal("Received", received.DeliveryState);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
+    }
+
     [Fact(SkipWhen = nameof(LiveInteropIsDisabled), Skip = "Live Sideband/Python interop is opt-in: set DOTRETICULUM_LIVE=1, DOTRETICULUM_PYTHON, and DOTRETICULUM_UPSTREAM.")]
     [Trait("Category", "Live")]
     public async Task DesktopClientSendsAndReceivesAgainstPinnedPythonLxmfNode()
@@ -53,6 +125,72 @@ public sealed class SidebandLiveInteropTests
         {
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Theory(SkipWhen = nameof(LiveInteropIsDisabled), Skip = "Live Sideband/Python fallback is opt-in: set DOTRETICULUM_LIVE=1 and pinned Python reference paths.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    [Trait("Category", "Live")]
+    public async Task FailedDirectDeliveryHonorsOneShotPropagationPolicyAndPeerRecovery(bool fallback)
+    {
+        var token = TestContext.Current.CancellationToken;
+        int port;
+        using (var listener = new TcpListener(IPAddress.Loopback, 0))
+        {
+            listener.Start();
+            port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        }
+        var root = Path.Combine(AppContext.BaseDirectory, "sideband-fallback-" + Guid.NewGuid().ToString("N"));
+        var rns = Path.Combine(root, "rns");
+        var data = Path.Combine(root, "data");
+        Directory.CreateDirectory(rns);
+        await File.WriteAllTextAsync(Path.Combine(rns, "config"),
+            $"[reticulum]\n  enable_transport = No\n  share_instance = No\n\n[logging]\n  loglevel = 4\n\n[interfaces]\n  [[PythonPropagation]]\n    type = TCPClientInterface\n    enabled = yes\n    target_host = 127.0.0.1\n    target_port = {port}\n", token);
+        try
+        {
+            await using var propagation = await PyLinkNode.StartAsync("SidebandFallbackPropagation", tcpServerPort: port,
+                harness: "sideband_live_node.py", extraArguments: ["--transport"]);
+            await using var python = await PyLinkNode.StartAsync("SidebandFallbackRecipient", rnsdPort: port, harness: "sideband_live_node.py");
+            await using var client = new SidebandClient(new SidebandStateStore(data));
+            await client.ConnectAsync(rns, token);
+            await python.Command("announce", "announced", TimeSpan.FromSeconds(30));
+            var ready = await propagation.Command("enable-pn", "pn-ready", TimeSpan.FromSeconds(30));
+            var pn = ready.GetProperty("dest").GetString()!;
+            await client.ConfigurePropagationAsync(pn, false, token);
+            await client.ConfigurePropagationFallbackAsync(fallback, token);
+            await python.Command("use-pn " + pn, "pn-selected", TimeSpan.FromSeconds(10));
+            await python.Command("delivery-links off", "delivery-links", TimeSpan.FromSeconds(10));
+            var content = "native fallback " + fallback;
+            await client.SendTextAsync(python.HashHex, content, token);
+            var deadline = DateTime.UtcNow.AddMinutes(4);
+            SidebandChatMessage? sent = null;
+            while (DateTime.UtcNow < deadline)
+            {
+                sent = (await client.GetMessagesAsync(python.HashHex, token)).SingleOrDefault();
+                if (sent?.DeliveryState == (fallback ? "Sent" : "Failed")) break;
+                await Task.Delay(100, token);
+            }
+            Assert.NotNull(sent);
+            Assert.Equal(fallback ? "Sent" : "Failed", sent.DeliveryState);
+            Assert.Equal(fallback ? "Propagated" : "Direct", sent.DeliveryMethod);
+            var stored = await propagation.Command("pn-count", "pn-count", TimeSpan.FromSeconds(10));
+            Assert.Equal(fallback ? 1 : 0, stored.GetProperty("count").GetInt32());
+            if (fallback)
+            {
+                await python.Command("retrieve", "retrieved", TimeSpan.FromSeconds(90));
+                var expected = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(content)));
+                await python.NextAsync("received", 0, TimeSpan.FromSeconds(60), item => item.GetProperty("sha256").GetString() == expected);
+                var persisted = await new SidebandStateStore(data).GetMessagesAsync(python.HashHex, token);
+                Assert.Single(persisted);
+                Assert.Equal(sent.Id, persisted[0].Id);
+                Assert.Equal("Propagated", persisted[0].DeliveryMethod);
+            }
+            await python.Command("delivery-links on", "delivery-links", TimeSpan.FromSeconds(10));
+            await client.SendTextAsync(python.HashHex, "direct service recovered", token);
+            var recoveredHash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes("direct service recovered")));
+            await python.NextAsync("received", 0, TimeSpan.FromSeconds(90), item => item.GetProperty("sha256").GetString() == recoveredHash);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
     }
 
     [Fact(SkipWhen = nameof(LiveInteropIsDisabled), Skip = "Live Sideband/Python propagation is opt-in: set DOTRETICULUM_LIVE=1 and pinned Python reference paths.")]
@@ -240,11 +378,24 @@ public sealed class SidebandLiveInteropTests
         while (DateTime.UtcNow < deadline)
         {
             var messages = await client.GetMessagesAsync(peerHash, cancellationToken);
-            if (messages.Count > 0) return messages[0];
+            if (messages.FirstOrDefault(message => message.Incoming) is { } incoming) return incoming;
             await Task.Delay(100, cancellationToken);
         }
         throw new TimeoutException("Sideband did not persist a message delivered by the Python reference node.");
     }
 
+    private static async Task WaitForPropagationCountAsync(PyLinkNode node, int expected, CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(90);
+        while (DateTime.UtcNow < deadline)
+        {
+            var count = await node.Command("pn-count", "pn-count", TimeSpan.FromSeconds(10));
+            if (count.GetProperty("count").GetInt32() == expected) return;
+            await Task.Delay(100, cancellationToken);
+        }
+        throw new TimeoutException("The Python propagation node did not reach the expected stored-message count.");
+    }
+
     public static bool LiveInteropIsDisabled => Environment.GetEnvironmentVariable("DOTRETICULUM_LIVE") != "1";
+    public static bool ApplicationInteropIsDisabled => LiveInteropIsDisabled || Environment.GetEnvironmentVariable("DOTSIDEBAND_LIVE") != "1";
 }

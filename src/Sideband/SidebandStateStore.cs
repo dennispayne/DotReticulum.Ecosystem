@@ -78,14 +78,14 @@ public sealed class SidebandStateStore
         finally { _gate.Release(); }
     }
 
-    public async Task UpdateMessageStateAsync(Guid id, string deliveryState, CancellationToken cancellationToken = default)
+    public async Task UpdateMessageStateAsync(Guid id, string deliveryState, CancellationToken cancellationToken = default, string? deliveryMethod = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(deliveryState);
         if (deliveryState.Length > 32) throw new ArgumentException("Delivery state is too long.", nameof(deliveryState));
         await MutateAsync(state => state with
         {
             Messages = state.Messages.Select(message => message.Id == id
-                ? message with { DeliveryState = deliveryState }
+                ? message with { DeliveryState = deliveryState, DeliveryMethod = deliveryMethod ?? message.DeliveryMethod }
                 : message).ToArray(),
         }, cancellationToken).ConfigureAwait(false);
     }
@@ -154,6 +154,12 @@ public sealed class SidebandStateStore
     public Task SetSynchronizationStateAsync(double? lastSync, bool retrying, CancellationToken cancellationToken = default) =>
         MutateAsync(state => state with { LastSynchronization = lastSync, SynchronizationRetrying = retrying }, cancellationToken);
 
+    public Task SetPropagationFallbackAsync(bool enabled, CancellationToken cancellationToken = default) =>
+        MutateAsync(state => state with { TryPropagationOnFail = enabled }, cancellationToken);
+
+    internal Task SaveImportedStateAsync(SidebandState state, CancellationToken cancellationToken) =>
+        MutateAsync(_ => state, cancellationToken);
+
     public async Task<IReadOnlyList<string>> ImportSettingsAsync(string path, CancellationToken cancellationToken = default)
     {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 16_384, FileOptions.Asynchronous);
@@ -177,6 +183,7 @@ public sealed class SidebandStateStore
                 ? previous.GetString() : state.LastPropagationNode ?? state.PropagationNode;
             var byDefault = settings.TryGetValue("propagation_by_default", out var propagation) ? propagation.GetBoolean() : state.PropagationByDefault;
             var periodic = settings.TryGetValue("lxmf_periodic_sync", out var sync) ? sync.GetBoolean() : state.PeriodicSynchronization;
+            var fallback = settings.TryGetValue("lxmf_try_propagation_on_fail", out var retry) ? retry.GetBoolean() : state.TryPropagationOnFail;
             var interval = state.SynchronizationIntervalSeconds;
             if (settings.TryGetValue("lxmf_sync_interval", out var syncInterval) &&
                 (syncInterval.ValueKind != JsonValueKind.Number || !syncInterval.TryGetInt32(out interval)))
@@ -190,12 +197,14 @@ public sealed class SidebandStateStore
                 LastPropagationNode = node ?? lastNode?.ToLowerInvariant(),
                 PropagationByDefault = byDefault,
                 PeriodicSynchronization = periodic,
+                TryPropagationOnFail = fallback,
                 SynchronizationIntervalSeconds = interval,
                 ImportedSettings = settings,
             };
         }, cancellationToken).ConfigureAwait(false);
         return settings.Keys.Where(key => key is not ("display_name" or "dark_ui" or "lxmf_propagation_node" or
-            "last_lxmf_propagation_node" or "propagation_by_default" or "lxmf_periodic_sync" or "lxmf_sync_interval")).Order(StringComparer.Ordinal).ToArray();
+            "last_lxmf_propagation_node" or "propagation_by_default" or "lxmf_periodic_sync" or "lxmf_sync_interval" or
+            "lxmf_try_propagation_on_fail")).Order(StringComparer.Ordinal).ToArray();
     }
 
     public async Task ExportSettingsAsync(string path, CancellationToken cancellationToken = default)
@@ -210,6 +219,7 @@ public sealed class SidebandStateStore
         settings["last_lxmf_propagation_node"] = JsonSerializer.SerializeToElement(state.LastPropagationNode ?? state.PropagationNode, SidebandStateJsonContext.Default.String);
         settings["propagation_by_default"] = JsonSerializer.SerializeToElement(state.PropagationByDefault, SidebandStateJsonContext.Default.Boolean);
         settings["lxmf_periodic_sync"] = JsonSerializer.SerializeToElement(state.PeriodicSynchronization, SidebandStateJsonContext.Default.Boolean);
+        settings["lxmf_try_propagation_on_fail"] = JsonSerializer.SerializeToElement(state.TryPropagationOnFail, SidebandStateJsonContext.Default.Boolean);
         settings["lxmf_sync_interval"] = JsonSerializer.SerializeToElement(state.SynchronizationIntervalSeconds, SidebandStateJsonContext.Default.Int32);
         var target = Path.GetFullPath(path);
         if (string.Equals(target, StatePath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
@@ -372,6 +382,8 @@ public sealed class SidebandStateStore
         if (message.Title is null || message.Content is null || message.DeliveryState is null ||
             message.Title.Length > 512 || message.Content.Length > 65_536 || message.DeliveryState.Length > 32)
             throw new InvalidDataException("A saved message exceeds a field size limit.");
+        if (message.DeliveryMethod is not ("Unknown" or "Opportunistic" or "Direct" or "Propagated" or "Paper"))
+            throw new InvalidDataException("A saved message has an unsupported delivery method.");
         if (message.Attachments is { } attachments)
         {
             foreach (var attachment in attachments) SidebandAttachmentStore.Validate(attachment);

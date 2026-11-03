@@ -196,13 +196,16 @@ public sealed class SidebandClient : IAsyncDisposable
                 fields = new Dictionary<object, object?> { [LxmField.FileAttachments] = new object?[] { new object?[] { attachmentName, attachmentData } } };
             }
             var message = LxMessage.Create(destination, identity, content, fields: fields, method: method);
-            var local = new SidebandChatMessage(Guid.NewGuid(), normalized, false, string.Empty, content, DateTimeOffset.UtcNow, "Queued", attachments);
+            var local = new SidebandChatMessage(Guid.NewGuid(), normalized, false, string.Empty, content, DateTimeOffset.UtcNow, "Queued", attachments, method.ToString());
             await _store.AddMessageAsync(local, owned.Token).ConfigureAwait(false);
             PublishState(await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false));
             var updates = _inbound;
+            var eligibleForRetry = state.TryPropagationOnFail && router.OutboundPropagationNode is not null;
             message.StateChanged += changed =>
             {
-                if (!updates.Writer.TryWrite(new ClientUpdate(MessageId: local.Id, DeliveryState: changed.State.ToString())))
+                var failed = SidebandDeliveryRetry.ShouldRetry(changed.State, eligibleForRetry, stampGenerationFailed: false);
+                if (!updates.Writer.TryWrite(new ClientUpdate(MessageId: local.Id, DeliveryState: changed.State.ToString(),
+                    FailedMessage: failed ? changed : null)))
                     Report("Delivery-state queue is full or closed; a conversation status update could not be saved.");
             };
             try { await router.SendAsync(message, owned.Token).ConfigureAwait(false); }
@@ -257,6 +260,13 @@ public sealed class SidebandClient : IAsyncDisposable
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         await _store.SetPeriodicSynchronizationAsync(enabled, intervalSeconds, cancellationToken).ConfigureAwait(false);
+        PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
+    }
+
+    public async Task ConfigurePropagationFallbackAsync(bool enabled, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _store.SetPropagationFallbackAsync(enabled, cancellationToken).ConfigureAwait(false);
         PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
     }
 
@@ -435,6 +445,10 @@ public sealed class SidebandClient : IAsyncDisposable
                 {
                     await _store.AddContactAsync(contact).ConfigureAwait(false);
                 }
+                else if (update.FailedMessage is { } failed)
+                {
+                    await RetryViaPropagationAsync(update.MessageId, failed).ConfigureAwait(false);
+                }
                 else if (update.DeliveryState is { } deliveryState)
                 {
                     await _store.UpdateMessageStateAsync(update.MessageId, deliveryState).ConfigureAwait(false);
@@ -468,12 +482,42 @@ public sealed class SidebandClient : IAsyncDisposable
                         content,
                         DateTimeOffset.FromUnixTimeMilliseconds((long)(received.Message.Timestamp * 1000)),
                         "Received",
-                        attachments);
+                        attachments,
+                        received.Message.Method.ToString());
                     await _store.AddMessageAsync(stored).ConfigureAwait(false);
                 }
                 PublishState(await _store.LoadAsync().ConfigureAwait(false));
             }
             catch (Exception ex) { Report("Could not persist a Sideband conversation update: " + ex.Message); }
+        }
+    }
+
+    private async Task RetryViaPropagationAsync(Guid messageId, LxMessage failed)
+    {
+        var router = _router;
+        var token = _runCancellation?.Token ?? new CancellationToken(canceled: true);
+        try
+        {
+            token.ThrowIfCancellationRequested();
+            if (router is null) throw new InvalidOperationException("The LXMF router is unavailable for propagation retry.");
+            var retry = SidebandDeliveryRetry.CreatePropagatedRetry(failed);
+            await _store.UpdateMessageStateAsync(messageId, "Outbound", token, deliveryMethod: "Propagated").ConfigureAwait(false);
+            var updates = _inbound;
+            retry.StateChanged += changed =>
+            {
+                if (!updates.Writer.TryWrite(new ClientUpdate(MessageId: messageId, DeliveryState: changed.State.ToString())))
+                    Report("Delivery-state queue is full or closed; a propagation retry status could not be saved.");
+            };
+            await router.SendAsync(retry, token).ConfigureAwait(false);
+        }
+        catch (Exception ex) when ((ex is OperationCanceledException or ObjectDisposedException) && token.IsCancellationRequested)
+        {
+            await _store.UpdateMessageStateAsync(messageId, "Cancelled").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            await _store.UpdateMessageStateAsync(messageId, "Failed").ConfigureAwait(false);
+            Report("The one-shot propagation retry failed: " + ex.Message);
         }
     }
 
@@ -504,7 +548,8 @@ public sealed class SidebandClient : IAsyncDisposable
 
     private sealed record PropagationCandidate(string Hash, int Hops, long Emitted);
     private sealed record ClientUpdate(ReceivedMessage? Received = null, SidebandContact? Contact = null,
-        Guid MessageId = default, string? DeliveryState = null, PropagationCandidate? Propagation = null);
+        Guid MessageId = default, string? DeliveryState = null, PropagationCandidate? Propagation = null,
+        LxMessage? FailedMessage = null);
 
     private static Channel<ClientUpdate> CreateInboundChannel() =>
         System.Threading.Channels.Channel.CreateBounded<ClientUpdate>(new BoundedChannelOptions(128)

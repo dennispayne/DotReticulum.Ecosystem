@@ -18,12 +18,13 @@ public sealed class SidebandSettingsTests
             var token = TestContext.Current.CancellationToken;
             var unsupported = await store.ImportSettingsAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "sideband-settings.json"), token);
             Assert.Contains("plugin_settings", unsupported);
-            Assert.Contains("lxmf_try_propagation_on_fail", unsupported);
+            Assert.DoesNotContain("lxmf_try_propagation_on_fail", unsupported);
             var loaded = await new SidebandStateStore(root).LoadAsync(cancellationToken: token);
             Assert.Equal("Reference Peer", loaded.DisplayName);
             Assert.Equal("Light", loaded.Theme);
             Assert.Equal("00112233445566778899aabbccddeeff", loaded.PropagationNode);
             Assert.True(loaded.PropagationByDefault);
+            Assert.True(loaded.TryPropagationOnFail);
 
             var output = Path.Combine(root, "export.json");
             await store.ExportSettingsAsync(output, token);
@@ -56,6 +57,8 @@ public sealed class SidebandSettingsTests
             var reloaded = await new SidebandStateStore(root).LoadAsync(cancellationToken: token);
             Assert.Equal(new string('a', 32), reloaded.PropagationNode);
             Assert.True(reloaded.PropagationByDefault);
+            await store.SetPropagationFallbackAsync(false, token);
+            Assert.False((await new SidebandStateStore(root).LoadAsync(cancellationToken: token)).TryPropagationOnFail);
             await Assert.ThrowsAsync<ArgumentException>(() => store.SetPropagationAsync("bad", true, token));
             await store.SetPropagationAsync(null, true, token);
             reloaded = await new SidebandStateStore(root).LoadAsync(cancellationToken: token);
@@ -85,6 +88,7 @@ public sealed class SidebandSettingsTests
             await store.SetPropagationAsync(null, true, token);
             var state = await new SidebandStateStore(root).LoadAsync(cancellationToken: token);
             Assert.Null(state.PropagationNode);
+            Assert.True(state.TryPropagationOnFail);
             Assert.Equal("00112233445566778899aabbccddeeff", state.LastPropagationNode);
             Assert.True(state.PropagationByDefault);
             var output = Path.Combine(root, "export.json");

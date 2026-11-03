@@ -7,15 +7,18 @@ is not claimed.** The current native C# application provides a small contacts
 and text-conversation workflow over the repository's .NET Reticulum and LXMF
 libraries, with bounded local JSON persistence. Windows NativeAOT publishing,
 CLI maintenance modes, a headless UI workflow, and native Pester acceptance
-have been exercised. Live direct-peer interoperability against the pinned
-Python RNS/LXMF node has passed in both messaging directions over a real
-Reticulum TCP interface. Manual/automatic propagation-node selection, inbox retrieval,
+have been exercised. Actual unmodified primary Python Sideband daemon-core
+messaging passes in both directions, directly and through a Python
+transport/propagation node. Separate RNS/LXMF peer cases exercise larger file fields.
+Manual/automatic propagation-node selection, one-shot failed-delivery retry, inbox retrieval,
 restart persistence and upstream-shaped JSON settings exchange are implemented.
 Periodic inbox synchronization and its retry schedule persist over restart.
 Bounded file attachments can be sent, received, persisted and explicitly saved.
 Image/audio composition and playback, voice, telemetry,
 plugins, mobile operation, broad upstream configuration, and upstream database
-migration remain absent.
+migration of all profile semantics remain absent. A bounded offline importer
+activates identity, supported settings, LXMF conversations, text/file history
+and delivery methods from upstream profiles.
 
 ## Reference provenance
 
@@ -80,16 +83,16 @@ runtime evidence.
 |---|---|---|
 | App shell and interaction | partial | Original Avalonia UI uses an upstream-inspired dark/teal top bar, collapsible navigation, and Conversations, Contacts, Connectivity, Backup & Keys, Preferences, Utilities, and Guide screens. Supported screens expose real local contacts/history, runtime connection state, effective config path, public identity hashes, and persisted display/theme settings. The announce stream, objects/devices, map, voice, telemetry, hardware management, plugins, and other upstream screens are visibly unavailable rather than simulated; upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
 | Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Trust controls, peer appearance/settings, groups, broadcasts and voice conversations are absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
-| LXMF messaging and propagation UI | partial | Text send/receive, automatic nearest/equal-hop selection or manual override, persisted last-node/default, periodic inbox synchronization, fetch/cancel controls and restart retrieval reuse `LxmRouter`. Actual Python propagation announces select a node without manual configuration; a two-minute live case retrieves a separately deposited message without a manual fetch. Fallback-on-direct-failure remains missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,5156–5227,5634–5644`, `docs/lxmf.md`. |
+| LXMF messaging and propagation UI | partial | Text send/receive, automatic/manual node selection, persisted periodic fetches, cancellation, one-shot failed-delivery propagation retry and restart retrieval reuse `LxmRouter`. Actual primary Sideband daemon-core direct/propagated round trips pass separately from Python LXMF endpoint tests. Trusted-conversation ticket issuance and full message presentation/settings remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,4811–4828,5156–5227,5634–5644`, `docs/lxmf.md`. |
 | Text, image/file and audio messages | partial | Text and file composition, receipt, content-addressed persistence and explicit file export exist. Two-way 2 MiB file fields execute actual pinned Python LXMF and survive native-client restart. The UI displays filenames/sizes and can save the selected message's first file; no received content opens automatically. Image/audio composition, rendering/playback and recording remain missing; `src/Sideband/SidebandAttachmentStore.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `tests/Interop/sideband_attachment_node.py`, `sbapp/sideband/core.py:5189–5196`. |
-| Paper messages and `lxm://` imports | missing | No paper-message/QR creation or import flow, identity import, camera/QR, export or URI handling; `README.md`, `sbapp/main.py`, `sbapp/ui/keys.py`. |
+| Paper messages and `lxm://` imports | missing | No paper-message/QR creation or import flow, camera/QR, export or URI handling. Offline profile migration imports its identity separately; `README.md`, `sbapp/main.py`, `sbapp/ui/keys.py`. |
 | LXST calls and push-to-talk | missing | A disabled UI button explicitly reports voice unavailability. No Sideband audio devices, call authorization, duplex controls or call history are implemented. The LXST library now targets Sideband's required 0.5.4, but that does not implement application-level voice integration; `src/Sideband.Desktop/MainWindow.axaml`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`, `docs/lxst.md`. |
 | Telemetry, location and situational awareness | missing | Sensor streams include time, identity/information, battery, location, physical link, environment, motion, resource, Reticulum transport, LXMF propagation, connections and interfaces; peer telemetry, tracking, live/offline maps and geospatial calculations are app behavior; `sbapp/sideband/sense.py`, `sbapp/sideband/geo.py`, `sbapp/ui/telemetry.py`, `README.md`. |
 | Remote commands, queries and plugins | missing | Command, service and telemetry plugin base types; built-in ping/echo/signal/telemetry request behavior; custom telemetry sensors; configurable plugin loading and example plugins. This is an application extension contract, not part of the existing .NET `Telemetry` tool; `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`, `README.md`. |
 | Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. Interface editing/discovery and Android interface loading are absent; `src/Sideband/SidebandClient.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
 | Long-lived service and OS integration | missing | The desktop app owns a live client while its window runs. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are not implemented or validated; `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
-| Persistence, restart and migration | partial | Contacts, local delivery hash, Reticulum config path, display name, theme, propagation selection and bounded history use atomic source-generated JSON. Older v1 files load optional fields with defaults. Upstream JSON export/import applies display name, appearance and propagation settings; unsupported settings are retained for re-export and explicitly reported, not activated. Hash fields are validated transactionally and invalid input leaves previous state intact. This is not SQLite, identity or binary `sideband_config` migration. Native Windows data remains `%APPDATA%\sideband`, separate from upstream's app storage. Test configs are isolated; `src/Sideband/SidebandStateStore.cs`, `tests/Sideband.Tests/SidebandSettingsTests.cs`, `sbapp/main.py:209–273`. |
-| CLI and headless operation | partial | `sideband --help`, `--version`, `--init`, `--check`, `--data-dir`, `-c/--config`, `--rnsconfig`, `--import-settings` and `--export-settings` exist. Settings exchange does not open a Reticulum node or export keys/conversations. Unsupported import keys are printed without values. Upstream verbose, daemon and interactive modes remain missing; `src/Sideband.Desktop/Program.cs`, `tests/Pester/Sideband.Tests.ps1`, `sbapp/main.py`. |
+| Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual `primary_identity`, binary `sideband_config` and bounded SQLite/WAL snapshots into an absent destination; activates contacts/text/files/methods, archives unimplemented semantics and never modifies source or merges existing state. Trust/unread, voice objects, non-file fields, telemetry and persistent DB semantics remain archive-only; interfaces and router storage are not migrated. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `tests/Sideband.Tests/SidebandProfileImportTests.cs`, `sbapp/main.py:209–273`. |
+| CLI and headless operation | partial | Help/version, init/check, data/config selection, JSON settings exchange and the native extension `--import-profile SOURCE --data-dir NEW_DIRECTORY` exist. Profile import is offline and supports cancellation; conflicting maintenance/network options fail before opening state/UI. Unsupported keys are reported without values. Upstream verbose, daemon and interactive modes remain missing; `src/Sideband.Desktop/Program.cs`, `tests/Pester/SidebandProfileImport.Tests.ps1`, `sbapp/main.py`. |
 | Repository server | missing | Upstream's optional "repository server" is a local-network HTTPS mirror for static Sideband/RNode software and guide downloads plus a package list (default port 4444); it is not an RNS/rngit Git hosting server. The native Sideband app does not host this service. The ecosystem's `rngit` service is separate and is not exposed here; the Utilities page labels the mirror unavailable; `sbapp/sideband/core.py`, `sbapp/ui/layouts.py`, `src/Sideband.Desktop/MainWindow.axaml`. |
 | Native packaging and upgrades | partial | Windows and Linux NativeAOT publishes succeed with trimming/linker warnings treated as errors. Package the full publish directory, including Windows `sideband.exe`, `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, `libSkiaSharp.dll` and the three included third-party notice files; Linux `sideband`, `libHarfBuzzSharp.so`, `libSkiaSharp.so`, `libSystem.IO.Ports.Native.so` and the same notices. The notices include Avalonia/Skia/HarfBuzz MIT texts, ANGLE's BSD license, and .NET serial runtime notices. Installer/signing, self-upgrade and other upstream package formats remain absent; `src/Sideband.Desktop/Sideband.Desktop.csproj`, `src/Sideband.Desktop/THIRD-PARTY-NOTICES*.txt`, `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
 
@@ -139,8 +142,9 @@ The app project is `src/Sideband.Desktop/Sideband.Desktop.csproj` (assembly and
 executable name `sideband`); its protocol/application library is `src/Sideband`
 (assembly `Sideband.Core`, namespace `Sideband`). The library uses source-
 generated JSON rather than reflection serialization. Native plugins, upstream
-SQLite migration, mobile services and platform-specific sensors/audio are not
-implemented. The current native client is an initial desktop app, not an
+full SQLite migration, mobile services and platform-specific sensors/audio are not
+implemented. The bounded importer below is not full upstream profile parity.
+The current native client is an initial desktop app, not an
 upstream replacement.
 
 ## Settings, propagation and lifecycle acceptance
@@ -210,7 +214,7 @@ not exercise physical audio or arbitrary desktop environments.
 
 With the pinned Windows reference environment, `dotnet test
 tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path
-artifacts\builds\fleet-sideband` passed 24/24 with `DOTRETICULUM_LIVE=1`.
+artifacts\builds\fleet-sideband` selects the peer cases with `DOTRETICULUM_LIVE=1`.
 The direct topology is native Sideband to actual Python LXMF over TCP.
 The propagation topology is native Sideband and a separate actual Python
 client connected to a Python transport/propagation node: messages deposit and
@@ -219,13 +223,76 @@ and propagation settings survive restart. The Python node's actual announce
 automatically selects the node; switching to manual and back retains its
 remembered address over restart. Legacy manual-only JSON state can also switch
 to automatic selection without losing its known node. These are LXMF-peer tests, not an
-actual upstream Sideband application or GUI peer. The Linux equivalent passed 24/24 using
+actual upstream Sideband application or GUI peer. Separate actual application cases
+are described below. The Linux equivalent uses
 `--artifacts-path /home/dennis/fleet-sideband-managed` and the isolated Linux
 reference environment. A separate message deposited after manual exchange is
 retrieved autonomously by the real 60-second scheduler, without calling manual
 sync; both messages and the enabled interval survive restart. The case runs
-for approximately two minutes on each platform. No application-level impairment,
+for approximately two minutes on each platform. No random packet-loss impairment,
 hours-long soak or published-native scheduled-transfer flow is implied.
+
+Failed delivery captures eligibility when queued: the default
+`lxmf_try_propagation_on_fail=True` applies only when a propagation node is known.
+The actual `message_notification` oracle records one retry, reset attempt/deadline
+state, repacking and suppression after stamp-generation failure. Native messages
+have immutable terminal completion, so retry uses a fresh message with identical
+timestamp, source, content, title and signed fields/hash, updates the same history
+record/method, and never enables a second fallback. Preparation/stamp exceptions
+are reported without retry; cancellation is not failure. As upstream, eligibility
+also permits one further propagated attempt if the original method was propagated.
+The GUI and JSON import/export expose the policy. Real Python link-admission
+refusal verifies enabled/disabled behavior, recipient retrieval and continued
+direct service after admission recovers on Windows/Linux (two cases per host,
+approximately four minutes). This is deliberate refusal, not random packet loss.
+
+`sideband_application_node.py` separately imports the actual pinned Sideband
+`SidebandCore`, verifies its path/revision/digest and starts its desktop daemon
+mode with isolated profile/RNS directories. There are **no source replacements,
+import stubs or callback substitutions** in these application cases. Actual
+`send_message`, `request_lxmf_sync` and `list_messages` calls observe two-way text,
+directly and with both peers connected to a Python transport/propagation node.
+`DOTSIDEBAND_LIVE=1`, `DOTRETICULUM_LIVE=1` and
+`DOTRETICULUM_SIDEBAND_UPSTREAM` select these cases, alongside the pinned Python/RNS
+environment. This proves daemon-core application flows, not Kivy GUI interaction.
+
+### Offline upstream profile migration
+
+Stop both applications, then run
+`sideband --import-profile UPSTREAM_PROFILE --data-dir NEW_DIRECTORY`.
+The source may be a profile root or its `app_storage`. The target must not exist;
+there is no silent merge/overwrite. An isolated sibling staging directory and
+atomic final directory move commit identity/settings/history together. Failures,
+cancellation and concurrent competing imports leave an existing destination
+untouched. Source fingerprints before/after copying reject concurrent changes;
+the original is never opened for writing. Private copies include WAL/SHM so
+committed WAL-only messages are not discarded. SQLite opens only the private copy.
+
+Limits are 1 MiB binary config, 128 MiB each DB/WAL, 8 MiB SHM/cell, 64 MiB query
+allocation, 1,000 conversations and 10,000 messages, plus existing native
+message/file/history limits. Unsupported schemas, malformed records, unrelated
+messages, orphan conversations, invalid names and oversize inputs fail atomically.
+The native identity is preserved at `reticulum/storage/sideband`; imported
+interfaces are intentionally not activated. Configure the new private Reticulum
+directory before connecting. Windows needs system `winsqlite3.dll`, Linux
+`libsqlite3.so.0`; neither is bundled. macOS resolution is unverified.
+
+Unimplemented data stays in `imported-profile`: original binary config and SQLite
+snapshot, but no redundant private-identity copy. Unknown binary configuration
+uses hexadecimal JSON projections; the original MessagePack remains authoritative.
+Trust/unread, voice, non-file message fields, telemetry and persistent DB semantics
+are not activated. Other app-storage files, router tickets/ratchets/queues and
+interfaces are not migrated. Remote historical signatures cannot be verified
+without sender identities; imported-identity signatures and record hashes are
+checked. Protect the Windows destination with account ACLs; Unix staging/key
+permissions are owner-only. Temporary key/config buffers are zeroed.
+
+`GenerateSidebandProfile.py` executes actual pinned persistence methods, verifies
+RNS/LXMF actual imports and source hashes, and emits ephemeral identity/WAL profiles.
+Its unused GUI/telemetry/plugin/resource imports are explicitly inert stubs;
+this is independent file-format evidence, **not** the unmodified application
+test above. The committed fixture contains only empty upstream-created SQLite
+and non-secret synthetic settings; private identities are generated at runtime.
 
 File attachments reuse `LxmField.FileAttachments` and the existing LXMF
 message serializer: `[[filename, binary_data], ...]`. The separate thin adapter
@@ -266,19 +333,22 @@ Validated commands and outcomes:
 | Command | Result |
 |---|---|
 | `dotnet build DotReticulum.Ecosystem.slnx -c Release --artifacts-path artifacts\builds\fleet-resume` | Passed, zero warnings/errors |
-| `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path artifacts\builds\fleet-sideband` with pinned reference variables and `DOTRETICULUM_LIVE=1` | Windows: 24/24 passed, including real direct/propagated LXMF and 2 MiB file fields, automatic discovery/scheduled retrieval, restart, settings/UI/lifecycle and bounded-storage failures |
-| Linux equivalent with `--artifacts-path /home/dennis/fleet-sideband-managed` and the isolated Linux reference | 24/24 passed; same cases and actual Python peers, not physical hardware |
+| Full `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release` with separate Windows/Linux artifacts paths above, all live/application/profile prerequisites enabled | 48/48 on each host, no skips; includes actual application, refusal/recovery, scheduled fetch, file and migration cases |
+| `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path artifacts\builds\fleet-sideband --filter FullyQualifiedName~FailedDirectDelivery` with pinned live paths | Windows 2/2; Linux equivalent 2/2: actual refusal, one-shot propagation policy and direct recovery |
+| Same command with `--filter FullyQualifiedName~ActualPrimarySidebandDaemon`, `DOTSIDEBAND_LIVE=1` and the pinned Sideband source | 2/2 on each host: actual unmodified application-core direct/propagated round trips |
+| Same command with `--filter FullyQualifiedName~SidebandProfileImportTests` and `DOTRETICULUM_SIDEBAND_PROFILE` pointing to generated observations/profile | Windows 18/18; native process checks separately verify actual WAL profile import on both hosts |
 | `dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\fleet-sideband-native -p:RuntimeIdentifiers=win-x64 -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` | Passed; strict Windows NativeAOT |
 | Linux `dotnet publish src/Sideband.Desktop/Sideband.Desktop.csproj -c Release -r linux-x64 --artifacts-path /home/dennis/fleet-sideband-native -p:RuntimeIdentifiers=linux-x64 -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` | Passed; strict Linux NativeAOT |
 | `& .\tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1 -Tag @('Native','GUI')` with `DOTRETICULUM_SIDEBAND_BINARY` set to the Windows publish | 3/3 passed: help/version, identity restart, transactional settings exchange/errors and actual rendered send validation |
 | Linux PowerShell `& ./tests/run-pester.ps1 -Path tests/Pester/Sideband.Tests.ps1 -Tag Native,GUI` with the Linux binary and WSLg/software graphics | 3/3 passed; same native maintenance and rendered validation flows |
+| `& .\tests\run-pester.ps1 -Path tests\Pester\SidebandProfileImport.Tests.ps1` with published binary and `DOTRETICULUM_SIDEBAND_PROFILE` | 4/4 on each host: identity/config/WAL history/file import, unchanged source, occupied-target refusal, conflicting-option rejection and malformed-input rollback/retry |
 
 SHA-256 of the accepted published executables:
 
 | Executable | SHA-256 |
 |---|---|
-| Windows `artifacts\builds\fleet-sideband-native\publish\Sideband.Desktop\release_win-x64\sideband.exe` | `26fb8ceece17e13da0ee5d1a171203cf75f0df92c2e5718f2af0dad6bd4bf40c` |
-| Linux `/home/dennis/fleet-sideband-native/publish/Sideband.Desktop/release_linux-x64/sideband` | `65544d276b05284f264a498922766ac9f845b67e69ea1cdfeb7f1748f76075c0` |
+| Windows `artifacts\builds\fleet-sideband-native\publish\Sideband.Desktop\release_win-x64\sideband.exe` | `43813fbea6c7100b81505238faae8353ed6b6fc634b304ee3e8dd0009301c665` |
+| Linux `/home/dennis/fleet-sideband-native/publish/Sideband.Desktop/release_linux-x64/sideband` | `8ad843cad8110cf76d66615997635e7fab505564be32f43e6214f5a98be5ecc7` |
 
 The Windows output contains `sideband.exe` and native GUI dependencies
 `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, and `libSkiaSharp.dll`. Linux output
@@ -305,13 +375,15 @@ The live app test used reference RNS revision
 TCP client formed a direct single-hop topology; a Python-to-.NET incoming
 message was persisted, and a .NET-to-Python outgoing message was received with
 the expected content digest. Separate propagation and file-field cases are
-described above. Application-level loss/retry and arbitrary transport-hop
+described above. Deliberate direct-refusal/retry is covered separately;
+random packet loss and arbitrary transport-hop
 topologies are not covered. No Android,
 macOS, audio-device, voice, telemetry or plugin behavior is claimed.
 
 The native state store persists contacts, chat messages, display name, theme,
 and the local configuration/delivery address in `state.json`; it is not wire-
-or schema-compatible with upstream's SQLite database. On Windows this lives in
+or schema-compatible with upstream's SQLite database, though the bounded offline
+importer reads that format. On Windows this lives in
 `%APPDATA%\sideband\state.json`, separate from upstream's
 `%USERPROFILE%\.config\sideband\app_storage`. Tests explicitly use isolated
 data/config directories and do not connect to, reset, or migrate the user's

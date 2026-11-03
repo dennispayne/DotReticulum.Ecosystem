@@ -8,7 +8,8 @@ public sealed record SidebandChatMessage(
     string Content,
     DateTimeOffset Timestamp,
     string DeliveryState,
-    IReadOnlyList<SidebandAttachment>? Attachments = null);
+    IReadOnlyList<SidebandAttachment>? Attachments = null,
+    string DeliveryMethod = "Direct");
 
 public sealed record SidebandState(
     int SchemaVersion,
@@ -25,7 +26,8 @@ public sealed record SidebandState(
     bool PeriodicSynchronization = false,
     int SynchronizationIntervalSeconds = 43_200,
     double? LastSynchronization = null,
-    bool SynchronizationRetrying = false)
+    bool SynchronizationRetrying = false,
+    bool TryPropagationOnFail = true)
 {
     public const int CurrentSchemaVersion = 1;
 

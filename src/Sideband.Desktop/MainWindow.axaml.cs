@@ -113,6 +113,7 @@ public sealed partial class MainWindow : Window
             ThemeSelector.SelectedItem = _state.Theme;
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
+            PropagationFallbackBox.IsChecked = _state.TryPropagationOnFail;
             PeriodicSyncBox.IsChecked = _state.PeriodicSynchronization;
             SyncIntervalBox.Text = _state.SynchronizationIntervalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
             ApplyTheme(_state.Theme);
@@ -201,6 +202,7 @@ public sealed partial class MainWindow : Window
         try
         {
             await _client.ConfigurePropagationAsync(PropagationNodeBox.Text, PropagationDefaultBox.IsChecked == true, _windowCancellation.Token);
+            await _client.ConfigurePropagationFallbackAsync(PropagationFallbackBox.IsChecked == true, _windowCancellation.Token);
             SyncStatusText.Text = "Propagation settings saved. Sent means stored at the node, not recipient delivery.";
         }
         catch (Exception ex) { ShowError("Could not save propagation settings: " + ex.Message); }
@@ -248,6 +250,7 @@ public sealed partial class MainWindow : Window
             ThemeSelector.SelectedItem = _state.Theme;
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
+            PropagationFallbackBox.IsChecked = _state.TryPropagationOnFail;
             PeriodicSyncBox.IsChecked = _state.PeriodicSynchronization;
             SyncIntervalBox.Text = _state.SynchronizationIntervalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
             ApplyTheme(_state.Theme);
@@ -417,7 +420,7 @@ public sealed partial class MainWindow : Window
             var messages = await _client.GetMessagesAsync(_selectedContact, cancellationToken);
             _visibleMessages = messages;
             MessageList.ItemsSource = messages.Select(message =>
-                $"{message.Timestamp.LocalDateTime:g}  {(message.Incoming ? "Received" : message.DeliveryState)}\n{message.Content}" +
+                $"{message.Timestamp.LocalDateTime:g}  {(message.Incoming ? "Received" : message.DeliveryState)} ({message.DeliveryMethod})\n{message.Content}" +
                 (message.Attachments is { Count: > 0 } files ? "\nFiles: " + string.Join(", ", files.Select(file => $"{file.Name} ({file.Length} bytes)")) : string.Empty))
                 .ToArray();
             if (messages.Count > 0) MessageList.ScrollIntoView(messages.Count - 1);

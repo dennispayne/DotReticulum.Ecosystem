@@ -35,6 +35,7 @@ Describe 'sideband native acceptance' -Tag 'Native' {
             dark_ui = $false
             lxmf_propagation_node = '00112233445566778899aabbccddeeff'
             propagation_by_default = $true
+            lxmf_try_propagation_on_fail = $false
             lxmf_periodic_sync = $true
             lxmf_sync_interval = 120
             unsupported_reference_setting = @(1, 'retained')
@@ -48,6 +49,7 @@ Describe 'sideband native acceptance' -Tag 'Native' {
         $settings.display_name | Should -Be 'Native settings peer'
         $settings.dark_ui | Should -BeFalse
         $settings.lxmf_propagation_node | Should -Be '00112233445566778899aabbccddeeff'
+        $settings.lxmf_try_propagation_on_fail | Should -BeFalse
         $settings.lxmf_periodic_sync | Should -BeTrue
         $settings.lxmf_sync_interval | Should -Be 120
         $settings.unsupported_reference_setting[1] | Should -Be 'retained'

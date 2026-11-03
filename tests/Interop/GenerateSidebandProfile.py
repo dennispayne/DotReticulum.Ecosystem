@@ -1,0 +1,163 @@
+"""Execute pinned Sideband persistence methods, not a reimplementation of its schema.
+
+GUI/audio/telemetry/plugin/resource imports are inert dependency stubs. The actual
+SidebandCore database/configuration methods and installed RNS/LXMF run unchanged.
+No GUI, networking, telemetry or plugin interoperability is claimed by this adapter.
+The output profile contains a fresh private identity: keep it in ignored artifacts.
+The optional public fixture contains only an empty DB and non-secret synthetic config.
+"""
+import argparse
+import base64
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import threading
+import types
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--sideband", required=True, type=Path)
+    parser.add_argument("--rns", required=True, type=Path)
+    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--public-fixture", type=Path)
+    args = parser.parse_args()
+    source = args.sideband.resolve()
+    revision = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
+    if revision != "d069122af14880e43607aed0b71add4c7806fbe0":
+        raise RuntimeError("Unexpected Sideband pin")
+    core_path = source / "sbapp" / "sideband" / "core.py"
+    fingerprint = hashlib.sha256(core_path.read_bytes()).hexdigest()
+    if fingerprint != "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25":
+        raise RuntimeError("Unexpected core.py fingerprint")
+    main_fingerprint = hashlib.sha256((source / "sbapp" / "main.py").read_bytes()).hexdigest()
+    if main_fingerprint != "5b962d9ed2ccbc066bb19865d78c77da9ecf4008900f6f0e7e9dd1eb1c4767aa":
+        raise RuntimeError("Unexpected main.py fingerprint")
+    sys.path.insert(0, str(args.rns.resolve()))
+    import RNS
+    import LXMF
+    import RNS.vendor.umsgpack as msgpack
+    if not Path(RNS.__file__).resolve().is_relative_to(args.rns.resolve()):
+        raise RuntimeError("RNS actual-import mismatch")
+    if RNS.__version__ != "1.5.7" or LXMF.__version__ != "1.2.1":
+        raise RuntimeError("Unexpected RNS/LXMF versions")
+    from reference_environment import verify_reference, PINNED_RNS_SHA, PINNED_LXMF_SHA
+    os.environ["DOTRETICULUM_UPSTREAM"] = str(args.rns.resolve())
+    verify_reference(require_lxmf=True)
+    if subprocess.check_output(["git", "-C", str(source), "status", "--porcelain", "--untracked-files=no", "--", "sbapp"], text=True).strip():
+        raise RuntimeError("Sideband reference source has local modifications")
+    # Stub imports only; none of these subsystems are called by the persistence methods.
+    for package in ["sbapp", "sbapp.sideband"]:
+        module = types.ModuleType(package)
+        module.__path__ = []
+        sys.modules[package] = module
+    stubs = {
+        "sbapp.sideband.res": {"sideband_fb_data": b""},
+        "sbapp.sideband.sense": {"Telemeter": object, "Commands": object,
+                                "valid_telemetry_timebase": lambda _: True, "TB_DIFF_GRACE": 0},
+        "sbapp.sideband.plugins": {"SidebandCommandPlugin": object, "SidebandServicePlugin": object,
+                                  "SidebandTelemetryPlugin": object},
+        "sbapp.sideband.mqtt": {"MQTT": object},
+        "sbapp.plyer": {},
+    }
+    for name, members in stubs.items():
+        module = types.ModuleType(name)
+        module.__dict__.update(members)
+        sys.modules[name] = module
+    spec = importlib.util.spec_from_file_location("sbapp.sideband.core", core_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    core = module.SidebandCore.__new__(module.SidebandCore)
+    output = args.output.resolve()
+    output.mkdir(parents=True, exist_ok=False)
+    work = output / "generation"
+    work.mkdir(mode=0o700)
+    core.db = None
+    core.db_lock = threading.Lock()
+    core.db_path = str(work / "sideband.db")
+    core.config_path = str(work / "sideband_config")
+    core.app_dir = str(work)
+    core.saving_configuration = False
+    core.is_client = False
+    core.is_service = False
+    core.is_daemon = False
+    core.config = {
+        "display_name": "Python Profile",
+        "dark_ui": False,
+        "lxmf_propagation_node": bytes.fromhex("00112233445566778899aabbccddeeff"),
+        "last_lxmf_propagation_node": bytes.fromhex("00112233445566778899aabbccddeeff"),
+        "propagation_by_default": True,
+        "lxmf_periodic_sync": True,
+        "lxmf_sync_interval": 1800,
+        "lxmf_try_propagation_on_fail": False,
+        "telemetry_receive_trusted_only": False,
+        "profile_fixture_unknown": {"binary": b"\x00\x01", "enabled": True},
+    }
+    core._SidebandCore__db_init()
+    core._SidebandCore__save_config(no_thread=True)
+    if args.public_fixture:
+        fixture = {
+            "upstream": revision,
+            "coreSha256": fingerprint, "mainSha256": main_fingerprint,
+            "method": "Actual SidebandCore.__db_init and __save_config; inert unused subsystem imports",
+            "emptyDatabase": base64.b64encode(Path(core.db_path).read_bytes()).decode(),
+            "configuration": base64.b64encode(Path(core.config_path).read_bytes()).decode(),
+        }
+        args.public_fixture.write_text(json.dumps(fixture, indent=2) + "\n", encoding="utf-8")
+    own = RNS.Identity()
+    peer = RNS.Identity()
+    own.to_file(str(work / "primary_identity"))
+    own_dest = RNS.Destination(own, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")
+    peer_dest = RNS.Destination(peer, RNS.Destination.OUT, RNS.Destination.SINGLE, "lxmf", "delivery")
+    core._SidebandCore__event_conversations_changed = lambda: None
+    core._db_create_conversation(peer_dest.hash, name="Reference contact", trust=True)
+    core.db.execute("PRAGMA journal_mode=WAL")
+    core.db.execute("PRAGMA wal_autocheckpoint=0")
+    outgoing = LXMF.LXMessage(peer_dest, own_dest, "Native migration outbound", "Outgoing",
+                              desired_method=LXMF.LXMessage.PROPAGATED)
+    outgoing.timestamp = 1760000000.25
+    outgoing.state = LXMF.LXMessage.DELIVERED
+    outgoing.pack()
+    outgoing.method = LXMF.LXMessage.PROPAGATED
+    core._db_save_lxm(outgoing, peer_dest.hash, originator=True)
+    incoming = LXMF.LXMessage(own_dest, peer_dest, "Native migration inbound", "Incoming",
+                              fields={LXMF.FIELD_FILE_ATTACHMENTS: [["reference.txt", b"Python attachment\n"]],
+                                      LXMF.FIELD_RENDERER: 2},
+                              desired_method=LXMF.LXMessage.DIRECT)
+    incoming.timestamp = 1760000001.5
+    incoming.state = LXMF.LXMessage.DELIVERED
+    incoming.pack()
+    incoming.method = LXMF.LXMessage.DIRECT
+    core._db_save_lxm(incoming, peer_dest.hash)
+    storage = output / "app_storage"
+    storage.mkdir(mode=0o700)
+    for name in ["primary_identity", "sideband_config", "sideband.db", "sideband.db-wal", "sideband.db-shm"]:
+        if (work / name).exists():
+            shutil.copyfile(work / name, storage / name)
+            os.chmod(storage / name, 0o600)
+    observed = core._db_message(incoming.hash)
+    if observed["content"] != incoming.content:
+        raise RuntimeError("Upstream persistence readback failed")
+    metadata = {
+        "upstream": revision, "coreSha256": fingerprint, "mainSha256": main_fingerprint,
+        "rnsRevision": PINNED_RNS_SHA, "lxmfRevision": PINNED_LXMF_SHA,
+        "rnsModule": str(Path(RNS.__file__).resolve()), "rnsVersion": RNS.__version__,
+        "lxmfModule": str(Path(LXMF.__file__).resolve()), "lxmfVersion": LXMF.__version__,
+        "ownDeliveryHash": own_dest.hash.hex(), "peerDeliveryHash": peer_dest.hash.hex(),
+        "incomingHash": incoming.hash.hex(), "outgoingHash": outgoing.hash.hex(),
+        "walBytes": (storage / "sideband.db-wal").stat().st_size,
+        "disclosure": "Actual unchanged persistence methods with inert unused GUI/telemetry/plugin/resource imports",
+    }
+    (output / "observations.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+    core.db.close()
+    shutil.rmtree(work)
+    print(json.dumps(metadata))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,79 @@
+{
+    "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+    "source_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+    "method": "actual message_notification; injected message/database/router/ingest/log dependencies",
+    "cases": [
+        {
+            "name": "failed-eligible",
+            "state": 255,
+            "eligible": true,
+            "stamp_failed": false,
+            "retry": true,
+            "retry_count_after_second_notification": 1,
+            "attempts": 0,
+            "has_next_attempt": false,
+            "packed_cleared": true,
+            "desired_method": 3
+        },
+        {
+            "name": "failed-disabled",
+            "state": 255,
+            "eligible": false,
+            "stamp_failed": false,
+            "retry": false,
+            "retry_count_after_second_notification": 0,
+            "attempts": 3,
+            "has_next_attempt": true,
+            "packed_cleared": false,
+            "desired_method": 2
+        },
+        {
+            "name": "failed-no-flag",
+            "state": 255,
+            "eligible": false,
+            "stamp_failed": false,
+            "retry": false,
+            "retry_count_after_second_notification": 0,
+            "attempts": 3,
+            "has_next_attempt": true,
+            "packed_cleared": false,
+            "desired_method": 2
+        },
+        {
+            "name": "failed-stamp-generation",
+            "state": 255,
+            "eligible": true,
+            "stamp_failed": true,
+            "retry": false,
+            "retry_count_after_second_notification": 0,
+            "attempts": 3,
+            "has_next_attempt": true,
+            "packed_cleared": false,
+            "desired_method": 2
+        },
+        {
+            "name": "delivered",
+            "state": 8,
+            "eligible": true,
+            "stamp_failed": false,
+            "retry": false,
+            "retry_count_after_second_notification": 0,
+            "attempts": 3,
+            "has_next_attempt": true,
+            "packed_cleared": false,
+            "desired_method": 2
+        },
+        {
+            "name": "rejected",
+            "state": 253,
+            "eligible": true,
+            "stamp_failed": false,
+            "retry": false,
+            "retry_count_after_second_notification": 0,
+            "attempts": 3,
+            "has_next_attempt": true,
+            "packed_cleared": false,
+            "desired_method": 2
+        }
+    ]
+}

@@ -30,6 +30,14 @@ internal static class Program
             DataDirectory = options.DataDirectory ?? DataDirectory;
             ReticulumConfigDirectory = options.ReticulumConfigDirectory;
             SmokeUiMode = options.SmokeUi;
+            if (options.ImportProfile is { } profile)
+            {
+                using var cancellation = new CancellationTokenSource();
+                ConsoleCancelEventHandler cancel = (_, e) => { e.Cancel = true; cancellation.Cancel(); };
+                Console.CancelKeyPress += cancel;
+                try { return ProfileImportCommand.RunAsync(profile, DataDirectory, Console.Out, cancellation.Token).GetAwaiter().GetResult(); }
+                finally { Console.CancelKeyPress -= cancel; }
+            }
             if (options.Initialize || options.Check || options.ImportSettings is not null || options.ExportSettings is not null)
                 return RunMaintenanceAsync(options).GetAwaiter().GetResult();
 
@@ -84,6 +92,7 @@ internal static class Program
         var smokeUi = false;
         string? importSettings = null;
         string? exportSettings = null;
+        string? importProfile = null;
         for (var index = 0; index < args.Length; index++)
         {
             switch (args[index])
@@ -96,14 +105,17 @@ internal static class Program
                 case "-c" or "--config" or "--data-dir": dataDirectory = NextValue(args, ref index); break;
                 case "--import-settings": importSettings = NextValue(args, ref index); break;
                 case "--export-settings": exportSettings = NextValue(args, ref index); break;
+                case "--import-profile": importProfile = NextValue(args, ref index); break;
                 case "-r" or "--rnsconfig": rnsConfig = NextValue(args, ref index); break;
                 case "--": break;
                 default: throw new ArgumentException($"Unknown option '{args[index]}'. Use --help for usage.");
             }
         }
 
-        if ((initialize ? 1 : 0) + (check ? 1 : 0) + (importSettings is null ? 0 : 1) + (exportSettings is null ? 0 : 1) > 1)
-            throw new ArgumentException("--init, --check, --import-settings and --export-settings cannot be combined.");
+        if ((initialize ? 1 : 0) + (check ? 1 : 0) + (importSettings is null ? 0 : 1) + (exportSettings is null ? 0 : 1) + (importProfile is null ? 0 : 1) > 1)
+            throw new ArgumentException("--init, --check, --import-settings, --export-settings and --import-profile cannot be combined.");
+        if (importProfile is not null && (string.IsNullOrWhiteSpace(dataDirectory) || rnsConfig is not null || smokeUi))
+            throw new ArgumentException("--import-profile requires an explicit new --data-dir and cannot be combined with --rnsconfig or --smoke-ui.");
         if (initialize || check)
         {
             dataDirectory = Path.GetFullPath(dataDirectory ?? SidebandStateStore.DefaultDataDirectory());
@@ -114,7 +126,7 @@ internal static class Program
             rnsConfig = Path.GetFullPath(rnsConfig);
         }
 
-        return new Options(dataDirectory, rnsConfig, initialize, check, help, version, smokeUi, importSettings, exportSettings);
+        return new Options(dataDirectory, rnsConfig, initialize, check, help, version, smokeUi, importSettings, exportSettings, importProfile);
     }
 
     private static string NextValue(string[] args, ref int index)
@@ -136,6 +148,7 @@ internal static class Program
           sideband --check [--data-dir <path>] [--rnsconfig <path>]
           sideband --import-settings <json-path> [--config <path>]
           sideband --export-settings <json-path> [--config <path>]
+          sideband --import-profile <upstream-profile> --data-dir <new-directory>
           sideband --smoke-ui [--data-dir <path>] [--rnsconfig <path>]
           sideband --help | --version
 
@@ -145,10 +158,11 @@ internal static class Program
         --config     Alias for --data-dir (also -c).
         --import-settings  Import supported upstream JSON settings; retain and report unsupported keys.
         --export-settings  Export upstream-shaped JSON settings, not identities or message databases.
+        --import-profile   Import an offline upstream desktop profile into an absent directory; never merge or overwrite.
         --rnsconfig  Select a Reticulum configuration directory or file.
         --smoke-ui   Open the normal desktop window and report actual render events for GUI acceptance.
         """;
 
     private sealed record Options(string? DataDirectory, string? ReticulumConfigDirectory, bool Initialize, bool Check, bool Help, bool Version, bool SmokeUi,
-        string? ImportSettings, string? ExportSettings);
+        string? ImportSettings, string? ExportSettings, string? ImportProfile);
 }

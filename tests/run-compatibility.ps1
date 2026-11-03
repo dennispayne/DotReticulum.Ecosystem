@@ -125,16 +125,18 @@ try {
         }
         $executed.Add('pester')
         foreach ($suite in @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'Pester') -Filter '*.Tests.ps1' -File | Select-Object -ExpandProperty Name)) {
-            $requiredBinary = switch ($suite) {
+            $requiredVariables = switch ($suite) {
                 'Sideband.Tests.ps1' { 'DOTRETICULUM_SIDEBAND_BINARY' }
+                'SidebandProfileImport.Tests.ps1' { 'DOTRETICULUM_SIDEBAND_BINARY'; 'DOTRETICULUM_SIDEBAND_PROFILE' }
                 'NomadNet.Tests.ps1' { 'DOTRETICULUM_NOMADNET_BINARY' }
-                default { '' }
+                default { @() }
             }
-            if ($requiredBinary -and ![Environment]::GetEnvironmentVariable($requiredBinary)) {
+            $missingVariables = @($requiredVariables | Where-Object { ![Environment]::GetEnvironmentVariable($_) })
+            if ($missingVariables.Count) {
                 foreach ($test in $catalog.tests | Where-Object suite -eq $suite) {
                     $cases.Add([pscustomobject]@{
                         Runner = 'pester'; Suite = $suite; Name = $test.pattern; Case = $test.pattern
-                        Status = 'Skipped'; Detail = "Set $requiredBinary to a published native executable."
+                        Status = 'Skipped'; Detail = "Set $($missingVariables -join ', ') to run this native suite."
                         Artifact = ''; AvailabilityOnly = $true
                     })
                 }
@@ -200,7 +202,9 @@ finally {
             Failures = $failures.ToArray(); NativeBinaries = $nativeBinaries.ToArray(); VerifiedReference = $provenance
             RunStatus = if ($failed) { 'Failed' } else { 'Passed selected checks' }
             Modes = @{ Live = ($Live -or $LxstLive -or $NomadNetLive); LxstLive = [bool]$LxstLive; NomadNetLive = [bool]$NomadNetLive; Gui = [bool]$Gui
-                NativeCodecs = $env:DOTLXST_NATIVE; VirtualAudio = $env:DOTLXST_VIRTUAL_AUDIO; WindowsAudio = $env:DOTLXST_WINDOWS_AUDIO }
+                NativeCodecs = $env:DOTLXST_NATIVE; VirtualAudio = $env:DOTLXST_VIRTUAL_AUDIO; WindowsAudio = $env:DOTLXST_WINDOWS_AUDIO
+                SidebandApplication = $env:DOTSIDEBAND_LIVE; SidebandSource = $env:DOTRETICULUM_SIDEBAND_UPSTREAM
+                SidebandProfile = $env:DOTRETICULUM_SIDEBAND_PROFILE }
         }
         Write-CompatibilityReport -Report $report -Directory $OutputDirectory
     }

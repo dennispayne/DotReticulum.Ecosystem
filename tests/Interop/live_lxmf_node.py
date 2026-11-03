@@ -218,6 +218,11 @@ def main():
             router.enable_propagation()
             router.propagation_destination.announce(app_data=router.get_propagation_node_app_data())
             emit({"event": "pn-ready", "dest": router.propagation_destination.hash.hex()})
+        elif cmd == "delivery-links":
+            if len(parts) != 2 or parts[1] not in ("on", "off"):
+                raise ValueError("delivery-links requires on or off")
+            local.accepts_links(parts[1] == "on")
+            emit({"event": "delivery-links", "enabled": local.accepts_links()})
         elif cmd == "use-pn":
             router.set_outbound_propagation_node(bytes.fromhex(parts[1]))
             emit({"event": "pn-selected"})

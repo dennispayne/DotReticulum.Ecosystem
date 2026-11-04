@@ -41,11 +41,17 @@ public sealed class NomadNetStore
                 .ConfigureAwait(false) ?? throw new InvalidDataException("NomadNet state file is empty.");
             if (state.SchemaVersion != 1) throw new InvalidDataException($"Unsupported NomadNet state version {state.SchemaVersion}.");
             if (state.Contacts is null || state.Messages is null || state.Bookmarks is null || state.ConversationAlerts is null || state.IgnoredDestinations is null ||
+                state.ConversationShells is null || state.ConversationShells.Count > MaximumMessages ||
                 state.Contacts.Count > 10_000 || state.Messages.Count > MaximumMessages || state.Bookmarks.Count > 2_000 ||
                 state.ConversationAlerts.Count > MaximumMessages || state.IgnoredDestinations.Count > 10_000)
                 throw new InvalidDataException("NomadNet state exceeds a record limit.");
             foreach (var contact in state.Contacts) _ = NormalizeContact(contact);
             foreach (var hash in state.IgnoredDestinations) _ = NomadNetAddress.NormalizeHash(hash);
+            foreach (var shell in state.ConversationShells)
+                if (shell.PeerHash != NomadNetAddress.NormalizeHash(shell.PeerHash))
+                    throw new InvalidDataException("Invalid imported conversation shell.");
+            if (state.ConversationShells.Select(shell => shell.PeerHash).Distinct(StringComparer.Ordinal).Count() != state.ConversationShells.Count)
+                throw new InvalidDataException("Duplicate imported conversation shell.");
             foreach (var alert in state.ConversationAlerts)
                 if (alert.PeerHash != NomadNetAddress.NormalizeHash(alert.PeerHash) ||
                     alert.Unread is < 0 or > MaximumMessages || alert.Failures is < 0 or > MaximumMessages)
@@ -104,6 +110,7 @@ public sealed class NomadNetStore
                 Messages = [.. previous.Messages],
                 Bookmarks = [.. previous.Bookmarks],
                 ConversationAlerts = [.. previous.ConversationAlerts],
+                ConversationShells = [.. previous.ConversationShells],
             };
             if (JsonSerializer.SerializeToUtf8Bytes(_state, NomadNetJsonContext.Default.NomadNetState).Length > MaximumStateBytes)
                 throw new InvalidDataException("Directory import exceeds the state size limit; history was not evicted.");
@@ -298,11 +305,16 @@ public sealed class NomadNetStore
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return _state.Messages.GroupBy(message => message.PeerHash).Select(messages =>
+            var groups = _state.Messages.GroupBy(message => message.PeerHash).ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
+            return groups.Keys.Union(_state.ConversationShells.Select(shell => shell.PeerHash), StringComparer.Ordinal).Select(peer =>
             {
-                var alert = _state.ConversationAlerts.Find(item => item.PeerHash == messages.Key);
-                return new NomadNetConversation(messages.Key, _state.Contacts.Find(item => item.DestinationHash == messages.Key)?.Name,
-                    messages.Max(message => message.Timestamp), messages.Count(), alert?.Unread ?? 0, alert?.Failures ?? 0);
+                var messages = groups.GetValueOrDefault(peer) ?? [];
+                var alert = _state.ConversationAlerts.Find(item => item.PeerHash == peer);
+                var shell = _state.ConversationShells.Find(item => item.PeerHash == peer);
+                var latest = messages.Length == 0 ? DateTimeOffset.UnixEpoch : messages.Max(message => message.Timestamp);
+                if (shell is not null && shell.LastActivity > latest) latest = shell.LastActivity;
+                return new NomadNetConversation(peer, _state.Contacts.Find(item => item.DestinationHash == peer)?.Name,
+                    latest, messages.Length, alert?.Unread ?? 0, alert?.Failures ?? 0);
             }).OrderByDescending(item => item.LastActivity).ThenBy(item => item.PeerHash, StringComparer.Ordinal).ToArray();
         }
         finally { _gate.Release(); }
@@ -353,6 +365,7 @@ public sealed class NomadNetStore
             _state.Messages.RemoveAll(message => ids.Contains(message.Id));
             if (!failedOnly)
             {
+                _state.ConversationShells.RemoveAll(item => item.PeerHash == hash);
                 _state.ConversationAlerts.RemoveAll(item => item.PeerHash == hash);
                 if (_activePeer == hash) _activePeer = null;
             }
@@ -428,6 +441,7 @@ public sealed class NomadNetStore
     private async Task PersistAsync(CancellationToken cancellationToken)
     {
         var peers = _state.Messages.Select(message => message.PeerHash).ToHashSet(StringComparer.Ordinal);
+        peers.UnionWith(_state.ConversationShells.Select(shell => shell.PeerHash));
         _state.ConversationAlerts.RemoveAll(item => !peers.Contains(item.PeerHash) || item.Unread == 0 && item.Failures == 0);
         var data = JsonSerializer.SerializeToUtf8Bytes(_state, NomadNetJsonContext.Default.NomadNetState);
         while (data.Length > MaximumStateBytes && _state.Messages.Count > 0)

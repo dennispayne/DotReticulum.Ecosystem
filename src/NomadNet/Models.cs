@@ -8,6 +8,7 @@ public sealed class NomadNetState
     public List<NomadNetBookmark> Bookmarks { get; set; } = [];
     public List<NomadNetConversationAlert> ConversationAlerts { get; set; } = [];
     public List<string> IgnoredDestinations { get; set; } = [];
+    public List<NomadNetConversationShell> ConversationShells { get; set; } = [];
 }
 
 public sealed record NomadNetSettings
@@ -15,6 +16,7 @@ public sealed record NomadNetSettings
     public const int MaximumSettingsBytes = 64 * 1024;
     public int SchemaVersion { get; init; } = 1;
     public string DisplayName { get; init; } = "NomadNet user";
+    public string? RnsConfigDirectory { get; init; }
     public bool EnableClient { get; set; } = true;
     public bool ClientAnnounceAtStart { get; set; } = true;
     public int ClientAnnounceIntervalMinutes { get; set; } = 360;
@@ -150,7 +152,7 @@ public sealed record NomadNetSettings
             DeliveryTransferLimitBytes is < 1024 or > 64 * 1024 * 1024 ||
             !Enum.IsDefined(ImageLoading) ||
             string.IsNullOrWhiteSpace(MediaConverter) || MediaConverter.Length > 1024 || MediaConverter.Any(char.IsControl) ||
-            new[] { PagesPath, FilesPath, DownloadsPath }.Any(path => path is not null &&
+            new[] { PagesPath, FilesPath, DownloadsPath, RnsConfigDirectory }.Any(path => path is not null &&
                 (string.IsNullOrWhiteSpace(path) || path.Length > 2048 || path.Any(char.IsControl))) ||
             NodeName is { } nodeName && (string.IsNullOrWhiteSpace(nodeName) || nodeName.Length > 80 || nodeName.Any(char.IsControl)) ||
             EnablePropagation && !EnableNode)
@@ -173,6 +175,7 @@ public sealed record NomadNetContact(string DestinationHash, string Name)
 }
 
 public sealed record NomadNetConversationAlert(string PeerHash, int Unread, int Failures);
+public sealed record NomadNetConversationShell(string PeerHash, DateTimeOffset LastActivity);
 public sealed record NomadNetConversation(string PeerHash, string? Name, DateTimeOffset LastActivity,
     int MessageCount, int Unread, int Failures);
 
@@ -187,6 +190,11 @@ public sealed record NomadNetMessage(
 {
     public int? Renderer { get; init; }
     public int? ImageAttachmentIndex { get; init; }
+    public string? HistoricalAuthentication { get; init; }
+    public bool? HistoricalSignatureValidated { get; init; }
+    public int? HistoricalState { get; init; }
+    public int? HistoricalMethod { get; init; }
+    public string ImportedAttachmentNames { get; init; } = "";
 }
 
 public sealed record NomadNetBookmark(string DestinationHash, string Path, string Title);
@@ -198,6 +206,7 @@ public sealed record NomadNetBookmark(string DestinationHash, string Path, strin
 [System.Text.Json.Serialization.JsonSerializable(typeof(NomadNetMessage))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(NomadNetBookmark))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(NomadNetConversation))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(NomadNetProfileImportReport))]
 internal partial class NomadNetJsonContext : System.Text.Json.Serialization.JsonSerializerContext
 {
 }

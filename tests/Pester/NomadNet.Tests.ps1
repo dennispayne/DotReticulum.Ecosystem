@@ -1,3 +1,353 @@
+Describe 'NomadNet offline primary profile import' -Tag 'ProfileImport' {
+    It 'imports an actual primary profile and messages both ways with the unchanged full primary application after imported-identity restart' {
+        if ($env:DOTRETICULUM_NOMADNET_PROFILE_IMPORT -ne '1') {
+            Set-ItResult -Skipped -Because 'Enable DOTRETICULUM_NOMADNET_PROFILE_IMPORT=1 with the published binary and pinned primary Python environment.'
+            return
+        }
+        foreach ($variable in 'DOTRETICULUM_NOMADNET_BINARY', 'DOTRETICULUM_PYTHON',
+            'DOTRETICULUM_UPSTREAM', 'DOTRETICULUM_NOMADNET_SOURCE', 'DOTRETICULUM_NOMADNET_PROFILE_CONVERTER') {
+            if (-not [Environment]::GetEnvironmentVariable($variable)) { throw "$variable is required." }
+        }
+        Test-Path $env:DOTRETICULUM_NOMADNET_PROFILE_CONVERTER -PathType Leaf | Should -BeTrue
+        $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        if ($env:DOTRETICULUM_TEST_REPOSITORY) { $root = $env:DOTRETICULUM_TEST_REPOSITORY }
+        $work = Join-Path (Get-Location) "artifacts\tests\nomad-profile-import\acceptance-$([Guid]::NewGuid().ToString('N'))"
+        $null = New-Item $work -ItemType Directory -Force
+        $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
+        $pending = @{}
+        $errors = @{}
+        $names = @{}
+        $start = {
+            param([string] $name, [string] $binary, [string[]] $arguments)
+            $info = [Diagnostics.ProcessStartInfo]::new($binary)
+            $info.UseShellExecute = $false
+            $info.RedirectStandardInput = $true
+            $info.RedirectStandardOutput = $true
+            $info.RedirectStandardError = $true
+            $info.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
+            $info.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
+            foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
+            $info.Environment['PYTHONPATH'] = @($env:DOTRETICULUM_UPSTREAM,
+                $env:DOTRETICULUM_NOMADNET_SOURCE, (Join-Path $root 'tests\Interop')) -join [IO.Path]::PathSeparator
+            $info.Environment['PYTHON_CPU_COUNT'] = '2'
+            $info.Environment['PATH'] = (Split-Path $env:DOTRETICULUM_NOMADNET_PROFILE_CONVERTER -Parent) +
+                [IO.Path]::PathSeparator + $env:PATH
+            foreach ($variable in 'TMP', 'TEMP', 'TMPDIR') { $info.Environment[$variable] = $work }
+            $process = [Diagnostics.Process]::new()
+            $process.StartInfo = $info
+            $null = $process.Start()
+            $processes.Add($process)
+            $names[$process.Id] = $name
+            $errors[$process.Id] = $process.StandardError.ReadToEndAsync()
+            return $process
+        }.GetNewClosure()
+        $send = {
+            param($process, [string] $text)
+            $process.StandardInput.WriteLine($text)
+            $process.StandardInput.Flush()
+        }
+        $read = {
+            param($process, [string] $pattern, [int] $seconds = 60)
+            $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+            while ([DateTime]::UtcNow -lt $deadline) {
+                if (-not $pending.ContainsKey($process.Id)) { $pending[$process.Id] = $process.StandardOutput.ReadLineAsync() }
+                try { $line = $pending[$process.Id].WaitAsync([TimeSpan]::FromMilliseconds(250)).GetAwaiter().GetResult() }
+                catch [TimeoutException] { continue }
+                $pending.Remove($process.Id)
+                if ($null -eq $line) { throw "$($names[$process.Id]) closed stdout before '$pattern'; diagnostics $work" }
+                Add-Content (Join-Path $work "$($names[$process.Id]).stdout") $line
+                if ($line -match $pattern) { return $line }
+            }
+            throw "$($names[$process.Id]) timed out before '$pattern'; diagnostics $work"
+        }.GetNewClosure()
+        $parseEvent = {
+            param([string] $line, [string] $context)
+            $marker = $line.IndexOf('@@', [StringComparison]::Ordinal)
+            if ($marker -lt 0) { return $null }
+            try { $event = ConvertFrom-Json -InputObject $line.Substring($marker + 2) -NoEnumerate -ErrorAction Stop }
+            catch { throw "Invalid framed JSON from $context; diagnostics $work; raw line: $line; $($_.Exception.Message)" }
+            if ($null -eq $event -or $event.GetType() -ne [System.Management.Automation.PSCustomObject] -or
+                $event.event -isnot [string] -or
+                [string]::IsNullOrWhiteSpace($event.event)) {
+                throw "Invalid framed event schema from $context; diagnostics $work; raw line: $line"
+            }
+            return $event
+        }.GetNewClosure()
+        $eventBacklogs = @{}
+        $readEvent = {
+            param($process, [string] $expected, [int] $seconds = 60)
+            $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+            if (-not $eventBacklogs.ContainsKey($process.Id)) {
+                $eventBacklogs[$process.Id] = [Collections.Generic.List[object]]::new()
+            }
+            $backlog = $eventBacklogs[$process.Id]
+            for ($index = 0; $index -lt $backlog.Count; $index++) {
+                if ($backlog[$index].event -eq $expected) {
+                    $event = $backlog[$index]
+                    $backlog.RemoveAt($index)
+                    return $event
+                }
+            }
+            while ([DateTime]::UtcNow -lt $deadline) {
+                $remaining = [Math]::Max(1, [Math]::Ceiling(($deadline - [DateTime]::UtcNow).TotalSeconds))
+                try { $line = & $read $process '.' $remaining }
+                catch { throw "$($names[$process.Id]) awaiting framed event '$expected'; diagnostics $work; $($_.Exception.Message)" }
+                $event = & $parseEvent $line "$($names[$process.Id]) awaiting '$expected'"
+                if ($null -eq $event) { continue }
+                if ($event.event -in 'error', 'failed') {
+                    throw "$($names[$process.Id]) reported '$($event.event)' awaiting '$expected'; diagnostics $work; raw line: $line"
+                }
+                if ($event.event -eq $expected) { return $event }
+                if ($backlog.Count -ge 32) {
+                    throw "$($names[$process.Id]) exceeded 32 pending events awaiting '$expected'; diagnostics $work"
+                }
+                $backlog.Add($event)
+            }
+            throw "$($names[$process.Id]) timed out awaiting framed event '$expected'; diagnostics $work"
+        }.GetNewClosure()
+        $offline = {
+            param([string] $name, [string] $binary, [string[]] $arguments)
+            $process = & $start $name $binary $arguments
+            $output = $process.StandardOutput.ReadToEndAsync()
+            $process.WaitForExit(90000) | Should -BeTrue
+            $text = $output.GetAwaiter().GetResult()
+            $diagnostics = $errors[$process.Id].GetAwaiter().GetResult()
+            $text | Set-Content (Join-Path $work "$name.stdout") -Encoding utf8
+            $diagnostics | Set-Content (Join-Path $work "$name.stderr") -Encoding utf8
+            @{ Code=$process.ExitCode; Text=$text; Error=$diagnostics }
+        }.GetNewClosure()
+        $snapshot = {
+            param([string] $directory)
+            @(Get-ChildItem $directory -File -Recurse | Sort-Object FullName | ForEach-Object {
+                "$([IO.Path]::GetRelativePath($directory, $_.FullName)) $((Get-FileHash $_.FullName -Algorithm SHA256).Hash)"
+            }) -join "`n"
+        }
+        try {
+            (& $parseEvent '[2026-11-04 05:03:52] [Warning] startup warning@@{"event":"ready"}' 'regression').event |
+                Should -BeExactly 'ready'
+            (& $parseEvent '[2026-11-04 05:03:52] diagnostic with "event": "ready" but no frame' 'regression') |
+                Should -BeNullOrEmpty
+            { & $parseEvent '[2026-11-04] warning@@{"event":' 'regression' } | Should -Throw '*Invalid framed JSON*'
+            { & $parseEvent '@@[{"event":"ready"}]' 'regression' } | Should -Throw '*Invalid framed event schema*'
+            { & $parseEvent '@@{"event":7}' 'regression' } | Should -Throw '*Invalid framed event schema*'
+            { & $parseEvent '@@{"notEvent":"ready"}' 'regression' } | Should -Throw '*Invalid framed event schema*'
+            { & $parseEvent '@@{"event":"ready"} trailing garbage' 'regression' } | Should -Throw '*Invalid framed JSON*'
+            $help = & $offline 'help' $env:DOTRETICULUM_NOMADNET_BINARY @('--help')
+            $help.Code | Should -Be 0
+            $help.Text | Should -Match '\-\-import-profile'
+            $source = Join-Path $work 'primary'
+            $target = Join-Path $work 'native'
+            $fixture = Join-Path $work 'executed-primary.json'
+            $generated = & $offline 'generator' $env:DOTRETICULUM_PYTHON @(
+                (Join-Path $root 'tests\Interop\GenerateNomadNetProfileImportVectors.py'),
+                '--profile', $source, '--rnsconfig', (Join-Path $work 'primary-rns'), '--output', $fixture)
+            $generated.Code | Should -Be 0 -Because $generated.Error
+            (Get-FileHash $fixture).Hash | Should -Be (Get-FileHash (Join-Path $root 'tests\NomadNet.Tests\NomadNetProfileImportVectors.json')).Hash
+            $primary = ($generated.Text.Trim() -split "`n" | Select-Object -Last 1) | ConvertFrom-Json
+            $before = & $snapshot $source
+            $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+            $listener.Start()
+            $port = $listener.LocalEndpoint.Port
+            $listener.Stop()
+            $selectedRns = Join-Path $work 'native-rns'
+            $null = New-Item $selectedRns -ItemType Directory
+            @"
+[reticulum]
+share_instance=No
+enable_transport=No
+[logging]
+loglevel=4
+[interfaces]
+[[ProfilePeer]]
+type=TCPClientInterface
+enabled=Yes
+target_host=127.0.0.1
+target_port=$port
+"@ | Set-Content (Join-Path $selectedRns 'config') -Encoding utf8
+            $linked = Join-Path $work 'primary-link'
+            if ($IsWindows) { $null = New-Item $linked -ItemType Junction -Target $source }
+            else { $null = New-Item $linked -ItemType SymbolicLink -Target $source }
+            try {
+                $unsafe = & $offline 'linked-source-rejected' $env:DOTRETICULUM_NOMADNET_BINARY @(
+                    '--import-profile', $linked, '--config', (Join-Path $work 'unsafe-target'), '--rnsconfig', $selectedRns)
+                $unsafe.Code | Should -Be 1
+                $unsafe.Error | Should -Match 'links/reparse points'
+                Test-Path (Join-Path $work 'unsafe-target') | Should -BeFalse
+            }
+            finally { [IO.Directory]::Delete($linked) }
+            $import = & $offline 'import' $env:DOTRETICULUM_NOMADNET_BINARY @(
+                '--import-profile', $source, '--config', $target, '--rnsconfig', $selectedRns)
+            $import.Code | Should -Be 0 -Because $import.Error
+            $import.Text | Should -Match '4 messages, 2 attachments'
+            (& $snapshot $source) | Should -BeExactly $before
+            $state = Get-Content (Join-Path $target 'state.json') -Raw | ConvertFrom-Json
+            $state.messages.Count | Should -Be 4
+            foreach ($expected in (Get-Content $fixture -Raw | ConvertFrom-Json).cases) {
+                $actual = @($state.messages.Where({ $_.content -eq $expected.content }))
+                $actual.Count | Should -Be 1
+                $actual[0].title | Should -BeExactly $expected.title
+                $actual[0].historicalState | Should -Be $expected.state
+                $actual[0].historicalMethod | Should -Be $expected.method
+            }
+            $state.messages.Where({ $_.status -eq 'paper' }).Count | Should -Be 1
+            $media = $state.messages.Where({ $_.content -eq 'media-stripped body' })[0]
+            $media.historicalAuthentication | Should -Be 'container-hash-mismatch-not-authenticated'
+            $media.historicalSignatureValidated | Should -BeTrue
+            $media.imageAttachmentIndex | Should -Be 1
+            ($media.importedAttachmentNames -split "`n") | Should -Contain 'public.txt'
+            $nativeFile = Join-Path $target "attachments\$($media.id)\0.bin"
+            [IO.File]::ReadAllText($nativeFile) | Should -BeExactly 'public profile attachment'
+            $stateHash = (Get-FileHash (Join-Path $target 'state.json')).Hash
+            $conflict = & $offline 'non-overwrite' $env:DOTRETICULUM_NOMADNET_BINARY @(
+                '--import-profile', $source, '--config', $target, '--rnsconfig', $selectedRns)
+            $conflict.Code | Should -Be 1
+            (Get-FileHash (Join-Path $target 'state.json')).Hash | Should -Be $stateHash
+            $python = & $start 'python-peer' $env:DOTRETICULUM_PYTHON @(
+                (Join-Path $root 'tests\Interop\nomadnet_live_peer.py'),
+                '--config', (Join-Path $work 'python-peer'), '--tcp-server-port', "$port")
+            $ready = & $readEvent $python 'ready'
+            $native = & $start 'terminal' $env:DOTRETICULUM_NOMADNET_BINARY @('--config', $target)
+            (& $read $native 'LXMF delivery address:') | Should -Match $primary.delivery
+            & $send $native 'client status'
+            & $read $native 'Client display name: Imported primary user' | Out-Null
+            & $send $native 'contacts'
+            & $read $native 'Profile peer' | Out-Null
+            & $send $native 'conversations'
+            & $read $native 'unread=2 failed=1 messages=4 Profile peer' | Out-Null
+            & $read $native 'Conversations complete.' | Out-Null
+            & $send $native 'images manual'
+            & $read $native 'Inline images: manual.' | Out-Null
+            & $send $native 'messages'
+            & $read $native 'Messages complete.' | Out-Null
+            & $send $native 'conversation images load'
+            & $read $native '--- conversation image complete ---' | Out-Null
+            & $send $native 'conversation images status'
+            & $read $native 'previews=1' | Out-Null
+            & $send $native "attachment $($media.id) 0 recovered.txt"
+            & $read $native 'recovered.txt' | Out-Null
+            [IO.File]::ReadAllText((Join-Path $target 'downloads\recovered.txt')) | Should -BeExactly 'public profile attachment'
+            & $send $native "attachment $($media.id) 1 recovered.png"
+            & $read $native 'recovered.png' | Out-Null
+            (Get-FileHash (Join-Path $target 'downloads\recovered.png')).Hash |
+                Should -Be (Get-FileHash (Join-Path $source "storage\attachments\$($media.id)\file_1")).Hash
+            & $send $native "conversation active $($ready.destination)"
+            & $read $native 'Conversation command complete.' | Out-Null
+            & $send $native 'announce'
+            & $send $python 'announce'
+            & $readEvent $python 'announced' | Out-Null
+            & $send $native "send $($ready.destination) imported-native-to-python"
+            (& $readEvent $python 'received').content | Should -BeExactly 'imported-native-to-python'
+            & $send $python "send $($primary.delivery) python-to-imported-native"
+            & $readEvent $python 'delivered' | Out-Null
+            & $read $native 'Conversation received:.*python-to-imported-native' | Out-Null
+            & $send $native 'quit'
+            $native.WaitForExit(20000) | Should -BeTrue
+            $native.ExitCode | Should -Be 0
+            & $send $python 'quit'
+            $python.WaitForExit(10000) | Should -BeTrue
+            $python.ExitCode | Should -Be 0
+            $applicationProfile = Join-Path $work 'primary-application-peer'
+            $applicationRns = Join-Path $work 'primary-application-rns'
+            $null = New-Item $applicationProfile, $applicationRns -ItemType Directory
+            @('[client]', 'user_interface=text', 'periodic_lxmf_sync=no', '[node]',
+                'enable_node=yes', 'disable_propagation=yes', 'announce_at_start=no',
+                '[textui]', 'colormode=256', '[logging]', 'loglevel=2', 'destination=console') |
+                Set-Content (Join-Path $applicationProfile 'config') -Encoding utf8
+            @('[reticulum]', 'share_instance=No', 'enable_transport=No', '[logging]', 'loglevel=2',
+                '[interfaces]', '[[ProfileServer]]', 'type=TCPServerInterface', 'enabled=Yes',
+                'listen_ip=127.0.0.1', "listen_port=$port") |
+                Set-Content (Join-Path $applicationRns 'config') -Encoding utf8
+            $application = & $start 'primary-application-peer' $env:DOTRETICULUM_PYTHON @(
+                '-u', (Join-Path $root 'tests\Interop\nomadnet_live_node.py'),
+                '--config', $applicationProfile, '--rnsconfig', $applicationRns)
+            $applicationReady = & $readEvent $application 'ready'
+            $applicationReady.revision | Should -Be 'f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2'
+            { & $readEvent $application '__never_emitted__' 1 } |
+                Should -Throw "*awaiting*'__never_emitted__'*"
+            $identityHash = (Get-FileHash (Join-Path $target 'identity')).Hash
+            $daemon = & $start 'daemon-restart' $env:DOTRETICULUM_NOMADNET_BINARY @('--config', $target, '--daemon')
+            (& $read $daemon 'LXMF delivery address:') | Should -Match $primary.delivery
+            & $read $daemon 'Daemon ready.' | Out-Null
+            $busy = & $offline 'lease-conflict' $env:DOTRETICULUM_NOMADNET_BINARY @('--config', $target)
+            $busy.Code | Should -Be 1
+            $busy.Error | Should -Match 'already in use'
+            Stop-Process -Id $daemon.Id -Force
+            $daemon.WaitForExit(10000) | Should -BeTrue
+            $restart = & $start 'terminal-restart' $env:DOTRETICULUM_NOMADNET_BINARY @('--config', $target)
+            (& $read $restart 'LXMF delivery address:') | Should -Match $primary.delivery
+            & $send $restart 'messages'
+            & $read $restart 'python-to-imported-native' | Out-Null
+            & $read $restart 'Messages complete.' | Out-Null
+            & $send $application 'wait-network'
+            & $readEvent $application 'network-ready' | Out-Null
+            & $send $application 'observe-client-announces'
+            & $readEvent $application 'observing-client-announces' | Out-Null
+            & $send $restart 'announce'
+            & $read $restart 'Announced' | Out-Null
+            & $send $application "client-announces $($primary.delivery) 1"
+            $observed = & $readEvent $application 'client-announces'
+            $observed.delivery | Should -Be $primary.delivery
+            & $send $application 'announce'
+            & $readEvent $application 'announced' | Out-Null
+            & $send $restart "conversation active $($applicationReady.delivery)"
+            & $read $restart 'Conversation command complete.' | Out-Null
+            $nativeBody = 'imported-restarted-to-primary'
+            $primaryBody = 'primary-to-imported-restarted'
+            & $send $restart "send $($applicationReady.delivery) $nativeBody"
+            $received = & $readEvent $application 'received'
+            $received.content | Should -BeExactly $nativeBody
+            Test-Path (Join-Path $applicationProfile "storage\conversations\$($primary.delivery)\$($received.message_hash)") |
+                Should -BeTrue -Because 'the unchanged primary delivery callback must persist the imported identity conversation'
+            & $send $application "send $($primary.delivery) $primaryBody"
+            $queued = & $readEvent $application 'queued'
+            $delivered = & $readEvent $application 'delivered'
+            $delivered.message_hash | Should -Be $queued.message_hash
+            & $read $restart "Conversation received:.*$primaryBody" | Out-Null
+            $restartedState = Get-Content (Join-Path $target 'state.json') -Raw | ConvertFrom-Json
+            @($restartedState.messages.Where({ $_.id -eq $queued.message_hash -and $_.content -eq $primaryBody })).Count |
+                Should -Be 1
+            (Get-FileHash (Join-Path $target 'identity')).Hash | Should -Be $identityHash
+            & $send $restart 'quit'
+            $restart.WaitForExit(20000) | Should -BeTrue
+            $restart.ExitCode | Should -Be 0
+            (& $snapshot $source) | Should -BeExactly $before
+            & $send $application 'quit'
+            $application.WaitForExit(20000) | Should -BeTrue
+            $application.ExitCode | Should -Be 0
+            @{ Binary=(Get-FileHash $env:DOTRETICULUM_NOMADNET_BINARY).Hash;
+                Fixture=(Get-FileHash $fixture).Hash; SourcePreserved=$true; MessagesBothDirections=$true;
+                ImagePreviewAndExport=$true; Converter=(Get-FileHash $env:DOTRETICULUM_NOMADNET_PROFILE_CONVERTER).Hash;
+                SameIdentityRestart=$true; PrimaryCommit='f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2';
+                PrimaryApplicationBothDirectionsAfterRestart=$true;
+                StrictFramedReferenceEvents=$true; ReferenceMissingEventDeadlineVerified=$true;
+                PrimaryApplicationModule=$applicationReady.module;
+                ImportedIdentityUnchanged=$true; PrimaryApplicationPersistedInbound=$true;
+                NativeToPrimaryAfterRestartBodyBytes=[Text.Encoding]::UTF8.GetByteCount($nativeBody);
+                PrimaryToNativeAfterRestartBodyBytes=[Text.Encoding]::UTF8.GetByteCount($primaryBody);
+                ReferenceDependencyBoundary='Primary requires RNS>=1.6/LXMF>=1.2.2; selected actual-application flows use pinned RNS1.5.7/LXMF1.2.1, not full dependency parity';
+                ProfileOrigin='Complete unchanged primary NomadNetworkApp constructor; actual Directory/Conversation/LXMessage persistence APIs';
+                ImportedMessages=4; PaperDocuments=1;
+                ImportedFileBytes=(Get-Item $nativeFile).Length;
+                ImportedImageBytes=(Get-Item (Join-Path $target "attachments\$($media.id)\1.bin")).Length;
+                Topology='IPv4 loopback: imported native TCPClientInterface first connects to pinned Python LXMF endpoint, then unchanged full primary application TCPServerInterface after native clean/abrupt restart; no transport hop';
+                NetworkMethod='LXMF DIRECT'; NativeToPythonBodyBytes=25; PythonToNativeBodyBytes=25;
+                Exclusions='No new multi-hop/loss/large-Resource acceptance; no RRC hub/history or complete ConfigObj/router-state migration; primary minimum dependencies remain newer than selected pins' } |
+                ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
+        }
+        finally {
+            foreach ($process in $processes) {
+                if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force; $null = $process.WaitForExit(10000) }
+                if ($errors.ContainsKey($process.Id)) {
+                    $errors[$process.Id].GetAwaiter().GetResult() |
+                        Set-Content (Join-Path $work "$($names[$process.Id]).stderr") -Encoding utf8
+                }
+                $process.Dispose()
+            }
+            if ($env:DOTRETICULUM_NOMADNET_KEEP_WORK -ne '1') { Remove-Item $work -Recurse -Force }
+        }
+    }
+}
+
 Describe 'NomadNet primary directory migration' -Tag 'DirectoryImport' {
     It 'imports actual current/legacy policy atomically and preserves it through terminal and daemon ownership/restarts' {
         if ($env:DOTRETICULUM_NOMADNET_DIRECTORY_IMPORT -ne '1') {

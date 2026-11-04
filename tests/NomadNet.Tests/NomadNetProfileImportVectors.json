@@ -1,0 +1,122 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "rnsVersion": "1.5.7",
+  "lxmfVersion": "1.2.1",
+  "method": "Complete unmodified NomadNetworkApp constructor on main thread; observer executes DirectoryEntry/save_to_disk, LXMessage.pack, Conversation.ingest, ConversationMessage.load/write_index (including actual attachment stripping), set_display_name/save_peer_settings. Random private identities remain only in the explicitly supplied ignored runtime profile; fixture contains no keys or random hashes.",
+  "sources": {
+    "nomadnet/NomadNetworkApp.py": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2",
+    "nomadnet/Conversation.py": "83bbfc71a7fc2b0953a2aac283a609c068dbbe38daea3abc788e4266ca4a98cd",
+    "nomadnet/Directory.py": "29467f537a64feda32a1c6fe075b3836bccbeeecee1a84628075e0e8fa3c723a",
+    "nomadnet/RRC.py": "195e3dd62ab6678f5192b8b9c5a3c3e399e519018f3fb2216a16315c32895925"
+  },
+  "cases": [
+    {
+      "label": "incoming",
+      "state": 8,
+      "method": 2,
+      "title": "incoming title",
+      "content": "incoming body",
+      "indexKeys": [
+        "attachment_names",
+        "content",
+        "has_attachments",
+        "method",
+        "q",
+        "renderer",
+        "rssi",
+        "signature_validated",
+        "snr",
+        "sort_timestamp",
+        "source_hash",
+        "state",
+        "timestamp",
+        "title",
+        "transport_encrypted",
+        "transport_encryption",
+        "unverified_reason"
+      ],
+      "hasAttachments": false
+    },
+    {
+      "label": "failed",
+      "state": 255,
+      "method": 2,
+      "title": "failed title",
+      "content": "failed body",
+      "indexKeys": [
+        "attachment_names",
+        "content",
+        "has_attachments",
+        "method",
+        "q",
+        "renderer",
+        "rssi",
+        "signature_validated",
+        "snr",
+        "sort_timestamp",
+        "source_hash",
+        "state",
+        "timestamp",
+        "title",
+        "transport_encrypted",
+        "transport_encryption",
+        "unverified_reason"
+      ],
+      "hasAttachments": false
+    },
+    {
+      "label": "media-stripped",
+      "state": 8,
+      "method": 2,
+      "title": "media-stripped title",
+      "content": "media-stripped body",
+      "indexKeys": [
+        "attachment_names",
+        "content",
+        "has_attachments",
+        "method",
+        "q",
+        "renderer",
+        "rssi",
+        "signature_validated",
+        "snr",
+        "sort_timestamp",
+        "source_hash",
+        "state",
+        "timestamp",
+        "title",
+        "transport_encrypted",
+        "transport_encryption",
+        "unverified_reason"
+      ],
+      "hasAttachments": true
+    },
+    {
+      "label": "paper",
+      "state": 5,
+      "method": 5,
+      "title": "paper title",
+      "content": "paper body",
+      "indexKeys": [
+        "attachment_names",
+        "content",
+        "has_attachments",
+        "method",
+        "q",
+        "renderer",
+        "rssi",
+        "signature_validated",
+        "snr",
+        "sort_timestamp",
+        "source_hash",
+        "state",
+        "timestamp",
+        "title",
+        "transport_encrypted",
+        "transport_encryption",
+        "unverified_reason"
+      ],
+      "hasAttachments": false
+    }
+  ]
+}

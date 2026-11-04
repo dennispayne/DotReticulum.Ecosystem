@@ -8,6 +8,21 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Parent independently accepts frozen Nomad profile v4 on Windows/Linux with
+`Invoke-FrozenAcceptance.ps1 -Manifest <frozen-win/linux-191-v4>\manifest.json`:
+five successive mandatory native runs and a separate recorded-case run pass per
+host, including messages both ways with the
+unchanged full primary **after** clean/abrupt restart of the imported identity.
+The 29-byte direct-TCP application exchange is distinct from v2's 25-byte
+pre-restart Python LXMF endpoint flow. Current-source Nomad regression passes
+180/11 explicit skips on Windows and 187/4 on Linux with isolated outputs;
+all ten frozen owned hashes match and 36 native PDB source checks per host are
+retained. Exact binary hashes/commands, profile bounds and remaining RRC/config/
+router gaps are in [NomadNet's reference](nomadnet.md). The preserved v3 failure
+exposed timestamped primary diagnostics before JSON events; v4 retains those
+diagnostics with bounded event waits while malformed JSON/schema errors still
+fail. No production binary or message assertion changed for that reader fix.
+
 The announce-profile migration gate
 `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
 artifacts\builds\fleet-announce-import-unified -OutputDirectory

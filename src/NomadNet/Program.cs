@@ -28,6 +28,14 @@ internal static class Program
         try
         {
             var options = ParseOptions(args);
+            if (options.ImportProfile is { } profile)
+            {
+                var report = await NomadNetProfileImport.ImportAsync(profile, options.DataDirectory, options.RnsConfig!).ConfigureAwait(false);
+                foreach (var warning in report.Warnings) Console.Error.WriteLine(NomadNetTerminalText.Safe(warning));
+                foreach (var path in report.NotImportedFiles) Console.Error.WriteLine("Not imported: " + NomadNetTerminalText.Safe(path));
+                Console.WriteLine($"Imported profile: {report.Contacts} contacts, {report.Messages} messages, {report.Attachments} attachments. Source unchanged. See profile-import.json.");
+                return 0;
+            }
             if (options.ImportDirectory is { } primaryProfile)
             {
                 var import = await NomadNetDirectoryImport.ReadAsync(primaryProfile).ConfigureAwait(false);
@@ -101,6 +109,7 @@ internal static class Program
         var daemon = false;
         string? importConfig = null;
         string? importDirectory = null;
+        string? importProfile = null;
         for (var index = 0; index < args.Length; index++)
         {
             switch (args[index])
@@ -116,6 +125,9 @@ internal static class Program
                     break;
                 case "--import-directory":
                     importDirectory = ValueAfter(args, ref index);
+                    break;
+                case "--import-profile":
+                    importProfile = ValueAfter(args, ref index);
                     break;
                 case "--init":
                     initialize = true;
@@ -139,7 +151,10 @@ internal static class Program
             throw new ArgumentException("--import-config cannot be combined with --init, --status or --daemon.");
         if (importDirectory is not null && (initialize || showStatus || daemon || importConfig is not null))
             throw new ArgumentException("--import-directory cannot be combined with --import-config, --init, --status or --daemon.");
-        return new Options(dataDirectory, rnsConfig, initialize, showStatus, daemon, importConfig, importDirectory);
+        if (importProfile is not null && (initialize || showStatus || daemon || importConfig is not null ||
+            importDirectory is not null || rnsConfig is null))
+            throw new ArgumentException("--import-profile requires explicit --rnsconfig and cannot be combined with other modes.");
+        return new Options(dataDirectory, rnsConfig, initialize, showStatus, daemon, importConfig, importDirectory, importProfile);
     }
 
     private static string ValueAfter(string[] args, ref int index)
@@ -173,9 +188,11 @@ internal static class Program
         using var lease = NomadNetProfileLease.Acquire(options.DataDirectory);
         var settings = await NomadNetSettings.OpenAsync(options.DataDirectory, cancellationToken).ConfigureAwait(false);
         var state = await NomadNetStore.OpenAsync(options.DataDirectory, cancellationToken).ConfigureAwait(false);
-        await using var node = ReticulumNode.Open(options.RnsConfig,
+        await using var node = ReticulumNode.Open(options.RnsConfig ?? settings.RnsConfigDirectory,
             (level, message) => Console.Error.WriteLine($"RNS[{level}]: {message}"));
-        var identity = node.LoadOrCreateIdentity("nomadnet_identity");
+        using var identity = File.Exists(Path.Combine(options.DataDirectory, "identity"))
+            ? await NomadNetProfileImport.ReadIdentityAsync(options.DataDirectory, cancellationToken).ConfigureAwait(false)
+            : node.LoadOrCreateIdentity("nomadnet_identity");
         await node.StartAsync(cancellationToken).ConfigureAwait(false);
         await using var router = new LxmRouter(node.Router, identity, settings.DisplayName,
             new LxmRouterOptions
@@ -318,6 +335,7 @@ internal static class Program
             Usage: nomadnet [--config <directory>] [--rnsconfig <directory>] [--init | --status | --daemon]
                    nomadnet --import-config <upstream-INI> --config <new-directory>
                    nomadnet --import-directory <upstream-profile> --config <native-directory>
+                   nomadnet --import-profile <offline-primary-profile> --config <absent-directory> --rnsconfig <selected-RNS-directory>
                    nomadnet [--console] [--textui]
                    nomadnet --help | --version
 
@@ -347,6 +365,7 @@ internal static class Program
               send <hash> <message>          Send a text LXMF message
               send-propagated <hash> <text>  Send through selected propagation node
               attach <hash> <file>           Send a file attachment
+              attachment <id> <index> <name> Export a stored attachment to downloads (never overwrites)
               files [browse <directory>]    Start a local attachment picker
               files list|up|refresh|selected | files open <number>
               files done|cancel|clear        Save, cancel or clear selection
@@ -413,7 +432,7 @@ internal static class Program
     }
 
     private sealed record Options(string DataDirectory, string? RnsConfig, bool Initialize, bool ShowStatus, bool Daemon,
-        string? ImportConfig, string? ImportDirectory);
+        string? ImportConfig, string? ImportDirectory, string? ImportProfile);
 
     private static IEnumerable<NomadNetPropagationCandidate> FindPropagationCandidates(TransportRouter transport)
     {
@@ -626,6 +645,15 @@ internal static class Program
             }
 
             if (command.Equals("peers", StringComparison.OrdinalIgnoreCase)) { await ShowPeersAsync(cancellationToken).ConfigureAwait(false); return false; }
+            if (command.StartsWith("attachment ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = command.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length != 4 || !int.TryParse(parts[2], out var attachmentIndex))
+                    throw new ArgumentException("Usage: attachment <message-id> <index> <output-name>");
+                await SaveDownloadAsync(await NomadNetAttachments.ReadAsync(dataDirectory, parts[1], attachmentIndex,
+                    cancellationToken).ConfigureAwait(false), parts[3], cancellationToken, overwrite: false).ConfigureAwait(false);
+                return false;
+            }
             if (command.Equals("node refresh", StringComparison.OrdinalIgnoreCase))
             {
                 (host ?? throw new InvalidOperationException("Enable node hosting in settings.json.")).Refresh();
@@ -1346,6 +1374,11 @@ internal static class Program
             {
                 Console.WriteLine($"{message.Timestamp:u} {message.Direction} {message.PeerHash} [{message.Status}] {NomadNetTerminalText.Safe(message.Title)}");
                 Console.WriteLine(NomadNetPresentation.Conversation(message.Content, message.Renderer));
+                if (message.HistoricalAuthentication is { } authentication)
+                    Console.WriteLine($"Imported history {message.Id}: {authentication}; cached primary signature claim: {message.HistoricalSignatureValidated?.ToString() ?? "absent"} (not fresh verification).");
+                var attachmentNames = message.ImportedAttachmentNames.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                for (var index = 0; index < attachmentNames.Length; index++)
+                    Console.WriteLine($"Attachment {message.Id} {index}: {NomadNetTerminalText.Safe(attachmentNames[index])}; use attachment <id> <index> <output-name>.");
                 if (message.ImageAttachmentIndex is not null)
                 {
                     Console.WriteLine($"Conversation image {NomadNetTerminalText.Safe(message.Id)}: stored attachment {message.ImageAttachmentIndex}; use conversation images load.");
@@ -1491,7 +1524,7 @@ internal static class Program
             await SaveDownloadAsync(bytes, outputName, cancellationToken).ConfigureAwait(false);
         }
 
-        private async Task SaveDownloadAsync(byte[] bytes, string outputName, CancellationToken cancellationToken)
+        private async Task SaveDownloadAsync(byte[] bytes, string outputName, CancellationToken cancellationToken, bool overwrite = true)
         {
             var name = Path.GetFileName(outputName);
             if (name.Length == 0 || name != outputName || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
@@ -1504,7 +1537,7 @@ internal static class Program
             try
             {
                 await File.WriteAllBytesAsync(temporary, bytes, cancellationToken).ConfigureAwait(false);
-                File.Move(temporary, output, overwrite: true);
+                File.Move(temporary, output, overwrite: overwrite);
                 Console.WriteLine($"Saved {bytes.Length} bytes to {output}");
             }
             finally { if (File.Exists(temporary)) File.Delete(temporary); }

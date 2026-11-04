@@ -51,9 +51,9 @@ Underlying-library acceptance is not automatically application acceptance.
 
 | Contract and upstream sources | Current status and boundary |
 |---|---|
-| Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`, `--console`, `--textui` accepted. Daemon ignores terminal input and serves until cancellation; controlled SIGTERM/Ctrl+C cancellation exits successfully after disposal. Native terminal/daemon/init/offline directory import hold an exclusive profile lease. `--console` selects the existing console logging; `--textui` selects the original command loop, not Urwid. Extensions: `--help`, `--init`, `--status`, explicit non-overwriting core `--import-config`, additive conflict-refusing `--import-directory`. |
+| Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`, `--console`, `--textui` accepted. Daemon ignores terminal input and serves until cancellation; controlled SIGTERM/Ctrl+C cancellation exits successfully after disposal. Native terminal/daemon/init/offline directory import hold an exclusive profile lease. `--console` selects the existing console logging; `--textui` selects the original command loop, not Urwid. Extensions: `--help`, `--init`, `--status`, explicit non-overwriting core `--import-config`, additive conflict-refusing `--import-directory`, offline non-overwriting `--import-profile` retaining the primary identity with an explicit selected RNS configuration. |
 | Client announcements; `NomadNetworkApp.START_ANNOUNCE_DELAY`, `__jobs`, `announce_now`, `apply_config`, `set_display_name` | **implemented bounded subset**: configurable three-second startup, strict periodic interval after90seconds with five-second checks, manual delivery-only or combined announces, durable successful timestamp, runtime display-name and stamp-cost edits through existing LXMF APIs. Display-name changes save without announcing or replacing the identity/destination. Retains unused `enable_client` metadata rather than inventing delivery-disable semantics. Native safety differences for names, fresh null timestamps, failed background work, serialization and interval bounds are explicit below. |
-| Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, per-peer direct/propagated/opportunistic preference, unread/failure counters, explicit viewed/read state, latest-activity listing, deletion/failed purge and plain-text export. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. Native opportunistic text is received by the actual primary; direct reply/viewed state and both applications' read counters are exercised. Upstream `.index`/conversation import and full conversation UI remain missing. |
+| Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, per-peer direct/propagated/opportunistic preference, unread/failure counters, explicit viewed/read state, latest-activity listing, deletion/failed purge and plain-text export. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. Native opportunistic text is received by the actual primary; direct reply/viewed state and both applications' read counters are exercised. Primary conversation/container/attachment import and inert `.index` preservation with honest historical authentication are implemented below; full conversation UI remains missing. |
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Typed image references support explicit/automatic original ASCII conversation previews, using the existing converter/cache and never/manual/auto/always controls; this is not primary UI parity. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
 | Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. `paper-qr`/`paper-save` save PNG/URI and outbound history; `qr` exports an existing URI, `qr-show` renders explicit black-on-white half-blocks. All QR encoding uses shared `LxPaperQr`, not a second codec. Executed primary save-QR vectors and terminal module tests exist; selected application acceptance is recorded below. Image-import/scanner and printer commands remain missing/unverified; no physical scanning/printing claim. |
 | Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; hosted propagation uses `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Configured static-peer transfers are now application-verified both ways on Windows/Linux through a separate Python transport, with restart, real loss and2.2MB attachment assertions. Storage/limit/cost/static/priority settings are imported/persisted through existing LXMF options. Full peer management, storage-pressure eviction-order acceptance and additional peer failure/topology cases remain missing/unverified. |
@@ -66,7 +66,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron switches render live/history bodies against executed primary widget vectors; JSON string composition preserves multiline/raw content. Complete Channels layout, mention-span styling, colours/gutters and remaining configuration remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop and local attachment picker. Complete menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
-| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Saved-directory/ignored-policy import preserves existing native history/settings/identity, rejects conflicting contacts atomically and persists through terminal/daemon restarts. Complete ConfigObj compatibility, identity/peer-settings/conversation/RRC migration, peer-settings backup recovery and full restart policy remain missing. |
+| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Saved-directory/ignored-policy import preserves existing native history/settings/identity, rejects conflicting contacts atomically and persists through terminal/daemon restarts. Offline profile import retains identity/signed ratchets, supported peer settings with backup fallback, contacts/conversations/attachments/paper and historical metadata without silently authenticating cached claims. Complete ConfigObj compatibility, RRC hub/history migration, additional router-state migration and full restart policy remain required gaps. |
 
 ### Configuration audit
 
@@ -102,6 +102,201 @@ contracts and reports unsupported keys; it is not complete configuration parity.
 | `lastLxmfSync` | absent until first attempt; persisted UTC timestamp before retrieval; failure/cancellation do not erase it |
 | `tryPropagationOnSendFail` | true; one propagation attempt after failed direct delivery if a node is selected |
 | `deliveryTransferLimitBytes` | 1,000,000; validated 1 KiB–64 MiB. Independent attachment extraction limit is 16 MiB. |
+
+### Offline primary profile import
+
+```text
+nomadnet --import-profile <stopped-primary-profile> --config <absent-native-profile> --rnsconfig <explicitly-selected-RNS-directory>
+```
+
+This is a usable bounded identity/conversation migration, **not complete primary
+profile parity**. Stop the primary process before importing. Import itself never
+opens Reticulum or contacts peers. The target must not exist; an existing native
+profile is never merged or replaced. `--import-config` and `--import-directory`
+remain independent operations with their existing behavior.
+
+The inventory below was checked against primary
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`; its Git-blob SHA-256s are in the
+provenance table above and `NomadNetProfileImportVectors.json`. The generator
+executes the complete unchanged `NomadNetworkApp` constructor on the main thread,
+then actual `Directory`/`Conversation`/`LXMessage` persistence APIs from an
+observer. It does not substitute an application namespace, copy implementation
+code, monkey-patch the reference or fabricate a Python profile format.
+The RNS1.5.7/LXMF1.2.1-versus-declared-minimum discrepancy remains applicable.
+
+| Primary persistence contract and source | Native import disposition |
+|---|---|
+| `storage/identity`; `NomadNetworkApp.__init__` | **implemented**: exactly64 private-key bytes loaded through existing `Identity.FromPrivateKey`; public delivery address retained. Native imported identity is profile-owned `identity`, not another RNS configuration's `nomadnet_identity`. Old native profiles without this file retain their original RNS-storage identity behavior. Both LXMF and new native RRC sessions use the imported identity. |
+| `storage/lxmf/ratchets/<delivery>.ratchets`; actual delivery destination registration | **implemented**: validate the identity-signed file with existing `SignedDestinationRatchetFile.Decode`, zero all temporary secret buffers, then preserve exact bytes in the existing router's expected path. Other LXMF/router state is individually listed as not imported, never silently copied or asserted compatible. |
+| `config`; `apply_config` | **partial**: existing explicit core importer translates supported keys and reports unsupported keys. Page/file/download overrides are cleared and executable pages stay disabled. Global RNS configs, interface profiles, external paths, executable pages, cached remote material and licensed assets are not activated or copied. The separately selected RNS directory is saved as `rnsConfigDirectory`; runtime `--rnsconfig` may explicitly override it. |
+| `storage/peersettings` and `.bak`; constructor fallback loop and `save_peer_settings` | **implemented bounded subset**: display name, saved propagation-node selection, last delivery announce and last LXMF sync become native settings. Invalid primary MessagePack falls back to a valid backup with an explicit warning; no valid primary/backup fails without creating a target. Both original files remain inert archives. Counters, quit-confirm, node announce timestamp and unknown keys are archived, not asserted to be live native equivalents. No source file is renamed to `.corrupt`. |
+| `storage/directory`, `ignored`; `Directory.save_to_disk`, `_persist_ignored_list` | **implemented** through the existing directory importer/policy: saved contacts, trust, independent ignored hashes, preferred delivery, rank, notes and identify consent retained. Transient announces are counted and archived, not converted into saved trust. |
+| `storage/conversations/<peer>/<message-hash>`; `Conversation.ingest`, `LXMessage.write_to_directory/unpack_from_file` | **implemented bounded subset**: containers are opened with existing `LxMessage.UnpackContainer`, not a second wire parser. Participants must match the imported local identity and conversation directory. Native history retains ID, timestamp, title, text, renderer, historical state/method and attachment access. Generating/outbound/sending records become failed offline history, never pending network work; rejected/cancelled/paper states remain historical. Binary/non-text or oversized histories fail explicitly rather than truncate/evict. |
+| Conversation directories, `unread`, `failed`; `conversation_list` | **implemented**: preserve empty conversations, directory activity timestamp, unread/failure counts and their restart/deletion behavior. Empty marker files mean1; malformed or out-of-bound counts fail rather than become a silent default. Native bounds remain explicit below. |
+| Conversation `.index`; `ConversationMessage.read_index/write_index/to_index_entry/restore_from_index` | **implemented archival plus explicit historical claims**: exact bytes preserved; container content is authoritative for displayed history. Cached `signature_validated` is recorded separately as `historicalSignatureValidated`, never treated as fresh verification. All additional cached state, transport descriptions, sort timestamp, renderer, attachment names and RF observations remain in the inert archive. Corrupt caches are reported and bypassed; stale entries without a container are reported, not invented as messages from cached text. |
+| `storage/attachments/<original-message-hash>/manifest`, `file_<n>`; `extract_attachments_from_lxm`, `strip_attachments_from_file` | **implemented bounded subset**: validate names, stored-file grammar, byte counts and aggregate limits; migrate payloads through existing `NomadNetAttachments` bounded storage/checksums/extractors. Original files/manifests remain byte-identical inert archives. Primary `load()` can remove fields0x05/0x06/0x07 from the signed container without resigning or renaming its file: the import retains that original ID and explicitly labels the rewritten container unauthenticated. File/image/audio bytes remain available; stripped media has no reliable field typing, so recovered preview selection detects encoded image headers rather than asserting authenticated `FIELD_IMAGE` provenance. |
+| Paper; `Conversation.paper_output`, container method/state5 | **implemented historical document**: retained text, fields/container and paper state are offline saved documents, not sends. The container does not preserve the original encrypted URI/QR output; external downloads/printer outputs are not searched or regenerated/resubmitted. Existing native paper composition is separate. |
+| RRC; `RRCManager.identity`, `_store_path/load/save`, `RRCHub._append_history/_load_history` | **required gap**: identity is already shared with the imported profile, but `storage/rrc_hubs` (string-key CBOR hub entries including aspect, rooms/parted rooms, nick and reconnect/list/who flags) and `storage/rrc_history` (concatenated CBOR records, hashed/sanitised hub-room paths) are **not migrated**. They are individually listed as not imported with a REQUIRED GAP warning. Their schema is not the native numeric-key per-hub profile schema; no automatic reconnect or hub authorization is inferred. This remains required software work, not an optional or hardware deferral. |
+
+#### Import integrity, ownership and usage
+
+Admission uses an exclusive, persistent sibling
+`<target>.profile-import.lock`; the target remains absent until a sibling staging
+directory has been completely validated. Staging also has the normal native
+profile lease. On Windows its DACL grants only the current user inherited full
+control; Unix staging is0700 and private identity/ratchet files are0600.
+Temporary private byte/key buffers are zeroed. Windows releases the staging
+lease immediately before rename because an open exclusive file handle prevents
+directory rename there; the sibling admission lock remains held and atomic
+non-overwriting `Directory.Move` still refuses a competing native owner.
+Failed/cancelled imports remove only their own staging root. The empty admission
+lock intentionally remains to avoid split-inode ownership races.
+
+Bounds are12,000 filesystem entries,512MiB total profile bytes,20MiB per source
+file,2,000 messages/conversations,5MiB native state,64KiB settings and existing
+attachment per-message/profile quotas. Source trees and all ancestors must be
+regular directories/files: links/reparse points, pipes and devices fail. Source
+bytes are hashed before/after; a changed file set or content rejects the import.
+This is an offline consistency check, not an OS-enforced lock on an uncooperative
+primary process. Arbitrary concurrent adversarial source-tree replacement is not
+a supported input model.
+
+`profile-import.json` records counts, all warnings, exact archived relative paths
+and every non-imported source file; the private identity/validated ratchet
+destinations are the explicit active-state cases above. Inert exact source
+archives use `import-archive/<relative-source-path>.bin`; none is registered as a
+page, policy executable, authorization list or network configuration. Imported
+message fields unsupported by the native presentation remain in these original
+containers rather than being silently lost.
+
+After import, run `nomadnet --config <native-profile>`, then `contacts`,
+`conversations`, `messages [peer]`, `client status`, `propagation` and
+`attachment <message-id> <zero-based-index> <output-name>`. Attachment export
+uses the existing checksum-verifying reader and downloads policy, refuses
+overwrite and cannot resend a historical message. Imported historical
+authentication is shown explicitly: `verified-local-signature` only for an
+unchanged locally signed container verified using the imported identity;
+`remote-public-key-unavailable` for intact remote history without the remote key;
+`invalid-local-signature` when the available local key rejects the signature;
+`container-hash-mismatch-not-authenticated` for changed hashes. A cached
+primary `True` claim never upgrades any of these results.
+
+Observable acceptance is: independently execute the unchanged full primary
+constructor/file APIs; import with the strict NativeAOT binary into an absent
+profile; inspect contacts/settings/history/file/image/paper and exact source
+preservation; refuse overwrite; run terminal, daemon ownership conflict and
+same-identity process restarts; exchange messages in both directions with the
+unchanged full primary `NomadNetworkApp` after restart of the imported native
+profile. The earlier pinned Python LXMF endpoint exchange before restart is
+separate, narrower evidence. Targeted integration tests additionally cover
+malformed containers/manifests, bounds, unsafe links/special files, corrupt-cache
+and peer-backup recovery, empty conversations, pre-/in-flight cancellation,
+concurrent admission and rollback. Parent acceptance must independently replay
+the frozen candidate; a generator/unit/native loopback result alone is not that
+acceptance.
+
+#### Profile-import implementation validation and frozen replay
+
+The bounded importer adds15 integration cases. The final complete Nomad suite
+passes **180/11 skipped on Windows** and **187/4 skipped on Linux** (191 total).
+The one new platform skip is the Linux symlink/FIFO-specific case; the native
+acceptance separately rejects Windows junctions and Linux symlinks.
+Windows and Linux strict NativeAOT publish both pass with SDK10.0.403,
+runtime/ILCompiler10.0.14 and
+`-p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror`.
+The `ProfileImport` Pester case passes1/1 on both hosts: independently regenerated
+full-primary-constructor fixture, native `--help`, linked-source rejection,
+absent-target import, exact history/settings/contact inspection, real imported
+PNG ASCII preview and byte-identical file/PNG export using the explicitly
+selected existing FFmpeg, source preservation, non-overwrite, actual pinned
+Python LXMF endpoint both directions before restart, terminal/daemon ownership,
+identity-preserving clean/abrupt process restart, and fresh messages in both
+directions with the unchanged full primary application after that restart.
+The existing `nomadnet_live_node.py` adapter executes its complete unchanged
+constructor and observes the actual delivery callback after it persists the
+message; acceptance checks that original conversation container on disk,
+the primary outbound delivery proof, the new native persisted message, and
+the unchanged imported identity file. Both restarted native processes use
+the imported target, never a separate fresh native profile. No physical
+image/device or new loss/multi-hop
+claim is made. The profile origin is local persistence from the complete actual
+primary constructor, not a network copy: four historical messages including one
+paper document, a25-byte file and a generated4×4 PNG. Fresh network acceptance is
+two25-byte text bodies with the LXMF-only endpoint before restart, followed by
+two29-byte text bodies with the actual primary application after restart.
+Both flows use LXMF DIRECT on isolated IPv4 loopback: native
+`TCPClientInterface` directly to Python `TCPServerInterface`, both leaves
+with shared instances/transport disabled. The endpoint process is stopped
+before the full application starts; their identities/profiles are distinct.
+The application adapter checks the clean primary source revision and actual
+module paths. The primary declares RNS>=1.6/LXMF>=1.2.2, while these selected
+application flows still use pinned RNS1.5.7/LXMF1.2.1: passing them is not full
+minimum-dependency parity. There is no transport hop or
+multi-megabyte Resource transfer in this import slice; earlier distinct topology
+evidence is not relabelled. Each acceptance JSON records actual attachment sizes,
+binary/converter/fixture hashes and this origin/topology explicitly.
+
+The independently executed Windows/Linux fixture bytes have SHA-256
+`8655211814e942aaa391976b10392d03ebdd9b105f78d6b3618541e7662f6a3d`.
+No random identity, key or identity-derived hash enters that public fixture.
+The native candidate hashes are unchanged from v2: this follow-up changes
+only acceptance and documentation, reusing the strict-published binaries and
+their original checked compilation PDBs. The hashes are:
+
+| Candidate | SHA-256 |
+|---|---|
+| Windows `artifacts\builds\nomad-profile-import-win-native-final\nomadnet.exe` | `c399c83b417a9f49224ebd5988d7d0dbf9e59b984e5ab42bc7c8057e77477c62` |
+| Linux `/home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/builds/nomad-profile-import-native/nomadnet` | `329e10652cbd61314211c7c4d3bbebbd1e2fafe963735a8788ece53924b860ea` |
+
+Both full-solution commands below passed; the Linux retry followed a concurrent
+Sideband compile edit, not a Nomad failure. Validation uses native-filesystem
+Linux outputs:
+
+```powershell
+dotnet test DotReticulum.Ecosystem.slnx -c Release --artifacts-path artifacts\builds\nomad-profile-import-solution-win -v quiet --logger trx --results-directory artifacts\tests\nomad-profile-import\solution-win-final191
+dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\nomad-profile-import-win-native-final-build -o artifacts\builds\nomad-profile-import-win-native-final -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror -v quiet
+# From the serviced Linux environment described in CONTRIBUTING:
+dotnet test /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/DotReticulum.Ecosystem.slnx -c Release --artifacts-path /home/dennis/dotreticulum-ecosystem-acfd3d43/nomad-profile-import-solution-linux -v quiet --logger trx --results-directory /home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/tests/nomad-profile-import/solution-linux-final191-retry
+dotnet publish /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/src/NomadNet/NomadNet.csproj -c Release -r linux-x64 --artifacts-path /home/dennis/dotreticulum-ecosystem-acfd3d43/nomad-profile-import-native-build -o /home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/builds/nomad-profile-import-native -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror -v quiet
+```
+
+Ignored frozen candidates retain exact harness/source copies, fixture and binary
+hashes, original compilation portable PDBs and checked Nomad source-document
+checksums. Guarded **acceptance-only** recipes reject changed frozen
+source/binary/converter bytes; they do not rebuild, edit current sources, push or
+release. They create uniquely named new runtime/reference profiles under the
+owned ignored evidence roots:
+
+```powershell
+pwsh -NoProfile -File artifacts\tests\nomad-profile-import\frozen-win-191-v4\Invoke-FrozenAcceptance.ps1 -Manifest artifacts\tests\nomad-profile-import\frozen-win-191-v4\manifest.json
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoProfile -File /home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/tests/nomad-profile-import/frozen-linux-191-v4/Invoke-FrozenAcceptance.ps1 -Manifest /home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/tests/nomad-profile-import/frozen-linux-191-v4/manifest.json
+```
+
+The v2 frozen receipts remain intact and prove only the narrower pre-restart
+LXMF endpoint exchange; v3 adds the actual application exchange after restart.
+The v3 receipts and the operator failure profile
+`artifacts\tests\nomad-profile-import\acceptance-5063a8036c4041219064d89ed217dcfb`
+remain intact. Its primary application stdout records an RNS startup warning
+and `@@{"event":"ready",...}` on the same line. Removing only a leading
+`@@` incorrectly passed the timestamp prefix to `ConvertFrom-Json`.
+The v4 profile-only reader locates the explicit frame marker after diagnostic
+text, strictly decodes the complete remaining JSON object and validates its
+string event name. Ordinary diagnostic lines remain in stdout evidence.
+Malformed framed JSON/schema and peer error/failure events fail with process,
+expected event, raw line and evidence-directory context; they are not skipped.
+One overall bounded event deadline is retained across diagnostic lines, with
+at most32 pending valid asynchronous events per process rather than discarding
+out-of-order delivery events. Regressions cover the observed warning prefix,
+unframed diagnostic text, malformed JSON, trailing garbage, array/non-event
+schemas, and an actual missing-event timeout followed by continued use of the
+same reference process. The frozen v4 recipe passes five successive fresh
+actual-primary/imported-native starts per host (Windows and Linux), including
+the post-restart bidirectional application flow on every run. Production,
+native binaries and the unchanged primary adapter are not modified.
+This is implementation evidence, **not parent acceptance** until those frozen
+recipes are independently replayed. Full ConfigObj/remaining settings, additional
+LXMF router-state migration, primary RRC hub/history migration and remaining
+terminal workflows are still required software gaps.
 
 ### Primary saved-directory and ignored-list import
 
@@ -255,8 +450,9 @@ wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.
 
 These are environment-specific replay recipes; committed tests define the
 portable contract. Source snapshots and binary hashes, not a test-count-only
-report, identify the accepted candidate. Identity/peer-settings/conversation/RRC
-migration, remaining configuration and terminal workflows remain required work.
+report, identify the accepted candidate. The separate offline-profile importer
+above adds identity/peer-settings/conversation migration; RRC hub/history migration,
+remaining configuration and terminal workflows remain required work.
 
 ### Node limits and peer policy
 

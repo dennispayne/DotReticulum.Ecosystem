@@ -8,6 +8,31 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Parent independently replays Nomad attachment `final-v2` without republishing:
+Windows244/9 explicit managed skips and11/2 explicit native Linux-only skips;
+Linux253 managed and13 native passes without skips. Each replay enforces309
+compiled production/test and68 generated-source checks plus serviced toolchain,
+converter and binary hashes. All11 owned source hashes match the frozen handoff.
+Fresh current-source managed acceptance separately passes244/9 and253/0, and
+current-harness published `AttachmentPath` passes2/0 on both hosts.
+C68/T193–199,T208 records12 actual cases: Windows10 passes/2 explicit Unix-only
+skips, Linux12 passes/no skips. Direct-TCP actual-primary attachment exchange,
+explicit configured exports, failures and identity-preserving restart are
+separate from retained transport-hop RRC/hosting regressions. Native bounded
+paths/bytes, private staging and atomic non-overwrite safeguards deliberately
+differ from primary check-then-write helpers. Native binaries retain their
+actual dirty-source build base `ec06f2d` and embedded version, not integration
+HEAD. Receipts are `artifacts\tests\nomad-attachment\parent-windows\c68.json`
+and `/home/dennis/fleet-nomad-attachment-parent/c68.json`; exact pins, hashes,
+commands and software/platform gaps are in
+[NomadNet's reference](nomadnet.md#configured-terminal-attachment-export).
+The integrated command `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-nomad-attachment-unified -OutputDirectory
+artifacts\tests\fleet-nomad-attachment-unified` passes2,529 managed cases/131
+explicit skips,62 Pester tooling cases, strict C68 catalog aggregation and merged
+production coverage. Hosted Build41502113530 and Test41643993895 remain successful
+at their earlier commits; neither covers these unpushed changes.
+
 Sideband historical-paper C69/T200–207 records28 actual passing cases per host:
 executed-reference envelope/formatter vectors and bounds, atomic import
 rollback/retry, durable imported provenance, original UI warnings and two

@@ -1,0 +1,241 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "method": "Actual daemon constructor, _save_attachment_to_disk and _copy_attachment_to_dest; no primary modifications",
+  "sources": {
+    "nomadnet/NomadNetworkApp.py": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2",
+    "nomadnet/Conversation.py": "83bbfc71a7fc2b0953a2aac283a609c068dbbe38daea3abc788e4266ca4a98cd",
+    "nomadnet/ui/textui/Conversations.py": "f1b47c7d93db25e8ddb582ca735631963beab6990e7373e78a27ff9a81ad0d6e"
+  },
+  "cases": [
+    {
+      "name": "absent",
+      "input": null,
+      "observed": {
+        "configured": null,
+        "downloads": "$WORK/downloads",
+        "existsBeforeExport": false,
+        "copyName": "public_3.txt",
+        "copySha256": "3b4293f4762f7f1fc486b1eade2f58e14c6f2d932a933e8f6c84190f7e68182b",
+        "exports": [
+          {
+            "input": "public.txt",
+            "name": "public.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "public.txt",
+            "name": "public_1.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "../public.txt",
+            "name": "public_2.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": ".hidden.txt",
+            "name": "hidden.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "nested\\audio.ogg",
+            "name": "audio.ogg",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "",
+            "name": "attachment",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "archive.tar.gz",
+            "name": "archive.tar.gz",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "archive.tar.gz",
+            "name": "archive.tar_1.gz",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          }
+        ],
+        "blockedDirectoryFailed": true,
+        "recovered": true
+      }
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "observed": {
+        "configured": "",
+        "downloads": "$WORK/downloads",
+        "existsBeforeExport": false,
+        "copyName": "public_3.txt",
+        "copySha256": "3b4293f4762f7f1fc486b1eade2f58e14c6f2d932a933e8f6c84190f7e68182b",
+        "exports": [
+          {
+            "input": "public.txt",
+            "name": "public.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "public.txt",
+            "name": "public_1.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "../public.txt",
+            "name": "public_2.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": ".hidden.txt",
+            "name": "hidden.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "nested\\audio.ogg",
+            "name": "audio.ogg",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "",
+            "name": "attachment",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "archive.tar.gz",
+            "name": "archive.tar.gz",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "archive.tar.gz",
+            "name": "archive.tar_1.gz",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          }
+        ],
+        "blockedDirectoryFailed": true,
+        "recovered": true
+      }
+    },
+    {
+      "name": "relative",
+      "input": "exported/nested",
+      "observed": {
+        "configured": "exported/nested",
+        "downloads": "$WORK/downloads",
+        "existsBeforeExport": false,
+        "copyName": "public_3.txt",
+        "copySha256": "3b4293f4762f7f1fc486b1eade2f58e14c6f2d932a933e8f6c84190f7e68182b",
+        "exports": [
+          {
+            "input": "public.txt",
+            "name": "public.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "public.txt",
+            "name": "public_1.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "../public.txt",
+            "name": "public_2.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": ".hidden.txt",
+            "name": "hidden.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "nested\\audio.ogg",
+            "name": "audio.ogg",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "",
+            "name": "attachment",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "archive.tar.gz",
+            "name": "archive.tar.gz",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "archive.tar.gz",
+            "name": "archive.tar_1.gz",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          }
+        ],
+        "blockedDirectoryFailed": true,
+        "recovered": true
+      }
+    },
+    {
+      "name": "literal-env",
+      "input": "$UNEXPANDED/export",
+      "observed": {
+        "configured": "$UNEXPANDED/export",
+        "downloads": "$WORK/downloads",
+        "existsBeforeExport": false,
+        "copyName": "public_3.txt",
+        "copySha256": "3b4293f4762f7f1fc486b1eade2f58e14c6f2d932a933e8f6c84190f7e68182b",
+        "exports": [
+          {
+            "input": "public.txt",
+            "name": "public.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "public.txt",
+            "name": "public_1.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "../public.txt",
+            "name": "public_2.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": ".hidden.txt",
+            "name": "hidden.txt",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "nested\\audio.ogg",
+            "name": "audio.ogg",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "",
+            "name": "attachment",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "archive.tar.gz",
+            "name": "archive.tar.gz",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          },
+          {
+            "input": "archive.tar.gz",
+            "name": "archive.tar_1.gz",
+            "sha256": "3dc601e24df17afa944cc4da38cc6ba419c40d41ac99929f1174c068b34b42a5"
+          }
+        ],
+        "blockedDirectoryFailed": true,
+        "recovered": true
+      }
+    },
+    {
+      "name": "home",
+      "input": "~/attachment-observation",
+      "observed": {
+        "configured": "$HOME/attachment-observation",
+        "downloads": "$WORK/downloads",
+        "existsBeforeExport": false,
+        "exports": []
+      }
+    }
+  ]
+}

@@ -60,6 +60,7 @@ public sealed record NomadNetSettings
     public string? PagesPath { get; set; }
     public string? FilesPath { get; set; }
     public string? DownloadsPath { get; set; }
+    public string? AttachmentSavePath { get; set; }
 
     public async Task SaveAsync(string directory, CancellationToken cancellationToken = default)
     {
@@ -139,9 +140,18 @@ public sealed record NomadNetSettings
         foreach (var hash in PrioritisedDestinations) _ = NomadNetAddress.NormalizeHash(hash);
     }
 
+    internal void ValidateAttachmentPath()
+    {
+        if (AttachmentSavePath is { } attachmentPath &&
+            (attachmentPath.Length > 2048 || attachmentPath.Any(char.IsControl) ||
+             attachmentPath.Length > 0 && string.IsNullOrWhiteSpace(attachmentPath)))
+            throw new InvalidDataException("Attachment save path exceeds native safety bounds.");
+    }
+
     internal void Validate()
     {
         ValidateNode();
+        ValidateAttachmentPath();
         if (InboundStampCost is < 1 or > 254)
             throw new InvalidDataException("Inbound stamp cost must be null or 1–254; the primary's 255 clamp is unsupported by pinned LXMF 1.2.1.");
         if (ClientAnnounceIntervalMinutes is < 30 or > 10080)

@@ -1,6 +1,7 @@
-Describe 'NomadNet client runtime configuration' -Tag 'ClientRuntime', 'Logging' {
+Describe 'NomadNet client runtime configuration' -Tag 'ClientRuntime', 'Logging', 'AttachmentPath' {
     It 'executes primary vectors and native configured text/headless notifications and precedence across restart' {
-        if ($env:DOTRETICULUM_NOMADNET_CLIENT_RUNTIME -ne '1' -and $env:DOTRETICULUM_NOMADNET_LOGGING -ne '1') {
+        if ($env:DOTRETICULUM_NOMADNET_CLIENT_RUNTIME -ne '1' -and $env:DOTRETICULUM_NOMADNET_LOGGING -ne '1' -and
+            $env:DOTRETICULUM_NOMADNET_ATTACHMENT_PATH -ne '1') {
             Set-ItResult -Skipped -Because 'Enable DOTRETICULUM_NOMADNET_CLIENT_RUNTIME=1 with selected native binary and pinned primary/Python environment.'
             return
         }
@@ -131,6 +132,29 @@ Describe 'NomadNet client runtime configuration' -Tag 'ClientRuntime', 'Logging'
                 (Get-FileHash $loggingVectors).Hash | Should -Be (Get-FileHash (Join-Path $root 'tests\NomadNet.Tests\NomadNetLoggingVectors.json')).Hash
                 $outcomes.Add(@{ Case='actual-primary-logging-vectors'; Status='passed'; Vectors=16; CliCasesPerVector=9 })
             }
+            if ($env:DOTRETICULUM_NOMADNET_ATTACHMENT_PATH -eq '1') {
+                $attachmentVectors = Join-Path $work 'attachment-vectors.json'
+                $generator = & $start 'attachment-vectors' $env:DOTRETICULUM_PYTHON @('-u',
+                    (Join-Path $root 'tests\Interop\GenerateNomadNetAttachmentPathVectors.py'), '--output', $attachmentVectors,
+                    '--work', (Join-Path $work 'attachment-reference'))
+                $generator.WaitForExit(180000) | Should -BeTrue
+                $generator.ExitCode | Should -Be 0 -Because $errors[$generator.Id].GetAwaiter().GetResult()
+                (Get-FileHash $attachmentVectors).Hash | Should -Be (Get-FileHash (Join-Path $root 'tests\NomadNet.Tests\NomadNetAttachmentPathVectors.json')).Hash
+                $hostObservations = Get-Content (Join-Path $work 'attachment-reference\imports.json') -Raw | ConvertFrom-Json
+                $namedHome = @($hostObservations | Where-Object 'case' -EQ 'named-home')
+                $namedHome.Count | Should -Be 1
+                $expectedNamedHome = if ($IsWindows) {
+                    (Join-Path (Split-Path $HOME -Parent) '__dotreticulum_nonexistent_user__\export').Replace('\', '/')
+                } else { '~__dotreticulum_nonexistent_user__/export' }
+                $namedHome[0].observed.configured | Should -BeExactly $expectedNamedHome
+                $namedHome[0].observed.existsBeforeExport | Should -BeFalse
+                $namedConfig = Join-Path $work 'named-home.config'
+                "[client]`nattachment_save_path=~__dotreticulum_nonexistent_user__/export`n" | Set-Content $namedConfig
+                $namedTarget = Join-Path $work 'named-home-refused'
+                $null = & $offline 'reject-named-home' @('--import-config', $namedConfig, '--config', $namedTarget) 1
+                Test-Path $namedTarget | Should -BeFalse
+                $outcomes.Add(@{ Case='actual-primary-attachment-vectors'; Status='passed'; CommonCases=5; HostSpecificNamedHomeRecorded=$true })
+            }
             $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
             $listener.Start()
             $port = $listener.LocalEndpoint.Port
@@ -165,6 +189,11 @@ Describe 'NomadNet client runtime configuration' -Tag 'ClientRuntime', 'Logging'
             )) {
                 $config = Join-Path $work "$($case.Name).config"
                 $inputConfig = "[client]`nuser_interface=$($case.Ui)`nnotify_on_new_message=$($case.Notify)`nannounce_at_start=Yes`nperiodic_lxmf_sync=No`n"
+                if ($env:DOTRETICULUM_NOMADNET_ATTACHMENT_PATH -eq '1') {
+                    $relativeExports = "configured exports/$($case.Name)"
+                    $exportDirectory = Join-Path $work $relativeExports
+                    $inputConfig += "attachment_save_path=`"$relativeExports`"`n"
+                }
                 if ($env:DOTRETICULUM_NOMADNET_LOGGING -eq '1') { $inputConfig += "[logging]`nloglevel=4`ndestination=file`n" }
                 $inputConfig | Set-Content $config
                 $sourceHash = (Get-FileHash $config).Hash
@@ -173,6 +202,10 @@ Describe 'NomadNet client runtime configuration' -Tag 'ClientRuntime', 'Logging'
                 $settings = Get-Content (Join-Path $profile 'settings.json') -Raw | ConvertFrom-Json
                 $settings.notifyOnNewMessage | Should -Be ($case.Notify -eq 'yes')
                 $settings.userInterface | Should -Be $(if ($case.Ui -eq 'text') { 2 } else { 0 })
+                if ($env:DOTRETICULUM_NOMADNET_ATTACHMENT_PATH -eq '1') {
+                    $settings.attachmentSavePath | Should -BeExactly $relativeExports
+                    Test-Path $exportDirectory | Should -BeFalse
+                }
                 $address = $null
                 for ($restart = 0; $restart -lt 2; $restart++) {
                     $arguments = @('--config', $profile, '--rnsconfig', (Join-Path $work 'native-rns')) + $case.Flags
@@ -202,6 +235,41 @@ Describe 'NomadNet client runtime configuration' -Tag 'ClientRuntime', 'Logging'
                         $null = & $read $native 'Message queued:'
                         $received = & $event $peer 'received'
                         $received.content | Should -BeExactly "$($case.Name)-outbound-$restart"
+                        if ($env:DOTRETICULUM_NOMADNET_ATTACHMENT_PATH -eq '1') {
+                            if ($restart -eq 0) { Test-Path $exportDirectory | Should -BeFalse }
+                            $payload = Join-Path $work 'public attachment.txt'
+                            [IO.File]::WriteAllText($payload, "public attachment $($case.Name) $restart")
+                            & $send $peer "send-file $delivery $payload"
+                            $queued = & $event $peer 'queued'
+                            $null = & $event $peer 'delivered'
+                            $deadline = [DateTime]::UtcNow.AddSeconds(30)
+                            do {
+                                $stored = Join-Path $profile "attachments\$($queued.message_hash)\0.bin"
+                                if (Test-Path $stored) { break }
+                                Start-Sleep -Milliseconds 100
+                            } while ([DateTime]::UtcNow -lt $deadline)
+                            (Get-FileHash $stored).Hash | Should -Be (Get-FileHash $payload).Hash
+                            & $send $native 'messages'
+                            $listed = & $read $native "Attachment $($queued.message_hash) 0:"
+                            $listed | Should -Match 'public attachment.txt; use attachment <id> <index> \[output-name\]'
+                            $null = & $read $native 'Messages complete\.'
+                            for ($copy = 0; $copy -lt 2; $copy++) {
+                                & $send $native "attachment $($queued.message_hash) 0"
+                                $null = & $read $native 'Saved attachment to '
+                                $suffix = $restart * 2 + $copy
+                                $name = if ($suffix -eq 0) { 'public attachment.txt' } else { "public attachment_$suffix.txt" }
+                                (Get-FileHash (Join-Path $exportDirectory $name)).Hash | Should -Be (Get-FileHash $payload).Hash
+                            }
+                            & $send $native "attachment $($queued.message_hash) 0 explicit-$restart.txt"
+                            $null = & $read $native 'Saved .* bytes to '
+                            (Get-FileHash (Join-Path $profile "downloads\explicit-$restart.txt")).Hash | Should -Be (Get-FileHash $payload).Hash
+                            & $send $native "attach $($ready.delivery) $payload"
+                            $null = & $read $native 'Message queued:'
+                            $receivedFile = & $event $peer 'received'
+                            $receivedFile.files[0].sha256 | Should -BeExactly (Get-FileHash $payload).Hash.ToLowerInvariant()
+                            $outcomes.Add(@{ Case="attachment-$($case.Name)-restart-$restart"; Status='passed';
+                                PrimaryToNative=$true; NativeToPrimary=$true; ConfiguredExport=$true; ExplicitDestinationPreserved=$true })
+                        }
                     }
                     & $stop $native $case.Headless
                     $logs[$native.Id].ToString().Contains([char]7) | Should -Be $case.Bell
@@ -249,6 +317,85 @@ Describe 'NomadNet client runtime configuration' -Tag 'ClientRuntime', 'Logging'
                 Boundaries='Original native console/BEL separate from configured application logging, not Urwid; no physical hardware; Windows headless exit is abrupt; logging assertions require DOTRETICULUM_NOMADNET_LOGGING=1' } |
                 ConvertTo-Json -Depth 6 | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
         }
+    }
+}
+
+Describe 'NomadNet configured attachment export failures' -Tag 'AttachmentPath' {
+    It 'reports bounded terminal failures, never overwrites explicit names, and recovers after restart' {
+        if ($env:DOTRETICULUM_NOMADNET_ATTACHMENT_PATH -ne '1') {
+            Set-ItResult -Skipped -Because 'Enable DOTRETICULUM_NOMADNET_ATTACHMENT_PATH=1 with selected NativeAOT binary.'
+            return
+        }
+        if (-not $env:DOTRETICULUM_NOMADNET_BINARY) { throw 'DOTRETICULUM_NOMADNET_BINARY is required.' }
+        $work = Join-Path (Get-Location) "artifacts\tests\nomad-attachment-failures-$([Guid]::NewGuid().ToString('N'))"
+        $profile = Join-Path $work 'profile'
+        $rns = Join-Path $work 'rns'
+        $exports = Join-Path $work 'exports'
+        $null = New-Item $work, $rns -ItemType Directory -Force
+        "[reticulum]`nshare_instance=No`n[logging]`nloglevel=0`n[interfaces]`n" | Set-Content (Join-Path $rns 'config')
+        $config = Join-Path $work 'config'
+        "[client]`nuser_interface=text`nannounce_at_start=No`nattachment_save_path=`"$exports`"`n" | Set-Content $config
+        $invoke = {
+            param([string] $name, [string[]] $arguments, [string[]] $commands)
+            $info = [Diagnostics.ProcessStartInfo]::new($env:DOTRETICULUM_NOMADNET_BINARY)
+            $info.WorkingDirectory = $work
+            $info.UseShellExecute = $false
+            $info.RedirectStandardInput = $true
+            $info.RedirectStandardOutput = $true
+            $info.RedirectStandardError = $true
+            foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
+            $process = [Diagnostics.Process]::new()
+            $process.StartInfo = $info
+            try {
+                $null = $process.Start()
+                $stdout = $process.StandardOutput.ReadToEndAsync()
+                $stderr = $process.StandardError.ReadToEndAsync()
+                foreach ($command in $commands) { $process.StandardInput.WriteLine($command) }
+                $process.StandardInput.Close()
+                $process.WaitForExit(30000) | Should -BeTrue
+                $text = $stdout.GetAwaiter().GetResult()
+                $errors = $stderr.GetAwaiter().GetResult()
+                [IO.File]::WriteAllText((Join-Path $work "$name.stdout"), $text)
+                [IO.File]::WriteAllText((Join-Path $work "$name.stderr"), $errors)
+                $process.ExitCode | Should -Be 0 -Because $errors
+                return $text
+            }
+            finally {
+                if (-not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+                $process.Dispose()
+            }
+        }.GetNewClosure()
+        $null = & $invoke 'import' @('--import-config', $config, '--config', $profile) @()
+        Test-Path $exports | Should -BeFalse
+        $id = 'a' * 64
+        $storage = Join-Path $profile "attachments\$id"
+        $null = New-Item $storage -ItemType Directory -Force
+        $bytes = [Text.Encoding]::UTF8.GetBytes('public terminal attachment, not a message body')
+        $sha = [Convert]::ToHexStringLower([Security.Cryptography.SHA256]::HashData($bytes))
+        [IO.File]::WriteAllBytes((Join-Path $storage '0.bin'), $bytes)
+        [IO.File]::WriteAllText((Join-Path $storage '0.bin.name'), 'public.txt')
+        [IO.File]::WriteAllText((Join-Path $storage '0.bin.sha256'), $sha)
+        [IO.File]::WriteAllText($exports, 'public blocker')
+        $text = & $invoke 'blocked-and-malformed' @('--config', $profile, '--rnsconfig', $rns) @(
+            "attachment $id 0", 'attachment bad 0', "attachment $id 64", "attachment $id nope", 'client status', 'quit')
+        @([regex]::Matches($text, 'Error:')).Count | Should -Be 4
+        $text | Should -Match 'Client display name:'
+        $text | Should -Not -Match 'public terminal attachment, not a message body'
+        Remove-Item $exports
+        $text = & $invoke 'healthy-restart' @('--config', $profile, '--rnsconfig', $rns) @(
+            "attachment $id 0", "attachment $id 0", "attachment $id 0 named.txt",
+            "attachment $id 0 named.txt", 'client status', 'quit')
+        @([regex]::Matches($text, 'Saved attachment to ')).Count | Should -Be 2
+        @([regex]::Matches($text, 'Error:')).Count | Should -Be 1
+        $text | Should -Match 'Client display name:'
+        foreach ($path in @((Join-Path $exports 'public.txt'), (Join-Path $exports 'public_1.txt'),
+            (Join-Path $profile 'downloads\named.txt'))) {
+            (Get-FileHash $path).Hash.ToLowerInvariant() | Should -BeExactly $sha
+        }
+        @(Get-ChildItem $exports -Filter '*.new').Count | Should -Be 0
+        @{ Status='passed'; MalformedErrors=3; BlockedDirectoryErrors=1; ExplicitCollisionErrors=1;
+            Recovery=$true; NoMessageBodyOutput=$true; NativeSha256=(Get-FileHash $env:DOTRETICULUM_NOMADNET_BINARY).Hash } |
+            ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json')
     }
 }
 
@@ -811,6 +958,13 @@ Describe 'NomadNet offline primary profile import' -Tag 'ProfileImport' {
             $generated.Code | Should -Be 0 -Because $generated.Error
             (Get-FileHash $fixture).Hash | Should -Be (Get-FileHash (Join-Path $root 'tests\NomadNet.Tests\NomadNetProfileImportVectors.json')).Hash
             $primary = ($generated.Text.Trim() -split "`n" | Select-Object -Last 1) | ConvertFrom-Json
+            if ($env:DOTRETICULUM_NOMADNET_ATTACHMENT_PATH -eq '1') {
+                $profileExport = Join-Path $work 'profile configured exports'
+                $primaryConfig = Join-Path $source 'config'
+                $text = [IO.File]::ReadAllText($primaryConfig).Replace('[client]',
+                    "[client]`nattachment_save_path=`"$profileExport`"")
+                [IO.File]::WriteAllText($primaryConfig, $text)
+            }
             $before = & $snapshot $source
             $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
             $listener.Start()
@@ -846,6 +1000,11 @@ target_port=$port
                 '--import-profile', $source, '--config', $target, '--rnsconfig', $selectedRns)
             $import.Code | Should -Be 0 -Because $import.Error
             $import.Text | Should -Match '4 messages, 2 attachments'
+            if ($env:DOTRETICULUM_NOMADNET_ATTACHMENT_PATH -eq '1') {
+                (Get-Content (Join-Path $target 'settings.json') -Raw | ConvertFrom-Json).attachmentSavePath |
+                    Should -BeExactly $profileExport
+                Test-Path $profileExport | Should -BeFalse
+            }
             (& $snapshot $source) | Should -BeExactly $before
             $state = Get-Content (Join-Path $target 'state.json') -Raw | ConvertFrom-Json
             $state.messages.Count | Should -Be 4
@@ -897,6 +1056,12 @@ target_port=$port
             & $read $native 'recovered.png' | Out-Null
             (Get-FileHash (Join-Path $target 'downloads\recovered.png')).Hash |
                 Should -Be (Get-FileHash (Join-Path $source "storage\attachments\$($media.id)\file_1")).Hash
+            if ($env:DOTRETICULUM_NOMADNET_ATTACHMENT_PATH -eq '1') {
+                Test-Path $profileExport | Should -BeFalse
+                & $send $native "attachment $($media.id) 0"
+                & $read $native 'Saved attachment to ' | Out-Null
+                (Get-FileHash (Join-Path $profileExport 'public.txt')).Hash | Should -Be (Get-FileHash $nativeFile).Hash
+            }
             & $send $native "conversation active $($ready.destination)"
             & $read $native 'Conversation command complete.' | Out-Null
             & $send $native 'announce'
@@ -942,6 +1107,11 @@ target_port=$port
             $daemon.WaitForExit(10000) | Should -BeTrue
             $restart = & $start 'terminal-restart' $env:DOTRETICULUM_NOMADNET_BINARY @('--config', $target)
             (& $read $restart 'LXMF delivery address:') | Should -Match $primary.delivery
+            if ($env:DOTRETICULUM_NOMADNET_ATTACHMENT_PATH -eq '1') {
+                & $send $restart "attachment $($media.id) 0"
+                & $read $restart 'Saved attachment to ' | Out-Null
+                (Get-FileHash (Join-Path $profileExport 'public_1.txt')).Hash | Should -Be (Get-FileHash $nativeFile).Hash
+            }
             & $send $restart 'messages'
             & $read $restart 'python-to-imported-native' | Out-Null
             & $read $restart 'Messages complete.' | Out-Null

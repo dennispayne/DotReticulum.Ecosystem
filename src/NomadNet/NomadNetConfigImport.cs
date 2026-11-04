@@ -54,7 +54,7 @@ public static class NomadNetConfigImport
                 "client.periodic_lxmf_sync" or "client.lxmf_sync_interval" or "client.lxmf_sync_limit" or
                 "client.try_propagation_on_send_fail" or "client.required_stamp_cost" or "client.accept_invalid_stamps" or
                 "client.max_accepted_size" or "client.downloads_path" or "node.enable_node" or "node.disable_propagation" or
-                "client.user_interface" or "client.notify_on_new_message" or
+                "client.user_interface" or "client.notify_on_new_message" or "client.attachment_save_path" or
                 "node.node_name" or "node.announce_interval" or "node.pages_path" or "node.files_path" or
                 "node.announce_at_start" or "node.page_refresh_interval" or "node.file_refresh_interval" or
                 "node.max_transfer_size" or "node.max_sync_size" or "node.propagation_cost" or
@@ -96,6 +96,7 @@ public static class NomadNetConfigImport
                     settings.DeliveryTransferLimitBytes = checked((int)(size * 1000));
                     break;
                 case "client.downloads_path": settings.DownloadsPath = ExpandHome(value); break;
+                case "client.attachment_save_path": settings.AttachmentSavePath = ExpandHome(value); break;
                 case "node.enable_node": settings.EnableNode = Boolean(value); break;
                 case "node.disable_propagation": disablePropagation = Boolean(value); break;
                 case "node.node_name": settings.NodeName = value.Equals("none", StringComparison.OrdinalIgnoreCase) ? null : value; break;
@@ -116,6 +117,7 @@ public static class NomadNetConfigImport
         if (values.ContainsKey("node.max_sync_size"))
             settings.PropagationSyncLimitBytes = Math.Max(settings.PropagationTransferLimitBytes, settings.PropagationSyncLimitBytes);
         _ = NomadNetNodeConfiguration.CreateOptions(settings);
+        settings.ValidateAttachmentPath();
         return new(settings, unsupported.Order(StringComparer.Ordinal).ToArray()) { Warnings = warnings.ToArray() };
     }
 

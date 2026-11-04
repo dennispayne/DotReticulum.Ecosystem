@@ -93,6 +93,7 @@ contracts and reports unsupported keys; it is not complete configuration parity.
 | `imageLoading` | numeric never0/manual1/auto2/always3; default2. `images <mode>` persists policy; `images load` explicitly loads, `images reload` refetches media without replaying the page/form |
 | `inboundStampCost`, `acceptInvalidStamps` | null / false; stamp cost null or 1–254; existing LXMF enforces required stamps unless explicitly accepting invalid stamps |
 | `pagesPath`, `filesPath`, `downloadsPath` | null uses native `storage\pages`, `storage\files`, `downloads`; explicit paths override those roots; remote names still cannot escape selected roots |
+| `attachmentSavePath` | null/empty falls back to `downloadsPath` or native `<profile>/downloads`; explicit core/profile import expands the current user's `~`, preserving relative and literal environment-variable paths. Only explicit `attachment <id> <index>` exports create this directory. The existing named-output form still exports to downloads and refuses collisions. |
 | `enablePropagation` | false; requires `enableNode`; maps the hosting settings below onto existing `LxmPropagationOptions`, not another propagation implementation |
 | `propagationTransferLimitBytes`, `propagationSyncLimitBytes` | 256,000 /10,240,000; effective sync is at least transfer. Native safety bounds: transfer1,000–64MiB, configured sync1,000–256MiB |
 | `propagationStorageLimitBytes`, `propagationStampCost` | Fresh/imported profiles2,000,000,000 /16, matching the actual primary node defaults; existing native files without the storage property retain their earlier500MB quota, which is made explicit on next save. Native storage5,000–16GiB and cost13–256 |
@@ -104,6 +105,136 @@ contracts and reports unsupported keys; it is not complete configuration parity.
 | `lastLxmfSync` | absent until first attempt; persisted UTC timestamp before retrieval; failure/cancellation do not erase it |
 | `tryPropagationOnSendFail` | true; one propagation attempt after failed direct delivery if a node is selected |
 | `deliveryTransferLimitBytes` | 1,000,000; validated 1 KiB–64 MiB. Independent attachment extraction limit is 16 MiB. |
+
+### Configured terminal attachment export
+
+`client.attachment_save_path` is an **implemented bounded contract**, not a
+whole-client parity claim. `GenerateNomadNetAttachmentPathVectors.py` executes
+the unchanged primary daemon constructor and actual terminal
+`_save_attachment_to_disk` / `_copy_attachment_to_dest` helpers. Public vectors
+record Git-blob SHA256, including `Conversations.py`
+`f1b47c7d93db25e8ddb582ca735631963beab6990e7373e78a27ff9a81ad0d6e`.
+Host-specific actual imports and named-user expansion observations are retained
+separately and asserted against each host's executed result, rather than
+pretending Python's Windows and Unix results agree. Native rejection of that
+unsupported expansion is also exercised without creating a target profile.
+Primary dependency minimums remain unsatisfied by the pinned RNS/LXMF environment
+described above; no primary source or logger-lock shim is used.
+
+The primary starts with `attachment_save_path=None`, applies `os.path.expanduser`
+to configured values, and uses the downloads directory for null/empty values.
+Relative paths are relative to process CWD, not the profile or imported source;
+environment variables remain literal. Default-destination export creates missing
+parents only on the explicit user save action. Primary safe filenames strip
+controls, path prefixes, colon prefixes and leading dots; file collisions use
+`base_1.ext`, `base_2.ext`, with the last extension retained. The unchanged helper
+copies stored attachments or writes in-memory bytes, reports failed saves, and
+continues after recovery. The native implementation reuses existing LXMF fields,
+attachment storage, safe-name logic and checksum verification; it does not add
+a field/wire format or a second media decoder.
+
+Terminal usage:
+
+```text
+attachment <message-id> <index>
+attachment <message-id> <index> <output-name>
+```
+
+The first form exports the stored filename to the configured attachment path,
+with automatic collision suffixes. The second preserves the existing explicit
+name/downloads behavior and never overwrites. Both config-only import and offline
+full-profile import persist the setting through restart without granting startup
+write authority to an imported external directory. Configured logging, original
+terminal/status/BEL, identity, profiles and router state retain their existing
+ownership and behavior.
+
+Intentional native safety boundaries:
+
+- Paths are at most2048 UTF-16 code units, without controls or whitespace-only
+  values; empty is valid fallback. Only current-user tilde expansion is supported.
+  Unknown/named-user tilde paths are rejected rather than guessing another home.
+  Python on Windows guesses a sibling home even for a nonexistent username;
+  Unix leaves that unknown-user spelling literal.
+- Export validates a bounded regular `.name` sidecar and checksum-verified stored
+  bytes before creating a destination. Invalid UTF-8/OS filenames, Windows device
+  names, oversize/corrupt content and linked/non-regular storage are refused.
+  Native safe names retain the existing200-code-unit bound and fallback naming;
+  no new historical filename reconstruction is claimed.
+- Exports are staged, Unix owner-read/write, then atomically published without
+  replacement. Linux uses `renameat2(RENAME_NOREPLACE)`: ordinary `File.Move` was
+  independently found to allow duplicate successful destinations under concurrent
+  Unix calls. Windows uses its non-replacing move. Both treat existing directories
+  as occupied names, refuse linked destination ancestors, bound suffix attempts
+  to1000, and remove staging files on failure/cancellation. These are stricter
+  than primary helper check-then-write behavior. No hostile concurrently replaced
+  ancestor-directory sandbox guarantee is made.
+
+`T193–198` cover actual-reference configuration/names, malformed and oversize
+inputs, inert import/persistence, atomic/concurrent collision exhaustion,
+pre-cancelled export, blocked directories, invalid sidecars/checksums,
+non-regular files, Unix permissions/symlinks and healthy recovery. The
+`AttachmentPath` Pester selection (`T199` and `T208`) executes the actual user terminal
+commands on the selected published binary, primary application file exchange in
+both directions, configured and explicit exports and same-identity restart.
+Physical GUI/file-picker behavior is not exercised or claimed by this slice.
+Printing, utilities, compact announces, router migration and other complete
+configuration/presentation contracts remain required elsewhere.
+
+Scoped Windows/Linux acceptance uses SDK10.0.403 and runtime/NativeAOT
+compiler10.0.14, with both `ILLinkTreatWarningsAsErrors=true` and
+`IlcTreatWarningsAsErrors=true`. The source base is `ec06f2d`; uncommitted
+NomadNet changes and the parent's stable shared LXMF paper formatter are captured
+as actual PDB/current-source checks, not relabelled as code from that HEAD.
+
+| Selected verification | Windows | Linux |
+|---|---|---|
+| Converter-enabled full NomadNet managed suite |244 passed /9 explicit Linux-only skips |253 passed /0 skips |
+| Native attachment + logging/runtime/profile/directory/RRC/hosting/paper selection |11 passed /2 explicit Linux-only skips |13 passed /0 skips |
+| Primary constructor/helper observations |5 common vectors plus host-specific named-home observation |same common fixture; independently executed Unix named-home result |
+
+Windows skips are nine managed Unix execution/link/permission cases and two
+Pester Unix logging-permission/actual executable-form RRC cases. Missing software
+is not treated as an optional deferral. Native attachment exchange is direct TCP
+with the actual unchanged primary application; it includes both attachment
+origins and configured terminal exports across clean native restart. Headless
+Windows runtime cases separately use abrupt termination. The retained RRC cases
+also exercise a Python transport; this slice makes no new attachment-hop/loss
+or physical-input claim.
+
+Final native SHA256:
+
+- Windows: `62b19295f1b7bf50982bfd8ef59f47f8d07da30a066767b6aefeaede12bacaab`.
+- Linux: `c0f965f0e7c56e40e2d574528fe03b0141ce93ec804c399784803254947cefb4`.
+- Public observation fixture: `4b2cfdbd7e6a0990c67d9d34b8231daefb1f34bcb1124afbc73c1c3d38c02ecd`.
+
+The frozen per-host handoffs are
+`artifacts\tests\nomad-attachment\frozen-win-final-v2` and native Linux
+`/home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/tests/nomad-attachment/frozen-linux-final-v2`.
+Each includes immutable source/test/fixture/operator snapshots, binaries,
+managed assemblies, PDB inputs and generated-source receipts, exact toolchain,
+actual import observations, retained failure records and a manifest. Run its
+`Invoke-FrozenAttachmentAcceptance.ps1 -Manifest <manifest.json>` for checksum-
+and-current-source-checked replay without rebuilding or republishing.
+
+Parent independently replays both exact frozen candidates without republishing:
+Windows244 managed passes/9 explicit skips and11 native passes/2 explicit skips;
+Linux253 managed and13 native passes without skips. All11 owned current hashes
+match the handoff; each replay verifies309 production/test portable-PDB source
+checks and68 generated-source checks, actual compiler/runtime receipts and
+converter/native hashes. The embedded native version remains
+`1.4.4.96+ec06f2d600`, not the later integration HEAD.
+Separate current-source converter-provisioned managed runs pass244/9 on Windows
+and253/0 on Linux. Current-harness `AttachmentPath` passes2/0 on each host using
+those same source-verified published binaries. C68/T193–199,T208 records12 actual
+cases per host: Windows10 passes/2 explicit Unix-only skips, Linux12 passes.
+T208 maps the existing application-runtime case separately because it now also
+verifies both actual-primary attachment origins and configured exports; T199
+isolates terminal failure/recovery. Receipts are
+`artifacts\tests\nomad-attachment\parent-windows\c68.json` and
+`/home/dennis/fleet-nomad-attachment-parent/c68.json`. Exact parent operators are
+`artifacts\tests\nomad-attachment\ParentAccept.ps1` and the frozen replay command
+above; logs retain both independent runs. This bounded acceptance does not
+establish whole-application parity.
 
 ### Application logging configuration
 
@@ -864,7 +995,8 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   acceptance, transfer limit and client startup/periodic announcements are operational/imported;
   `enable_client` is retained unused metadata as in the actual primary; `compose_in_markdown`,
   `notify_on_new_message` and `user_interface=none|text` are operational/imported.
-  `attachment_save_path` and `compact_announce_stream` remain **missing**.
+  `attachment_save_path` is operational/imported with explicit terminal export
+  as documented above; `compact_announce_stream` remains **missing**.
   Menu UI is an **upstream-placeholder**, not an invented third native UI.
 - `[node]`: `enable_node`, `node_name`, `disable_propagation`, `announce_at_start`,
   `announce_interval`, `pages_path`, `files_path`, `page_refresh_interval`,

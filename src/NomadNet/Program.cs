@@ -408,7 +408,7 @@ internal static class Program
               send <hash> <message>          Send a text LXMF message
               send-propagated <hash> <text>  Send through selected propagation node
               attach <hash> <file>           Send a file attachment
-              attachment <id> <index> <name> Export a stored attachment to downloads (never overwrites)
+              attachment <id> <index> [name] Export to configured attachment path; explicit name uses downloads (never overwrites)
               files [browse <directory>]    Start a local attachment picker
               files list|up|refresh|selected | files open <number>
               files done|cancel|clear        Save, cancel or clear selection
@@ -694,10 +694,17 @@ internal static class Program
             if (command.StartsWith("attachment ", StringComparison.OrdinalIgnoreCase))
             {
                 var parts = command.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length != 4 || !int.TryParse(parts[2], out var attachmentIndex))
-                    throw new ArgumentException("Usage: attachment <message-id> <index> <output-name>");
-                await SaveDownloadAsync(await NomadNetAttachments.ReadAsync(dataDirectory, parts[1], attachmentIndex,
-                    cancellationToken).ConfigureAwait(false), parts[3], cancellationToken, overwrite: false).ConfigureAwait(false);
+                if (parts.Length is < 3 or > 4 || !int.TryParse(parts[2], out var attachmentIndex))
+                    throw new ArgumentException("Usage: attachment <message-id> <index> [output-name]");
+                if (parts.Length == 3)
+                {
+                    var output = await NomadNetAttachmentExport.SaveAsync(propagation.Settings, dataDirectory,
+                        parts[1], attachmentIndex, cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine($"Saved attachment to {NomadNetTerminalText.Safe(output)}");
+                }
+                else
+                    await SaveDownloadAsync(await NomadNetAttachments.ReadAsync(dataDirectory, parts[1], attachmentIndex,
+                        cancellationToken).ConfigureAwait(false), parts[3], cancellationToken, overwrite: false).ConfigureAwait(false);
                 return false;
             }
             if (command.Equals("node refresh", StringComparison.OrdinalIgnoreCase))
@@ -1434,9 +1441,17 @@ internal static class Program
                 Console.WriteLine(NomadNetPresentation.Conversation(message.Content, message.Renderer));
                 if (message.HistoricalAuthentication is { } authentication)
                     Console.WriteLine($"Imported history {message.Id}: {authentication}; cached primary signature claim: {message.HistoricalSignatureValidated?.ToString() ?? "absent"} (not fresh verification).");
-                var attachmentNames = message.ImportedAttachmentNames.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                for (var index = 0; index < attachmentNames.Length; index++)
-                    Console.WriteLine($"Attachment {message.Id} {index}: {NomadNetTerminalText.Safe(attachmentNames[index])}; use attachment <id> <index> <output-name>.");
+                try
+                {
+                    foreach (var attachment in await NomadNetAttachmentExport.ListAsync(dataDirectory, message.Id,
+                        cancellationToken).ConfigureAwait(false))
+                        Console.WriteLine($"Attachment {message.Id} {attachment.Index}: {NomadNetTerminalText.Safe(attachment.Name)}; use attachment <id> <index> [output-name].");
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    logging.Write(1, $"Could not list attachment metadata for {message.Id}: {exception.Message}");
+                    Console.WriteLine($"Attachment metadata unavailable for {message.Id}.");
+                }
                 if (message.ImageAttachmentIndex is not null)
                 {
                     Console.WriteLine($"Conversation image {NomadNetTerminalText.Safe(message.Id)}: stored attachment {message.ImageAttachmentIndex}; use conversation images load.");

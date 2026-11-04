@@ -76,10 +76,10 @@ public static class NomadNetAttachments
         foreach (var file in new[] { path, path + ".sha256" })
             if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) != 0)
                 throw new InvalidDataException("Stored attachment cannot be a link.");
-        var expected = await NomadNetContent.ReadBoundedAsync(path + ".sha256", 64, cancellationToken).ConfigureAwait(false);
+        var expected = await NomadNetLocalFiles.ReadAsync(path + ".sha256", 64, cancellationToken).ConfigureAwait(false);
         if (expected.Length != 64 || expected.Any(character => !Uri.IsHexDigit((char)character)))
             throw new InvalidDataException("Invalid stored attachment checksum.");
-        var data = await NomadNetContent.ReadBoundedAsync(path, MaximumBytes, cancellationToken).ConfigureAwait(false);
+        var data = await NomadNetLocalFiles.ReadAsync(path, MaximumBytes, cancellationToken).ConfigureAwait(false);
         if (!CryptographicOperations.FixedTimeEquals(SHA256.HashData(data), Convert.FromHexString(Encoding.ASCII.GetString(expected))))
             throw new InvalidDataException("Stored attachment checksum does not match.");
         return data;

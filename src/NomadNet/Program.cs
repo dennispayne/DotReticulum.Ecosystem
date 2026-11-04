@@ -192,13 +192,17 @@ internal static class Program
         await propagationPolicy.RefreshSelectionAsync(cancellationToken).ConfigureAwait(false);
         propagationPolicy.Start();
         var propagation = settings.EnablePropagation ? router.EnablePropagationNode() : null;
-        await using var host = settings.EnableNode ? new NomadNetHost(node.Router, identity, options.DataDirectory, settings)
+        await using var host = settings.EnableNode ? new NomadNetHost(node.Router, identity, options.DataDirectory, settings,
+            _ =>
+            {
+                if (propagation is { } hosted) hosted.ScheduleAnnounce();
+                return ValueTask.CompletedTask;
+            })
         {
             Log = message => Console.Error.WriteLine(message),
         } : null;
         host?.Start();
         await router.AnnounceAsync(cancellationToken).ConfigureAwait(false);
-        if (propagation is not null) await propagation.AnnounceAsync(cancellationToken).ConfigureAwait(false);
         var receiver = PersistIncomingAsync(inbox.Reader, state, options.DataDirectory, cancellationToken);
         await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host);
 
@@ -315,7 +319,7 @@ internal static class Program
               reload                          Fetch current page without cache
               bookmark [title] | bookmarks | open-bookmark <number>
               fetch <hash> <file-path> <name> Download a bounded /file response
-              node refresh | node announce    Refresh or announce hosted content
+              node paths|refresh|announce     Inspect, refresh or announce hosted content
               rrc connect <hub> [nick]        Connect to an identified rrc.hub
               rrc join <room> [key] | rrc part <room>
               rrc send|action <room> <text>  Send group message/action
@@ -426,7 +430,6 @@ internal static class Program
             {
                 await router.AnnounceAsync(cancellationToken).ConfigureAwait(false);
                 if (host is not null) await host.AnnounceAsync(cancellationToken).ConfigureAwait(false);
-                if (router.PropagationNode is { } hosted) await hosted.AnnounceAsync(cancellationToken).ConfigureAwait(false);
                 Console.WriteLine("Destinations announced.");
                 return false;
             }
@@ -436,6 +439,13 @@ internal static class Program
             {
                 (host ?? throw new InvalidOperationException("Enable node hosting in settings.json.")).Refresh();
                 Console.WriteLine("Hosted content refreshed.");
+                return false;
+            }
+            if (command.Equals("node paths", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var path in (host ?? throw new InvalidOperationException("Enable node hosting in settings.json.")).RegisteredPaths)
+                    Console.WriteLine("Hosted path " + NomadNetTerminalText.Safe(path));
+                Console.WriteLine("Hosted paths complete.");
                 return false;
             }
             if (command.Equals("node announce", StringComparison.OrdinalIgnoreCase))

@@ -5,7 +5,7 @@
   "vectors": [
     {
       "name": "ordinary",
-      "input": "[client]\nperiodic_lxmf_sync = no\nlxmf_sync_interval = 12\nlxmf_sync_limit = 3\ntry_propagation_on_send_fail = off\nrequired_stamp_cost = 13\naccept_invalid_stamps = yes\nmax_accepted_size = 432.5\ndownloads_path = ~/Downloads\n[node]\nenable_node = yes\ndisable_propagation = yes\nnode_name = \"Public = # Config\"\nannounce_interval = 19\n",
+      "input": "[client]\nperiodic_lxmf_sync = no\nlxmf_sync_interval = 12\nlxmf_sync_limit = 3\ntry_propagation_on_send_fail = off\nrequired_stamp_cost = 13\naccept_invalid_stamps = yes\nmax_accepted_size = 432.5\ndownloads_path = ~/Downloads\n[node]\nenable_node = yes\ndisable_propagation = yes\nnode_name = \"Public = # Config\"\nannounce_interval = 19\nannounce_at_start = yes\npage_refresh_interval = 2\nfile_refresh_interval = 3\n",
       "observed": {
         "event": "configuration",
         "enable_node": true,
@@ -21,12 +21,15 @@
         "max_accepted_size": 432.5,
         "pages_path": "C:\\Git\\dennispayne\\DotReticulum.Ecosystem\\artifacts\\tests\\nomadnet-config-reference\\ordinary\\app/storage/pages",
         "files_path": "C:\\Git\\dennispayne\\DotReticulum.Ecosystem\\artifacts\\tests\\nomadnet-config-reference\\ordinary\\app/storage/files",
-        "downloads_path": "C:\\Users\\dennis/Downloads"
+        "downloads_path": "C:\\Users\\dennis/Downloads",
+        "node_announce_at_start": true,
+        "page_refresh_interval": 2,
+        "file_refresh_interval": 3
       }
     },
     {
       "name": "clamped",
-      "input": "[client]\nlxmf_sync_interval = 0\nlxmf_sync_limit = -2\nrequired_stamp_cost = 300\nmax_accepted_size = -5\n[node]\nenable_node = true\ndisable_propagation = on\nnode_name = None\nannounce_interval = 0\n",
+      "input": "[client]\nlxmf_sync_interval = 0\nlxmf_sync_limit = -2\nrequired_stamp_cost = 300\nmax_accepted_size = -5\n[node]\nenable_node = true\ndisable_propagation = on\nnode_name = None\nannounce_interval = 0\nannounce_at_start = no\npage_refresh_interval = -1\nfile_refresh_interval = -4\n",
       "observed": {
         "event": "configuration",
         "enable_node": true,
@@ -42,7 +45,10 @@
         "max_accepted_size": 500,
         "pages_path": "C:\\Git\\dennispayne\\DotReticulum.Ecosystem\\artifacts\\tests\\nomadnet-config-reference\\clamped\\app/storage/pages",
         "files_path": "C:\\Git\\dennispayne\\DotReticulum.Ecosystem\\artifacts\\tests\\nomadnet-config-reference\\clamped\\app/storage/files",
-        "downloads_path": "C:\\Users\\dennis/Downloads"
+        "downloads_path": "C:\\Users\\dennis/Downloads",
+        "node_announce_at_start": false,
+        "page_refresh_interval": 0,
+        "file_refresh_interval": 0
       }
     },
     {
@@ -63,7 +69,10 @@
         "max_accepted_size": 1000.0,
         "pages_path": "C:\\Git\\dennispayne\\DotReticulum.Ecosystem\\artifacts\\tests\\nomadnet-config-reference\\no-stamps\\app/storage/pages",
         "files_path": "C:\\Git\\dennispayne\\DotReticulum.Ecosystem\\artifacts\\tests\\nomadnet-config-reference\\no-stamps\\app/storage/files",
-        "downloads_path": "C:\\Users\\dennis/Downloads"
+        "downloads_path": "C:\\Users\\dennis/Downloads",
+        "node_announce_at_start": false,
+        "page_refresh_interval": 0,
+        "file_refresh_interval": 0
       }
     }
   ]

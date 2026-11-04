@@ -9,6 +9,9 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
             return
         }
         $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        if ($env:DOTRETICULUM_NOMADNET_HOST_POLICY_LIVE -eq '1' -and $env:DOTRETICULUM_NOMADNET_CONFIG_LIVE -ne '1') {
+            throw 'Hosted policy acceptance requires the explicit core configuration mode.'
+        }
         $work = Join-Path (Get-Location) "artifacts\tests\nomadnet-images-$([Guid]::NewGuid().ToString('N'))"
         $null = New-Item $work -ItemType Directory -Force
         $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
@@ -59,6 +62,13 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
             $process.StandardInput.WriteLine($text)
             $process.StandardInput.Flush()
         }
+        $readState = {
+            $stream = [IO.FileStream]::new((Join-Path $work 'native\state.json'), [IO.FileMode]::Open,
+                [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete)
+            $reader = [IO.StreamReader]::new($stream)
+            try { $reader.ReadToEnd() | ConvertFrom-Json }
+            finally { $reader.Dispose() }
+        }.GetNewClosure()
         try {
             $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
             $listener.Start()
@@ -146,6 +156,12 @@ files_path = '$customFiles'
 [textui]
 image_loading = yes
 "@ | Set-Content $importSource -Encoding utf8
+                if ($env:DOTRETICULUM_NOMADNET_HOST_POLICY_LIVE -eq '1') {
+                    [IO.File]::AppendAllText($importSource, "`n", [Text.UTF8Encoding]::new($false))
+                    $sourceText = [IO.File]::ReadAllText($importSource).Replace('[textui]',
+                        "announce_at_start = no`npage_refresh_interval = 1`nfile_refresh_interval = 0`n[textui]")
+                    [IO.File]::WriteAllText($importSource, $sourceText, [Text.UTF8Encoding]::new($false))
+                }
                 $originalConfigHash = (Get-FileHash $importSource).Hash
                 $importer = & $start 'config-import' $env:DOTRETICULUM_NOMADNET_BINARY @(
                     '--import-config', $importSource, '--config', $importTarget)
@@ -167,13 +183,59 @@ image_loading = yes
             }
             $settings | ConvertTo-Json | Set-Content $settingsPath -Encoding utf8
             $nativeArgs = @('--config', (Join-Path $work 'native'), '--rnsconfig', (Join-Path $work 'native-rns'))
-            $native = & $start 'native' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
-            $nativeNode = [regex]::Match((& $read $native 'Hosted node address:'), '[0-9a-f]{32}').Value
             $pythonArgs = @('-u', (Join-Path $root 'tests\Interop\nomadnet_live_node.py'),
                 '--config', (Join-Path $work 'python'), '--rnsconfig', (Join-Path $work 'python-rns'))
-            $python = & $start 'python' $env:DOTRETICULUM_PYTHON $pythonArgs
-            $ready = ((& $read $python '"event"\s*:\s*"ready"').Substring(2) | ConvertFrom-Json)
+            if ($env:DOTRETICULUM_NOMADNET_HOST_POLICY_LIVE -eq '1') {
+                $python = & $start 'python' $env:DOTRETICULUM_PYTHON $pythonArgs
+                $ready = ((& $read $python '"event"\s*:\s*"ready"').Substring(2) | ConvertFrom-Json)
+                & $send $python 'observe-node-announces'
+                $null = & $read $python '"event"\s*:\s*"observing-node-announces"'
+                $native = & $start 'native' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
+                $nativeNode = [regex]::Match((& $read $native 'Hosted node address:'), '[0-9a-f]{32}').Value
+            }
+            else {
+                $native = & $start 'native' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
+                $nativeNode = [regex]::Match((& $read $native 'Hosted node address:'), '[0-9a-f]{32}').Value
+                $python = & $start 'python' $env:DOTRETICULUM_PYTHON $pythonArgs
+                $ready = ((& $read $python '"event"\s*:\s*"ready"').Substring(2) | ConvertFrom-Json)
+            }
             $ready.revision | Should -Be 'f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2'
+            if ($env:DOTRETICULUM_NOMADNET_HOST_POLICY_LIVE -eq '1') {
+                & $send $python 'wait-network'
+                $null = & $read $python '"event"\s*:\s*"network-ready"'
+                Start-Sleep -Seconds 7
+                & $send $python "node-announces $nativeNode"
+                $observation = ((& $read $python '"event"\s*:\s*"node-announces"').Substring(2) | ConvertFrom-Json)
+                $observation.count | Should -Be 0 -Because 'disabled host startup must not broadcast its destination'
+                & $send $native 'node announce'
+                $null = & $read $native 'Hosted node announced'
+                & $send $python "node-announces $nativeNode 1"
+                $observation = ((& $read $python '"event"\s*:\s*"node-announces"').Substring(2) | ConvertFrom-Json)
+                $observation.count | Should -BeGreaterOrEqual 1
+                [IO.File]::WriteAllText((Join-Path $customPages 'scheduled.mu'), "#!c=0`nAUTO_REFRESH_PAGE", [Text.UTF8Encoding]::new($false))
+                [IO.File]::WriteAllText((Join-Path $customFiles 'manual.txt'), 'MANUAL_REFRESH_FILE', [Text.UTF8Encoding]::new($false))
+                $deadline = [DateTime]::UtcNow.AddSeconds(80)
+                do {
+                    & $send $native 'node paths'
+                    $paths = [Collections.Generic.List[string]]::new()
+                    do {
+                        $line = & $read $native 'Hosted path |Hosted paths complete'
+                        $paths.Add($line)
+                    } while ($line -notmatch 'Hosted paths complete')
+                    @($paths | Where-Object { $_ -match '/file/manual.txt$' }).Count | Should -Be 0 -Because 'file rescanning is independently disabled'
+                    $pageReady = @($paths | Where-Object { $_ -match '/page/scheduled.mu$' }).Count -eq 1
+                    if (-not $pageReady) { Start-Sleep -Milliseconds 500 }
+                } while (-not $pageReady -and [DateTime]::UtcNow -lt $deadline)
+                $pageReady | Should -BeTrue -Because 'configured one-minute page scan must register the newly created path'
+                & $send $python "request $nativeNode /page/scheduled.mu"
+                $response = ((& $read $python '"event"\s*:\s*"response"').Substring(2) | ConvertFrom-Json)
+                $response.text | Should -Match 'AUTO_REFRESH_PAGE'
+                & $send $native 'node refresh'
+                $null = & $read $native 'Hosted content refreshed'
+                & $send $python "request $nativeNode /file/manual.txt"
+                $response = ((& $read $python '"event"\s*:\s*"response"').Substring(2) | ConvertFrom-Json)
+                $response.text | Should -Be 'MANUAL_REFRESH_FILE'
+            }
             if ($env:DOTRETICULUM_NOMADNET_HISTORY_LIVE -eq '1') {
                 foreach ($step in @(
                     @("browse $($ready.node)", 'Image application contract'),
@@ -360,7 +422,7 @@ image_loading = yes
                 $null = & $read $native 'Conversations complete'
                 & $send $native "contact remove $($ready.delivery)"
                 $null = & $read $native 'Contact removed'
-                $state = [IO.File]::ReadAllText((Join-Path $work 'native\state.json')) | ConvertFrom-Json
+                $state = & $readState
                 $state.ignoredDestinations | Should -Contain $ready.delivery
                 & $send $python "paper $nativeDelivery CONVERSATION_IGNORED_AFTER_RESTART"
                 $paper = ((& $read $python '"event"\s*:\s*"paper"').Substring(2) | ConvertFrom-Json).uri
@@ -374,7 +436,7 @@ image_loading = yes
                 $null = & $read $native 'Paper ingest: LocalDelivery'
                 $deadline = [DateTime]::UtcNow.AddSeconds(15)
                 do {
-                    $state = [IO.File]::ReadAllText((Join-Path $work 'native\state.json')) | ConvertFrom-Json
+                    $state = & $readState
                     if (@($state.messages | Where-Object content -EQ 'CONVERSATION_ALLOWED_AFTER_UNIGNORE').Count -gt 0) { break }
                     Start-Sleep -Milliseconds 50
                 } while ([DateTime]::UtcNow -lt $deadline)
@@ -382,7 +444,7 @@ image_loading = yes
                 @($state.messages | Where-Object content -Match 'CONVERSATION_IGNORED').Count | Should -Be 0
                 & $send $native "conversation delete $($ready.delivery)"
                 $null = & $read $native 'Conversation command complete'
-                $state = [IO.File]::ReadAllText((Join-Path $work 'native\state.json')) | ConvertFrom-Json
+                $state = & $readState
                 @($state.messages | Where-Object peerHash -EQ $ready.delivery).Count | Should -Be 0
                 $state.ignoredDestinations | Should -Not -Contain $ready.delivery
             }
@@ -403,6 +465,7 @@ image_loading = yes
                 coreConfiguration = ($env:DOTRETICULUM_NOMADNET_CONFIG_LIVE -eq '1');
                 navigation = ($env:DOTRETICULUM_NOMADNET_HISTORY_LIVE -eq '1');
                 directory = ($env:DOTRETICULUM_NOMADNET_DIRECTORY_LIVE -eq '1');
+                hostPolicy = ($env:DOTRETICULUM_NOMADNET_HOST_POLICY_LIVE -eq '1');
                 primaryStaticAuthorization = if ([OperatingSystem]::IsWindows()) { 'upstream Windows X_OK defect; actual identity observed instead' } else { 'allowed and denied' } } |
                 ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
         }
@@ -554,6 +617,8 @@ Describe 'NomadNet mixed propagation and impaired application workflows' -Tag 'L
             $pythonNodeReady.propagation | Should -Match '^[0-9a-f]{32}$'
             $pythonClient = & $start 'python-client' $env:DOTRETICULUM_PYTHON (& $pythonArgs 'python-client')
             $pythonClientReady = & $json (& $read $pythonClient '"event"\s*:\s*"ready"')
+            & $send $pythonClient 'observe-propagation-announces'
+            $null = & $read $pythonClient '"event"\s*:\s*"observing-node-announces"'
             $nativeNode = & $start 'native-node' $env:DOTRETICULUM_NOMADNET_BINARY (& $nativeArgs 'native-node')
             $nativePn = [regex]::Match((& $read $nativeNode 'Propagation node address:'), '[0-9a-f]{32}').Value
             $native = & $start 'native-client' $env:DOTRETICULUM_NOMADNET_BINARY (& $nativeArgs 'native-client')
@@ -580,10 +645,27 @@ Describe 'NomadNet mixed propagation and impaired application workflows' -Tag 'L
             & $send $native "send-propagated $($pythonClientReady.delivery) native-pn-persisted"
             $null = & $read $native 'Message queued:'
             & $waitState 'native-client' 'native-pn-persisted' 'sent'
+            & $send $pythonClient "node-announces $nativePn"
+            $beforeRestart = (& $json (& $read $pythonClient '"event"\s*:\s*"node-announces"')).count
+            foreach ($observer in @($pythonClient, $pythonNode)) {
+                & $send $observer "path-stats $nativePn"
+                $null = & $read $observer '"event"\s*:\s*"path-stats"'
+            }
             & $send $nativeNode 'quit'
             $nativeNode.WaitForExit(15000) | Should -BeTrue
             $nativeNode = & $start 'native-node-restart' $env:DOTRETICULUM_NOMADNET_BINARY (& $nativeArgs 'native-node')
             [regex]::Match((& $read $nativeNode 'Propagation node address:'), '[0-9a-f]{32}').Value | Should -Be $nativePn
+            $deadline = [DateTime]::UtcNow.AddSeconds(30)
+            do {
+                & $send $pythonClient "node-announces $nativePn"
+                $afterRestart = & $json (& $read $pythonClient '"event"\s*:\s*"node-announces"')
+                if ($afterRestart.count -le $beforeRestart) { Start-Sleep -Milliseconds 250 }
+            } while ($afterRestart.count -le $beforeRestart -and [DateTime]::UtcNow -lt $deadline)
+            $afterRestart.count | Should -BeGreaterThan $beforeRestart -Because 'a startup banner is not a refreshed live Reticulum path after restart'
+            foreach ($observer in @($pythonClient, $pythonNode)) {
+                & $send $observer "path-stats $nativePn"
+                $null = & $read $observer '"event"\s*:\s*"path-stats"'
+            }
             & $send $pythonClient "propagation $nativePn"
             $null = & $read $pythonClient '"event"\s*:\s*"propagation-selected"'
             & $send $pythonClient 'sync'

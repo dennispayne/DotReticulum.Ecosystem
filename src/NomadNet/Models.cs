@@ -17,6 +17,9 @@ public sealed record NomadNetSettings
     public bool EnableNode { get; set; }
     public string? NodeName { get; set; }
     public int NodeAnnounceIntervalMinutes { get; set; } = 360;
+    public bool NodeAnnounceAtStart { get; set; } = true;
+    public double NodePageRefreshIntervalMinutes { get; set; } = 5d / 60;
+    public double NodeFileRefreshIntervalMinutes { get; set; } = 5d / 60;
     public bool EnableExecutablePages { get; set; }
     public bool EnablePropagation { get; set; }
     public string? PropagationNode { get; set; }
@@ -91,6 +94,8 @@ public sealed record NomadNetSettings
         if (SchemaVersion != 1 || string.IsNullOrWhiteSpace(DisplayName) ||
             DisplayName.Trim().Length > 80 || DisplayName.Any(char.IsControl) ||
             NodeAnnounceIntervalMinutes is < 1 or > 10080 ||
+            !double.IsFinite(NodePageRefreshIntervalMinutes) || NodePageRefreshIntervalMinutes is < 0 or > 10080 ||
+            !double.IsFinite(NodeFileRefreshIntervalMinutes) || NodeFileRefreshIntervalMinutes is < 0 or > 10080 ||
             LxmfSyncIntervalMinutes is < 1 or > 525600 ||
             LxmfSyncLimit is < 0 or > 100000 ||
             TrustedNodes is null || TrustedNodes.Count > 128 ||

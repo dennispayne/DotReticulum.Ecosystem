@@ -113,6 +113,20 @@ def main():
             browser_lock = threading.Lock()
             browser_overflow = threading.Event()
             observing_browser = False
+            node_announces = {}
+            announce_lock = threading.Lock()
+            announce_overflow = threading.Event()
+            observing_announces = False
+
+            class NodeAnnounceObserver:
+                aspect_filter = "nomadnetwork.node"
+
+                def received_announce(self, destination_hash, announced_identity, app_data):
+                    with announce_lock:
+                        if len(node_announces) >= 256 and destination_hash not in node_announces:
+                            announce_overflow.set()
+                            return
+                        node_announces[destination_hash] = node_announces.get(destination_hash, 0) + 1
 
             def observe_browser_connected(link):
                 app.node.peer_connected(link)
@@ -190,6 +204,49 @@ def main():
                     else:
                         raise RuntimeError("Configured reference TCP clients did not reconnect")
                     continue
+                if parts[0] == "path-stats" and len(parts) == 2:
+                    target = bytes.fromhex(parts[1])
+                    if len(target) != 16:
+                        raise RuntimeError("Path observation requires a destination hash")
+                    interface = RNS.Transport.next_hop_interface(target)
+                    next_hop = RNS.Transport.next_hop(target)
+                    emit("path-stats", target=target.hex(), hops=RNS.Transport.hops_to(target),
+                         next_hop=next_hop.hex() if isinstance(next_hop, bytes) else None,
+                         interface=str(interface) if interface else None,
+                         interface_id=id(interface) if interface else None,
+                         online=getattr(interface, "online", None),
+                         active=interface in RNS.Transport.interfaces if interface else False,
+                         interfaces=[{"name": str(item), "id": id(item), "online": getattr(item, "online", None)}
+                                     for item in RNS.Transport.interfaces[:32]])
+                    continue
+                if parts[0] in ("observe-node-announces", "observe-propagation-announces"):
+                    if observing_announces:
+                        raise RuntimeError("Node announce observation already enabled")
+                    observer = NodeAnnounceObserver()
+                    if parts[0] == "observe-propagation-announces":
+                        observer.aspect_filter = "lxmf.propagation"
+                    RNS.Transport.register_announce_handler(observer)
+                    observing_announces = True
+                    emit("observing-node-announces")
+                    continue
+                if parts[0] == "node-announces" and len(parts) >= 2:
+                    target = bytes.fromhex(parts[1])
+                    minimum = int(parts[2]) if len(parts) == 3 else 0
+                    if not observing_announces or len(target) != 16 or not 0 <= minimum <= 1024:
+                        raise RuntimeError("Enable node observation and select a bounded target/count")
+                    if announce_overflow.is_set():
+                        raise RuntimeError("Node announce observation overflow; evidence is incomplete")
+                    deadline = time.monotonic() + 10
+                    while time.monotonic() < deadline:
+                        with announce_lock:
+                            count = node_announces.get(target, 0)
+                        if count >= minimum:
+                            break
+                        time.sleep(0.01)
+                    else:
+                        raise RuntimeError("Expected node announce was not observed")
+                    emit("node-announces", count=count, node=target.hex())
+                    continue
                 if parts[0] == "observe-browser-links":
                     if observing_browser:
                         raise RuntimeError("Browser observation already enabled")
@@ -227,7 +284,10 @@ def main():
                          lxmf_sync_limit=app.lxmf_sync_limit, try_propagation_on_send_fail=app.try_propagation_on_fail,
                          required_stamp_cost=app.required_stamp_cost, accept_invalid_stamps=app.accept_invalid_stamps,
                          max_accepted_size=app.lxmf_max_incoming_size, pages_path=app.pagespath,
-                         files_path=app.filespath, downloads_path=app.downloads_path)
+                         files_path=app.filespath, downloads_path=app.downloads_path,
+                         node_announce_at_start=app.node_announce_at_start,
+                         page_refresh_interval=app.page_refresh_interval,
+                         file_refresh_interval=app.file_refresh_interval)
                     continue
                 if parts[0] == "conversation-read" and len(parts) == 2:
                     app.mark_conversation_read(parts[1])

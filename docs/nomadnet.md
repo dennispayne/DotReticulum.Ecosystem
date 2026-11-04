@@ -57,7 +57,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. Actual primary app ingest/generation tested both ways. QR image generation, QR scan and printer commands are missing. |
 | Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; optional hosted propagation node using `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Propagation-node peering and broader configuration remain unverified/incomplete at the application layer. |
 | Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Saved-node listing/opening, primary rank/trust/name ordering, explicit browser identification consent and existing associated-node trust updates are operational. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Complete announce-stream/node-directory presentation and upstream directory import remain missing. |
-| Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **partial**: `nomadnetwork.node`, UTF-8 name app-data, default index, nested static pages, six-second startup announce and periodic node announce; explicit refresh and five-second directory scans. New/deleted paths update handlers. `.allowed` identity lists enforced. Source-specific counters, refresh interval settings and upstream default assets are not implemented. |
+| Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **partial**: `nomadnetwork.node`, UTF-8 name app-data, default index, nested static pages, configurable six-second startup announce and periodic node announce; independent configurable page/file rescan intervals, explicit refresh and bounded handler inspection. New/deleted paths update handlers. `.allowed` identity lists enforced. Node announces chain the existing hosted propagation announce rather than duplicate its protocol. Source-specific counters and upstream default assets remain missing. |
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
 | Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. OS-process tests cover native execution; selected Linux native browser also submits real forms to unmodified Python executable pages across a Python transport. Python-to-native executable-form browser acceptance remains unverified. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
 | Media; `Node.serve_media`, `convert_media_to_webp` | **partial, live-verified core**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` responses and PNG/JPEG/BMP/GIF/TIFF conversion through configured external FFmpeg. Primary quality85/dimension1200 and content-hash cache naming, 256-file/192-MiB quota, corruption regeneration and restart/cache-only serving are exercised. `show-media` decodes browser images to ASCII or explicit ANSI true-colour half-blocks. Actual primary `ImageData` decodes native-served images and native previews primary-served images on Windows/Linux. Animated/multipage, alpha/EXIF behavior, automatic inline loading and Kitty graphics remain unverified/missing. |
@@ -79,6 +79,8 @@ contracts and reports unsupported keys; it is not complete configuration parity.
 | `displayName` | `NomadNet user`; 1–80 printable characters |
 | `enableNode`, `nodeName` | false; absent name derives from display name |
 | `nodeAnnounceIntervalMinutes` | 360; validated 1–10080 |
+| `nodeAnnounceAtStart` | true for legacy native profiles; false when absent from imported primary node configuration; controls the six-second hosted node announce and its additional scheduled propagation announcement |
+| `nodePageRefreshIntervalMinutes`, `nodeFileRefreshIntervalMinutes` | native defaults 5/60 minutes preserve earlier five-second scans; imported primary defaults0 disable rescans; independently validated finite0–10080 minutes |
 | `enableExecutablePages` | false; explicit Linux execution/authorization-generator opt-in |
 | `mediaConverter` | `ffmpeg`; local executable name or absolute path; no shell, 1–1024 printable characters; required only for conversion/preview, not cached or native WebP serving |
 | `inboundStampCost`, `acceptInvalidStamps` | null / false; stamp cost null or 1–254; existing LXMF enforces required stamps unless explicitly accepting invalid stamps |
@@ -109,7 +111,7 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   `file_refresh_interval`, `propagation_cost`, `max_transfer_size`, `max_sync_size`,
   `prioritise_destinations`, `static_peers`, `max_peers`, `message_storage_limit`
   — **partial** enable/name/announce interval/manual propagation and custom
-  page/file roots; the other knobs are
+  page/file roots, startup announce and independent rescan intervals; the other knobs are
   **missing** at the application layer, even where LXMF has corresponding APIs.
 - `[textui]`: `intro_time`, `theme`, `colormode`, `glyphs`, `image_loading`,
   `mouse_enabled`, `editor`, `hide_guide`, `sanitize_names`, `clipboard_copy`
@@ -160,11 +162,12 @@ removes the staged profile; source configuration is never changed. This imports
 configuration only: no upstream identity, conversations, contacts or private
 peer-settings files are silently selected/copied.
 
-The fourteen translated keys are `[client] periodic_lxmf_sync`,
+The seventeen translated keys are `[client] periodic_lxmf_sync`,
 `lxmf_sync_interval`, `lxmf_sync_limit`, `try_propagation_on_send_fail`,
 `required_stamp_cost`, `accept_invalid_stamps`, `max_accepted_size`,
 `downloads_path`; `[node] enable_node`, `disable_propagation`, `node_name`,
-`announce_interval`, `pages_path`, `files_path`. Every other supplied key is
+`announce_interval`, `pages_path`, `files_path`, `announce_at_start`,
+`page_refresh_interval`, `file_refresh_interval`. Every other supplied key is
 reported on stderr as unsupported, without printing its value. This does not
 reclassify unimplemented options as optional.
 
@@ -175,6 +178,28 @@ announce interval, current-user `~`/`~/` expansion for download paths and case-i
 ConfigObj boolean values. Imported node interval defaults to primary720 minutes;
 legacy native profiles retain native360 unless set. Native record/size/path
 bounds still apply and fail explicitly rather than weakening them.
+
+Imported page/file refresh intervals clamp negative values to0 and interpret
+positive integer values as minutes. Zero disables that automatic rescan, not
+serving existing paths or an explicit `node refresh`. Native JSON additionally
+permits fractional minutes to retain the earlier five-second default. The
+five-second maintenance loop tests independent deadlines: refreshing pages
+does not inadvertently register files. Failed scans remain due and do not
+prevent the other scan or announcing from continuing. `node paths` lists the
+registered handler snapshot; at most10,000 handlers may be registered, and an
+oversized scan rejects without replacing the existing registry.
+
+`nodeAnnounceAtStart=false` suppresses the six-second hosted destination
+announcement and its additional propagation announcement, not the separate LXMF
+client's announce, LXMF's own propagation-enable announcement, or answers to
+Reticulum path requests. `node announce` immediately announces the hosted node,
+resets its periodic deadline, and calls the existing propagation node's
+`ScheduleAnnounce()` when enabled. This preserves pinned LXMF's separate
+twenty-second deadline for **each** propagation-announcement request, including
+the independent request made when propagation is enabled. It does not substitute
+the native immediate-announcement extension. The host timestamp is updated before
+attempting transport, as in the primary. Periodic announcing remains active even
+when the startup broadcast is disabled.
 
 Scalar quotes, `#` comments outside quotes and flat sections are supported.
 Duplicate/malformed sections/keys, ambiguous scalar lists, nested ConfigObj
@@ -409,6 +434,80 @@ limited to 4 MiB, links to 2,048 and media descriptors to 128. These are safety
 bounds, not primary layout defaults.
 
 ## Validation and reproduction
+
+### Selected hosted-policy acceptance
+
+The regenerated configuration fixture executes actual primary constructors for
+startup-announce on/off, page/file rescan minutes, missing defaults and negative
+interval clamping. The upstream `Node.__jobs` elapsed-time rules are separately
+audited and tested with deterministic native schedules, including independent
+deadlines, disabled scans, backwards clocks and unacknowledged work. Real
+filesystem tests cover 10,000-handler boundary rejection without registry
+mutation, independent root enumeration, invalid/nonfinite settings, asynchronous
+disposal and chaining the existing propagation callback without a log subscriber.
+
+Selected strict NativeAOT binaries:
+
+- Windows `artifacts\builds\nomadnet-host-policy-win\publish\NomadNet\release_win-x64\nomadnet.exe`;
+  SHA-256 `731f7d10dab3a008bd69c16e9615e5cbdb9d58ec05b6f7b4e28d99895d754af4`.
+- Linux `artifacts/builds/nomadnet-host-policy-linux/publish/NomadNet/release_linux-x64/nomadnet`;
+  SHA-256 `c43dd7da8e88c3a08fd582f4564ad0ff72bf5068bc7be8373d1e728bf5f61f27`.
+
+Both `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r <rid>
+--artifacts-path artifacts\builds\nomadnet-host-policy-<host>
+-p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v:q`
+commands pass. Scoped managed tests with the selected converter pass
+**Windows 100 +3 explicit Linux-only skips**, **Linux 103/103**.
+Both selected binaries pass **Native 4/4** and the expanded actual primary
+application case **1/1** (Windows 95.47 seconds; Linux 85.90 seconds).
+Linux also passes actual primary RRC/form/partial/replay **1/1** (18.62 seconds).
+The live Windows fixture opens an atomic state snapshot with read/write/delete
+sharing, so observing state does not conflict with the application's atomic
+replacement. Assertions and existing deadlines are unchanged.
+
+The additional `DOTRETICULUM_NOMADNET_HOST_POLICY_LIVE=1` mode starts the real
+primary observer before the native process. A supported extra announce handler
+records genuine `nomadnetwork.node` announces without replacing the application's
+handlers. After seven seconds it verifies no startup broadcast, then observes
+the explicit native announcement. A newly created page becomes registered after
+the configured real one-minute interval, while an independently disabled file
+scan does not register its new file. The actual primary requests that new page,
+then an explicit refresh registers the file and the primary downloads it.
+No clock acceleration, private scheduler invocation or synthetic callback
+substitutes for the real minute in this application flow.
+
+The selected Linux binary also passes the complete mixed propagation/restart/
+scheduled retrieval/cancellation/dropped-Resource-part case **1/1**, 243.92 seconds.
+The topology and non-default peer settings are those recorded below: actual
+primary Python transport/propagation node, primary Python client, native node
+and native client, with the impairment proxy on the native client's connection.
+The restart gate observes a genuine fresh `lxmf.propagation` announcement before
+retrieval, not merely the new process's startup banner. Its thirty-second
+observation window accommodates the source-required twenty-second propagation
+schedule. Existing transfer/link deadlines and assertions are unchanged; there
+is no path expiration, stamp-cost reduction or failed-transfer retry masking
+the restart. Public reference route/interface diagnostics are recorded.
+
+```powershell
+& artifacts\tests\nomadnet-host-policy-win-acceptance.ps1
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-host-policy-linux-acceptance.ps1
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-host-policy-propagation-acceptance.ps1
+```
+
+These ignored recipes select matching frozen managed DLLs/binaries and the
+same pinned primary/RNS/LXMF, converter and runtime prerequisites as directory
+acceptance below. Older recipes explicitly clear the new opt-in. The application
+artifact records `hostPolicy=true`. Client announce settings, logging, node
+counters and other unsupported configuration remain required gaps.
+
+The isolated integrated checkpoint `dotnet build DotReticulum.Ecosystem.slnx
+-c Release --artifacts-path artifacts\builds\nomadnet-host-policy-integrated -v:q`
+passes with zero warnings/errors; `dotnet test DotReticulum.Ecosystem.slnx
+-c Release --no-build --artifacts-path artifacts\builds\nomadnet-host-policy-integrated
+--logger trx --results-directory artifacts\tests\nomadnet-host-policy-integrated -v:q`
+passes **1,750 tests, 83 explicit skips, zero failures**. Converter-dependent
+NomadNet checks are among the explicit skips in this integrated invocation;
+the separately selected Windows/Linux converter runs above exercise them.
 
 ### Selected directory/application acceptance
 

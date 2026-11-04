@@ -24,6 +24,9 @@ public sealed class NomadNetConfigTests
             Assert.Equal(expected.GetProperty("enable_node").GetBoolean(), actual.EnableNode);
             Assert.Equal(expected.GetProperty("node_name").GetString(), actual.NodeName);
             Assert.Equal(expected.GetProperty("announce_interval").GetInt32(), actual.NodeAnnounceIntervalMinutes);
+            Assert.Equal(expected.GetProperty("node_announce_at_start").GetBoolean(), actual.NodeAnnounceAtStart);
+            Assert.Equal(expected.GetProperty("page_refresh_interval").GetDouble(), actual.NodePageRefreshIntervalMinutes);
+            Assert.Equal(expected.GetProperty("file_refresh_interval").GetDouble(), actual.NodeFileRefreshIntervalMinutes);
             Assert.Equal(expected.GetProperty("periodic_lxmf_sync").GetBoolean(), actual.PeriodicLxmfSync);
             Assert.Equal(expected.GetProperty("lxmf_sync_interval").GetInt32(), actual.LxmfSyncIntervalMinutes * 60);
             Assert.Equal(expected.GetProperty("lxmf_sync_limit").ValueKind == JsonValueKind.Null ? 0 :

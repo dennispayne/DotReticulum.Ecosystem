@@ -15,7 +15,8 @@ public static class NomadNetConfigImport
         ArgumentNullException.ThrowIfNull(text);
         if (Encoding.UTF8.GetByteCount(text) > MaximumConfigBytes) throw new InvalidDataException("Configuration exceeds 64 KiB.");
         var values = Read(text);
-        var settings = new NomadNetSettings { NodeAnnounceIntervalMinutes = 720 };
+        var settings = new NomadNetSettings { NodeAnnounceIntervalMinutes = 720, NodeAnnounceAtStart = false,
+            NodePageRefreshIntervalMinutes = 0, NodeFileRefreshIntervalMinutes = 0 };
         var unsupported = new List<string>();
         var disablePropagation = true;
         foreach (var (key, raw) in values)
@@ -23,7 +24,8 @@ public static class NomadNetConfigImport
             if (key is not ("client.periodic_lxmf_sync" or "client.lxmf_sync_interval" or "client.lxmf_sync_limit" or
                 "client.try_propagation_on_send_fail" or "client.required_stamp_cost" or "client.accept_invalid_stamps" or
                 "client.max_accepted_size" or "client.downloads_path" or "node.enable_node" or "node.disable_propagation" or
-                "node.node_name" or "node.announce_interval" or "node.pages_path" or "node.files_path"))
+                "node.node_name" or "node.announce_interval" or "node.pages_path" or "node.files_path" or
+                "node.announce_at_start" or "node.page_refresh_interval" or "node.file_refresh_interval"))
             {
                 unsupported.Add(key);
                 continue;
@@ -56,6 +58,9 @@ public static class NomadNetConfigImport
                 case "node.disable_propagation": disablePropagation = Boolean(value); break;
                 case "node.node_name": settings.NodeName = value.Equals("none", StringComparison.OrdinalIgnoreCase) ? null : value; break;
                 case "node.announce_interval": settings.NodeAnnounceIntervalMinutes = Math.Max(1, Integer(value)); break;
+                case "node.announce_at_start": settings.NodeAnnounceAtStart = Boolean(value); break;
+                case "node.page_refresh_interval": settings.NodePageRefreshIntervalMinutes = Math.Max(0, Integer(value)); break;
+                case "node.file_refresh_interval": settings.NodeFileRefreshIntervalMinutes = Math.Max(0, Integer(value)); break;
                 case "node.pages_path": settings.PagesPath = value; break;
                 case "node.files_path": settings.FilesPath = value; break;
             }

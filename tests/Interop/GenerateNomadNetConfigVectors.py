@@ -33,6 +33,9 @@ enable_node = yes
 disable_propagation = yes
 node_name = "Public = # Config"
 announce_interval = 19
+announce_at_start = yes
+page_refresh_interval = 2
+file_refresh_interval = 3
 """),
         ("clamped", """[client]
 lxmf_sync_interval = 0
@@ -44,6 +47,9 @@ enable_node = true
 disable_propagation = on
 node_name = None
 announce_interval = 0
+announce_at_start = no
+page_refresh_interval = -1
+file_refresh_interval = -4
 """),
         ("no-stamps", """[client]
 required_stamp_cost = -1

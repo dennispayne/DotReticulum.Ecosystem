@@ -9,10 +9,13 @@ namespace NomadNet;
 public sealed class NomadNetHost : IAsyncDisposable
 {
     public const int MaximumFileBytes = 16 * 1024 * 1024;
+    public const int MaximumPaths = 10_000;
     private readonly TransportRouter _router;
     private readonly LocalDestination _destination;
     private readonly NomadNetContent _content;
-    private readonly TimeSpan _announceInterval;
+    private readonly bool _announceAtStart;
+    private readonly NomadNetNodeSchedule _schedule;
+    private readonly Func<CancellationToken, ValueTask>? _announcePropagation;
     private readonly CancellationTokenSource _stop = new();
     private readonly HashSet<string> _registered = new(StringComparer.Ordinal);
     private Task? _jobs;
@@ -20,11 +23,15 @@ public sealed class NomadNetHost : IAsyncDisposable
     private readonly object _refresh = new();
     private bool _disposed;
 
-    public NomadNetHost(TransportRouter router, Identity identity, string directory, NomadNetSettings settings)
+    public NomadNetHost(TransportRouter router, Identity identity, string directory, NomadNetSettings settings,
+        Func<CancellationToken, ValueTask>? announcePropagation = null)
     {
         _router = router;
         _content = new NomadNetContent(directory, settings.EnableExecutablePages, settings.MediaConverter, settings.PagesPath, settings.FilesPath);
-        _announceInterval = TimeSpan.FromMinutes(settings.NodeAnnounceIntervalMinutes);
+        _announceAtStart = settings.NodeAnnounceAtStart;
+        _announcePropagation = announcePropagation;
+        _schedule = new(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(settings.NodeAnnounceIntervalMinutes),
+            TimeSpan.FromMinutes(settings.NodePageRefreshIntervalMinutes), TimeSpan.FromMinutes(settings.NodeFileRefreshIntervalMinutes));
         _destination = new LocalDestination(identity, Destination.Create(DestinationType.Single, "nomadnetwork", ["node"], identity))
         {
             AppData = Encoding.UTF8.GetBytes(settings.NodeName ?? settings.DisplayName + "'s Node"),
@@ -36,6 +43,17 @@ public sealed class NomadNetHost : IAsyncDisposable
 
     public string DestinationHash => Convert.ToHexStringLower(_destination.Destination.Hash);
     public Action<string>? Log { get; set; }
+    public IReadOnlyList<string> RegisteredPaths
+    {
+        get
+        {
+            lock (_lifecycle)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                lock (_refresh) return _registered.Order(StringComparer.Ordinal).ToArray();
+            }
+        }
+    }
 
     public void Start()
     {
@@ -47,10 +65,12 @@ public sealed class NomadNetHost : IAsyncDisposable
         }
     }
 
-    public ValueTask AnnounceAsync(CancellationToken cancellationToken = default)
+    public async ValueTask AnnounceAsync(CancellationToken cancellationToken = default)
     {
         lock (_lifecycle) ObjectDisposedException.ThrowIf(_disposed, this);
-        return _router.AnnounceAsync(_destination, cancellationToken: cancellationToken);
+        _schedule.Completed(DateTimeOffset.UtcNow, new(Announce: true, Pages: false, Files: false));
+        await _router.AnnounceAsync(_destination, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (_announcePropagation is not null) await _announcePropagation(cancellationToken).ConfigureAwait(false);
     }
 
     public void Refresh()
@@ -62,10 +82,18 @@ public sealed class NomadNetHost : IAsyncDisposable
         }
     }
 
-    private void RefreshCore()
+    private void RefreshCore(bool pages = true, bool files = true)
     {
-        var paths = _content.RequestPaths().ToHashSet(StringComparer.Ordinal);
-        foreach (var removed in _registered.Except(paths).ToArray())
+        var paths = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var path in _content.RequestPaths(pages, files))
+        {
+            paths.Add(path);
+            if (paths.Count > MaximumPaths) throw new InvalidDataException("Hosted request-path limit exceeded.");
+        }
+        var selected = _registered.Where(path => path.StartsWith("/file/", StringComparison.Ordinal) ? files : pages);
+        if (_registered.Count - selected.Count() + paths.Count > MaximumPaths)
+            throw new InvalidDataException("Hosted request-path limit exceeded.");
+        foreach (var removed in selected.Except(paths).ToArray())
         {
             _destination.DeregisterRequestHandler(removed);
             _registered.Remove(removed);
@@ -82,23 +110,35 @@ public sealed class NomadNetHost : IAsyncDisposable
         try
         {
             await Task.Delay(TimeSpan.FromSeconds(6), cancellationToken).ConfigureAwait(false);
-            await AnnounceAsync(cancellationToken).ConfigureAwait(false);
-            var nextAnnounce = DateTimeOffset.UtcNow + _announceInterval;
+            if (_announceAtStart)
+            {
+                try { await AnnounceAsync(cancellationToken).ConfigureAwait(false); }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                { Report("Hosted node startup announce failed: " + exception.Message); }
+            }
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
             while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
             {
-                try
+                var due = _schedule.Due(DateTimeOffset.UtcNow);
+                foreach (var job in new[] { new NomadNetNodeJobs(false, due.Pages, false), new NomadNetNodeJobs(false, false, due.Files) })
                 {
-                    Refresh();
-                    if (DateTimeOffset.UtcNow >= nextAnnounce)
+                    if (!job.Pages && !job.Files) continue;
+                    try
                     {
-                        await AnnounceAsync(cancellationToken).ConfigureAwait(false);
-                        nextAnnounce = DateTimeOffset.UtcNow + _announceInterval;
+                        lock (_lifecycle)
+                        {
+                            ObjectDisposedException.ThrowIf(_disposed, this);
+                            lock (_refresh) RefreshCore(job.Pages, job.Files);
+                        }
+                        _schedule.Completed(DateTimeOffset.UtcNow, job);
                     }
+                    catch (Exception exception) { Report("Hosted content refresh failed: " + exception.Message); }
                 }
-                catch (Exception exception) when (exception is not OperationCanceledException)
+                if (due.Announce)
                 {
-                    Report("Hosted node maintenance failed: " + exception.Message);
+                    try { await AnnounceAsync(cancellationToken).ConfigureAwait(false); }
+                    catch (Exception exception) when (exception is not OperationCanceledException)
+                    { Report("Hosted node maintenance announce failed: " + exception.Message); }
                 }
             }
         }
@@ -149,12 +189,16 @@ public sealed class NomadNetContent
         _images = new(directory, new NomadNetImages(mediaConverter, Path.Combine(directory, "storage", "image-work")));
     }
 
-    public IEnumerable<string> RequestPaths()
+    public IEnumerable<string> RequestPaths(bool includePages = true, bool includeFiles = true)
     {
-        yield return "/page/index.mu";
-        yield return "/media";
-        foreach (var entry in Enumerate(_pages)) yield return "/page/" + Path.GetRelativePath(_pages, entry).Replace('\\', '/');
-        foreach (var entry in Enumerate(_files)) yield return "/file/" + Path.GetRelativePath(_files, entry).Replace('\\', '/');
+        if (includePages)
+        {
+            yield return "/page/index.mu";
+            yield return "/media";
+            foreach (var entry in Enumerate(_pages)) yield return "/page/" + Path.GetRelativePath(_pages, entry).Replace('\\', '/');
+        }
+        if (includeFiles)
+            foreach (var entry in Enumerate(_files)) yield return "/file/" + Path.GetRelativePath(_files, entry).Replace('\\', '/');
     }
 
     private static IEnumerable<string> Enumerate(string directory)

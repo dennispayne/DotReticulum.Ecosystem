@@ -8,7 +8,7 @@ internal static partial class Program
     {
         private NomadNetEditor? _editor;
         private readonly NomadNetGuide _guide = new();
-        private NomadNetEditor Editor => _editor ??= new(dataDirectory, propagation.Settings);
+        private NomadNetEditor Editor => _editor ??= new(dataDirectory, propagation.Settings, selectedRnsFile);
 
         private async Task<bool> TryHandleEditorAsync(string command, CancellationToken cancellationToken)
         {
@@ -30,25 +30,47 @@ internal static partial class Program
             }
             if (parts[0] == "config")
             {
-                if (parts.Length == 2 && parts[1] == "edit")
+                if (parts.Length >= 2 && parts[1] is "edit" or "external" or "show")
                 {
-                    await Editor.OpenAsync("config", "settings.json", cancellationToken: cancellationToken).ConfigureAwait(false);
-                    PrintEditorStatus();
-                }
-                else if (parts.Length == 2 && parts[1] == "show")
-                {
-                    var bytes = await NomadNetLocalFiles.ReadAsync(Path.Combine(dataDirectory, "settings.json"),
-                        NomadNetSettings.MaximumSettingsBytes, cancellationToken).ConfigureAwait(false);
-                    Console.WriteLine(NomadNetTerminalText.Safe(new System.Text.UTF8Encoding(false, true).GetString(bytes)));
-                    Console.WriteLine("Saved native configuration; restart required after edits.");
+                    var target = parts.Length == 3 ? parts[2] : "native";
+                    var (scope, relative) = target switch
+                    {
+                        "native" => ("config", "settings.json"),
+                        "rns" => ("rns", "selected"),
+                        _ => throw new ArgumentException("Select native or rns configuration explicitly."),
+                    };
+                    if (parts[1] == "external" && !NomadNetConsoleInput.Interactive)
+                        throw new InvalidOperationException("External editing requires an interactive terminal; redirected input/output is unsupported.");
+                    if (parts[1] == "show")
+                    {
+                        var bytes = await NomadNetLocalFiles.ReadAsync(Editor.Resolve(scope, relative),
+                            scope == "rns" ? NomadNetEditor.MaximumBytes : NomadNetSettings.MaximumSettingsBytes,
+                            cancellationToken).ConfigureAwait(false);
+                        try { Console.WriteLine(NomadNetTerminalText.Safe(new System.Text.UTF8Encoding(false, true).GetString(bytes))); }
+                        finally { System.Security.Cryptography.CryptographicOperations.ZeroMemory(bytes); }
+                        Console.WriteLine($"Saved {target} configuration; restart required after edits.");
+                    }
+                    else
+                    {
+                        await Editor.OpenAsync(scope, relative, cancellationToken: cancellationToken).ConfigureAwait(false);
+                        if (parts[1] == "external")
+                        {
+                            Console.WriteLine($"Editing {target} configuration working copy. Ctrl+] cancels; saved changes require restart.");
+                            var changed = await NomadNetExternalEditor.EditAsync(Editor, dataDirectory,
+                                (path, token) => NomadNetExternalEditor.RunTerminalAsync(propagation.Settings.Editor, path, token),
+                                token => propagation.SaveConfigurationForRestartAsync(Editor.SaveAsync, token),
+                                cancellationToken).ConfigureAwait(false);
+                            Console.WriteLine(changed ? "Configuration saved. Restart NomadNet for changes to take effect." : "Configuration unchanged.");
+                        }
+                        PrintEditorStatus();
+                    }
                 }
                 else if (parts.Length == 2 && parts[1] == "validate")
                 {
-                    if (Editor.Scope != "config") throw new InvalidOperationException("Use config edit first.");
                     Editor.ValidateConfiguration();
                     Console.WriteLine("Configuration buffer valid; not saved.");
                 }
-                else throw new ArgumentException("Usage: config edit|show|validate");
+                else throw new ArgumentException("Usage: config edit|show|external [native|rns] or config validate");
                 return true;
             }
             if (parts[0] != "edit") return false;
@@ -60,7 +82,7 @@ internal static partial class Program
                 case "new":
                     var location = Split(value, 2);
                     if (location.Length != 2) throw new ArgumentException("Usage: edit open|new <pages|files> <relative-path>");
-                    if (location[0] == "config") throw new ArgumentException("Use config edit for configuration.");
+                    if (location[0] is "config" or "rns") throw new ArgumentException("Use config edit for configuration.");
                     await Editor.OpenAsync(location[0], location[1], action == "new", cancellationToken).ConfigureAwait(false);
                     PrintEditorStatus();
                     break;
@@ -116,10 +138,10 @@ internal static partial class Program
                     Console.WriteLine(Editor.Preview());
                     break;
                 case "save":
-                    if (Editor.Scope == "config")
+                    if (Editor.IsConfiguration)
                         await propagation.SaveConfigurationForRestartAsync(Editor.SaveAsync, cancellationToken).ConfigureAwait(false);
                     else await Editor.SaveAsync(cancellationToken).ConfigureAwait(false);
-                    Console.WriteLine(Editor.Scope == "config" ? "Configuration saved. Restart NomadNet for changes to take effect." : "Document saved.");
+                    Console.WriteLine(Editor.IsConfiguration ? "Configuration saved. Restart NomadNet for changes to take effect." : "Document saved.");
                     break;
                 case "save-as":
                 case "rename":
@@ -161,7 +183,7 @@ internal static partial class Program
                     else foreach (var entry in Editor.List(folder[0], folder.ElementAtOrDefault(1))) Console.WriteLine(NomadNetTerminalText.Safe(entry));
                     break;
                 case "close":
-                    if (value == "save" && Editor.Scope == "config")
+                    if (value == "save" && Editor.IsConfiguration)
                     {
                         await propagation.SaveConfigurationForRestartAsync(Editor.SaveAsync, cancellationToken).ConfigureAwait(false);
                         await Editor.CloseAsync("discard", cancellationToken).ConfigureAwait(false);

@@ -57,6 +57,22 @@ public sealed partial class SidebandStateStore
         }, cancellationToken);
     }
 
+    public Task DeleteMessageAsync(string deliveryHash, Guid id, CancellationToken cancellationToken = default)
+    {
+        if (!SidebandContact.TryNormalizeDeliveryHash(deliveryHash, out var normalized))
+            throw new ArgumentException("An LXMF delivery address must be exactly 32 hexadecimal characters.", nameof(deliveryHash));
+        if (id == Guid.Empty) throw new ArgumentException("A saved message ID is required.", nameof(id));
+        return MutateAsync(state =>
+        {
+            if (!state.Messages.Any(message => message.Id == id && message.PeerDeliveryHash == normalized))
+                throw new InvalidOperationException("No saved message exists for this conversation and ID.");
+            return state with
+            {
+                Messages = state.Messages.Where(message => message.Id != id || message.PeerDeliveryHash != normalized).ToArray(),
+            };
+        }, cancellationToken);
+    }
+
     public async Task ReloadAsync(CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);

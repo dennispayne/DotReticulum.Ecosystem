@@ -70,8 +70,8 @@ public sealed class NomadNetGuide
             """,
         ["configuration"] = """
             >Configuration
-            config edit opens native settings.json in the same bounded text editor.
-            config show displays saved native configuration, not the running effective RNS configuration.
+            config edit native opens settings.json; config edit rns opens the actual selected RNS file.
+            config show native and config show rns display saved text, not effective running service options.
             Use edit text "<JSON document>" or edit replace ["old","new"], then edit save.
             All native settings are validated before replacement; duplicate and unknown keys are refused.
             config validate checks the buffer without saving. Invalid saves leave the previous file intact.
@@ -80,7 +80,11 @@ public sealed class NomadNetGuide
             so active services cannot overwrite the saved restart configuration.
             The native JSON is not ConfigObj/INI. Import supported primary keys using offline --import-config.
             Unsupported primary keys are reported; this is not complete configuration migration.
-            No external editor process or embedded PTY is launched by this workflow.
+            Set editor to one installed executable (default nano), without shell arguments, and restart.
+            config external native or config external rns launches it on a working copy in a real terminal.
+            Closing with a successful exit validates and commits changes; Ctrl+] cancels and discards the copy.
+            Redirected input/output is unsupported for external editing. Built-in editing still accepts pipes.
+            The RNS parser validates without reformatting comments. Shared-instance owners need their own restart.
             `[Authoring`guide:authoring]
             """,
         ["micron"] = """
@@ -107,7 +111,7 @@ public sealed class NomadNetGuide
         ["safety"] = """
             >Safety boundaries
             Back up valuable profiles. This is experimental LLM-built software, not production infrastructure.
-            Editor documents are bounded to one megabyte, configuration to 64 KiB, listings to 2048 entries.
+            Documents/RNS text are bounded to one megabyte, native JSON to 64 KiB, listings to 2048 entries.
             Invalid UTF-8 is read-only. Source previews do not execute scripts or load remote resources.
             Ordinary external changes are rejected before writes; reopen and reconcile rather than overwrite.
             The exclusive application profile lease protects cooperating native processes.

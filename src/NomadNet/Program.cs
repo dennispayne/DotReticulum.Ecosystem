@@ -207,7 +207,7 @@ internal static partial class Program
         try
         {
             logging.Write(3, "Configuration loaded from " + Path.Combine(options.DataDirectory, "settings.json"));
-            await RunCoreAsync(options, settings, node, logging, lifetime.Token).ConfigureAwait(false);
+            await RunCoreAsync(options, settings, node, rns.File, logging, lifetime.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (logging.Fault is not null)
         {
@@ -218,7 +218,7 @@ internal static partial class Program
         logging.ThrowIfFaulted();
     }
 
-    private static async Task RunCoreAsync(Options options, NomadNetSettings settings, ReticulumNode node,
+    private static async Task RunCoreAsync(Options options, NomadNetSettings settings, ReticulumNode node, string selectedRnsFile,
         NomadNetLogging logging, CancellationToken cancellationToken)
     {
         var headless = NomadNetClientRuntime.IsHeadless(settings, options.Daemon, options.TextUi);
@@ -291,7 +291,7 @@ internal static partial class Program
         await using var printer = new NomadNetPrinter(options.DataDirectory)
         { Log = message => logging.Write(message.EndsWith("completed.", StringComparison.Ordinal) ? 5 : 1, message) };
         printer.Start();
-        await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host, clientAnnounces, logging, printer);
+        await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host, clientAnnounces, logging, printer, selectedRnsFile);
         session.AnnounceStream = announceStream;
         var receiver = PersistIncomingAsync(inbox.Reader, state, options.DataDirectory, session.ObserveConversationImageAsync,
             () => propagationPolicy.Settings, headless, logging, printer, cancellationToken);
@@ -482,7 +482,9 @@ internal static partial class Program
               edit find <JSON-string> | edit replace|replace-all ["term","replacement"]
               edit snippets | edit snippet <name> | edit permissions public|["identity-hash"]
               edit mkdir|list <pages|files> [relative-folder]
-              config edit|show|validate       Native JSON editor; validated save requires restart
+              config edit|show [native|rns]   Native JSON or actual selected RNS text; save requires restart
+              config external [native|rns]    Configured editor in an interactive terminal; Ctrl+] cancels
+              config validate                Validate the open configuration buffer without saving
               guide [topics|links|open <number>|back|<topic>#<anchor>]
                                              Original local documentation, no upstream assets
               rrc connect <hub> [nick]        Connect to an identified rrc.hub
@@ -532,7 +534,7 @@ internal static partial class Program
 
     private sealed partial class TerminalSession(ReticulumNode node, Identity identity, LxmRouter router, NomadNetStore store,
         string dataDirectory, NomadNetPropagation propagation, NomadNetHost? host, NomadNetClientAnnounces clientAnnounces,
-        NomadNetLogging logging, NomadNetPrinter printer) : IAsyncDisposable
+        NomadNetLogging logging, NomadNetPrinter printer, string selectedRnsFile) : IAsyncDisposable
     {
         private readonly NomadNetDelivery _delivery = new(router, identity, store,
             () => propagation.Settings.TryPropagationOnSendFail)
@@ -559,6 +561,7 @@ internal static partial class Program
 
         public async ValueTask DisposeAsync()
         {
+            _editor?.Dispose();
             await DisposeUtilitiesAsync().ConfigureAwait(false);
             if (_browser is not null) await _browser.DisposeAsync().ConfigureAwait(false);
             if (_inlineImages is not null) await _inlineImages.DisposeAsync().ConfigureAwait(false);
@@ -573,7 +576,7 @@ internal static partial class Program
             while (!cancellationToken.IsCancellationRequested)
             {
                 Console.Write("nomadnet> ");
-                var line = await Console.In.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+                var line = await NomadNetConsoleInput.ReadLineAsync(cancellationToken).ConfigureAwait(false);
                 if (line is null)
                 {
                     if (_editor?.Buffer.Dirty == true)

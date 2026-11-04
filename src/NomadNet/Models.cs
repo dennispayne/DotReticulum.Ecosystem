@@ -17,6 +17,7 @@ public sealed record NomadNetSettings
     public int SchemaVersion { get; init; } = 1;
     public string DisplayName { get; init; } = "NomadNet user";
     public string? RnsConfigDirectory { get; init; }
+    public string Editor { get; set; } = "nano";
     public bool EnableClient { get; set; } = true;
     public NomadNetUserInterface UserInterface { get; set; } = NomadNetUserInterface.Text;
     public bool NotifyOnNewMessage { get; set; } = true;
@@ -179,6 +180,7 @@ public sealed record NomadNetSettings
             LogDestination is { } destination && !Enum.IsDefined(destination) ||
             !Enum.IsDefined(UserInterface) ||
             !Enum.IsDefined(ImageLoading) ||
+            string.IsNullOrWhiteSpace(Editor) || Editor.Length > 2048 || Editor.Any(char.IsControl) ||
             string.IsNullOrWhiteSpace(MediaConverter) || MediaConverter.Length > 1024 || MediaConverter.Any(char.IsControl) ||
             new[] { PagesPath, FilesPath, DownloadsPath, RnsConfigDirectory, LogFile }.Any(path => path is not null &&
                 (string.IsNullOrWhiteSpace(path) || path.Length > 2048 || path.Any(char.IsControl))) ||

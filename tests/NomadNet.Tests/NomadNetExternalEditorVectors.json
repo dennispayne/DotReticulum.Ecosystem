@@ -1,0 +1,93 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "method": "Actual EditorTerminal constructor/closed callback with captured urwid.Terminal boundary (Windows urwid lacks Terminal; explicitly supplied observation boundary, not a primary PTY claim); actual ConfigSectionView path resolution and on_save, actual ConfigObj and atomic filesystem write; synthetic owners and checkbox. No primary guide/assets.",
+  "sources": {
+    "nomadnet/ui/textui/Config.py": "13a0a531ccc2fc207dc6b4c7f644c3eff6d261bb34edf84781c1c6f76f4b0421",
+    "nomadnet/NomadNetworkApp.py": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2",
+    "nomadnet/util.py": "77a4368c73b8a84ef2e9df41b4e423bcb1d0677e12ed18debe445996fa3a9e38"
+  },
+  "launches": [
+    {
+      "platform": "Windows",
+      "configured": "nano",
+      "argv": [
+        "nano",
+        "owned/native config"
+      ],
+      "encoding": "utf-8",
+      "signal": "closed",
+      "onClosed": [
+        "list",
+        "redraw"
+      ]
+    },
+    {
+      "platform": "Linux",
+      "configured": "editor",
+      "argv": [
+        "editor",
+        "owned/native config"
+      ],
+      "encoding": "utf-8",
+      "signal": "closed",
+      "onClosed": [
+        "list",
+        "redraw"
+      ]
+    },
+    {
+      "platform": "Darwin",
+      "configured": "editor",
+      "argv": [
+        "nano",
+        "owned/native config"
+      ],
+      "encoding": "utf-8",
+      "signal": "closed",
+      "onClosed": [
+        "list",
+        "redraw"
+      ]
+    },
+    {
+      "platform": "Darwin",
+      "configured": "custom editor",
+      "argv": [
+        "custom editor",
+        "owned/native config"
+      ],
+      "encoding": "utf-8",
+      "signal": "closed",
+      "onClosed": [
+        "list",
+        "redraw"
+      ]
+    },
+    {
+      "platform": "Windows",
+      "configured": "editor --option",
+      "argv": [
+        "editor --option",
+        "owned/native config"
+      ],
+      "encoding": "utf-8",
+      "signal": "closed",
+      "onClosed": [
+        "list",
+        "redraw"
+      ]
+    }
+  ],
+  "paths": {
+    "native": "owned/native config",
+    "rns": "owned/selected RNS"
+  },
+  "rnsInitial": "# Original synthetic comment\n[reticulum]\n  enable_transport = no\n[interfaces]\n",
+  "rnsSaved": "# Original synthetic comment\n[reticulum]\n  enable_transport = yes\n[interfaces]\n",
+  "saveEvents": [
+    "reload",
+    "restart",
+    "Reticulum (global) configuration saved.\nRestart Nomad Network for changes to take effect."
+  ],
+  "temporaryFiles": []
+}

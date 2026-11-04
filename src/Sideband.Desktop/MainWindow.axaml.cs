@@ -102,6 +102,11 @@ public sealed partial class MainWindow : Window
         else if (Volatile.Read(ref _smokeStatusChanged) != 0 && !SmokeUiSucceeded)
         {
             if (_state is null || !_initializationTask.IsCompleted || Volatile.Read(ref _smokeActionInvoked) == 0) return;
+            if (Program.SmokeMessageActionsMode)
+            {
+                if (!_messageActionsSmokeVerified) return;
+                Console.WriteLine("SMOKE_UI_MESSAGE_ACTIONS=confirmed-local-delete");
+            }
             if (Program.SmokeMapMode)
             {
                 if (!MapPage.IsVisible || MapViewport.LoadedTileCount == 0 || _refreshingTelemetry || _refreshTelemetryAgain) return;
@@ -304,7 +309,7 @@ public sealed partial class MainWindow : Window
                 Dispatcher.UIThread.Post(() =>
                 {
                     if (_closing) return;
-                    if (!Program.SmokeDiscoveryMode)
+                    if (!Program.SmokeDiscoveryMode && !Program.SmokeMessageActionsMode)
                         SendButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     if (Program.SmokeMapMode) NavigateTo("Map");
                     if (Program.SmokeTelemetryMode)
@@ -353,13 +358,22 @@ public sealed partial class MainWindow : Window
                     if (Program.SmokeVoiceHistoryMode) NavigateTo("Voice");
                     if (Program.SmokeVoicePeersMode) NavigateTo("Voice");
                     if (Program.SmokeDiscoveryMode) TrackOperation(RunDiscoverySmokeAsync);
+                    if (Program.SmokeMessageActionsMode) TrackOperation(RunMessageActionsSmokeAsync);
                     Volatile.Write(ref _smokeActionInvoked, 1);
                     InvalidateVisual();
                 });
             }
         }
         catch (OperationCanceledException) when (_windowCancellation.IsCancellationRequested) { }
-        catch (Exception ex) { ShowError("Could not load Sideband data: " + ex.Message); }
+        catch (Exception ex)
+        {
+            ShowError("Could not load Sideband data: " + ex.Message);
+            if (_smokeUi && Program.SmokeMessageActionsMode)
+            {
+                Console.Error.WriteLine("sideband: Message actions smoke could not load its test profile: " + ex.Message);
+                _ = CloseAfterCaptureAsync();
+            }
+        }
     }
 
     private void NavigateClicked(object? sender, RoutedEventArgs e)
@@ -651,9 +665,14 @@ public sealed partial class MainWindow : Window
     private void MessageSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         ClearMessagePreview();
+        ConfirmDeleteMessageBox.IsChecked = false;
+        MessageDetailsBox.Text = string.Empty;
         var version = _mediaSelectionVersion;
         if (MessageList.SelectedIndex < 0 || MessageList.SelectedIndex >= _visibleMessages.Count) return;
         var message = SelectedMessage();
+        MessageDetailsBox.Text = $"Local ID: {message.Id}\nPeer: {message.PeerDeliveryHash}\n" +
+            $"Saved time: {message.Timestamp:O}\nDirection: {(message.Incoming ? "Incoming" : "Outgoing")}\n" +
+            $"Saved state: {message.DeliveryState}; method: {message.DeliveryMethod}\nTitle: {message.Title}\n\n{message.Content}";
         MediaStatusText.Text = message.Audio is { } audio ? $"Audio mode {audio.Mode}: {audio.Data.Length} bytes. Playback is explicit." : string.Empty;
         if (message.Image is null) return;
         TrackOperation(async () =>

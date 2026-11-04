@@ -116,7 +116,7 @@ runtime evidence.
 |---|---|---|
 | App shell and interaction | partial | Original Avalonia UI provides Conversations, Contacts, Objects, Announce Stream, Connectivity, Backup & Keys, Preferences, Utilities, Guide, Voice, Telemetry, Map and Remote screens. Supported screens expose real local state and explicit errors; hardware/plugin management remain unavailable rather than simulated. Upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
 | Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. A bounded persisted delivery/PN stream exposes inspect, converse, copy, node selection and deletion; receipt does not promote a discovered contact to a known conversation. Bounded primary SQLite history activates separately without contact creation. Appearance values and telemetry permissions persist; voice uses the shared client below. Complete peer settings, groups and broadcasts remain absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `src/Sideband/SidebandAnnounce.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
-| LXMF messaging and propagation UI | partial | Text send/receive, automatic/manual node selection, persisted periodic fetches, cancellation, one-shot failed-delivery propagation retry, trusted-conversation reply tickets and restart retrieval reuse `LxmRouter`. Actual primary Sideband daemon-core direct/propagated round trips pass separately from Python LXMF endpoint tests, with trust enabled and disabled in both directions. Full message presentation/settings remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,4811–4828,5156–5227,5634–5644`, `docs/lxmf.md`. |
+| LXMF messaging and propagation UI | partial | Text send/receive, automatic/manual node selection, persisted periodic fetches, cancellation, one-shot failed-delivery propagation retry, trusted-conversation reply tickets and restart retrieval reuse `LxmRouter`. Actual primary Sideband daemon-core direct/propagated round trips pass separately from Python LXMF endpoint tests, with trust enabled and disabled in both directions. Selected saved text/title/time/state/method inspection and confirmed local entry deletion are implemented; deletion does not cancel or recall delivery. Full message presentation/settings remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `MainWindow.Messages.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,4811–4828,5156–5227,5634–5644`, `docs/lxmf.md`. |
 | Inbound delivery stamp configuration | implemented bounded subset | Independent `lxmf_require_stamps`, `lxmf_inbound_stamp_cost` and `lxmf_ignore_invalid_stamps` activate on startup and explicit runtime save, persist/import/export atomically and have original Preferences controls. Actual primary cost8 announcements, signed stamped delivery, explicit stale-cache rejection/admission and identity-preserving restart pass Windows/Linux direct/Python-hop/.NET-hop. Strict native offline process/profile activation is separate; safety differences, timing and remaining boundaries are below; `SidebandStampConfiguration.cs`, `SidebandClient.Stamps.cs`, `SidebandStateStore.Stamps.cs`, `MainWindow.Stamps.cs`, `sbapp/sideband/core.py:lxmf_announce,update_ignore_invalid_stamps`. |
 | Incoming transfer-size configuration | implemented bounded subset | Primary `lxm_limit_1mb` maps decimal1000/128000KB onto startup and mutable router admission/retrieval, atomic settings/profile persistence and original Preferences. Windows/Linux actual primary oversize refusal, larger-policy recovery both ways and native identity restart pass direct/Python-hop/.NET-hop; separate native offline settings/profile flows pass.128MB payload acceptance is not established, and existing attachment/local-storage bounds remain; `SidebandDeliveryConfiguration.cs`, `SidebandClient.Delivery.cs`, `MainWindow.Delivery.cs`, `sbapp/sideband/core.py:start_reticulum,_update_delivery_limits`. |
 | Text, image/file and audio messages | implemented bounded subset | Text/files, WebP image preparation/preview, Ogg Opus and Codec2 composition/decoding, explicit 10-second recording/playback/cancellation, content-addressed persistence and explicit exports. Actual Python Sideband core sends/receives images and both audio families directly/through a Python propagation transport; actual Pillow/audioproc decode native output. Published binaries decode imported media and render images. Device tests use fakes; physical capture/acoustics remain unverified. Unknown audio is retained/exportable but playback fails explicitly; no autoplay. See media limits below; `src/Sideband/SidebandMedia*.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py:message_send_dispatch`, `sbapp/sideband/audioproc.py`, `sbapp/sideband/core.py:5189–5196`. |
@@ -2925,3 +2925,64 @@ after orderly exit, unchanged threshold and continued service, without weakening
 the rejection. The superseded `runtime-log-accepted` run was stopped before the
 startup-default correction and is not acceptance. Linux current-source replay
 remains blocked by WSL storage EIO.
+
+## Saved-message details and local deletion
+
+The original Conversations screen exposes selected saved message IDs, peer,
+direction, title, UTC-offset timestamp, delivery state/method and plain text in
+a read-only selectable field. These are local saved metadata, not an assertion
+that a historical sender/signature was authenticated. Changing selection clears
+the deletion confirmation. Explicit confirmation removes exactly the selected
+peer/local-ID entry atomically and persists across restart, retaining contacts,
+trust/unread policies, unrelated messages and content-addressed media files.
+It does not recall a message, cancel an in-flight router operation or erase
+shared attachment contents. Later delivery-state callbacks do not recreate a
+removed entry. Media-store garbage collection remains separate work.
+
+`GenerateConversationPolicyVectors.py` executes actual primary
+`delete_message` and `_db_delete_message` at the pinned core revision/hash above
+on real private SQLite with a disclosed minimal owner/connection. Four sequential
+observations cover incoming/outbound deletion, an unknown hash and a repeat,
+while another peer's identical text remains. The reference returns no error for
+missing hashes; native ownership validation explicitly rejects an absent
+peer/local-ID match rather than reporting false deletion. This is a deliberate
+error-reporting difference, not a wire change. The regenerated fixture SHA-256
+is `cdd1ddcb255b824421853961ace6139137403a09fc6551addff110ad06f33c6c`.
+
+T378–T380 cover those observations, unchanged rejected/cancelled writes,
+concurrent/late state callbacks, no-subscriber operation, continued service,
+selection/confirmation and headless desktop restart. T381 selects an exact
+published binary and real desktop to check rendering, two successive confirmed
+deletions/restarts, stable identity/conversation policy and shared-file retention.
+Without its native/desktop opt-in it explicitly skips. The destructive
+`--smoke-ui --smoke-message-actions --data-dir <test-profile>` acceptance mode
+removes one saved entry through the ordinary selected-message UI routine and
+must only be used with synthetic test profiles. It cannot combine with network,
+maintenance or other smoke modes. This is not new Python-peer, impaired-network,
+full message-menu, rich-renderer, retry or platform acceptance.
+
+Windows acceptance passes full Sideband2083/74 explicit skips, actual-primary
+console live4/0, strict NativeAOT/help, the five existing native console flows
+and T381 real desktop1/0. Selected native SHA-256:
+`d625f2ea5dcff60791ae912fa043c69e5fb8cabf7f5f2140f94c934c7e97cd0a`.
+T381 independently repeats two confirmed deletions through normal UI routines,
+window restarts, unchanged identity/conversation policy and shared attachment
+bytes. Empty/malformed test profiles exit2 explicitly; invalid combinations
+leave state unchanged. Production and binary guards match before/after:
+
+```powershell
+& artifacts\tests\sideband-console\Parent-CurrentConsole.ps1 -Managed -Run message-actions-corrected
+& artifacts\tests\sideband-message-actions\Replay-SelectedNative.ps1
+```
+
+Receipts are under
+`artifacts\tests\sideband-console\windows-message-actions-corrected` and
+`artifacts\tests\sideband-message-actions\parent-final`. The initial T381 run
+failed because the operator wrote lowercase keys into the case-sensitive native
+JSON schema. The diagnostic profile/output remain under `native-diagnostic`;
+the operator now writes actual PascalCase keys, without relaxing validation.
+The new smoke mode also now terminates visibly if profile initialization fails,
+and compares shared attachment metadata structurally rather than by list-object
+identity. The earlier candidate's successful console gate alone is not acceptance
+of these corrections. Current Linux desktop/source replay remains blocked by
+WSL storage EIO.

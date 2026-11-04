@@ -18,6 +18,7 @@ internal static class Program
     internal static bool SmokeAnnouncesMode { get; private set; }
     internal static bool SmokeVoiceHistoryMode { get; private set; }
     internal static bool SmokeVoicePeersMode { get; private set; }
+    internal static bool SmokeMessageActionsMode { get; private set; }
     internal static string? SmokeRemotePeer { get; private set; }
 
     [STAThread]
@@ -50,6 +51,7 @@ internal static class Program
             SmokeAnnouncesMode = options.SmokeAnnounces;
             SmokeVoiceHistoryMode = options.SmokeVoiceHistory;
             SmokeVoicePeersMode = options.SmokeVoicePeers;
+            SmokeMessageActionsMode = options.SmokeMessageActions;
             SmokeRemotePeer = options.SmokeRemotePeer;
             if (options.ExportPaperId is { } paperId)
             {
@@ -217,6 +219,7 @@ internal static class Program
         var smokeAnnounces = false;
         var smokeVoiceHistory = false;
         var smokeVoicePeers = false;
+        var smokeMessageActions = false;
         string? smokeRemotePeer = null;
         Guid? exportPaperId = null;
         string? paperOutput = null;
@@ -237,6 +240,7 @@ internal static class Program
                 case "--smoke-announces": smokeAnnounces = true; break;
                 case "--smoke-voice-history": smokeVoiceHistory = true; break;
                 case "--smoke-voice-peers": smokeVoicePeers = true; break;
+                case "--smoke-message-actions": smokeMessageActions = true; break;
                 case "--smoke-remote": smokeRemotePeer = NextValue(args, ref index); break;
                 case "--export-paper":
                     if (!Guid.TryParse(NextValue(args, ref index), out var paperId))
@@ -269,6 +273,12 @@ internal static class Program
             throw new ArgumentException("--daemon cannot be combined with maintenance or UI smoke modes.");
         if ((interactive || syntheticAudio || verbose) && !daemon)
             throw new ArgumentException("--interactive, --synthetic-audio and --verbose require --daemon.");
+        if (smokeMessageActions && (!smokeUi || string.IsNullOrWhiteSpace(dataDirectory) || rnsConfig is not null ||
+            daemon || smokeAnnounces || smokeObjects || smokePaper || smokeMap || smokeTelemetry || smokeRemotePeer is not null ||
+            smokeRepositoryRoot is not null || smokeDiscovery || smokeVoiceHistory || smokeVoicePeers || initialize || check ||
+            checkMedia || importSettings is not null || exportSettings is not null || importProfile is not null ||
+            importMap is not null || exportPaperId is not null))
+            throw new ArgumentException("--smoke-message-actions requires --smoke-ui and an explicit test --data-dir, without other modes.");
         if ((smokeVoiceHistory || smokeVoicePeers) && (!smokeUi || string.IsNullOrWhiteSpace(dataDirectory) || rnsConfig is not null ||
             daemon || smokeAnnounces || smokeObjects || smokePaper || smokeMap || smokeTelemetry || smokeRemotePeer is not null ||
             smokeRepositoryRoot is not null || smokeDiscovery || initialize || check || checkMedia || importSettings is not null ||
@@ -338,7 +348,7 @@ internal static class Program
 
         return new Options(dataDirectory, rnsConfig, initialize, check, help, version, smokeUi, importSettings, exportSettings, importProfile, checkMedia,
             daemon, interactive, syntheticAudio, verbose, importMap, smokeMap, smokeTelemetry, smokeRepositoryRoot,
-            smokePaper, exportPaperId, paperOutput, paperQr, smokeRemotePeer, smokeObjects, smokeDiscovery, smokeAnnounces, smokeVoiceHistory, smokeVoicePeers);
+            smokePaper, exportPaperId, paperOutput, paperQr, smokeRemotePeer, smokeObjects, smokeDiscovery, smokeAnnounces, smokeVoiceHistory, smokeVoicePeers, smokeMessageActions);
     }
 
     private static string NextValue(string[] args, ref int index)
@@ -370,6 +380,7 @@ internal static class Program
           sideband --smoke-ui --smoke-announces --data-dir <existing-directory>
           sideband --smoke-ui --smoke-voice-history --data-dir <existing-directory>
           sideband --smoke-ui --smoke-voice-peers --data-dir <existing-directory>
+          sideband --smoke-ui --smoke-message-actions --data-dir <test-directory>
           sideband --smoke-ui --smoke-discovery --data-dir <path> --rnsconfig <isolated-directory>
           sideband --smoke-ui --smoke-remote <lxmf-address> --data-dir <test-directory> --rnsconfig <isolated-config>
           sideband --export-paper <message-uuid> --paper-output <new-file> [--paper-qr] --data-dir <existing-directory>
@@ -395,6 +406,7 @@ internal static class Program
         --smoke-announces  Render saved announce history offline; empty history fails; requires --smoke-ui and --data-dir.
         --smoke-voice-history  Render saved call assertions offline; empty history fails; requires --smoke-ui and --data-dir.
         --smoke-voice-peers  Render saved voice-only identities offline; empty lists fail; requires --smoke-ui and --data-dir.
+        --smoke-message-actions  Delete one saved message in an explicit test profile through normal UI controls offline; requires --smoke-ui.
         --smoke-discovery  Connect to an explicit isolated config and render a cached discovery marker; empty caches fail.
         --smoke-remote  Explicit native-window command/reply/cancellation acceptance against a test peer; changes test-profile policy.
         --export-paper  Export a saved outgoing paper URI offline, or its QR PNG with --paper-qr; never overwrite.
@@ -409,5 +421,5 @@ internal static class Program
         string? ImportSettings, string? ExportSettings, string? ImportProfile, bool CheckMedia,
         bool Daemon, bool Interactive, bool SyntheticAudio, bool Verbose, string? ImportMap, bool SmokeMap, bool SmokeTelemetry,
         string? SmokeRepositoryRoot, bool SmokePaper, Guid? ExportPaperId, string? PaperOutput, bool PaperQr, string? SmokeRemotePeer,
-        bool SmokeObjects, bool SmokeDiscovery, bool SmokeAnnounces, bool SmokeVoiceHistory, bool SmokeVoicePeers);
+        bool SmokeObjects, bool SmokeDiscovery, bool SmokeAnnounces, bool SmokeVoiceHistory, bool SmokeVoicePeers, bool SmokeMessageActions);
 }

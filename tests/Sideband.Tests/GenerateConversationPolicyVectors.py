@@ -36,7 +36,8 @@ def main():
                 if isinstance(node, ast.ClassDef) and node.name == "SidebandCore")
     methods = [node for node in core.body if isinstance(node, ast.FunctionDef)
                and node.name in ("is_trusted", "send_message", "raw_display_name", "peer_display_name",
-                                 "named_conversation", "_db_conversation_set_name")]
+                                 "named_conversation", "_db_conversation_set_name",
+                                 "delete_message", "_db_delete_message")]
     created = []
 
     def message(*_, **kwargs):
@@ -123,10 +124,26 @@ def main():
             observed["name"] = "Announced replacement"
             row["after_announce"] = namespace["peer_display_name"](owner, peer)
             renames.append(row)
+    deletions = []
+    with contextlib.closing(sqlite3.connect(":memory:")) as database:
+        database.execute("CREATE TABLE lxm(lxm_hash BLOB, peer TEXT, content TEXT, state TEXT)")
+        for value, state in ((1, "received"), (2, "outbound"), (3, "received")):
+            database.execute("INSERT INTO lxm VALUES(?,?,?,?)",
+                             (bytes([value]) * 32, "other" if value == 3 else "selected", "Same text", state))
+        owner = SimpleNamespace(db_lock=threading.Lock())
+        owner.__db_connect = lambda: database
+        owner._db_delete_message = MethodType(namespace["_db_delete_message"], owner)
+        for label, value in (("incoming", 1), ("unknown", 9), ("repeat", 1), ("outbound", 2)):
+            namespace["delete_message"](owner, bytes([value]) * 32)
+            deletions.append({
+                "name": label, "target": value,
+                "remaining": [row[0][0] for row in database.execute(
+                    "SELECT lxm_hash FROM lxm ORDER BY lxm_hash")]})
     result = {
         "revision": PIN, "source_sha256": DIGEST,
-        "method": "actual is_trusted/send_message/raw_display_name/peer_display_name plus named_conversation/_db_conversation_set_name on real private SQLite; injected connection/read/announce cache/message/router APIs and synthetic owner",
-        "cases": cases, "name_cases": names, "rename_cases": renames}
+        "method": "actual is_trusted/send_message/raw_display_name/peer_display_name plus named_conversation/_db_conversation_set_name and delete_message/_db_delete_message on real private SQLite; injected connection/read/announce cache/message/router APIs and synthetic owner",
+        "cases": cases, "name_cases": names, "rename_cases": renames,
+        "deletion_cases": deletions}
     with args.output.open("w", encoding="utf-8", newline="\n") as output:
         output.write(json.dumps(result, indent=4) + "\n")
 

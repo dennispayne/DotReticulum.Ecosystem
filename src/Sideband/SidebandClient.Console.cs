@@ -89,4 +89,17 @@ public sealed partial class SidebandClient
         }
         finally { _lifecycle.Release(); }
     }
+
+    public async Task DeleteMessageAsync(string deliveryHash, Guid id, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+            await _store.DeleteMessageAsync(deliveryHash, id, cancellationToken).ConfigureAwait(false);
+            PublishState(await LoadAsync(cancellationToken).ConfigureAwait(false));
+        }
+        finally { _lifecycle.Release(); }
+    }
 }

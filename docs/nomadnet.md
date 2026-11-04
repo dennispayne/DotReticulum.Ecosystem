@@ -1711,13 +1711,13 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   under C78; physical printer acceptance remains unverified separately.
 
 The remaining required configuration surface is not silently deferred:
-the two client keys above; every listed TextUI key except `image_loading` and `clipboard_copy`;
+the two client keys above; every listed TextUI key except `image_loading`, `clipboard_copy` and `editor`;
 every listed global RRC key except the two render switches (history cap/filter
 currently affect offline migration only, not global runtime policy);
 utilities; primary config-directory discovery
 (`/etc/nomadnetwork`, `~/.config/nomadnetwork`, `~/.nomadnetwork`) versus the native
 ApplicationData default; complete ConfigObj grammar, primary section-form/reset
-and external configuration-editor workflows (the bounded native JSON editor is
+workflows (bounded native JSON, selected-RNS text and configured external editors are
 described below); safe external-root activation during full profile import;
 and remaining router/cache/peer-counter/announce-state migration. The existing
 named `[node]` application keys are imported and wired, but complete peer UI,
@@ -1725,7 +1725,7 @@ storage-pressure order and exhaustive failure/restart acceptance remain separate
 gaps. Primary `ui/textui/Config.py` also edits the separately selected Reticulum
 configuration (`enable_transport`, shared-instance/name/type/ports, interface
 discovery, remote-management allowlist, probes, implicit proofs and panic policy);
-the native app has no equivalent Reticulum configuration editor, and migration deliberately does not
+the native app has an explicit text editor for its selected RNS file, not equivalent global section forms, and migration deliberately does not
 silently replace network configuration. Unknown keys continue to be reported.
 
 Safety differences are intentional and not upstream defaults: content/queue
@@ -2993,12 +2993,13 @@ are described in the editor/guide section below.
 
 ### Bounded original document/configuration editor and guide
 
-The original console now has a self-contained, no-external-process authoring
+The original console has a self-contained, built-in authoring
 workflow. It edits the same configured roots used by `NomadNetContent`, defaulting
 to `<profile>/storage/pages` and `<profile>/storage/files`; it does not invent a
 second hosted-content location. Existing host rescan/`node refresh` picks up
-saved, renamed and deleted documents. `config edit` edits native `settings.json`,
-not primary ConfigObj or the separately selected Reticulum configuration.
+saved, renamed and deleted documents. `config edit [native|rns]` selects native
+`settings.json` or the actual RNS configuration file resolved at application startup.
+The native JSON format is not primary NomadNet ConfigObj.
 `guide` provides original local documentation and samples, not upstream guide,
 image, font, template or snippet assets.
 
@@ -3029,8 +3030,8 @@ method, or copy its guide/snippet content. The existing
 | `find_next`, `replace_one`, `replace_all`, `_insert_snippet` | **implemented bounded subset**: case-sensitive ordinal search with wrapping, selected-match replacement/next-match behavior, nonoverlapping replace-all and insertion. ASCII observations match executed primary operations. Native cursor positions are UTF-16 offsets rather than Python Unicode-codepoint offsets, an explicit **difference**. Five original samples are usable; the primary's18 snippet assets are not copied or claimed. |
 | `on_edit_change`, `render_preview`, `is_executable`, syntax/gutter/panes | **partial / safety difference**: explicit textual Micron preview through the existing renderer, no network/partial/image retrieval and no executable-source execution. Executable files display source with a warning; binary files do not preview. The primary100000-character preview bound is retained. Automatic400ms preview debounce, syntax highlighting, gutter, split-pane visibility/weights and keyboard/mouse parity remain **missing**. |
 | `_state_file`, `load_state`, `save_state`, `start` | **partial / local-format difference**: bounded schema1 `editor_state.json` stores only selected relative scope/path and supports explicit `edit resume` after restart. No document text/secrets or unsaved drafts are persisted. Primary filter, expanded tree, pane settings and automatic reopen behavior remain **missing**; this is not primary editor-state migration. |
-| `ConfigSectionEditor.on_save`, reset/validation and `util.write_config_atomic` | **implemented native subset / safety difference**: edit/show/validate all represented native JSON settings, requiring schema/name, rejecting unknown/duplicate keys and validating before atomic replacement. Saved settings require restart. The commit is serialized with runtime settings writes: subsequent runtime setting edits are explicitly refused until restart; background announce/sync timestamps continue in memory only, so stale active settings cannot overwrite the restart configuration. Active service options/identity are not silently hot-reloaded. Primary section forms, reset dialogs, complete INI compatibility and separately selected RNS configuration editing remain **missing**. |
-| `Config.EditorTerminal`, `[textui] editor` | **missing**: no configured external editor, embedded Urwid terminal or PTY is launched. The original built-in console editor deliberately avoids mixing buffered `Console.In` with raw stdin; piped command acceptance is not an interactive-external-editor claim. |
+| `ConfigSectionView.on_save`, reset/validation and `util.write_config_atomic` | **implemented bounded subset / safety difference**: edit/show/validate represented native JSON settings or the actual selected RNS text. JSON requires schema/name and rejects unknown/duplicate keys; RNS validates with the existing public stack parser without reserializing comments/unknown text. Atomic saves require restart and serialize with runtime settings writes; later runtime-setting edits are refused and automatic announce/sync timestamps stay in memory, preventing stale restart-configuration overwrite. Active service options/identity are not hot-reloaded. Primary section forms, reset dialogs and complete ConfigObj grammar remain **missing**. |
+| `Config.EditorTerminal`, `[textui] editor` | **implemented bounded original workflow / safety difference**: imported/native `editor`, default `nano`, is one executable argv element, not a shell command. `config external [native|rns]` uses the public `RnshProcess` PTY/ConPTY API, a private working copy, validation and snapshot-checked atomic commit, then returns to the console. Explicit Ctrl+] cancellation, child failure and conflict refuse commit. Redirected input/output is explicitly unsupported; interactive commands and child input have one `Console.ReadKey` owner rather than mixing `Console.In` with raw stdin. No embedded Urwid/widget, complete keyboard/mouse/termios or cross-platform terminal parity is claimed. Details and actual Windows terminal evidence follow below. |
 | `GuideEntry.display_topic`, `GuideLinkDelegate.handle_link`, topic reader | **implemented original subset / safety difference**: eight original local topics, local links, anchors, topic list and bounded32-topic back history, using the existing Micron renderer. No remote link is followed implicitly. First-run guide switching, configured `hide_guide`, primary display/demo assets and full keyboard/mouse reader behavior remain **missing**. Network browsing stays an explicit existing browser command. |
 
 Example, using JSON strings for text without invoking a shell or executable page:
@@ -3063,10 +3064,10 @@ restart-config editing, conflicts, concurrent editors, cancellation, restart,
 permissions and Windows second-move rollback. The complete scoped command:
 
 ```powershell
-dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=nomad-editor-regression.trx" --results-directory artifacts\tests\nomad-editor\managed-final -v quiet
+dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=nomad-external-regression.trx" --results-directory artifacts\tests\nomad-external-editor\managed-final -v quiet
 ```
 
-passes **321 tests,15 explicit skips,zero failures** on Windows. The new Linux
+passes **327 tests,17 explicit skips,zero failures** on Windows. The Linux
 symlink/executable/mode case (T398) is explicitly skipped there; WSL EIO/ext4
 read-only storage prevents current Linux replay, and no WSL repair was attempted.
 
@@ -3074,13 +3075,13 @@ Strict Windows publish:
 
 ```powershell
 $env:PATH = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer;' + $env:PATH
-dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64 -o artifacts\tests\nomad-editor\native -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v minimal
+dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64 -o artifacts\tests\nomad-external-editor\native -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v minimal
 ```
 
 passes warning-free with SDK**10.0.403** and compiler**10.0.14**, stack
 `e52da394658f6f6c723214a9f811552418789cb6`.
 The exact native SHA-256 is
-`24f3b7d471e44b60acded6b97a057c7cda0adf6b45e4ad98b518180bd17dd49a`.
+`90429dad43a841bdb66b3d79b1e7f476aa63558be73ca12ab9458472fb00cdf3`.
 With `DOTRETICULUM_NOMADNET_EDITOR=1`, that selected
 `DOTRETICULUM_NOMADNET_BINARY`, and
 `DOTRETICULUM_NOMADNET_EDITOR_REFERENCE=1` plus the pinned Python/RNS/LXMF/
@@ -3096,11 +3097,127 @@ cross-root rename/delete, local guide navigation, identity-preserving restart,
 binary/invalid-input/dirty-EOF refusal, nonoverwrite and Windows junction
 confinement, invalid-config rollback, protected restart-config save and a
 byte-identical independent primary regeneration. Before/after source and executable
-hashes are recorded under ignored `artifacts\tests\nomad-editor`, along with
+hashes are recorded under ignored `artifacts\tests\nomad-external-editor`, along with
 TRX, toolchain/publish log and owned per-process stdout/stderr. These are local
 software/CLI flows, not new Python-peer messaging, transport-hop/loss,
 physical-terminal UI, external editor, audio or hardware acceptance. Root
 integration/full-native validation remains a separate parent gate.
+
+### Configured external editor and selected RNS configuration
+
+The bounded editor also supports:
+
+```text
+config edit native
+config edit rns
+config show rns
+config validate
+edit save
+config external native
+config external rns
+```
+
+`native` defaults to native `settings.json`; `rns` always selects the actual
+`File` returned by `RnsdApp.LoadConfiguration` at startup, including an explicit
+`--rnsconfig` override. It never silently edits a user's default/global RNS
+configuration instead. The RNS buffer is strict UTF8 and bounded to one megabyte;
+native JSON retains its64-KiB bound. RNS saves validate through
+`RnsdConfigParser.Parse` and preserve the edited text exactly, including comments
+and untouched interface/unknown text. This parser is not complete ConfigObj
+grammar or a new implementation of unsupported stack options. `LoadConfiguration`
+is not used for validation because it can create files.
+
+The factual primary contracts are `Config.py:1238–1265` (`EditorTerminal`),
+`:876–882` (selected configuration path), `:1002–1044` (validation/save/restart),
+`NomadNetworkApp.py:959–960,1440–1441` (`nano` default), and `util.py:6–34`
+(atomic save). The source hashes above remain unchanged;
+`NomadNetworkApp.py` is
+`c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2`.
+`GenerateNomadNetExternalEditorVectors.py` executes the actual constructor,
+closed callback, path resolution and section save with actual ConfigObj/Urwid
+checkbox and owned synthetic files. **Windows Urwid lacks `Terminal`: the
+generator explicitly supplies a captured terminal-construction boundary.**
+It records executable/path argv and close-navigation observations, not an
+unmodified primary Windows PTY run. No guide or other primary assets are copied.
+
+The imported `[textui] editor` maps to native `editor`, default `nano`. It is one
+executable argv element (spaces in an executable path are allowed), followed by
+the working-copy path; strings such as `editor --option` are not shell-split.
+The primary's literal `editor`→`nano` Darwin substitution exists in code and
+reference observations, not current macOS execution evidence. Changing the
+configured executable requires restart, like other saved service configuration.
+
+Unlike the primary's direct native-config launch, the original workflow can
+explicitly select RNS and edits a random working-copy directory beneath the
+leased profile. Child success validates and commits through the existing
+snapshot-checked atomic writer. Invalid input, nonzero exit, Ctrl+] cancellation
+or an ordinary external edit refuses commit and discards the working copy; a
+concurrent writer's contents are never rolled back. No-change exit does not
+rewrite the file or mark restart pending. Native/RNS saves use the existing
+restart-configuration gate; runtime settings edits are then refused and automatic
+announce/sync timestamps stay memory-only. Neither the active identity/options
+nor another process's shared RNS instance is hot-reloaded. Restart its actual
+owner separately when changing a shared instance.
+
+The application reuses public `RnshProcess`, including Windows ConPTY job-scoped
+descendant ownership, rather than adding stack APIs. Interactive command input
+and editor keystrokes share a single polled `Console.ReadKey` owner; no
+`Console.In` buffering/raw-stdin handoff occurs. Redirected input/output explicitly
+refuses external editing, while built-in editor commands still support pipes.
+Output pumps are bounded-buffer streams, resize follows the console, cancellation
+is explicit, and child/pump teardown is awaited. Basic command-line editing is
+original, not full cooked-console, Urwid, mouse or all terminal-key/termios parity.
+
+Working-copy cleanup is nonrecursive, refuses directory traversal and is bounded
+to4096 entries; unexpected directories/excess entries surface a manual-cleanup
+error rather than following them. Unix private creation modes are implemented;
+Windows inherits the selected profile's ACL. There is no sandbox against a
+malicious configured executable/administrator, crash-cleanup guarantee,
+directory-fsync guarantee or forensic-erasure claim. Byte snapshots and staging
+buffers are zeroed when released; managed strings are not securely erasable.
+
+Windows verification for the frozen bounded candidate:
+
+- `dotnet build src\NomadNet\NomadNet.csproj -c Release --no-restore -v quiet`:
+  zero warnings/errors.
+- `dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=nomad-external-regression.trx" --results-directory artifacts\tests\nomad-external-editor\managed-final -v quiet`:
+  **327 passed,17 explicit skips,zero failures**. Two new native-only facts
+  explicitly skip without their opt-in; the existing Linux-only skip remains.
+- `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64 -o artifacts\tests\nomad-external-editor\native -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v minimal`:
+  warning-free, SDK10.0.403 / ILCompiler10.0.14; native `--help` executed.
+- Exact candidate SHA-256:
+  `90429dad43a841bdb66b3d79b1e7f476aa63558be73ca12ab9458472fb00cdf3`.
+- `pwsh -NoProfile -File artifacts\tests\nomad-external-editor\Invoke-SelectedNative.ps1`:
+  **8 Pester passes,zero skips/failures**, comprising the previous four authoring
+  cases plus four new cases in `tests\Pester\NomadNetExternalEditor.Tests.ps1`.
+  The new terminal case executes both actual native ConPTY facts: **2/2**.
+
+The installed real Git-for-Windows Vim9.1 (patches1–1914, MSYS2 build2025-11-14)
+SHA-256 is
+`dc541b4416858f5dbc781a0f0976219b63a9c46a67374edfce628549d131fa99`.
+Actual nested ConPTY input edits/saves native JSON and selected RNS text,
+returns to console, exercises protected runtime-setting refusal and continued
+announcements/status, and preserves identity/configuration across restarts.
+Separate actual Vim sessions cover invalid-save rollback, nonzero `:cq`,
+external-writer conflict, Ctrl+] cancellation and termination of an owned
+PowerShell sleeping descendant. The descendant test explicitly selects Vim's
+installed MSYS `/usr/bin/sh`; no user's shell/editor profile is changed.
+The other cases verify redirected refusal/recovery, internal selected-RNS exact
+text/restart, and byte-identical actual-primary vector regeneration.
+
+Ignored evidence:
+`artifacts\tests\nomad-external-editor\acceptance-e13166efe2c04968a1fe46e778b3d7b2`
+contains native process profiles/transcripts, actual-ConPTY TRX, oracle import
+observations and matching before/after production/native guards
+(`bdc0f6f03b571dec47b42cd05da8e0be57c0b36497ebc4a71b8d358960672cf9`).
+`candidate.json` records exact production/test/compiler/editor hashes, and the
+ignored replay operator selects those exact artifacts with fresh evidence.
+Current Linux execution remains blocked by WSL EIO/read-only storage.
+This proves bounded software terminal workflows, not a physical display/input
+device, Python-peer network exchange or complete primary editor/configuration
+inventory. Primary section/reset forms, complete ConfigObj, folder bulk
+rename/delete/permissions, full editor state/tree/panes and remaining guide
+presentation remain required software work.
 
 ### Selected local picker/composer acceptance
 

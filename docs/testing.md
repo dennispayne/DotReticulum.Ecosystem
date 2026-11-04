@@ -8,17 +8,36 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
-The current editor/runtime-logging solution builds with zero warnings/errors and
-passes2707 managed cases/147 explicit skips on Windows:
+The current external-editor/saved-message solution builds with zero warnings/errors and
+passes2716 managed cases/149 explicit skips on Windows:
 
 ```powershell
 dotnet build DotReticulum.Ecosystem.slnx -c Release --nologo -v:q
-dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build --nologo -v:q --logger trx --results-directory artifacts\tests\resume-editor-log
+& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-message-actions-unified -OutputDirectory artifacts\tests\fleet-editor-message-integrated
 ```
 
-Sideband's guarded `runtime-log-startup-final` candidate passes full2080/74,
+Sideband's guarded `message-actions-corrected` candidate passes full2083/74,
 separately enabled live4/0, strict NativeAOT/help and native5/0. SHA-256:
-`4407fd0ba2871b1547d75832768fa5da6e66e51a590f7dab0326509dfc70fa37`.
+`d625f2ea5dcff60791ae912fa043c69e5fb8cabf7f5f2140f94c934c7e97cd0a`.
+Selected saved-message details and confirmation-bound local deletion also pass
+one actual native desktop case, independently replayed with source/binary
+guards. Two confirmed deletions and restarts retain shared attachment bytes,
+identity and contact policy; empty/malformed explicit test profiles exit2.
+The first desktop operator failed because it wrote lowercase keys into the
+case-sensitive native JSON schema. Its retained failure is not acceptance;
+the corrected operator writes the actual PascalCase schema. Deletion neither
+recalls/cancels delivery nor removes shared media. The reference observations
+execute exact primary methods on synthetic private SQLite, not a whole live
+primary GUI. Reproduction and persistent NUnit receipts:
+
+```powershell
+& artifacts\tests\sideband-console\Parent-CurrentConsole.ps1 -Managed -Run message-actions-corrected
+& artifacts\tests\sideband-message-actions\Replay-SelectedNative.ps1
+```
+
+See `artifacts\tests\sideband-message-actions\parent-final\parent-current.json`
+and `native.xml`. The preceding logging-only candidate retains its original
+SHA-256 `4407fd0ba2871b1547d75832768fa5da6e66e51a590f7dab0326509dfc70fa37`.
 Actual primary handler/RNS/core observations establish runtime filtering and
 quiet/verbose defaults, not complete stack diagnostic capture. The retained
 preceding native4/1 failure was an assertion waiting for an input error on
@@ -26,30 +45,45 @@ stdout instead of stderr; the final unchanged rejection is checked on stderr
 after orderly exit. A superseded candidate stopped before the final startup
 default correction is not acceptance.
 
-The original Nomad editor/local-guide/native-config candidate passes321/15
-managed and strict Windows NativeAOT/help. Parent independently replays its
-four editor cases and29 printing/node-migration/clipboard/utility cases, zero
-failures/skips, on the same source-guarded binary:
-`24f3b7d471e44b60acded6b97a057c7cda0adf6b45e4ad98b518180bd17dd49a`.
+The current Nomad external/selected-RNS editor candidate passes327/17 managed
+and strict Windows NativeAOT/help. Parent independently replays eight
+reference/native cases, including two actual Vim ConPTY cases, and29
+printing/node-migration/clipboard/utility cases, zero failures/skips, on the
+same source-guarded binary:
+`90429dad43a841bdb66b3d79b1e7f476aa63558be73ca12ab9458472fb00cdf3`.
+Private staging, invalid-edit rollback, nonzero editor exit, concurrent-writer
+conflict, Ctrl+] cancellation/descendant ownership and continued console
+service are exercised. Primary EditorTerminal observations disclose a terminal
+boundary because Windows Urwid lacks Terminal; they are not unmodified primary
+Windows PTY evidence. Native acceptance uses real installed Git Vim.
+
+```powershell
+& artifacts\tests\nomad-external-editor\Invoke-SelectedNative.ps1
+& artifacts\tests\nomad-editor\Parent-BroaderAcceptance.ps1 -Candidate artifacts\tests\nomad-external-editor\candidate.json -OutputDirectory artifacts\tests\nomad-external-editor\parent-broader-native
+```
+
 No new network topology or primary GUI is exercised by the editor cases.
 The29-case regression gate includes actual primary multi-megabyte node
 transfers/restarts but does not repeat the preceding ten-minute utility hold or
 extra descendant-ownership cases. Those retain their earlier source boundary.
 Reproduction operators and receipts are under
-`artifacts\tests\nomad-editor\parent-independent-replay`,
+`artifacts\tests\nomad-external-editor\acceptance-da94bc97697f48f88a0297461c3471e3`,
 `parent-broader-native` and
-`artifacts\tests\sideband-console\windows-runtime-log-startup-final`.
-External-editor/PTY, selected RNS editor, bulk-folder and full configuration/
+`artifacts\tests\sideband-console\windows-message-actions-corrected`.
+The preceding original editor-only candidate
+`24f3b7d471e44b60acded6b97a057c7cda0adf6b45e4ad98b518180bd17dd49a`
+retains its four editor and29 broader passes; it is not acceptance of external
+editing. Bulk-folder and full configuration/
 presentation contracts remain required software gaps. Current Linux replay
 remains blocked by WSL storage EIO, not waived or inferred from Windows.
 
 The refreshed integrated gate also passes:
 
 ```powershell
-& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-editor-log-unified -OutputDirectory artifacts\tests\fleet-editor-log-unified
+& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-message-actions-unified -OutputDirectory artifacts\tests\fleet-editor-message-integrated
 ```
 
-Its81 claims/360 selectors aggregate strictly, with explicit missing live/native/
+Its83 claims/376 selectors aggregate strictly, with explicit missing live/native/
 hardware evidence retained. Ten coverage reports are unioned by source identity;
 their percentages are not compatibility acceptance. Changed/new PowerShell
 passes `tools\PSScriptAnalyzerSettings.psd1`; `git diff --check` is clean.

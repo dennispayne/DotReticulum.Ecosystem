@@ -98,15 +98,17 @@ public sealed record NomadNetEditorState(int SchemaVersion = 1, string? Scope = 
 /// Single-console-session editor. The profile lease excludes other native processes; content snapshots
 /// reject ordinary external changes. Filesystem administrators racing path checks are not sandboxed.
 /// </summary>
-public sealed class NomadNetEditor
+public sealed class NomadNetEditor : IDisposable
 {
     public const int MaximumBytes = 1_000_000;
     private static readonly UTF8Encoding Utf8 = new(false, true);
     private static readonly SemaphoreSlim MutationGate = new(1, 1);
     private readonly string _profile;
+    private readonly string? _rnsFile;
     private readonly Dictionary<string, string> _roots;
     private byte[]? _snapshot;
     private byte[]? _allowedSnapshot;
+    private bool _disposed;
     public NomadNetEditorBuffer Buffer { get; } = new();
     public string? Scope { get; private set; }
     public string? RelativePath { get; private set; }
@@ -114,9 +116,11 @@ public sealed class NomadNetEditor
     public bool Executable { get; private set; }
     private string Current => Resolve(Scope ?? throw new InvalidOperationException("Open a document first."), RelativePath!);
 
-    public NomadNetEditor(string profile, NomadNetSettings settings)
+    public NomadNetEditor(string profile, NomadNetSettings settings, string? selectedRnsFile = null)
     {
         _profile = System.IO.Path.GetFullPath(profile);
+        _rnsFile = selectedRnsFile is null ? null : System.IO.Path.GetFullPath(selectedRnsFile);
+        if (_rnsFile is not null) Guard(_rnsFile);
         _roots = new(StringComparer.Ordinal)
         {
             ["pages"] = System.IO.Path.GetFullPath(settings.PagesPath ?? System.IO.Path.Combine(_profile, "storage", "pages")),
@@ -128,6 +132,14 @@ public sealed class NomadNetEditor
 
     public string Resolve(string scope, string relative)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (scope == "rns")
+        {
+            if (relative != "selected" || _rnsFile is null)
+                throw new ArgumentException("Only the explicitly selected running RNS configuration is editable.");
+            Guard(_rnsFile);
+            return _rnsFile;
+        }
         if (!_roots.TryGetValue(scope, out var root)) throw new ArgumentException("Scope must be pages, files or config.");
         if (scope == "config" && relative != "settings.json") throw new ArgumentException("Only settings.json is editable as configuration.");
         ArgumentException.ThrowIfNullOrWhiteSpace(relative);
@@ -148,21 +160,36 @@ public sealed class NomadNetEditor
         if (Buffer.Dirty) throw new InvalidOperationException("Unsaved changes: use edit close save, discard or cancel first.");
         var path = Resolve(scope, relative);
         var bytes = await SnapshotAsync(path, cancellationToken).ConfigureAwait(false);
-        if (create && bytes is not null) throw new IOException("New document already exists.");
-        if (!create && bytes is null) throw new FileNotFoundException("Document not found.");
-        var allowed = scope == "config" ? null : await SnapshotAsync(path + ".allowed", cancellationToken).ConfigureAwait(false);
-        var editable = true;
-        string text;
-        try { text = bytes is null ? "" : Utf8.GetString(bytes); }
-        catch (DecoderFallbackException) { text = ""; editable = false; }
-        await WriteStateAsync(new(Scope: scope, Path: relative), cancellationToken).ConfigureAwait(false);
-        Buffer.Load(text, editable);
-        _snapshot = bytes;
-        _allowedSnapshot = allowed;
-        Scope = scope;
-        RelativePath = relative;
-        Executable = bytes is not null && !OperatingSystem.IsWindows() &&
-            (File.GetUnixFileMode(path) & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute)) != 0;
+        byte[]? allowed = null;
+        var retained = false;
+        try
+        {
+            if (create && bytes is not null) throw new IOException("New document already exists.");
+            if (!create && bytes is null) throw new FileNotFoundException("Document not found.");
+            allowed = IsConfigurationScope(scope) ? null : await SnapshotAsync(path + ".allowed", cancellationToken).ConfigureAwait(false);
+            var editable = true;
+            string text;
+            try { text = bytes is null ? "" : Utf8.GetString(bytes); }
+            catch (DecoderFallbackException) { text = ""; editable = false; }
+            await WriteStateAsync(new(Scope: scope, Path: relative), cancellationToken).ConfigureAwait(false);
+            Buffer.Load(text, editable);
+            ClearSnapshots();
+            _snapshot = bytes;
+            _allowedSnapshot = allowed;
+            retained = true;
+            Scope = scope;
+            RelativePath = relative;
+            Executable = bytes is not null && !OperatingSystem.IsWindows() &&
+                (File.GetUnixFileMode(path) & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute)) != 0;
+        }
+        finally
+        {
+            if (!retained)
+            {
+                if (bytes is not null) CryptographicOperations.ZeroMemory(bytes);
+                if (allowed is not null) CryptographicOperations.ZeroMemory(allowed);
+            }
+        }
     }
 
     public async Task ResumeAsync(CancellationToken cancellationToken = default)
@@ -184,11 +211,18 @@ public sealed class NomadNetEditor
         var path = Current;
         if (!Buffer.Editable) throw new InvalidOperationException("Binary files are read-only.");
         var bytes = Utf8.GetBytes(Buffer.Text);
-        if (Scope == "config") ValidateConfiguration(bytes);
-        await CheckAsync(path, _snapshot, cancellationToken).ConfigureAwait(false);
-        await WriteAsync(path, bytes, _snapshot is not null, cancellationToken, _snapshot, verifySnapshot: true).ConfigureAwait(false);
-        _snapshot = bytes;
-        Buffer.Saved();
+        var retained = false;
+        try
+        {
+            if (IsConfiguration) ValidateConfiguration(bytes, Scope!);
+            await CheckAsync(path, _snapshot, cancellationToken).ConfigureAwait(false);
+            await WriteAsync(path, bytes, _snapshot is not null, cancellationToken, _snapshot, verifySnapshot: true).ConfigureAwait(false);
+            if (_snapshot is not null) CryptographicOperations.ZeroMemory(_snapshot);
+            _snapshot = bytes;
+            retained = true;
+            Buffer.Saved();
+        }
+        finally { if (!retained) CryptographicOperations.ZeroMemory(bytes); }
     }
 
     public Task SaveAsAsync(string scope, string relative, CancellationToken cancellationToken = default) =>
@@ -197,7 +231,7 @@ public sealed class NomadNetEditor
     private async Task SaveAsCoreAsync(string scope, string relative, CancellationToken cancellationToken)
     {
         if (!IsOpen || !Buffer.Editable) throw new InvalidOperationException("Open an editable document first.");
-        if (Scope == "config" || scope == "config") throw new InvalidOperationException("Configuration cannot use save-as.");
+        if (IsConfiguration || IsConfigurationScope(scope)) throw new InvalidOperationException("Configuration cannot use save-as.");
         await CheckAsync(Current, _snapshot, cancellationToken).ConfigureAwait(false);
         await CheckAsync(Current + ".allowed", _allowedSnapshot, cancellationToken).ConfigureAwait(false);
         var path = Resolve(scope, relative);
@@ -210,6 +244,7 @@ public sealed class NomadNetEditor
         await WriteAsync(path, bytes, false, cancellationToken).ConfigureAwait(false);
         Scope = scope;
         RelativePath = relative;
+        ClearSnapshots();
         _snapshot = bytes;
         _allowedSnapshot = null;
         Executable = false;
@@ -225,8 +260,7 @@ public sealed class NomadNetEditor
         Buffer.Load("");
         Scope = null;
         RelativePath = null;
-        _snapshot = null;
-        _allowedSnapshot = null;
+        ClearSnapshots();
         Executable = false;
         return true;
     }
@@ -235,7 +269,7 @@ public sealed class NomadNetEditor
     {
         if (!IsOpen) throw new InvalidOperationException("Open a document first.");
         if (!Buffer.Editable) return "Binary file: read-only; no preview.";
-        if (Scope == "config") return NomadNetTerminalText.Safe(Buffer.Text);
+        if (IsConfiguration) return NomadNetTerminalText.Safe(Buffer.Text);
         if (Executable) return "Executable source only; never executed by preview.\n" + NomadNetTerminalText.Safe(Buffer.Text);
         if (Buffer.Text.Length > 100_000) return "Preview disabled above 100000 characters; editing remains available.";
         return MicronText.Render(Utf8.GetBytes(Buffer.Text)).Text;
@@ -247,7 +281,7 @@ public sealed class NomadNetEditor
     private async Task PermissionsCoreAsync(IReadOnlyList<string>? identities, CancellationToken cancellationToken)
     {
         var path = Current;
-        if (Scope == "config") throw new InvalidOperationException("Configuration has no hosted permissions.");
+        if (IsConfiguration) throw new InvalidOperationException("Configuration has no hosted permissions.");
         if (_snapshot is null) throw new InvalidOperationException("Save the document before setting permissions.");
         if (identities is { Count: > 1024 }) throw new InvalidDataException("Too many allowed identities.");
         var normalized = identities?.Select(NomadNetAddress.NormalizeHash).Distinct(StringComparer.Ordinal).ToArray() ?? [];
@@ -262,6 +296,7 @@ public sealed class NomadNetEditor
         }
         else await WriteAsync(path + ".allowed", bytes, _allowedSnapshot is not null, cancellationToken,
             _allowedSnapshot, verifySnapshot: true).ConfigureAwait(false);
+        if (_allowedSnapshot is not null) CryptographicOperations.ZeroMemory(_allowedSnapshot);
         _allowedSnapshot = bytes;
     }
 
@@ -273,7 +308,7 @@ public sealed class NomadNetEditor
         RequireCleanHosted();
         var old = Current;
         var target = Resolve(scope, relative);
-        if (scope == "config") throw new ArgumentException("Cannot rename hosted content into configuration.");
+        if (IsConfigurationScope(scope)) throw new ArgumentException("Cannot rename hosted content into configuration.");
         await CheckAsync(old, _snapshot, cancellationToken).ConfigureAwait(false);
         await CheckAsync(old + ".allowed", _allowedSnapshot, cancellationToken).ConfigureAwait(false);
         if (System.IO.Path.Exists(target) || System.IO.Path.Exists(target + ".allowed")) throw new IOException("Rename never overwrites.");
@@ -356,7 +391,7 @@ public sealed class NomadNetEditor
 
     private void RequireCleanHosted()
     {
-        if (!IsOpen || Scope == "config" || _snapshot is null) throw new InvalidOperationException("Open a saved hosted document.");
+        if (!IsOpen || IsConfiguration || _snapshot is null) throw new InvalidOperationException("Open a saved hosted document.");
         if (Buffer.Dirty) throw new InvalidOperationException("Save or discard changes before rename/delete.");
         Guard(Current);
     }
@@ -371,12 +406,23 @@ public sealed class NomadNetEditor
 
     public void ValidateConfiguration()
     {
-        if (Scope != "config") throw new InvalidOperationException("Open native configuration first.");
-        ValidateConfiguration(Utf8.GetBytes(Buffer.Text));
+        if (!IsConfiguration) throw new InvalidOperationException("Open native or selected RNS configuration first.");
+        var bytes = Utf8.GetBytes(Buffer.Text);
+        try { ValidateConfiguration(bytes, Scope!); }
+        finally { CryptographicOperations.ZeroMemory(bytes); }
     }
 
-    private static void ValidateConfiguration(byte[] bytes)
+    public bool IsConfiguration => Scope is not null && IsConfigurationScope(Scope);
+    private static bool IsConfigurationScope(string scope) => scope is "config" or "rns";
+
+    private static void ValidateConfiguration(byte[] bytes, string scope)
     {
+        if (scope == "rns")
+        {
+            if (bytes.Length > MaximumBytes) throw new InvalidDataException("RNS configuration exceeds one megabyte.");
+            _ = DotReticulum.Applications.Rnsd.RnsdConfigParser.Parse(Utf8.GetString(bytes).TrimStart('\ufeff'));
+            return;
+        }
         if (bytes.Length > NomadNetSettings.MaximumSettingsBytes) throw new InvalidDataException("Configuration exceeds 64 KiB.");
         var offset = bytes.Length >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb && bytes[2] == 0xbf ? 3 : 0;
         using var document = JsonDocument.Parse(bytes.AsMemory(offset));
@@ -401,9 +447,13 @@ public sealed class NomadNetEditor
     private static async Task CheckAsync(string path, byte[]? expected, CancellationToken cancellationToken)
     {
         var actual = await SnapshotAsync(path, cancellationToken).ConfigureAwait(false);
-        if ((actual is null) != (expected is null) ||
-            actual is not null && !CryptographicOperations.FixedTimeEquals(SHA256.HashData(actual), SHA256.HashData(expected!)))
-            throw new IOException("Document or permissions changed externally; reopen before writing.");
+        try
+        {
+            if ((actual is null) != (expected is null) ||
+                actual is not null && !CryptographicOperations.FixedTimeEquals(SHA256.HashData(actual), SHA256.HashData(expected!)))
+                throw new IOException("Document or permissions changed externally; reopen before writing.");
+        }
+        finally { if (actual is not null) CryptographicOperations.ZeroMemory(actual); }
     }
 
     private static async Task WriteAsync(string path, byte[] bytes, bool overwrite, CancellationToken cancellationToken,
@@ -451,7 +501,7 @@ public sealed class NomadNetEditor
             stem[3] is >= '0' and <= '9';
     }
 
-    private static void Guard(string path)
+    internal static void Guard(string path)
     {
         for (var entry = new FileInfo(System.IO.Path.GetFullPath(path)); entry is not null; entry = entry.Directory is { } parent ? new FileInfo(parent.FullName) : null)
         {
@@ -463,6 +513,25 @@ public sealed class NomadNetEditor
             catch (FileNotFoundException) { }
             catch (DirectoryNotFoundException) { }
         }
+
+    }
+
+    private void ClearSnapshots()
+    {
+        if (_snapshot is not null) CryptographicOperations.ZeroMemory(_snapshot);
+        if (_allowedSnapshot is not null) CryptographicOperations.ZeroMemory(_allowedSnapshot);
+        _snapshot = null;
+        _allowedSnapshot = null;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        ClearSnapshots();
+        Buffer.Load("");
+        Scope = null;
+        RelativePath = null;
     }
 }
 

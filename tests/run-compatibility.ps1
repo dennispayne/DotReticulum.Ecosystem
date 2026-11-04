@@ -128,6 +128,7 @@ try {
             $requiredVariables = switch ($suite) {
                 'Sideband.Tests.ps1' { 'DOTRETICULUM_SIDEBAND_BINARY' }
                 'SidebandVoice.Tests.ps1' { 'DOTRETICULUM_SIDEBAND_BINARY' }
+                'SidebandPaper.Tests.ps1' { 'DOTRETICULUM_SIDEBAND_BINARY' }
                 'SidebandProfileImport.Tests.ps1' { 'DOTRETICULUM_SIDEBAND_BINARY'; 'DOTRETICULUM_SIDEBAND_PROFILE' }
                 'NomadNet.Tests.ps1' { 'DOTRETICULUM_NOMADNET_BINARY' }
                 default { @() }

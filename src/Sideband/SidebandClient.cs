@@ -765,8 +765,8 @@ public sealed partial class SidebandClient : IAsyncDisposable
                     try { await ReceiveTelemetryAsync(received.Message, CancellationToken.None).ConfigureAwait(false); }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     { Report("Received telemetry metadata was rejected; text/media are retained: " + ex.Message); }
-                    if (string.IsNullOrWhiteSpace(received.Message.Content) &&
-                        string.IsNullOrWhiteSpace(received.Message.Title) &&
+                    if (string.IsNullOrEmpty(received.Message.Content) &&
+                        string.IsNullOrEmpty(received.Message.Title) &&
                         !received.Message.TryGetField(LxmField.FileAttachments, out _) &&
                         !received.Message.TryGetField(LxmField.Image, out _) && !received.Message.TryGetField(LxmField.Audio, out _))
                     {

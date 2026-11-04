@@ -118,7 +118,20 @@ public sealed partial class MainWindow : Window
                 if (!UtilitiesPage.IsVisible || !RepositorySmokeVerified) return;
                 Console.WriteLine("SMOKE_UI_RENDERED_REPOSITORY=1");
             }
-            var hasImage = _state.Messages.Any(message => message.Image is not null);
+            if (Program.SmokePaperMode)
+            {
+                if (!ConversationsPage.IsVisible || PaperQrPreview.Source is null ||
+                    string.IsNullOrEmpty(PaperUriBox.Text) ||
+                    StatusText.Text?.StartsWith("Saved paper URI and QR shown.", StringComparison.Ordinal) != true) return;
+                if (PaperQrPreview.RenderedImageCount == 0)
+                {
+                    Dispatcher.UIThread.Post(InvalidateVisual);
+                    return;
+                }
+                Console.WriteLine("SMOKE_UI_RENDERED_PAPER=uri-and-qr");
+                Console.WriteLine("SMOKE_UI_RENDERED_PAPER_PIXELS=" + PaperQrPreview.RenderedImageCount);
+            }
+            var hasImage = !Program.SmokePaperMode && _state.Messages.Any(message => message.Image is not null);
             if (hasImage && MediaPreview.Source is null) return;
             SmokeUiSucceeded = true;
             if (hasImage) Console.WriteLine("SMOKE_UI_RENDERED_MEDIA=1");
@@ -213,6 +226,22 @@ public sealed partial class MainWindow : Window
                         RepositoryPortBox.Text = "0";
                         RepositoryConsentBox.IsChecked = true;
                         StartRepositoryButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    }
+                    if (Program.SmokePaperMode)
+                    {
+                        TrackOperation(async () =>
+                        {
+                            try
+                            {
+                                var paper = _state.Messages.FirstOrDefault(message => message.PaperUri is not null)
+                                    ?? throw new InvalidOperationException("Paper smoke requires a saved outgoing paper message.");
+                                _selectedContact = paper.PeerDeliveryHash;
+                                await RefreshMessagesAsync(_windowCancellation.Token);
+                                MessageList.SelectedIndex = _visibleMessages.ToList().FindIndex(message => message.Id == paper.Id);
+                                ShowPaperButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            }
+                            catch (Exception ex) { ShowError("Paper smoke failed: " + ex.Message); }
+                        });
                     }
                     Volatile.Write(ref _smokeActionInvoked, 1);
                     InvalidateVisual();
@@ -496,6 +525,7 @@ public sealed partial class MainWindow : Window
 
     private void MessageSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        ClearPaperPreview();
         var version = ++_mediaSelectionVersion;
         MediaPreview.Source = null;
         _previewBitmap?.Dispose();
@@ -878,6 +908,11 @@ public sealed partial class MainWindow : Window
         {
             var messages = await _client.GetMessagesAsync(peer, cancellationToken);
             if (_selectedContact != peer || _closing) return;
+            if (_visibleMessages.SequenceEqual(messages))
+            {
+                MarkVisibleConversationRead();
+                return;
+            }
             var selectedId = MessageList.SelectedIndex >= 0 && MessageList.SelectedIndex < _visibleMessages.Count
                 ? _visibleMessages[MessageList.SelectedIndex].Id : (Guid?)null;
             _visibleMessages = messages;
@@ -1058,6 +1093,7 @@ public sealed partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
+        ClearPaperPreview();
         MediaPreview.Source = null;
         _previewBitmap?.Dispose();
         _previewBitmap = null;

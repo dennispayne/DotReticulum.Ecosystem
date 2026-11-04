@@ -1,0 +1,109 @@
+{
+  "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "source_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+  "method": "Actual paper_message/lxm_ingest_uri AST; real RNS identities/destinations and LXMF packing. Identity recall uses upstream _no_use=True (no runtime destination-use accounting). Injected get_message_fields, trust, originator persistence and URI router result. No GUI/database/live application claim.",
+  "sender_public": "482a8edfcd60f2792fd44769cd9b349a1fc6d3b4464bc2a4d15e51df6acad453eb125985f31fb23f9bab3bc8e32c92cec3f49fd7db306f5250c697562e4dc3ed",
+  "destination": "e1cf107c9da48fabb6c745f6bcfa58b1",
+  "cases": [
+    {
+      "name": "untrusted",
+      "content": "Original signed paper ✓",
+      "trusted": false,
+      "accepted": true,
+      "originator": true,
+      "include_ticket": false,
+      "uri": "lxm://4c8QfJ2kj6u2x0X2vPpYsdTSUeMpwOy7ct3HTzfKTd1UfSkIcdzes-MFPiyfpCxeomGoExW-ckF0xQpr7yHbpf_SKBPd77dfQiVNxpWH6KdueBizPwQgUX9EOLByPD3-fPsPG69tOjuAC0KzvQ_1xWMgIzKPSEuIWBqrAlQWXysOZ8bCLOSxi5U4ng37XRiOKS2hKY-nfmVF0kTJ5puWIBXsVIzCYiidAQGAiY35nh-vGuRbFB0yMOQBfKnzpsNXtwxg1XLjp5mBTgR5nD9UXJjucK0zahFTaw16iknAQtb6J000GXfqAZK_NhUuCZga",
+      "packed": "e1cf107c9da48fabb6c745f6bcfa58b1c131e7fb8cd1ffd5033a7b046d39aadfdc38228d1d6e8c60baa13e51b248162e30123bc9f23f3274f095fcf486e55356a5095c72d6df3281543825b17b0fb800ed891e9324550709106ad83bdfcfe90694cb41d954fc40100000c400c4194f726967696e616c207369676e656420706170657220e29c93810493a97061706572636c6970c403112233c403aabbcc",
+      "field_ticket": false,
+      "title": "",
+      "method": 5,
+      "state": 5
+    },
+    {
+      "name": "trusted",
+      "content": "Original trusted paper",
+      "trusted": true,
+      "accepted": true,
+      "originator": true,
+      "include_ticket": true,
+      "uri": "lxm://4c8QfJ2kj6u2x0X2vPpYsczE9UTnnDK9dqIJUW8SwBXIq90-6IGgPNVR0hpx5bIhchhOgTOjaCg6j6fwc0cXkD4QT1lGzoDXH97V5SKX1JBWcz3MBNhUj20PD4pVmZkGSHIqGUqKKPC1WWzaaxUOh5PWbvfZ1BKlyUHCemKh-PR9BZ8N49IK6Q_6rihXB5OSHpDyPcoLZgTCgahPMFfq5qTkXdwWzBJoHHlpKIZjgN4awW9YDANnYe5u69mzTVXEn1lNU6POBc4rZQESN9XLgtKO4hfaZdR5HqclwgMIIehjZaUInq94_wISuIQwSv4N",
+      "packed": "e1cf107c9da48fabb6c745f6bcfa58b1c131e7fb8cd1ffd5033a7b046d39aadfb779f42563b077bdc477a428f19aca0d857118791e2927f4fdc247302457a09006e7b03c0b9ba447c84f64b10626d43000e3312c09c37d5c3d053d2b754f3a0994cb41d954fc40100000c400c4164f726967696e616c2074727573746564207061706572810493a97061706572636c6970c403112233c403aabbcc",
+      "field_ticket": false,
+      "title": "",
+      "method": 5,
+      "state": 5
+    },
+    {
+      "name": "whitespace",
+      "content": " ",
+      "trusted": false,
+      "accepted": true,
+      "originator": true,
+      "include_ticket": false,
+      "uri": "lxm://4c8QfJ2kj6u2x0X2vPpYsZLb1_Kgu2Wc2Xno0W4wRvJ6kbpuFOBdl3kyfhEo-81et1q0ce0pcKB20Y6zT5s86k-4A9TtTP8_G0eN1adgDwP0YeqkKDzCufF8Q5oe5x3nCmlJazonJ_H_7_C7Yry-gMw8u-aPGE-zqN3eXPr9AFvERccnmHXkXY5ICduqfO33ZTy_K9ASmMORVX4tfsOwV08tRzTYgML1Byx5s4Cq5ZL23Sx8aQ1Lzs7jnnmSGpHF2bHfJMyEpYEeRkdYswp0NbcsICQC5e-ahF36TxXGu9U",
+      "packed": "e1cf107c9da48fabb6c745f6bcfa58b1c131e7fb8cd1ffd5033a7b046d39aadf74e01055325dae17a07e9c3db04076af9b80850fefadc58a8f6f0774b081828150660e4f8a3fdc694bade3c7506b1fe31a7f9331f3641ec3fa5002e58628450e94cb41d954fc40100000c400c40120810493a97061706572636c6970c403112233c403aabbcc",
+      "field_ticket": false,
+      "title": "",
+      "method": 5,
+      "state": 5
+    },
+    {
+      "name": "empty",
+      "content": "",
+      "trusted": false,
+      "accepted": false
+    },
+    {
+      "name": "oversize",
+      "content": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "trusted": false,
+      "accepted": false,
+      "originator": true,
+      "include_ticket": false
+    },
+    {
+      "name": "unknown",
+      "content": "Unknown identity",
+      "trusted": false,
+      "accepted": false
+    }
+  ],
+  "statuses": [
+    {
+      "uri": "lxm://reference-seam",
+      "signals": {
+        "signal_local_delivery": "local_delivery_occurred",
+        "signal_duplicate": "duplicate_lxm"
+      },
+      "key": "lxm_uri_ingest.result",
+      "response": "The URI contained no decodable messages"
+    },
+    {
+      "uri": "lxm://reference-seam",
+      "signals": {
+        "signal_local_delivery": "local_delivery_occurred",
+        "signal_duplicate": "duplicate_lxm"
+      },
+      "key": "lxm_uri_ingest.result",
+      "response": "Message was decoded, decrypted successfully, and added to your conversation list."
+    },
+    {
+      "uri": "lxm://reference-seam",
+      "signals": {
+        "signal_local_delivery": "local_delivery_occurred",
+        "signal_duplicate": "duplicate_lxm"
+      },
+      "key": "lxm_uri_ingest.result",
+      "response": "The decoded message has already been processed by the LXMF Router, and will not be ingested again."
+    },
+    {
+      "uri": "lxm://reference-seam",
+      "signals": {
+        "signal_local_delivery": "local_delivery_occurred",
+        "signal_duplicate": "duplicate_lxm"
+      },
+      "key": "lxm_uri_ingest.result",
+      "response": "The decoded message was not addressed to your LXMF address, and has been discarded."
+    }
+  ]
+}

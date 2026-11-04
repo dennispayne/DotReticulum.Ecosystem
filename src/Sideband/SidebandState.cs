@@ -11,7 +11,8 @@ public sealed record SidebandChatMessage(
     IReadOnlyList<SidebandAttachment>? Attachments = null,
     string DeliveryMethod = "Direct",
     SidebandImage? Image = null,
-    SidebandAudio? Audio = null);
+    SidebandAudio? Audio = null,
+    string? PaperUri = null);
 
 public sealed record SidebandState(
     int SchemaVersion,

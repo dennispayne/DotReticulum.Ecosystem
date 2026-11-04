@@ -38,6 +38,31 @@ BeforeAll {
 }
 
 Describe 'Compatibility catalog and aggregation' -Tag 'Tooling' {
+    It 'does not clean an inherited root when paper native prerequisites fail before setup' {
+        $directory = Join-Path $TestDrive ('paper-preflight-' + [guid]::NewGuid().ToString('N'))
+        $null = New-Item -ItemType Directory -Path $directory
+        $wrapper = Join-Path $directory 'Invoke-PaperPreflight.ps1'
+        @'
+param($Runner, $Fixture)
+$ErrorActionPreference = 'Stop'
+[Environment]::SetEnvironmentVariable('DOTRETICULUM_SIDEBAND_BINARY', $null, 'Process')
+$global:root = Join-Path $PSScriptRoot 'unrelated-owned-directory'
+$null = New-Item -ItemType Directory -Path $global:root
+$marker = Join-Path $global:root 'sentinel.txt'
+Set-Content -LiteralPath $marker -Value 'must remain'
+& $Runner -Path $Fixture -Tag Native
+if ($LASTEXITCODE -ne 1) { throw 'Missing native prerequisite must fail explicitly.' }
+if (-not (Test-Path -LiteralPath $marker)) { throw 'Failed paper setup cleaned an inherited root.' }
+exit 0
+'@ | Set-Content -LiteralPath $wrapper
+        $log = Join-Path $directory 'execution.log'
+        & (Join-Path $PSHOME 'pwsh') -NoProfile -File $wrapper -Runner (Join-Path $testsRoot 'run-pester.ps1') `
+            -Fixture (Join-Path $testsRoot 'Pester\SidebandPaper.Tests.ps1') *> $log
+        $LASTEXITCODE | Should -Be 0 -Because (Get-Content -LiteralPath $log -Raw)
+        (Get-Content -LiteralPath $log -Raw) | Should -Not -Match 'Cannot remove the item'
+        Test-Path -LiteralPath (Join-Path $directory 'unrelated-owned-directory\sentinel.txt') | Should -BeTrue
+    }
+
     It 'isolates and restores GitHub command files around passing and failing Pester runs' -TestCases @(
         @{ ExpectedFailure = 0 }
         @{ ExpectedFailure = 1 }

@@ -103,6 +103,34 @@ short-suite pass. Hosted Build/Test metadata was inspected again and remains at
 the exact earlier runs/producing source boundaries above; no workflow was
 dispatched and no local commit was pushed.
 
+The paper/name/QR source gate
+`& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-paper-unified -OutputDirectory
+artifacts\tests\fleet-paper-unified-final-v2` passes **2,117 managed cases,
+89 explicit skips and 62 Pester tooling cases**, with all eight production
+assemblies represented. Absent published/reference prerequisites are explicit
+availability/skipped records; the paper suite is not mistaken for tooling.
+Earlier attempts exposed and fixed paper test-output adapter packaging,
+case-sensitive synthetic JSON seeding, native-suite prerequisite classification,
+an inherited cleanup-variable collision and an invalid sealed Image override.
+The cleanup regression proves failed setup preserves an unrelated owned
+sentinel directory. Tests/coverage were not disabled to obtain the green gate.
+
+Actual-primary paper cases independently pass on Windows/Linux with trust
+enabled/disabled and real native/Python restarts. Shared QR/name filters pass
+19 cases per host; primary QR pixels and independent Pillow/zxing-cpp decoding
+remain separate from live application evidence. Strict published Sideband
+paper URI/PNG export, overwrite/mode rejection and actual original QR drawing
+pass on Windows/Linux. Paper rendering is observed at the positive-bounds
+`DrawImage` call after scrolling the preview into view, not inferred merely
+from a nonnull image source. Exact source/native commands and boundaries are
+in [Sideband](sideband.md#paper-application-and-desktop-acceptance) and
+[LXMF](lxmf.md). One unchanged headless voice five-second readiness timeout
+under simultaneous native publication passed unchanged isolated/combined and
+in the full gate; this is retained as intermittent-load evidence, not proof
+that exhaustive timing is race-free. Hosted evidence remains the earlier
+producing commits, not these unpushed local sources.
+
 ## Entry points
 
 ```powershell

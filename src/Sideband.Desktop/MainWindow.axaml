@@ -44,9 +44,9 @@
                     Content="Backup &amp; Keys" Tag="Identity" Click="NavigateClicked" />
             <Button x:Name="UtilitiesNavButton" HorizontalContentAlignment="Left"
                     Content="Utilities" Tag="Utilities" Click="NavigateClicked" />
-            <Button HorizontalContentAlignment="Left" Content="Repository Server · unavailable"
-                    IsEnabled="False"
-                    ToolTip.Tip="The upstream LAN HTTPS software mirror is not implemented." />
+            <Button x:Name="RepositoryNavButton" HorizontalContentAlignment="Left" Content="Repository Server"
+                    Tag="Utilities" Click="NavigateClicked"
+                    ToolTip.Tip="Explicit public HTTPS mirroring is configured in Utilities." />
             <TextBlock Margin="8,18,0,4" FontSize="12" FontWeight="Bold"
                        Foreground="{DynamicResource SecondaryTextBrush}" Text="APPLICATION" />
             <Button x:Name="PreferencesNavButton" HorizontalContentAlignment="Left"
@@ -117,6 +117,17 @@
                   <Button Content="Save audio" Click="SaveAudioClicked" />
                   <Button x:Name="SendButton" Content="Send securely" Click="SendClicked" />
                 </StackPanel>
+                <WrapPanel>
+                  <Button x:Name="CreatePaperButton" Content="Create paper text" Margin="0,0,8,6" Click="CreatePaperClicked" />
+                  <Button x:Name="ShowPaperButton" Content="Show selected paper" Margin="0,0,8,6" Click="ShowPaperClicked" />
+                  <Button x:Name="ExportPaperButton" Content="Export URI" Margin="0,0,8,6" Click="ExportPaperClicked" />
+                  <Button x:Name="ExportPaperQrButton" Content="Export QR PNG" Margin="0,0,8,6" Click="ExportPaperQrClicked" />
+                </WrapPanel>
+                <TextBlock Text="Paper creation saves an encrypted offline text message, not a delivery confirmation. Use the export path above; existing files are never overwritten."
+                           TextWrapping="Wrap" />
+                <TextBox x:Name="PaperUriBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="100"
+                         PlaceholderText="Selected paper lxm:// URI (copy explicitly)" />
+                <local:PaperQrView x:Name="PaperQrPreview" MaxHeight="280" IsVisible="False" />
               </StackPanel>
             </Grid>
           </Grid>
@@ -365,6 +376,13 @@
         <ScrollViewer x:Name="UtilitiesPage" IsVisible="False" Margin="24">
           <StackPanel Spacing="14">
             <TextBlock FontSize="26" FontWeight="SemiBold" Text="Utilities" />
+            <TextBlock FontSize="18" FontWeight="SemiBold" Text="Import a paper message" />
+            <TextBlock Text="Paste an lxm:// URI and explicitly import while connected. A nonlocal envelope is not authenticated and is not forwarded. Accepted local messages use normal signature validation and duplicate-aware history; no camera or automatic clipboard access."
+                       TextWrapping="Wrap" />
+            <TextBox x:Name="PaperImportBox" MaxLength="2954" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="70"
+                     PlaceholderText="lxm://..." />
+            <Button x:Name="ImportPaperButton" Content="Import paper URI" HorizontalAlignment="Left" Click="ImportPaperClicked" />
+            <TextBlock x:Name="PaperImportStatusText" TextWrapping="Wrap" />
             <TextBlock Text="Use the Connectivity screen for the effective Reticulum config path and rnstatus guidance."
                        TextWrapping="Wrap" />
             <TextBlock Text="The local HTTPS mirror shares files without authentication, not over Reticulum. Use a dedicated public directory containing only files you are authorized to distribute. Never select your profile, private keys or a directory writable by untrusted users. No software or upstream assets are bundled or automatically downloaded."
@@ -395,7 +413,7 @@
                        TextWrapping="Wrap" />
             <TextBlock Text="Before connecting, check the selected config path on the Connectivity screen. The default may point to an existing user Reticulum configuration; Sideband never repairs or resets it automatically."
                        TextWrapping="Wrap" />
-            <TextBlock Text="This desktop build supports bounded messaging/media, optional LXST calls, manual telemetry/report controls, raster/offline MBTiles maps and an explicitly started local HTTPS mirror. Audio needs separately installed native codecs and operating-system devices. Received media never plays or opens automatically. Python plugins, advanced map overlays and remaining inventory contracts are not available."
+            <TextBlock Text="This desktop build supports bounded messaging/media, paper text, URI import and URI/QR exports, optional LXST calls, manual telemetry/report controls, raster/offline MBTiles maps and an explicitly started local HTTPS mirror. Audio needs separately installed native codecs and operating-system devices. Received media never plays or opens automatically. Python plugins, advanced map overlays and remaining inventory contracts are not available."
                        TextWrapping="Wrap" />
             <Button Content="Open Connectivity" HorizontalAlignment="Left" Click="OpenConnectivityClicked" />
           </StackPanel>

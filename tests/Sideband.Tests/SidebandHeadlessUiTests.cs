@@ -20,7 +20,7 @@ public sealed class TestAppBuilder
 }
 
 [Trait("Category", "Integration")]
-public sealed class SidebandHeadlessUiTests
+public sealed partial class SidebandHeadlessUiTests
 {
     public static bool MediaNativeIsDisabled => Environment.GetEnvironmentVariable("DOTLXST_NATIVE") != "1";
 
@@ -181,6 +181,10 @@ public sealed class SidebandHeadlessUiTests
             Assert.True(window.IsVisible);
             Assert.NotNull(window.FindControl<ListBox>("ContactList"));
             Assert.NotNull(window.FindControl<ListBox>("MessageList"));
+            Assert.True(window.FindControl<Button>("RepositoryNavButton")!.IsEnabled);
+            window.FindControl<Button>("RepositoryNavButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(window.FindControl<ScrollViewer>("UtilitiesPage")!.IsVisible);
+            Assert.False(window.FindControl<CheckBox>("RepositoryConsentBox")!.IsChecked);
             Assert.True(window.FindControl<Button>("VoiceNavButton")!.IsEnabled);
             window.FindControl<Button>("VoiceNavButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.True(window.FindControl<ScrollViewer>("VoicePage")!.IsVisible);

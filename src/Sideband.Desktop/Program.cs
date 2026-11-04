@@ -12,6 +12,7 @@ internal static class Program
     internal static bool SmokeMapMode { get; private set; }
     internal static bool SmokeTelemetryMode { get; private set; }
     internal static string? SmokeRepositoryRoot { get; private set; }
+    internal static bool SmokePaperMode { get; private set; }
 
     [STAThread]
     private static int Main(string[] args)
@@ -37,6 +38,20 @@ internal static class Program
             SmokeMapMode = options.SmokeMap;
             SmokeTelemetryMode = options.SmokeTelemetry;
             SmokeRepositoryRoot = options.SmokeRepositoryRoot;
+            SmokePaperMode = options.SmokePaper;
+            if (options.ExportPaperId is { } paperId)
+            {
+                using var cancellation = new CancellationTokenSource();
+                ConsoleCancelEventHandler cancel = (_, e) => { e.Cancel = true; cancellation.Cancel(); };
+                Console.CancelKeyPress += cancel;
+                try
+                {
+                    return PaperExportCommand.RunAsync(DataDirectory, paperId,
+                        options.PaperOutput ?? throw new ArgumentException("A paper export path is required."),
+                        options.PaperQr, Console.Out, cancellation.Token).GetAwaiter().GetResult();
+                }
+                finally { Console.CancelKeyPress -= cancel; }
+            }
             if (options.ImportProfile is { } profile)
             {
                 using var cancellation = new CancellationTokenSource();
@@ -182,6 +197,10 @@ internal static class Program
         string? importProfile = null;
         string? importMap = null;
         string? smokeRepositoryRoot = null;
+        var smokePaper = false;
+        Guid? exportPaperId = null;
+        string? paperOutput = null;
+        var paperQr = false;
         for (var index = 0; index < args.Length; index++)
         {
             switch (args[index])
@@ -192,6 +211,14 @@ internal static class Program
                 case "--smoke-map": smokeMap = true; break;
                 case "--smoke-telemetry": smokeTelemetry = true; break;
                 case "--smoke-repository": smokeRepositoryRoot = NextValue(args, ref index); break;
+                case "--smoke-paper": smokePaper = true; break;
+                case "--export-paper":
+                    if (!Guid.TryParse(NextValue(args, ref index), out var paperId))
+                        throw new ArgumentException("--export-paper requires a message UUID.");
+                    exportPaperId = paperId;
+                    break;
+                case "--paper-output": paperOutput = NextValue(args, ref index); break;
+                case "--paper-qr": paperQr = true; break;
                 case "--init": initialize = true; break;
                 case "--check": check = true; break;
                 case "--check-media": checkMedia = true; break;
@@ -216,6 +243,17 @@ internal static class Program
             throw new ArgumentException("--daemon cannot be combined with maintenance or UI smoke modes.");
         if ((interactive || syntheticAudio || verbose) && !daemon)
             throw new ArgumentException("--interactive, --synthetic-audio and --verbose require --daemon.");
+        if (exportPaperId is not null && (string.IsNullOrWhiteSpace(dataDirectory) || string.IsNullOrWhiteSpace(paperOutput) ||
+            rnsConfig is not null || daemon || smokeUi || smokePaper || smokeMap || smokeTelemetry || smokeRepositoryRoot is not null ||
+            initialize || check || checkMedia || importSettings is not null || exportSettings is not null ||
+            importProfile is not null || importMap is not null))
+            throw new ArgumentException("--export-paper requires --data-dir and --paper-output; it is offline and cannot be combined with other modes.");
+        if (exportPaperId is null && (paperOutput is not null || paperQr))
+            throw new ArgumentException("--paper-output and --paper-qr require --export-paper.");
+        if (smokePaper && (!smokeUi || string.IsNullOrWhiteSpace(dataDirectory) || rnsConfig is not null ||
+            daemon || smokeMap || smokeTelemetry || smokeRepositoryRoot is not null || initialize || check || checkMedia ||
+            importSettings is not null || exportSettings is not null || importProfile is not null || importMap is not null))
+            throw new ArgumentException("--smoke-paper requires --smoke-ui and an existing --data-dir, without other modes.");
         if (checkMedia && (rnsConfig is not null || smokeUi))
             throw new ArgumentException("--check-media is offline and cannot be combined with --rnsconfig or --smoke-ui.");
         if (importMap is not null && (string.IsNullOrWhiteSpace(dataDirectory) || rnsConfig is not null || smokeUi))
@@ -241,7 +279,8 @@ internal static class Program
         }
 
         return new Options(dataDirectory, rnsConfig, initialize, check, help, version, smokeUi, importSettings, exportSettings, importProfile, checkMedia,
-            daemon, interactive, syntheticAudio, verbose, importMap, smokeMap, smokeTelemetry, smokeRepositoryRoot);
+            daemon, interactive, syntheticAudio, verbose, importMap, smokeMap, smokeTelemetry, smokeRepositoryRoot,
+            smokePaper, exportPaperId, paperOutput, paperQr);
     }
 
     private static string NextValue(string[] args, ref int index)
@@ -268,6 +307,8 @@ internal static class Program
           sideband --import-profile <upstream-profile> --data-dir <new-directory>
           sideband --smoke-ui [--smoke-map | --smoke-telemetry] [--data-dir <path>] [--rnsconfig <path>]
           sideband --smoke-ui --smoke-repository <public-directory> --data-dir <path>
+          sideband --smoke-ui --smoke-paper --data-dir <existing-directory>
+          sideband --export-paper <message-uuid> --paper-output <new-file> [--paper-qr] --data-dir <existing-directory>
           sideband --daemon [--interactive] [--verbose] [--synthetic-audio] [--config <path>] [--rnsconfig <path>]
           sideband --help | --version
 
@@ -285,6 +326,9 @@ internal static class Program
         --smoke-map  With --smoke-ui, require rendering an already imported offline map.
         --smoke-telemetry  With --smoke-ui, prepare a configured manual report and render its desktop preview.
         --smoke-repository  Explicit loopback HTTPS/window acceptance with synthetic public files; requires --smoke-ui and --data-dir.
+        --smoke-paper  Render a saved paper URI and QR without connecting; requires --smoke-ui and an existing --data-dir.
+        --export-paper  Export a saved outgoing paper URI offline, or its QR PNG with --paper-qr; never overwrite.
+        --paper-output  Explicit destination for --export-paper; requires --data-dir.
         --daemon     Serve without opening the desktop; runs until cancellation, even when stdin closes.
         --interactive  Enable a bounded original console in daemon mode; EOF or quit stops it.
         --verbose    Print public voice-state events in daemon mode (also -v).
@@ -294,5 +338,5 @@ internal static class Program
     private sealed record Options(string? DataDirectory, string? ReticulumConfigDirectory, bool Initialize, bool Check, bool Help, bool Version, bool SmokeUi,
         string? ImportSettings, string? ExportSettings, string? ImportProfile, bool CheckMedia,
         bool Daemon, bool Interactive, bool SyntheticAudio, bool Verbose, string? ImportMap, bool SmokeMap, bool SmokeTelemetry,
-        string? SmokeRepositoryRoot);
+        string? SmokeRepositoryRoot, bool SmokePaper, Guid? ExportPaperId, string? PaperOutput, bool PaperQr);
 }

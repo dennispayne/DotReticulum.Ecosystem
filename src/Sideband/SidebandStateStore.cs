@@ -526,6 +526,15 @@ public sealed partial class SidebandStateStore
             throw new InvalidDataException("A saved message exceeds a field size limit.");
         if (message.DeliveryMethod is not ("Unknown" or "Opportunistic" or "Direct" or "Propagated" or "Paper"))
             throw new InvalidDataException("A saved message has an unsupported delivery method.");
+        if (message.PaperUri is { } uri)
+        {
+            byte[] destination;
+            try { destination = LXMF.LxMessage.GetPaperDestinationHash(uri); }
+            catch (FormatException ex) { throw new InvalidDataException("A saved paper URI has an invalid or oversized envelope.", ex); }
+            if (message.Incoming || message.DeliveryMethod != "Paper" ||
+                !destination.AsSpan().SequenceEqual(Convert.FromHexString(message.PeerDeliveryHash)))
+                throw new InvalidDataException("A saved paper URI does not match its outgoing paper conversation.");
+        }
         if (message.Attachments is { } attachments)
         {
             foreach (var attachment in attachments) SidebandAttachmentStore.Validate(attachment);

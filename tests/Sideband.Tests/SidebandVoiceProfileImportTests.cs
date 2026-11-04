@@ -56,7 +56,7 @@ public sealed partial class SidebandProfileImportTests
             "oversized" => new byte[SidebandVoiceProfile.MaximumEncodedBytes + 1],
             _ => MsgPack.Pack(new object?[] { new Dictionary<object, object?>
             {
-                ["time"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 241d,
+                ["time"] = DateTimeOffset.UtcNow.AddDays(1).ToUnixTimeMilliseconds() / 1000d,
                 ["event"] = "incoming-missed", ["identity"] = new byte[16],
             } }),
         };

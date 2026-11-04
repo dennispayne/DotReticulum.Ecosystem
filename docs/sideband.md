@@ -936,6 +936,10 @@ scalar values,8,001 total values and depth4; excessive inputs fail rather than
 silently truncate. Non-finite/invalid times and times more than240 seconds ahead
 fail, although the primary retains arbitrary future timestamps. Primary file
 errors can become empty history; native errors remain explicit and transactional.
+The exact native future cutoff uses a fixed-clock test:240 seconds is accepted
+and the next representable timestamp is rejected. The atomic-import malformed
+fixture is one day ahead, rather than a floored clock plus241 seconds, so
+crossing a second boundary during copying cannot make the fixture valid.
 Windows/Linux require regular files without linked/reparse ancestors; Linux
 `statx` additionally rejects FIFO/socket/device types before opening. This
 validates a **stopped snapshot**, not an adversarial TOCTOU-proof file jail.

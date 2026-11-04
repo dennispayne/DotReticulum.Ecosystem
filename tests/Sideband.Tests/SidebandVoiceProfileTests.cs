@@ -73,5 +73,13 @@ public sealed class SidebandVoiceProfileTests
         Assert.Throws<InvalidDataException>(() => SidebandVoiceProfile.Read(
             MsgPack.Pack(new object?[SidebandVoiceProfile.MaximumEntries + 1]), 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => SidebandVoiceProfile.Read([0x90], double.NaN));
+        const double now = 1_800_000_000;
+        var row = new Dictionary<object, object?>
+        {
+            ["time"] = now + 240, ["event"] = "incoming-missed", ["identity"] = new byte[16],
+        };
+        Assert.Single(SidebandVoiceProfile.Read(MsgPack.Pack(new object?[] { row }), now));
+        row["time"] = Math.BitIncrement(now + 240);
+        Assert.Throws<InvalidDataException>(() => SidebandVoiceProfile.Read(MsgPack.Pack(new object?[] { row }), now));
     }
 }

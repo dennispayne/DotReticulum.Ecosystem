@@ -53,6 +53,20 @@ the executable/hash and exact evidence boundary are in
 [Sideband's reference](sideband.md#cached-interface-discovery). Hosted
 Build/Test results below are unchanged and do not accept these local changes.
 
+Independent serviced Linux native reacceptance also verifies fresh `lxmd`,
+`rnphone` and `telemetry` hashes and compiler10.0.14 assets. From native storage,
+`Invoke-Pester -Path <repo>\tests\Pester\Lxmd.Tests.ps1 -Tag Native` passes6/no
+skips, and the equivalent `Rnphone.Tests.ps1` passes7/no skips with actual
+pinned Python and owned virtual audio. Telemetry's published daemon/get/watch
+loopback flow and graceful SIGTERM pass independently; it has no Python
+counterpart. Strict publication uses `dotnet publish <project> -c Release -r
+linux-x64 --artifacts-path /home/dennis/fleet-servicing-native
+-p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true
+-warnaserror -v quiet`. Parent's non-republishing recipe and machine-readable
+case/hash results are under `artifacts\tests\fleet-servicing-native`; selected
+binary paths/hashes are in the three project reference docs. Old one-hour
+phone/native evidence is retained, not relabelled as a serviced rerun.
+
 The integrated discovery/conversation-image gate
 `& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
 artifacts\builds\fleet-discovery-nomad-final-unified -OutputDirectory

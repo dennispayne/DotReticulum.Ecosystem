@@ -630,6 +630,24 @@ Other Windows codec/file DLLs have not been verified by this headless Opus gate.
 
 ## Evidence and reproduction
 
+### Serviced Linux native utility
+
+The selected freshly published Linux phone uses SDK10.0.403/NativeAOT
+compiler10.0.14:
+`/home/dennis/fleet-servicing-native/publish/rnphone/release_linux-x64/rnphone`,
+SHA-256 `a135b7ffd0967c4337a970f9e45a0ee58eb65334f1a50a9907bae015a2fe4a17`.
+Strict publication uses both warning-as-error properties and `-warnaserror`;
+assets identify both10.0.14 compiler packages. Parent independently verifies
+the hash and runs `Invoke-Pester -Path <repo>\tests\Pester\Rnphone.Tests.ps1
+-Tag Native` from native Linux storage with the pinned Python/LXST references
+and virtual-audio opt-in: **7passed/no skips**,12.26seconds. The Windows-only
+case is not selected. CLI/hardware-error handling, phonebook/config/identity
+restart, service/SIGTERM, actual Python0.5.4 Opus calls both directions and
+two-native-process profile/device/ringtone flows pass. Audio uses owned virtual
+PulseAudio/null devices, not physical capture, speakers or quality assessment.
+The one-hour cases below were **not rerun**; their previous binaries/timing
+evidence retain their actual provenance, not this new hash.
+
 `tests/LXST.Tests/GenerateLxstVectors.py` executes the real pinned Raw, Opus,
 Codec2, Packetizer and SignallingReceiver APIs. It records source digests,
 actual module location, Python/NumPy/pycodec2 versions, libopus version and the

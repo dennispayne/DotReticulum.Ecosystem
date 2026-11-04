@@ -52,3 +52,16 @@ This application-specific format has no upstream equivalent or Python interopera
 ## Verification
 
 `tests/Telemetry.Tests/TelemetryTests.cs` covers MessagePack round trips, unknown-version rejection, direct publishing, and delivery through a .NET `rnsd` transport hop. These tests establish DotReticulum node behavior, not compatibility with a Python telemetry service.
+
+The selected Linux NativeAOT executable is freshly published with
+SDK10.0.403/compiler10.0.14 and both trim/compiler warning-as-error properties
+plus `-warnaserror`:
+`/home/dennis/fleet-servicing-native/publish/Telemetry/release_linux-x64/telemetry`,
+SHA-256 `3cc5553cadc09cdfc6338c80e4cf56aef130577156fc9be52259a240e5da8bcc`.
+Parent independently checks the hash/compiler assets, runs `--help`, initializes
+an isolated identity with `-p`, starts `daemon -i 1 -b 0`, then executes `get`
+and `watch -n 2` from a second isolated configuration over TCP loopback.
+One get report and exactly two watch reports with increasing sequence numbers
+arrive; SIGTERM joins daemon shutdown with exit0. Both configurations disable
+shared instances and transport and bind/connect only127.0.0.1. No Python
+counterpart, external-network, hours-long or other-platform claim follows.

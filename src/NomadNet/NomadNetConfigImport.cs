@@ -151,7 +151,7 @@ public static class NomadNetConfigImport
     private static int Integer(string value) => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result)
         ? result : throw new InvalidDataException("Invalid bounded integer configuration value.");
 
-    private static string ExpandHome(string path)
+    internal static string ExpandHome(string path)
     {
         if (path == "~") return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (path.StartsWith("~/", StringComparison.Ordinal) || path.StartsWith("~\\", StringComparison.Ordinal))

@@ -1,0 +1,121 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sourceSha256": "116c1755c672e30728d30105f589ff1bf0b6940448be8022862ae4d0c86e1983",
+  "method": "Actual FileBrowser constructor/populate/entry-click/cancel and single-select callbacks. Only get_shared_instance supplies a headless UI glyph host; no selection/listing/size/callback implementation is replaced. Not a full unmodified application UI or live network claim.",
+  "rows": [
+    {
+      "name": "..",
+      "directory": false,
+      "parent": true
+    },
+    {
+      "name": "AlphaDir",
+      "directory": true,
+      "parent": false
+    },
+    {
+      "name": "zdir",
+      "directory": true,
+      "parent": false
+    },
+    {
+      "name": "A.txt",
+      "directory": false,
+      "parent": false
+    },
+    {
+      "name": "B.txt",
+      "directory": false,
+      "parent": false
+    },
+    {
+      "name": "oversize.txt",
+      "directory": false,
+      "parent": false
+    },
+    {
+      "name": "\ue000.txt",
+      "directory": false,
+      "parent": false
+    },
+    {
+      "name": "\ud83d\ude00.txt",
+      "directory": false,
+      "parent": false
+    }
+  ],
+  "steps": [
+    {
+      "name": "A.txt",
+      "selected": [
+        "A.txt"
+      ],
+      "directory": "nomadnet-file-browser-reference",
+      "notice": false
+    },
+    {
+      "name": "B.txt",
+      "selected": [
+        "A.txt",
+        "B.txt"
+      ],
+      "directory": "nomadnet-file-browser-reference",
+      "notice": false
+    },
+    {
+      "name": "A.txt",
+      "selected": [
+        "B.txt"
+      ],
+      "directory": "nomadnet-file-browser-reference",
+      "notice": false
+    },
+    {
+      "name": "oversize.txt",
+      "selected": [
+        "B.txt"
+      ],
+      "directory": "nomadnet-file-browser-reference",
+      "notice": true
+    },
+    {
+      "name": "AlphaDir",
+      "selected": [
+        "B.txt"
+      ],
+      "directory": "AlphaDir",
+      "notice": false
+    }
+  ],
+  "events": [
+    [
+      "change",
+      [
+        "A.txt"
+      ]
+    ],
+    [
+      "change",
+      [
+        "A.txt",
+        "B.txt"
+      ]
+    ],
+    [
+      "change",
+      [
+        "B.txt"
+      ]
+    ],
+    [
+      "cancel",
+      []
+    ],
+    [
+      "single-done",
+      [
+        "A.txt"
+      ]
+    ]
+  ]
+}

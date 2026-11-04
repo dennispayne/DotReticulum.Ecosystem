@@ -452,6 +452,78 @@ image_loading = yes
             $null = & $read $python '"event"\s*:\s*"network-ready"'
             & $send $native 'announce'
             $null = & $read $native 'Destinations announced'
+            if ($env:DOTRETICULUM_NOMADNET_FILE_PICKER_LIVE -eq '1') {
+                $pickerRoot = Join-Path $work 'Picker Files'
+                $null = New-Item (Join-Path $pickerRoot 'Alpha Dir') -ItemType Directory -Force
+                $first = Join-Path $pickerRoot 'first.bin'
+                $second = Join-Path $pickerRoot 'z-note.txt'
+                $payload = [Security.Cryptography.RandomNumberGenerator]::GetBytes(65536)
+                [IO.File]::WriteAllBytes($first, $payload)
+                [IO.File]::WriteAllText($second, 'GENERATED_PICKER_NOTE', [Text.UTF8Encoding]::new($false))
+                $pickerCommand = {
+                    param([string] $command)
+                    & $send $native $command
+                    $rows = [Collections.Generic.List[string]]::new()
+                    do {
+                        $row = & $read $native 'File entry |Files listed:'
+                        $rows.Add($row)
+                    } while ($row -notmatch 'Files listed:')
+                    return ,$rows.ToArray()
+                }.GetNewClosure()
+                $rows = & $pickerCommand "files browse $pickerRoot"
+                $firstIndex = [regex]::Match(($rows -join "`n"), 'File entry (\d+): file first.bin').Groups[1].Value
+                $secondIndex = [regex]::Match(($rows -join "`n"), 'File entry (\d+): file z-note.txt').Groups[1].Value
+                $directoryIndex = [regex]::Match(($rows -join "`n"), 'File entry (\d+): directory Alpha Dir').Groups[1].Value
+                $firstIndex | Should -Not -BeNullOrEmpty
+                $secondIndex | Should -Not -BeNullOrEmpty
+                $directoryIndex | Should -Not -BeNullOrEmpty
+                (& $pickerCommand "files open $firstIndex")[-1] | Should -Match 'selected: 1\.'
+                (& $pickerCommand "files open $directoryIndex")[-1] | Should -Match 'selected: 1\.'
+                (& $pickerCommand 'files up')[-1] | Should -Match 'selected: 1\.'
+                (& $pickerCommand "files open $secondIndex")[-1] | Should -Match 'selected: 2\.'
+                & $send $native 'files done'
+                $null = & $read $native 'File selection saved: 2\.'
+                $null = & $pickerCommand "files browse $pickerRoot"
+                (& $pickerCommand "files open $firstIndex")[-1] | Should -Match 'selected: 1\.'
+                & $send $native 'files cancel'
+                $null = & $read $native 'File selection cancelled; saved: 2\.'
+                & $send $native 'files selected'
+                $null = & $read $native 'Selected file: first.bin'
+                $null = & $read $native 'Selected file: z-note.txt'
+                $null = & $read $native 'Selected files complete: 2\.'
+                & $send $native "send-files $($ready.delivery) NATIVE_PICKER_MULTIPLE"
+                $null = & $read $native 'Message queued:'
+                $received = ((& $read $python '"event"\s*:\s*"received".*NATIVE_PICKER_MULTIPLE').Substring(2) | ConvertFrom-Json)
+                @($received.files).Count | Should -Be 2
+                for ($index = 0; $index -lt 2; $index++) {
+                    $file = @($first, $second)[$index]
+                    $received.files[$index].name | Should -Be ([IO.Path]::GetFileName($file))
+                    $received.files[$index].size | Should -Be ([IO.FileInfo]::new($file).Length)
+                    $received.files[$index].sha256 | Should -Be ((Get-FileHash $file).Hash.ToLowerInvariant())
+                }
+                & $send $native 'files selected'
+                $null = & $read $native 'Selected files complete: 0\.'
+                $nativeDelivery = [regex]::Match([IO.File]::ReadAllText((Join-Path $work 'native.stdout')),
+                    'LXMF delivery address: ([0-9a-f]{32})').Groups[1].Value
+                $nativeDelivery | Should -Match '^[0-9a-f]{32}$'
+                $encodedPaths = ConvertTo-Json -InputObject @($first, $second) -Compress
+                & $send $python "send-files $nativeDelivery $encodedPaths"
+                $null = & $read $python '"event"\s*:\s*"delivered"'
+                $deadline = [DateTime]::UtcNow.AddSeconds(15)
+                do {
+                    $state = & $readState
+                    $incoming = @($state.messages | Where-Object content -Match '^upstream-multiple-attachments')
+                    if ($incoming.Count -eq 1) { break }
+                    Start-Sleep -Milliseconds 50
+                } while ([DateTime]::UtcNow -lt $deadline)
+                $incoming.Count | Should -Be 1
+                for ($index = 0; $index -lt 2; $index++) {
+                    $file = @($first, $second)[$index]
+                    $stored = Join-Path $work "native/attachments/$($incoming[0].id)/$index.bin"
+                    (Get-FileHash $stored).Hash | Should -Be (Get-FileHash $file).Hash
+                    [IO.File]::ReadAllText("$stored.name") | Should -Be ([IO.Path]::GetFileName($file))
+                }
+            }
             & $send $python "request-media $nativeNode /media/picture.png"
             $image = ((& $read $python '"event"\s*:\s*"image-response"').Substring(2) | ConvertFrom-Json)
             $image.width | Should -Be 1200
@@ -466,6 +538,7 @@ image_loading = yes
                 navigation = ($env:DOTRETICULUM_NOMADNET_HISTORY_LIVE -eq '1');
                 directory = ($env:DOTRETICULUM_NOMADNET_DIRECTORY_LIVE -eq '1');
                 hostPolicy = ($env:DOTRETICULUM_NOMADNET_HOST_POLICY_LIVE -eq '1');
+                filePicker = ($env:DOTRETICULUM_NOMADNET_FILE_PICKER_LIVE -eq '1');
                 primaryStaticAuthorization = if ([OperatingSystem]::IsWindows()) { 'upstream Windows X_OK defect; actual identity observed instead' } else { 'allowed and denied' } } |
                 ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
         }

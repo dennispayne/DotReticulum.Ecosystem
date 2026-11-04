@@ -106,7 +106,8 @@ def main():
                 files = message.fields.get(LXMF.FIELD_FILE_ATTACHMENTS, [])
                 emit("received", content=message.content.decode("utf-8", errors="replace"),
                      method=message.method,
-                     files=[{"size": len(item[1]), "sha256": hashlib.sha256(item[1]).hexdigest()}
+                     files=[{"name": item[0].decode("utf-8", errors="replace") if isinstance(item[0], bytes) else str(item[0]),
+                             "size": len(item[1]), "sha256": hashlib.sha256(item[1]).hexdigest()}
                             for item in files])
             app.message_router.register_delivery_callback(observe_delivery)
             browser_links = []
@@ -316,7 +317,7 @@ def main():
                     accepted = app.message_router.ingest_lxm_uri(parts[1])
                     emit("ingested", accepted=accepted)
                     continue
-                if parts[0] not in ("send", "send-file", "send-propagated", "paper", "request", "request-media") or len(parts) != 3:
+                if parts[0] not in ("send", "send-file", "send-files", "send-propagated", "paper", "request", "request-media") or len(parts) != 3:
                     raise ValueError("expected send, send-file, paper, request, ingest, stats, or quit")
 
                 destination_hash = bytes.fromhex(parts[1])
@@ -391,6 +392,21 @@ def main():
                         raise ValueError("Reference attachment exceeds adapter bound")
                     fields[LXMF.FIELD_FILE_ATTACHMENTS] = [[os.path.basename(parts[2]), attachment]]
                     content = "upstream-attachment"
+                if parts[0] == "send-files":
+                    paths = json.loads(parts[2])
+                    if not isinstance(paths, list) or not 1 <= len(paths) <= 64 or any(not isinstance(path, str) for path in paths):
+                        raise ValueError("Reference multi-attachment command requires 1..64 file paths")
+                    attachments = []
+                    total = 0
+                    for path in paths:
+                        with open(path, "rb") as stream:
+                            attachment = stream.read(16000001 - total)
+                        total += len(attachment)
+                        if total > 16000000:
+                            raise ValueError("Reference attachments exceed aggregate adapter bound")
+                        attachments.append([os.path.basename(path), attachment])
+                    fields[LXMF.FIELD_FILE_ATTACHMENTS] = attachments
+                    content = "upstream-multiple-attachments"
                 message = LXMF.LXMessage(
                     destination,
                     app.lxmf_destination,

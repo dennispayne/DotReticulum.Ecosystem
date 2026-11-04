@@ -61,10 +61,10 @@ Underlying-library acceptance is not automatically application acceptance.
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
 | Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. OS-process tests cover native execution; selected Linux native browser also submits real forms to unmodified Python executable pages across a Python transport. Python-to-native executable-form browser acceptance remains unverified. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
 | Media; `Node.serve_media`, `convert_media_to_webp` | **partial, live-verified core**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` responses and PNG/JPEG/BMP/GIF/TIFF conversion through configured external FFmpeg. Primary quality85/dimension1200 and content-hash cache naming, 256-file/192-MiB quota, corruption regeneration and restart/cache-only serving are exercised. `show-media` decodes browser images to ASCII or explicit ANSI true-colour half-blocks. Actual primary `ImageData` decodes native-served images and native previews primary-served images on Windows/Linux. Animated/multipage, alpha/EXIF behavior, automatic inline loading and Kitty graphics remain unverified/missing. |
-| Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file/media retrieval with explicit identification consent, links/bookmarks, reload, session navigation history with back/forward and submitted-field replay, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Explicit image previews work; automatic inline image widgets and interactive file browser remain missing. |
+| Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file/media retrieval with explicit identification consent, links/bookmarks, reload, session navigation history with back/forward and submitted-field replay, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Explicit image previews and a local interactive file picker with transactional attachment composition work; automatic inline image widgets remain missing. |
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways through a Python transport, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron message rendering and complete Channels UI remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
-| UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop. Urwid menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
+| UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop and local attachment picker. Complete menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
 | Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Complete ConfigObj compatibility, directory/peer-settings/conversation/RRC migration, peer-settings backup recovery and full restart policy remain missing. |
 
 ### Configuration audit
@@ -224,6 +224,56 @@ Attachments are stored under `attachments\<message-hash>\<index>.bin`, with
 `.name` and `.sha256` metadata. Remote names are never filesystem paths. Image
 and audio commands send existing encoded bytes; no audio hardware/playback,
 capture or transcoding is claimed. `paper` needs the recipient's announced identity.
+
+### Local files and attachment composition
+
+```text
+files browse <directory>
+files open <number>
+files up
+files selected
+files done
+send-files <delivery-hash> <message>
+```
+
+`files` alone opens the current user's home directory. Explicit current-user
+`~`/`~/` paths use the same expansion as the core importer; named-user shortcuts
+are rejected, not silently mapped to somebody else's profile. Rows show the
+parent first, then directories and regular files independently sorted in Python
+Unicode-codepoint order. Opening a directory retains selection; opening a file
+toggles it. `files list`/`refresh` redisplay or rescan. Paths with spaces are
+accepted as the remainder of `files browse`; numbering avoids quoting filenames.
+
+`files done` commits an immutable, session-local selection. `files cancel`
+restores the previously committed selection, matching the primary conversation
+picker's cancel handler. `files clear` clears a committed selection. Complete
+or cancel an open picker before `send-files`: sending reads the actual current
+file bytes and passes the normal LXMF file-attachment field to the existing
+delivery supervisor, preserving contact delivery preference and fallback.
+Successful queuing clears the composer selection, as primary
+`ConversationWidget.send_message`/`clear_editor` do; preparation failure leaves
+it available for correction. Selection paths are not persisted across restart.
+Existing `attach`, `image` and `audio` use the same safe local reader.
+
+The primary conversation picker allows **100 MiB per file**
+(`Conversations.py: ConversationWidget.MAX_ATTACHMENT_SIZE`); the native
+application intentionally retains its **16 MiB per-file/aggregate** and
+**64-attachment** limits. At most4096 directory entries are inspected, including
+hidden entries. Dot/control-character names, symlink entries and special files
+are omitted. Unreadable/changed files fail the whole preparation instead of
+silently sending fewer attachments; primary logs and skips individual read
+failures. These are explicit safety differences, not upstream limits.
+
+Only the **Windows/Linux regular-file adapters** are implemented. Linux uses
+source-generated libc `open` with nonblocking/no-follow/close-on-exec flags,
+then `statx(AT_EMPTY_PATH)` on that exact handle; FIFO/device/link rejection
+precedes content reads. Windows uses system `CreateFileW`/handle-type and
+attribute inspection, rejecting device namespaces and reparse points. Reads
+enforce length/cancellation and reject growth beyond the inspected length.
+These are OS APIs, not bundled codecs or new third-party binaries. The Linux
+adapter requires libc `statx` and a supporting kernel; the exercised host has
+Ubuntu glibc2.43. Windows10.0.26300 x64 is exercised. Other libc versions,
+distributions, architectures and macOS are not inferred support.
 
 ### Images and external codecs
 
@@ -434,6 +484,70 @@ limited to 4 MiB, links to 2,048 and media descriptors to 128. These are safety
 bounds, not primary layout defaults.
 
 ## Validation and reproduction
+
+### Selected local picker/composer acceptance
+
+`GenerateNomadNetFileBrowserVectors.py` executes actual primary
+`FileBrowser` construction, listing, selection, oversize notices, navigation,
+cancel and single-selection callbacks. The sole disclosed seam supplies the
+shared UI's glyph host; it does not replace filesystem/selection methods.
+This is reference-vector evidence, not full primary UI or network evidence.
+The fixture records primary commit
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2` and raw `FileBrowser.py` SHA-256
+`116c1755c672e30728d30105f589ff1bf0b6940448be8022862ae4d0c86e1983`.
+
+The five filesystem integration cases cover those vectors, immutable snapshots,
+single-selection callback ordering, cancel preserving the prior composition,
+failing observers with continuing callbacks, no-subscriber operation, count/
+aggregate/directory limits, missing/oversize/empty files, cancellation before
+opening and between files, and Linux FIFO/device/link rejection without content
+reads. The FIFO case is an explicit Windows skip, not a passing Windows claim.
+All **Windows 104 +4 explicit skips**, **Linux 108/108** scoped cases pass when
+the selected FFmpeg is configured.
+
+Final strict NativeAOT selections:
+
+- Windows `artifacts\builds\nomadnet-file-picker-win\publish\NomadNet\release_win-x64\nomadnet.exe`;
+  SHA-256 `18a8f9f9b8c41bcd74b46ddfe8ea5422ee90f09d7f50d91fe9582ca4d6897a7a`.
+- Linux `artifacts/builds/nomadnet-file-picker-linux/publish/NomadNet/release_linux-x64/nomadnet`;
+  SHA-256 `84df69345260ed03704aa7a37a3a598da5686d20ae8902137dfb8c73b62a6d3e`.
+
+Both `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r <rid>
+--artifacts-path artifacts\builds\nomadnet-file-picker-<host>
+-p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v:q`
+commands pass. Both exact binaries pass **Native 4/4**, including the existing
+large attachment/resource workflow. The expanded actual primary application
+case passes **1/1 on Windows (106.61 seconds)** and **1/1 on Linux (96.90 seconds)**.
+It opens/navigates the real native picker with spaces in directory names,
+retains selection across directories, commits two files, rolls a subsequent
+edit back on cancel, and sends actual bytes through LXMF. The primary app
+receives both names, sizes and SHA-256 values; its actual router then sends both
+files back and native durable bytes/names are checked. Successful queueing clears
+the native selection. These new two-file flows use a generated64-KiB binary
+and text note with default primary receive limits; they are not a new
+multi-megabyte or transport-hop claim. Linux additionally passes actual
+RRC/forms/partial/replay **1/1 (18.75 seconds)**.
+
+```powershell
+& artifacts\tests\nomadnet-file-picker-win-acceptance.ps1
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-file-picker-linux-acceptance.ps1
+```
+
+The ignored recipes require the same pinned references/converters as the
+hosted-policy gate and additionally enable
+`DOTRETICULUM_NOMADNET_FILE_PICKER_LIVE=1`. They SHA-guard both the native binary
+and frozen Pester file (`5f9c553e85dff441f9e2b0d1d25fb7bad77423cbb99bd3f2e3a512f0424d2aa3`).
+Successful application artifacts record `filePicker=true`.
+
+`dotnet build DotReticulum.Ecosystem.slnx -c Release --artifacts-path
+artifacts\builds\nomadnet-file-picker-integrated -v:q` passes with zero warnings/
+errors. `dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build
+--artifacts-path artifacts\builds\nomadnet-file-picker-integrated --logger trx
+--results-directory artifacts\tests\nomadnet-file-picker-integrated -v:q`
+passes **1,799 tests, 87 explicit skips, zero failures**. Converter-dependent
+checks skipped there are separately exercised by the selected scoped runs.
+Required inline media, configuration, migration, editor/notification/clipboard,
+QR/printing and remaining presentation workflows are not declared complete.
 
 ### Selected hosted-policy acceptance
 

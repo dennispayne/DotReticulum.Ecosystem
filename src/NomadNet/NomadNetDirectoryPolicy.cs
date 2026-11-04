@@ -12,7 +12,7 @@ public static class NomadNetDirectoryPolicy
             .ThenBy(contact => contact.Name, Comparer<string>.Create(CompareNames))
             .ToArray();
 
-    private static int CompareNames(string? left, string? right)
+    internal static int CompareNames(string? left, string? right)
     {
         var a = (left ?? "_").EnumerateRunes();
         var b = (right ?? "_").EnumerateRunes();

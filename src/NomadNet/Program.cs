@@ -294,6 +294,10 @@ internal static class Program
               send <hash> <message>          Send a text LXMF message
               send-propagated <hash> <text>  Send through selected propagation node
               attach <hash> <file>           Send a file attachment
+              files [browse <directory>]    Start a local attachment picker
+              files list|up|refresh|selected | files open <number>
+              files done|cancel|clear        Save, cancel or clear selection
+              send-files <hash> <message>   Send text and selected attachments
               image|audio <hash> <file>      Send encoded image/audio (no transcoding)
               paper <hash> <message>         Generate an encrypted lxm:// URI
               ingest <lxm://uri>             Ingest a paper URI for this identity
@@ -370,6 +374,8 @@ internal static class Program
         private NomadNetRenderedPage? _page => _browser?.Current;
         private object? _currentRequestData;
         private readonly NomadNetNavigationHistory _navigation = new();
+        private NomadNetFilePicker? _filePicker;
+        private IReadOnlyList<string> _selectedAttachments = [];
 
         public async ValueTask DisposeAsync()
         {
@@ -412,6 +418,21 @@ internal static class Program
             if (command.Equals("quit", StringComparison.OrdinalIgnoreCase) || command.Equals("exit", StringComparison.OrdinalIgnoreCase))
                 return true;
             if (command.Equals("help", StringComparison.OrdinalIgnoreCase)) { PrintHelp(); return false; }
+            if (command.Equals("files", StringComparison.OrdinalIgnoreCase) || command.StartsWith("files ", StringComparison.OrdinalIgnoreCase))
+            {
+                ExecuteFiles(command);
+                return false;
+            }
+            if (command.StartsWith("send-files ", StringComparison.OrdinalIgnoreCase))
+            {
+                if (_filePicker is not null) throw new InvalidOperationException("Complete or cancel the open file selection first.");
+                var parts = Split(command, 3);
+                if (parts.Length != 3) throw new ArgumentException("Usage: send-files <hash> <message>");
+                var fields = await NomadNetFilePicker.ReadAttachmentsAsync(_selectedAttachments, cancellationToken).ConfigureAwait(false);
+                await SendAsync(parts[1], parts[2], cancellationToken, fields).ConfigureAwait(false);
+                _selectedAttachments = [];
+                return false;
+            }
             if (command.StartsWith("rrc ", StringComparison.OrdinalIgnoreCase))
             {
                 await ExecuteRrcAsync(command[4..], cancellationToken).ConfigureAwait(false);
@@ -544,10 +565,7 @@ internal static class Program
             {
                 var parts = Split(command, 3);
                 if (parts.Length != 3) throw new ArgumentException("Usage: attach|image|audio <hash> <file>");
-                await using var input = File.OpenRead(parts[2]);
-                if (input.Length > NomadNetAttachments.MaximumBytes) throw new InvalidDataException("Attachment exceeds 16 MiB.");
-                var bytes = new byte[checked((int)input.Length)];
-                await input.ReadExactlyAsync(bytes, cancellationToken).ConfigureAwait(false);
+                var bytes = await NomadNetLocalFiles.ReadAsync(parts[2], cancellationToken: cancellationToken).ConfigureAwait(false);
                 var kind = parts[0].ToLowerInvariant();
                 var name = NomadNetAttachments.SafeName(Path.GetFileName(parts[2]));
                 Dictionary<object, object?> fields = kind == "attach"
@@ -934,6 +952,72 @@ internal static class Program
                 }
             }
             Console.WriteLine("RRC command complete.");
+        }
+
+        private void ExecuteFiles(string command)
+        {
+            var action = command.Length == 5 ? "" : command[6..].Trim();
+            if (action.Length == 0 || action.StartsWith("browse ", StringComparison.OrdinalIgnoreCase))
+            {
+                if (_filePicker is not null) throw new InvalidOperationException("Complete or cancel the open file selection first.");
+                _filePicker = new(action.Length == 0 ? null : action[7..].Trim(), _selectedAttachments)
+                { Log = message => Console.Error.WriteLine(message) };
+            }
+            else if (action.Equals("selected", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowSelectedFiles(_filePicker?.Selected ?? _selectedAttachments);
+                return;
+            }
+            else if (action.Equals("clear", StringComparison.OrdinalIgnoreCase))
+            {
+                if (_filePicker is not null) throw new InvalidOperationException("Complete or cancel the open file selection first.");
+                _selectedAttachments = [];
+                Console.WriteLine("File selection cleared.");
+                return;
+            }
+            else
+            {
+                var picker = _filePicker ?? throw new InvalidOperationException("Start a local selection with files browse <directory>.");
+                if (action.Equals("done", StringComparison.OrdinalIgnoreCase))
+                {
+                    _selectedAttachments = picker.Done();
+                    _filePicker = null;
+                    Console.WriteLine($"File selection saved: {_selectedAttachments.Count}.");
+                    return;
+                }
+                if (action.Equals("cancel", StringComparison.OrdinalIgnoreCase))
+                {
+                    picker.Cancel();
+                    _filePicker = null;
+                    Console.WriteLine($"File selection cancelled; saved: {_selectedAttachments.Count}.");
+                    return;
+                }
+                if (action.Equals("up", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (picker.Entries.FirstOrDefault(entry => entry.IsParent) is { } parent)
+                        picker.Open(picker.Entries.ToList().IndexOf(parent));
+                }
+                else if (action.Equals("refresh", StringComparison.OrdinalIgnoreCase)) picker.Refresh();
+                else if (action.StartsWith("open ", StringComparison.OrdinalIgnoreCase) &&
+                    int.TryParse(action[5..], out var number)) picker.Open(number - 1);
+                else if (!action.Equals("list", StringComparison.OrdinalIgnoreCase))
+                    throw new ArgumentException("Use files list|up|refresh|selected|done|cancel|clear or files open <number>.");
+            }
+            if (_filePicker is not { } current) return;
+            Console.WriteLine("Files directory: " + NomadNetTerminalText.Safe(current.CurrentDirectory));
+            for (var index = 0; index < current.Entries.Count; index++)
+            {
+                var entry = current.Entries[index];
+                Console.WriteLine($"File entry {index + 1}: {(entry.IsParent ? "parent" : entry.IsDirectory ? "directory" : "file")} {NomadNetTerminalText.Safe(entry.Name)}");
+            }
+            if (current.Notice is { } notice) Console.WriteLine("File selection notice: " + NomadNetTerminalText.Safe(notice));
+            Console.WriteLine($"Files listed: {current.Entries.Count}; selected: {current.Selected.Count}.");
+        }
+
+        private static void ShowSelectedFiles(IReadOnlyList<string> files)
+        {
+            foreach (var file in files) Console.WriteLine("Selected file: " + NomadNetTerminalText.Safe(Path.GetFileName(file)));
+            Console.WriteLine($"Selected files complete: {files.Count}.");
         }
 
         private async Task SendAsync(string destinationText, string content, CancellationToken cancellationToken,

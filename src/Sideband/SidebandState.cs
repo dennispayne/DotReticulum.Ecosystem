@@ -12,7 +12,8 @@ public sealed record SidebandChatMessage(
     string DeliveryMethod = "Direct",
     SidebandImage? Image = null,
     SidebandAudio? Audio = null,
-    string? PaperUri = null);
+    string? PaperUri = null,
+    bool ImportedPaperEnvelope = false);
 
 public sealed record SidebandState(
     int SchemaVersion,

@@ -70,9 +70,29 @@ public class LxmfContractTests
         Assert.True(message.SignatureValidated);
         Assert.Equal("Paper Grüße", message.Content);
         Assert.Equal(vector.GetProperty("uri").GetString(), message.AsUri(finalise: false));
+        Assert.Equal(vector.GetProperty("uri").GetString(), LxMessage.PaperUriFromBytes(Hex(vector.GetProperty("paper_packed"))));
         Assert.Equal(LxmState.Generating, message.State);
         message.AsUri();
         Assert.Equal(LxmState.Paper, await message.Completion);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(LxMessage.DestinationLength)]
+    [InlineData(LxMessage.PaperMdu + 1)]
+    public void OpaquePaperUri_RejectsInvalidEnvelopeSizes(int length) =>
+        Assert.Throws<FormatException>(() => LxMessage.PaperUriFromBytes(new byte[length]));
+
+    [Fact]
+    public void OpaquePaperUri_BoundsAreEnvelopeChecksNotAuthentication()
+    {
+        foreach (var length in new[] { LxMessage.DestinationLength + 1, LxMessage.PaperMdu })
+        {
+            var envelope = new byte[length];
+            var uri = LxMessage.PaperUriFromBytes(envelope);
+            Assert.Equal(new byte[LxMessage.DestinationLength], LxMessage.GetPaperDestinationHash(uri));
+            Assert.DoesNotContain("=", uri);
+        }
     }
 
     [Fact]

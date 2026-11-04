@@ -10,8 +10,10 @@ namespace Sideband.Tests;
 
 public sealed partial class SidebandHeadlessUiTests
 {
-    [AvaloniaFact]
-    public async Task SavedReferencePaperShowsExportsAndReopensWithoutNetworkOrDeviceAccess()
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SavedReferencePaperShowsExportsAndReopensWithoutNetworkOrDeviceAccess(bool imported)
     {
         var path = Path.Combine(AppContext.BaseDirectory, "sideband-paper-saved-ui-" + Guid.NewGuid().ToString("N"));
         MainWindow? window = null;
@@ -25,7 +27,7 @@ public sealed partial class SidebandHeadlessUiTests
             var store = new SidebandStateStore(path);
             await store.AddContactAsync(SidebandContact.Create("Reference paper peer", peer));
             var message = new SidebandChatMessage(Guid.NewGuid(), peer, false, "", paper.GetProperty("content").GetString()!,
-                DateTimeOffset.UtcNow, "Paper", DeliveryMethod: "Paper", PaperUri: uri);
+                DateTimeOffset.UtcNow, "Paper", DeliveryMethod: "Paper", PaperUri: uri, ImportedPaperEnvelope: imported);
             await store.AddMessageAsync(message);
             await store.SetConversationReadAsync(peer, true);
             var backend = new UiMediaBackend();
@@ -39,6 +41,7 @@ public sealed partial class SidebandHeadlessUiTests
                 window.FindControl<Button>("ShowPaperButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await WaitForAsync(() => window.FindControl<PaperQrView>("PaperQrPreview")?.Source is not null);
                 Assert.Equal(uri, window.FindControl<TextBox>("PaperUriBox")!.Text);
+                Assert.Equal(imported, window.FindControl<TextBlock>("StatusText")!.Text!.Contains("not authenticated", StringComparison.Ordinal));
                 window.FindControl<CheckBox>("TrustConversationBox")!.IsChecked = restart == 0;
                 window.FindControl<Button>("SaveConversationTrustButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await WaitForAsync(() => window.FindControl<TextBlock>("StatusText")?.Text?.StartsWith("Conversation trust saved.", StringComparison.Ordinal) == true);
@@ -48,6 +51,7 @@ public sealed partial class SidebandHeadlessUiTests
                 window.FindControl<TextBox>("AttachmentExportPathBox")!.Text = png;
                 window.FindControl<Button>("ExportPaperQrButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await WaitForAsync(() => window.FindControl<TextBlock>("StatusText")?.Text?.StartsWith("Paper QR PNG exported", StringComparison.Ordinal) == true);
+                Assert.Equal(imported, window.FindControl<TextBlock>("StatusText")!.Text!.Contains("not authenticated", StringComparison.Ordinal));
                 using (var bitmap = new Bitmap(png)) Assert.True(bitmap.PixelSize.Width > 0);
                 var original = await File.ReadAllBytesAsync(png);
                 window.FindControl<Button>("ExportPaperQrButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -56,6 +60,7 @@ public sealed partial class SidebandHeadlessUiTests
                 using var output = new StringWriter();
                 var exported = Path.Combine(path, $"paper-{restart}.txt");
                 Assert.Equal(0, await PaperExportCommand.RunAsync(path, message.Id, exported, false, output));
+                Assert.Equal(imported, output.ToString().Contains("not authenticated", StringComparison.Ordinal));
                 Assert.Equal(uri, await File.ReadAllTextAsync(exported));
                 await Assert.ThrowsAsync<IOException>(() => PaperExportCommand.RunAsync(path, message.Id, exported, false, output));
                 Assert.Equal(uri, await File.ReadAllTextAsync(exported));

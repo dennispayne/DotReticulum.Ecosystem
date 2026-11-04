@@ -5,6 +5,8 @@ SidebandCore database/configuration methods and installed RNS/LXMF run unchanged
 No GUI, networking, telemetry or plugin interoperability is claimed by this adapter.
 The output profile contains a fresh private identity: keep it in ignored artifacts.
 The optional public fixture contains an empty DB, synthetic config and non-secret conversation observations.
+The optional public paper fixture contains generated public identifiers and
+synthetic signed/encrypted messages, never private identities.
 """
 import argparse
 import base64
@@ -35,6 +37,9 @@ def main():
     parser.add_argument("--voice-peers-profile", action="store_true")
     parser.add_argument("--public-voice-peers-fixture", type=Path)
     parser.add_argument("--voice-peer-name")
+    parser.add_argument("--paper-profile", action="store_true")
+    parser.add_argument("--public-paper-fixture", type=Path)
+    parser.add_argument("--verify-paper-fixture", type=Path)
     args = parser.parse_args()
     if args.announce_profile and args.public_fixture:
         parser.error("--announce-profile cannot replace the existing empty public fixture")
@@ -42,6 +47,10 @@ def main():
         parser.error("--public-voice-peers-fixture requires --voice-peers-profile")
     if args.voice_peer_name is not None and not args.voice_peers_profile:
         parser.error("--voice-peer-name requires --voice-peers-profile")
+    if args.public_paper_fixture and not args.paper_profile:
+        parser.error("--public-paper-fixture requires --paper-profile")
+    if args.verify_paper_fixture and not args.paper_profile:
+        parser.error("--verify-paper-fixture requires --paper-profile")
     source = args.sideband.resolve()
     revision = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
     if revision != "d069122af14880e43607aed0b71add4c7806fbe0":
@@ -64,6 +73,16 @@ def main():
     from reference_environment import verify_reference, PINNED_RNS_SHA, PINNED_LXMF_SHA
     os.environ["DOTRETICULUM_UPSTREAM"] = str(args.rns.resolve())
     verify_reference(require_lxmf=True)
+    if args.verify_paper_fixture:
+        paper_fixture = json.loads(args.verify_paper_fixture.read_text(encoding="utf-8"))
+        if paper_fixture["upstream"] != revision or paper_fixture["coreSha256"] != fingerprint or paper_fixture["lxmfRevision"] != PINNED_LXMF_SHA:
+            raise RuntimeError("The paper fixture targets another reference")
+        for row in paper_fixture["rows"]:
+            wire, envelope = msgpack.unpackb(bytes.fromhex(row["storedHex"]))
+            observed_paper = LXMF.LXMessage.unpack_from_bytes(wire, original_method=LXMF.LXMessage.PAPER)
+            observed_paper.paper_packed = envelope
+            if observed_paper.hash.hex() != row["hash"] or observed_paper.as_uri(finalise=False) != row["uri"]:
+                raise RuntimeError("Actual LXMF could not reproduce the independently generated paper fixture")
     if subprocess.check_output(["git", "-C", str(source), "status", "--porcelain", "--untracked-files=no", "--", "sbapp"], text=True).strip():
         raise RuntimeError("Sideband reference source has local modifications")
     # Stub imports only; none of these subsystems are called by the persistence methods.
@@ -267,6 +286,39 @@ def main():
         if args.public_voice_peers_fixture:
             args.public_voice_peers_fixture.write_text(
                 json.dumps(voice_peer_observations, indent=2) + "\n", encoding="utf-8", newline="\n")
+    paper_observations = None
+    if args.paper_profile:
+        paper = LXMF.LXMessage(peer_dest, own_dest, "Native migration paper", "",
+                              desired_method=LXMF.LXMessage.PAPER)
+        paper.timestamp = 1760000002.75
+        paper.pack()
+        uri = paper.as_uri()
+        core.lxm_ingest(paper, originator=True)
+        restored = core._db_message(paper.hash)
+        stored = core.db.execute("SELECT data FROM lxm WHERE lxm_hash=?", (paper.hash,)).fetchone()[0]
+        pair = msgpack.unpackb(stored)
+        if pair != [paper.packed, paper.paper_packed] or restored["lxm"].as_uri(finalise=False) != uri:
+            raise RuntimeError("Actual primary paper persistence/readback did not preserve the envelope")
+        if peer_dest.decrypt(paper.paper_packed[16:]) != paper.packed[16:]:
+            raise RuntimeError("Actual generated recipient cannot open its paper envelope")
+        recipient = output / "paper-recipient"
+        recipient.mkdir(mode=0o700)
+        peer.to_file(str(recipient / "identity"))
+        os.chmod(recipient / "identity", 0o600)
+        paper_observations = {
+            "upstream": revision, "coreSha256": fingerprint, "lxmfRevision": PINNED_LXMF_SHA,
+            "method": "Actual LXMessage.pack/as_uri, SidebandCore.lxm_ingest/_db_message and destination.decrypt; generated identities and synthetic content; unused-subsystem import stubs.",
+            "rows": [{
+                "hash": paper.hash.hex(), "source": own_dest.hash.hex(), "destination": peer_dest.hash.hex(),
+                "sourcePublicKey": own.get_public_key().hex(), "state": restored["state"],
+                "method": restored["method"], "content": restored["content"].decode("utf-8"),
+                "storedHex": stored.hex(), "wireHex": paper.packed.hex(),
+                "paperHex": paper.paper_packed.hex(), "uri": uri,
+            }],
+        }
+        if args.public_paper_fixture:
+            args.public_paper_fixture.write_text(
+                json.dumps(paper_observations, indent=2) + "\n", encoding="utf-8", newline="\n")
     storage = output / "app_storage"
     storage.mkdir(mode=0o700)
     for name in ["primary_identity", "sideband_config", "sideband.db", "sideband.db-wal", "sideband.db-shm"]:
@@ -324,6 +376,7 @@ def main():
         "mapProfile": {key: value for key, value in core.config.items() if key.startswith("map_")} if args.map_profile else None,
         "voiceLog": voice_observations,
         "voicePeers": voice_peer_observations,
+        "paper": paper_observations,
     }
     (output / "observations.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     if args.public_fixture:

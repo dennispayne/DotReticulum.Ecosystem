@@ -569,6 +569,8 @@ public sealed partial class SidebandStateStore
             throw new InvalidDataException("A saved message exceeds a field size limit.");
         if (message.DeliveryMethod is not ("Unknown" or "Opportunistic" or "Direct" or "Propagated" or "Paper"))
             throw new InvalidDataException("A saved message has an unsupported delivery method.");
+        if (message.ImportedPaperEnvelope && message.PaperUri is null)
+            throw new InvalidDataException("An imported paper-envelope marker requires a saved outgoing paper URI.");
         if (message.PaperUri is { } uri)
         {
             byte[] destination;

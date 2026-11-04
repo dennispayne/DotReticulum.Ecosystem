@@ -34,27 +34,34 @@ public sealed partial class MainWindow
     private void ShowPaperClicked(object? sender, RoutedEventArgs e) => RunPaperOperation(async () =>
     {
         var version = _mediaSelectionVersion;
-        var uri = await _client.GetPaperMessageUriAsync(SelectedMessage().Id, _windowCancellation.Token);
+        var message = SelectedMessage();
+        var uri = await _client.GetPaperMessageUriAsync(message.Id, _windowCancellation.Token);
         if (version != _mediaSelectionVersion) throw new InvalidOperationException("Selection changed. Select paper again.");
         DisplayPaper(uri);
-        SetStatus("Saved paper URI and QR shown. This is not delivery confirmation.");
+        SetStatus(PaperStatus(message, "Saved paper URI and QR shown. This is not delivery confirmation."));
     });
 
     private void ExportPaperClicked(object? sender, RoutedEventArgs e) => RunPaperOperation(async () =>
     {
         var path = AttachmentExportPathBox.Text;
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        await PaperExportCommand.ExportAsync(_client, SelectedMessage().Id, path, false, _windowCancellation.Token);
-        SetStatus("Paper URI exported without overwriting or opening a file.");
+        var message = SelectedMessage();
+        await PaperExportCommand.ExportAsync(_client, message.Id, path, false, _windowCancellation.Token);
+        SetStatus(PaperStatus(message, "Paper URI exported without overwriting or opening a file."));
     });
 
     private void ExportPaperQrClicked(object? sender, RoutedEventArgs e) => RunPaperOperation(async () =>
     {
         var path = AttachmentExportPathBox.Text;
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        await PaperExportCommand.ExportAsync(_client, SelectedMessage().Id, path, true, _windowCancellation.Token);
-        SetStatus("Paper QR PNG exported without overwriting or opening a file.");
+        var message = SelectedMessage();
+        await PaperExportCommand.ExportAsync(_client, message.Id, path, true, _windowCancellation.Token);
+        SetStatus(PaperStatus(message, "Paper QR PNG exported without overwriting or opening a file."));
     });
+
+    private static string PaperStatus(SidebandChatMessage message, string status) => message.ImportedPaperEnvelope
+        ? status + " Imported historical envelope: ciphertext was not authenticated or matched to the displayed text."
+        : status;
 
     private void ImportPaperClicked(object? sender, RoutedEventArgs e) => RunPaperOperation(async () =>
     {

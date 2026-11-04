@@ -12,8 +12,13 @@ public static class PaperExportCommand
         var store = new SidebandStateStore(dataDirectory);
         if (!File.Exists(store.StatePath)) throw new FileNotFoundException("No existing Sideband state was found.");
         await using var client = new SidebandClient(store);
+        var state = await client.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var message = state.Messages.SingleOrDefault(message => message.Id == messageId)
+            ?? throw new InvalidOperationException("The selected paper message no longer exists.");
         await ExportAsync(client, messageId, path, qr, cancellationToken).ConfigureAwait(false);
         await output.WriteLineAsync(qr ? "Paper QR PNG exported." : "Paper URI exported.").ConfigureAwait(false);
+        if (message.ImportedPaperEnvelope)
+            await output.WriteLineAsync("Imported historical envelope: ciphertext was not authenticated or matched to the displayed text.").ConfigureAwait(false);
         return 0;
     }
 

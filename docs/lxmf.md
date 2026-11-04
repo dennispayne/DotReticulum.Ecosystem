@@ -33,6 +33,11 @@ var finalState = await message.Completion;
 
 Dispose `LxmRouter` asynchronously with the transport router that owns it. `LxmRouterOptions` configures retry attempts (default 5), retry wait (10 seconds), path request wait (7 seconds), pathless tries (1), processing interval (4 seconds), inbound direct-resource transfer size (1,000,000 bytes), inbound stamp cost/enforcement, and optional opportunistic receipt timeout. `SendAsync` packs and queues the message; delivery runs in the background, so observe `State` or `Completion`.
 
+`PaperUriFromBytes` reuses the same bounded formatter for opaque archived paper
+envelopes. Formatting, size and destination-prefix checks do not authenticate
+ciphertext or establish that it matches a separately stored plaintext message.
+`AsUri` retains its existing finalisation semantics.
+
 ## Security and access
 
 Messages are signed and signature-validated. Opportunistic payloads are encrypted to the destination identity; direct delivery uses an encrypted Link. The router has no identity allow-list or application-level access-control policy for its inbound delivery destination. Configure an inbound stamp cost and keep enforcement enabled when proof-of-work gating is required; stamps do not replace peer authorization policy.

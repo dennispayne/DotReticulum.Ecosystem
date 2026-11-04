@@ -518,9 +518,16 @@ public sealed partial class LxMessage
     public string AsUri(bool finalise = true)
     {
         if (Method != LxmMethod.Paper || PaperPacked is null) throw new InvalidOperationException("Only packed paper messages have a URI.");
-        var uri = "lxm://" + Convert.ToBase64String(PaperPacked).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        var uri = PaperUriFromBytes(PaperPacked);
         if (finalise) State = LxmState.Paper;
         return uri;
+    }
+
+    /// <summary>Formats a bounded opaque paper envelope without decrypting or authenticating it.</summary>
+    public static string PaperUriFromBytes(ReadOnlySpan<byte> paper)
+    {
+        ValidatePaperSize(paper.Length);
+        return "lxm://" + Convert.ToBase64String(paper).TrimEnd('=').Replace('+', '-').Replace('/', '_');
     }
 
     /// <summary>Reads the destination from a bounded paper URI envelope without decrypting or authenticating its contents.</summary>
@@ -566,8 +573,13 @@ public sealed partial class LxMessage
         byte[] paper;
         try { paper = Convert.FromBase64String(encoded.PadRight((encoded.Length + 3) / 4 * 4, '=')); }
         catch (FormatException) { throw new FormatException("Invalid LXMF URI encoding."); }
-        if (paper.Length <= DestinationLength || paper.Length > PaperMdu) throw new FormatException("Invalid paper message size.");
+        ValidatePaperSize(paper.Length);
         return paper;
+    }
+
+    private static void ValidatePaperSize(int length)
+    {
+        if (length <= DestinationLength || length > PaperMdu) throw new FormatException("Invalid paper message size.");
     }
 
     /// <summary>Upstream ticket stamp: truncated SHA-256(ticket || message-id).</summary>

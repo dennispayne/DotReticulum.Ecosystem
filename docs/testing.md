@@ -8,6 +8,30 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Sideband historical-paper C69/T200–207 records28 actual passing cases per host:
+executed-reference envelope/formatter vectors and bounds, atomic import
+rollback/retry, durable imported provenance, original UI warnings and two
+published process cases. Current paper and shared-contract selections pass28/2
+explicit disabled-live skips and16/0 on both hosts. Strict Windows/Linux
+NativeAOT binaries import actual primary pairs, export exact URI/PNG, independently
+decode PNGs and hand them to unchanged primary recipient daemon cores with an
+explicitly preloaded public source key. Recipient signature/content and
+duplicate restart pass; separate native desktop restarts preserve message records
+and render URI/QR offline. This is not new live Reticulum/topology or physical
+camera/printer evidence. Import deliberately does not authenticate opaque
+ciphertext or bind it to the separate signed plaintext.
+Receipts are `artifacts\tests\sideband-paper-profile\windows\c69.json` and
+`/home/dennis/fleet-paper-profile-results/c69.json`; native build inputs are dirty
+source over `ec06f2d`. Exact pins, fixture/native hashes, commands and remaining
+software/platform boundaries are in
+[Sideband's reference](sideband.md#primary-historical-paper-envelope-migration).
+The integrated command `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-paper-profile-unified -OutputDirectory
+artifacts\tests\fleet-paper-profile-unified` passes2,529 managed cases/131
+explicit skips,62 Pester tooling cases, strict C69 catalog aggregation and merged
+production coverage. Concurrent Nomad attachment-path sources are included in
+that regression, not independently accepted as part of the Sideband claim.
+
 Parent independently replays Nomad logging `final-v2` with
 `Invoke-FrozenLoggingAcceptance.ps1 -Manifest <absolute-manifest>`:
 Windows236/7 explicit managed skips and10/2 explicit native Linux-only skips;

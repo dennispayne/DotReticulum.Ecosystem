@@ -71,6 +71,10 @@ def main():
         elif parts[0] == "announce":
             core.lxmf_announce()
             emit({"event": "announced"})
+        elif parts[0] == "remember" and len(parts) == 3:
+            RNS.Identity.remember(packet_hash=None, destination_hash=bytes.fromhex(parts[1]),
+                                  public_key=bytes.fromhex(parts[2]))
+            emit({"event": "remembered"})
         elif parts[0] == "paper" and len(parts) == 4:
             destination = bytes.fromhex(parts[1])
             if not core.has_conversation(destination):

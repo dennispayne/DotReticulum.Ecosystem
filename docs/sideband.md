@@ -42,6 +42,9 @@ Separate primary voice-only identity objects activate bounded saved names and
 explicit user trust, with durable original desktop editing/deletion. Existing
 LXMF conversations retain precedence; discovery-only metadata does not become
 a conversation or override voice-only authorization.
+Historical outgoing paper envelopes also restore exact offline URI/QR exports,
+with persisted, visible imported-envelope provenance rather than an assertion
+that archived ciphertext was authenticated or matched to the displayed text.
 
 ## Reference provenance
 
@@ -109,7 +112,7 @@ runtime evidence.
 | Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. A bounded persisted delivery/PN stream exposes inspect, converse, copy, node selection and deletion; receipt does not promote a discovered contact to a known conversation. Bounded primary SQLite history activates separately without contact creation. Appearance values and telemetry permissions persist; voice uses the shared client below. Complete peer settings, groups and broadcasts remain absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `src/Sideband/SidebandAnnounce.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
 | LXMF messaging and propagation UI | partial | Text send/receive, automatic/manual node selection, persisted periodic fetches, cancellation, one-shot failed-delivery propagation retry, trusted-conversation reply tickets and restart retrieval reuse `LxmRouter`. Actual primary Sideband daemon-core direct/propagated round trips pass separately from Python LXMF endpoint tests, with trust enabled and disabled in both directions. Full message presentation/settings remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,4811–4828,5156–5227,5634–5644`, `docs/lxmf.md`. |
 | Text, image/file and audio messages | implemented bounded subset | Text/files, WebP image preparation/preview, Ogg Opus and Codec2 composition/decoding, explicit 10-second recording/playback/cancellation, content-addressed persistence and explicit exports. Actual Python Sideband core sends/receives images and both audio families directly/through a Python propagation transport; actual Pillow/audioproc decode native output. Published binaries decode imported media and render images. Device tests use fakes; physical capture/acoustics remain unverified. Unknown audio is retained/exportable but playback fails explicitly; no autoplay. See media limits below; `src/Sideband/SidebandMedia*.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py:message_send_dispatch`, `sbapp/sideband/audioproc.py`, `sbapp/sideband/core.py:5189–5196`. |
-| Paper messages and `lxm://` imports | implemented bounded subset | Connected paper text creation and local duplicate-aware import reuse LXMF; saved URI/QR display and non-overwriting exports work offline and survive restart. Actual primary daemon-core creation/ingestion both ways, trust on/off and process restart pass separately from native desktop/CLI exports. Nonlocal envelopes are unauthenticated and not forwarded. Hardware camera/printer, desktop OS URI registration and complete upstream paper-history migration remain unverified/missing; `SidebandClient.Paper.cs`, `MainWindow.Paper.cs`, `PaperExportCommand.cs`, `sbapp/sideband/core.py:paper_message,lxm_ingest_uri`. |
+| Paper messages and `lxm://` imports | implemented bounded subset | Connected paper text creation and local duplicate-aware import reuse LXMF; saved URI/QR display and non-overwriting exports work offline and survive restart. Bounded historical outgoing primary envelopes restore exact exports with persisted imported provenance and CLI/UI warnings. Actual primary daemon-core creation/ingestion both ways, trust on/off and process restart pass separately from historical migration/export/recipient-ingestion acceptance. Nonlocal envelopes are unauthenticated and not forwarded. Hardware camera/printer, desktop OS URI registration and other historical paper-field semantics remain unverified/missing; `SidebandClient.Paper.cs`, `SidebandPaperProfile.cs`, `MainWindow.Paper.cs`, `PaperExportCommand.cs`, `sbapp/sideband/core.py:paper_message,lxm_ingest_uri,_db_message`. |
 | LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Voice-only names/trust import, editing and deletion are operational independently of contacts; existing LXMF conversation policy wins, but discovery-only metadata does not. Optional primary call-log migration retains labelled historical assertions separately from authenticated call events. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux; separate actual calls verify voice-only policy removal/recovery and delivery overrides. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
 | Telemetry, location and situational awareness | partial | All 27 sensor wire formats, exact values, bounded atomic storage and reference-executed geometry exist. Original desktop controls configure manual information/location/sensors, opted-in Reticulum runtime collection, privacy/collector/tracking policies, inspect trusted reports, explicitly delete and show reported locations on the map. Actual primary reports/collector streams, requests, restart, supported profile import, schedules and propagation recovery pass separately on Windows/Linux. Runtime collection/rendering/receive normalization is independently verified below; other automatic sensors, hardware and advanced presentation remain absent/unverified; `SidebandTelemetry*.cs`, `SidebandRuntimeTelemetry.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/ui/telemetry.py`. |
 | Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default/provider/layer, overlay and passive discovery vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, source zoom limits and persisted view. Reported peers/interfaces/connection points, bounded selected-cache discovery advertisements, clustering, high-zoom scatter, local fixed overrides and marker inspection are integrated. Thirteen provider presets and supported offline-profile activation exist. Broader map migration/presentation remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
@@ -429,6 +432,78 @@ scrolling its preview into view. Contact-only trust/read changes preserve the
 unchanged selected message/preview; a genuine message selection change clears it.
 These frozen executables precede the guide-only wording clarification that
 distinguishes URI import from QR export; the final managed paper cases also pass.
+
+## Primary historical paper-envelope migration
+
+The offline importer activates an outgoing primary `lxm` Paper record's exact
+MessagePack pair `[signed_plaintext_wire, encrypted_paper_envelope]`. It verifies
+the ordinary row/hash/source/destination/signature rules, strict pair consumption,
+binary types and nonempty wire, LXMF envelope bounds and matching destination.
+Malformed pairs, extra/trailing values, missing/oversized envelopes and different
+destinations reject the entire staged import; a healthy retry succeeds without
+changing source files. Incoming Paper envelopes remain archive-only while their
+plaintext history is retained; ordinary primary paper reception uses Propagated
+history, as the existing application tests observe.
+
+Opaque ciphertext cannot be authenticated or bound to the separate stored
+plaintext without the recipient's key. Restoration explicitly does **not** make
+that assertion: `ImportedPaperEnvelope` persists on outgoing messages, and the
+original Show/Export controls and CLI display a warning. A test deliberately
+alters ciphertext while retaining signed plaintext to enforce that boundary.
+Imported envelopes grant no trust or delivery confirmation. The shared
+`LxMessage.PaperUriFromBytes` formatter avoids a second Sideband URI codec.
+
+`GenerateSidebandProfile.py --paper-profile` executes actual pinned
+`LXMessage.pack/as_uri`, `SidebandCore.lxm_ingest/_db_message` and recipient
+decryption. Its synthetic public fixture
+`tests\Sideband.Tests\Fixtures\sideband-paper-profile.json` has SHA-256
+`f34851b414c865da62d98908da97adbaac474f5e267bab2a973706ed32456ef5`.
+It records the primary/core/LXMF revisions above and contains no private
+identities. The generator deliberately finalises the URI before storing state5;
+this is not relabelled as the normal primary `paper_message` prepack-state0
+observation. Both Windows and Linux independently execute persistence/readback;
+Linux also verifies the Windows fixture using unchanged LXMF APIs. Unused
+subsystem import stubs apply to generation only, not the recipient daemon core.
+
+Current scoped commands on each host are:
+
+```powershell
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --filter FullyQualifiedName~Paper
+dotnet test tests\LXMF.Tests\LXMF.Tests.csproj -c Release --filter FullyQualifiedName~LxmfContractTests
+dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r <rid> -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true
+tests\run-pester.ps1 -Path tests\Pester\SidebandPaper.Tests.ps1 -Tag PaperProfileImport
+```
+
+The managed selections pass28/2 explicit disabled-live skips and16/0 each;
+the published selection passes2/0 on Windows/Linux. With an actual generated
+`DOTRETICULUM_SIDEBAND_PAPER_PROFILE`, complete `DOTRETICULUM_SIDEBAND_BINARY`,
+pinned Python/RNS/Sideband/LXST paths and `DOTRETICULUM_QR_PYTHON`, it imports the
+actual pair, exports URI and PNG across native process lifetimes, independently
+decodes PNGs with Pillow/zxing-cpp2.3.0, and opens the URI in an unchanged primary
+recipient daemon core. Its synthetic private recipient identity stays in ignored
+artifacts; its public source key is explicitly preloaded through actual
+`RNS.Identity.remember`, not a network announce. The recipient validates the
+signature/content and preserves duplicate suppression through process restart.
+Separate native Avalonia lifetimes render the imported URI/QR and preserve all
+message records and the identity; ordinary foreground unread changes are allowed.
+This is **offline application handoff**, not new live Reticulum/topology,
+physical camera/printer or upstream-GUI evidence.
+
+The complete current paper `-Tag Native,GUI` regression passes6/0 on each host,
+including the original export/overwrite/argument and synthetic-history rendering
+cases. Current strict-published executables:
+
+| Host | Publish directory | Executable SHA-256 |
+|---|---|---|
+| Windows x64 | `artifacts\builds\fleet-paper-profile-win\publish` | `73f89be8a9ec9acd294800faa74c51139ead3a442f535b6dc3052eee02043e38` |
+| Linux x64 | `/home/dennis/fleet-paper-profile-build/publish` | `9b19438b21ad2e2efff5dd98de251fd2d22798199e3db6af70fcd7c41b88555b` |
+
+C69/T200–207 records28 actual passing cases per host. Local receipts are
+`artifacts\tests\sideband-paper-profile\windows\c69.json` and
+`/home/dennis/fleet-paper-profile-results/c69.json`; native build inputs are dirty
+source over `ec06f2d`, not a claim that the subsequent documentation commit
+produced the binaries. Exact executable hashes are recorded in those receipts.
+Full profile semantics and hardware/platform boundaries remain incomplete.
 
 ## Upstream architecture and platform facts
 

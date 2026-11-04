@@ -137,11 +137,10 @@ public static class SidebandProfileImporter
                         if (row[3] is not long state || row[4] is not long method || !Enum.IsDefined((LxmMethod)checked((byte)method)))
                             throw new InvalidDataException("Invalid message state or method.");
                         var raw = row[5] as byte[] ?? throw new InvalidDataException("A message is missing its packed LXMF data.");
+                        string? paperUri = null;
                         if (method == (long)LxmMethod.Paper)
                         {
-                            if (MsgPack.Unpack(raw) is not object?[] { Length: 2 } paper || paper[0] is not byte[] wire || paper[1] is not byte[])
-                                throw new InvalidDataException("Invalid stored paper message.");
-                            raw = wire;
+                            (raw, paperUri) = SidebandPaperProfile.Read(raw, destination);
                         }
                         var message = LxMessage.Unpack(raw,
                             address => address.AsSpan().SequenceEqual(ownHash) ? identity : null, (LxmMethod)method);
@@ -189,7 +188,12 @@ public static class SidebandProfileImporter
                             message.Title, message.Content ?? throw new InvalidDataException("Binary message content is not supported."),
                             DateTimeOffset.UnixEpoch.AddSeconds(message.Timestamp),
                             ((LxmState)state).ToString(), importedAttachments.Count == 0 ? null : importedAttachments,
-                            DeliveryMethod: ((LxmMethod)method).ToString(), Image: image, Audio: audio));
+                            DeliveryMethod: ((LxmMethod)method).ToString(), Image: image, Audio: audio,
+                            PaperUri: incoming ? null : paperUri, ImportedPaperEnvelope: !incoming && paperUri is not null));
+                        if (paperUri is not null)
+                            notices.Add(incoming
+                                ? "An incoming paper envelope remains archive-only; native paper exports are outgoing only."
+                                : "Restored an opaque outgoing paper envelope from history. Its ciphertext is not authenticated or bound to the displayed plaintext by this import.");
                     }
                     var tables = database.Rows("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name", 64);
                     await SidebandTelemetryProfile.ImportReportsAsync(database, staging, cancellationToken).ConfigureAwait(false);

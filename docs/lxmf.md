@@ -122,7 +122,58 @@ Set `OutboundPropagationNode` to an announced `lxmf.propagation` destination and
 
 Persistent `LxmPeer` snapshots retain only message IDs still in the store. Default scheduling is one serialized peer sync every 24 seconds, with 720-second incremental connection-failure backoff and 14-day discovered-peer expiry. Autopeer respects announced enabled state, hop depth and maximum accepted peering cost. Rotation runs every 1,344 seconds and preserves static peers; executed upstream cases cover lowest-acceptance selection and static protection. Incoming offers gate sequential validation and maximum inbound syncs (default 3), static peers may bypass these gates, and invalid-stamp Resources throttle identified peers for 180 seconds. Actual native process tests cover three stalled Resource advertisements, busy rejection, teardown/recovery, continued control service and real throttle expiry; they do not saturate three full payload streams simultaneously.
 
-`MaxPeers` limits new discovered or explicitly added peers, not configured static peers or known-identity persisted peers: both startup exceptions work even with `MaxPeers=0`, matching the executed reference. Unknown-identity persisted peers are discarded; missing configured static peers are recreated and request paths. A native hard ceiling of 65,536 peer records bounds these exceptions and queues. Identified incoming Resources discover a peer from cached propagation app-data under the same enabled/autopeer/depth/cost gates, even when its path-response announce did not itself trigger peering.
+`MaxPeers` limits new discovered or explicitly added peers, not configured static peers or known-identity persisted peers: both startup exceptions work even with `MaxPeers=0`, matching the executed reference. **Intentional safety difference:** validated unknown-identity persisted peers are retained separately in `UnresolvedPeers`, not discarded or recreated with reset counters. They are never scheduled or declared synchronized. `ResolvePersistedPeers()` moves an existing record intact to active `Peers` only when the known destination's public identity recomputes to that exact `lxmf.propagation` hash; signed propagation announcements and maintenance perform the same resolution. No public identity is imported or written into a global RNS cache by this API. A combined hard ceiling of65,536 active/unresolved peer records and16MiB peer file bounds retained state. Missing configured static peers are still created, but an existing unresolved static record is never replaced with a fresh one. Identified incoming Resources otherwise discover peers under the existing enabled/autopeer/depth/cost gates.
+
+The pinned primary's `LXMRouter.enable_propagation`609–645 and
+`LXMPeer.__init__`177–225 drop a saved dynamic peer if `RNS.Identity.recall`
+cannot resolve it. Complete primary constructor/exit observations on
+Windows/Linux reproduce one retained peer with the original RNS cache and zero
+with a fresh cache, followed by an empty persisted peer array. The earlier
+diagnostic candidates remain under `artifacts\tests\nomad-node-migration\frozen-*`;
+they are not relabelled as the corrected implementation.
+
+The current native behavior deliberately preserves unresolved counters, proof
+tokens, metadata, strategy and remaining handled/unhandled IDs through restart.
+New stored messages join their pending indices; expired/deleted store entries
+are forgotten under the existing available-ID policy. Unresolved records do not
+undergo active-peer rotation or the14-day unreachable expiry before identity
+resolution. Explicit unpeer can remove them. Synchronization refuses an unresolved
+peer without creating/resetting one or charging a sync attempt. After resolution,
+normal announced policy, proof validation by the remote peer, scheduling and
+expiry apply; resolving an identity is not proof that any message was transferred.
+Imported peering proofs are structurally checked and preserved, not certified as
+remote-accepted proof of work; the receiving peer validates them when offered.
+`CompileStats` adds the explicitly native `unresolved_persisted_peers` count.
+
+Strict `LxmPeer.FromBytes` validation precedes retention:8MiB per serialized peer,
+65,536 IDs in each disjoint/nonduplicated index, bounded nesting/value count,
+64KiB metadata, finite nonnegative numbers, defined strategy/cost/proof structure
+and exact nonnegative64-bit counters. Counter decoding no longer passes through
+double precision. Malformed, duplicate or unsupported records fail startup
+without rewriting the source file. Complete four-counter `node_stats` validation
+also rejects missing/bad values instead of filling them with zero.
+Present null sync timestamps/rates are malformed, not reset to zero; upstream
+nullable transfer/sync limits retain null. Atomic peer/stat/store writes
+create private Unix files, preserving mode0600 after restart. Peer activation
+commits the full state batch before optional reports, so a reentrant/throwing
+observer cannot duplicate/reset another retained record; concurrent
+resolution/disposal has explicit regression coverage.
+`InspectPersistedMessage` exposes strict offline filename/hash/stamp-value and
+size inspection; its returned expiry flag lets an offline application refuse
+silent eviction. It neither decrypts content nor authenticates message authorship.
+
+The shared regression includes actual signed-announce activation after two
+unresolved restarts, wrong-key rejection, exact counter/proof preservation,
+no-subscriber processing and throwing-log-observer isolation. Full LXMF runs pass
+162 cases with28 opt-in skips on Windows and Linux; no live modes were enabled
+for those managed-suite counts. NomadNet's separate node migration process
+acceptance is recorded in its project document, not inferred from these tests.
+C75 native application binaries predate this change; C76's explicitly hashed
+candidates include the earlier unresolved-peer state, before final private-write
+and reentrant-observer hardening. Older daemon binaries likewise do not acquire
+this support without republishing. C74's separately frozen Nomad node candidates
+exercise the final shared state on Windows/Linux; independent parent migration
+acceptance remains separate.
 
 Enabling, disabling/re-enabling and `ScheduleAnnounce()` schedule propagation announcements after the reference's 20 seconds. Each call retains its own absolute deadline; jobs do not coalesce or add another serial 20-second delay. The node owns and cancels this worker and bounds pending jobs at 256. Announcement data is read at send time, including the disabled flag. A configured extra control identity also causes a control-destination announce. `AnnounceAsync()` remains an explicitly immediate native extension.
 
@@ -246,7 +297,7 @@ LXMF message and delivery formats are not OS-specific; actual network reachabili
 
 `tests/LXMF.Tests` contains executed Python vectors and local message/stamp/router/store tests. Opt-in `LiveLxmfTests.cs` includes bidirectional opportunistic, direct single-packet, large-resource, reply-ticket, propagation-client/node and explicit peer-sync round trips against Python LXMF 1.2.1. Both retrieval directions passed with deletion acknowledgments. The peer case invokes actual Python `LXMPeer.sync`, pushes a **2,200,000-byte** offline recipient's message to the .NET node, decrypts/verifies its stored ciphertext, then pushes a **2,200,000-byte** Python-addressed message back through the .NET `/offer` client and checks the original content hash/signature. A second offer confirms no new transfer. Per-message limits are explicitly raised to 4,000 decimal KB; synchronization limits remain the default 10,240 KB. The test waits for observable Python store admission after Resource proof, not an arbitrary sleep. Separate live cases exercise Python `lxmd`; native-daemon acceptance is in `tests/Pester/Lxmd.Tests.ps1`.
 
-Current closeout acceptance on stack `3cdf5bee5adbd1da903a163882a31e53c3057aec`: the complete Release LXMF suite passed **143/143, zero skips**, on Windows x64 (123 seconds) and WSL Ubuntu/Linux x64 (111 seconds). Windows uses the fingerprint-verified installed 1.2.1 wheel and pinned RNS checkout; Linux additionally verifies the exact primary LXMF checkout. `DOTRETICULUM_LIVE=1` enables the Python cases; all reference verification passes before network setup. The suite covers executed node admission/jobs/filesystem/reload policies, actual Python `0xf5` rejection/recovery and incoming-origin peer exclusion, packet-count persistence, peer wire/data accounting and actual compressed/uncompressed Resource dimensions; actual Python 2.2 MB retrieval progress, mid-Resource cancellation/recovery, retention/deletion and cached reuse; authorization/reset/cache expiry; metadata/blackhole policy; medium scheduling; bidirectional backchannels and ratchet IDs; extended fields/tickets; paper/PLAIN conventions; bounded cancellation; impaired multi-megabyte hops; peer batching and packet loss. Deferred cost-254 work is inspected and cancelled by raw ID with each supported terminal state (`Cancelled`, `Rejected`, `Failed`), asserting both state and completion and removal from lookup. PLAIN packed-byte acceptance uses the disclosed no-network adapter, not a registered Python PLAIN receiver. Passing runs are not a claim that every intermittent transport timeout is eliminated; failures retain logs and state/attempts. Stamp mutation accepts a value equal to configured cost four, as pinned `stamp_value`/`stamp_valid` require. Loopback evidence does not establish radio/hardware behavior.
+Preceding closeout acceptance on stack `3cdf5bee5adbd1da903a163882a31e53c3057aec`: the complete Release LXMF suite passed **143/143, zero skips**, on Windows x64 (123 seconds) and WSL Ubuntu/Linux x64 (111 seconds). Windows uses the fingerprint-verified installed 1.2.1 wheel and pinned RNS checkout; Linux additionally verifies the exact primary LXMF checkout. `DOTRETICULUM_LIVE=1` enables the Python cases; all reference verification passes before network setup. The suite covers executed node admission/jobs/filesystem/reload policies, actual Python `0xf5` rejection/recovery and incoming-origin peer exclusion, packet-count persistence, peer wire/data accounting and actual compressed/uncompressed Resource dimensions; actual Python 2.2 MB retrieval progress, mid-Resource cancellation/recovery, retention/deletion and cached reuse; authorization/reset/cache expiry; metadata/blackhole policy; medium scheduling; bidirectional backchannels and ratchet IDs; extended fields/tickets; paper/PLAIN conventions; bounded cancellation; impaired multi-megabyte hops; peer batching and packet loss. Deferred cost-254 work is inspected and cancelled by raw ID with each supported terminal state (`Cancelled`, `Rejected`, `Failed`), asserting both state and completion and removal from lookup. PLAIN packed-byte acceptance uses the disclosed no-network adapter, not a registered Python PLAIN receiver. Passing runs are not a claim that every intermittent transport timeout is eliminated; failures retain logs and state/attempts. Stamp mutation accepts a value equal to configured cost four, as pinned `stamp_value`/`stamp_valid` require. Loopback evidence does not establish radio/hardware behavior.
 
 Reproduction commands (configure the pinned interpreter/source environment as above):
 
@@ -284,6 +335,27 @@ Earlier final-library published `lxmd` NativeAOT acceptance passed **6/6 on Wind
 Both binaries executed `--help` and `pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Lxmd.Tests.ps1 -Tag Native`, with `DOTRETICULUM_LXMD_BINARY` set explicitly to `artifacts\builds\lxmd-closeout-final\publish\lxmd.exe` on Windows or `artifacts/builds/lxmd-closeout-final/publish/lxmd` in the isolated Linux checkout. Logs are `artifacts\tests\lxmf-closeout-native-final-windows.log` and the Linux checkout's `artifacts/tests/lxmf-closeout-native-final-linux.log`. Actual Python packs a message without a delivery stamp, sends it as a raw RNS Link packet, receives its proof and unpacks the native daemon's persisted inbox container, including nil/tuple/infinite/NaN field keys. This matches the reference's default-false delivery enforcement. Mandatory PN stamp rejection, real 181-second expiry, saturated admission and static-peer bypass with `max_peers=0` pass. Live timing verifies the first propagation announce at least 19 seconds after startup and at least three announcements spanning 60 seconds; deterministic core tests establish the separate 20/30/90-second scheduled deadlines, not exact live transmission instants. The Linux adapter's bounded `os.read` command reader avoids holding Python's buffered stdin lock across upstream forked stamp workers; upstream source, work costs (delivery 12 / propagation 13 / peering 18), stamp generation and acceptance are unmodified. Linux signal shutdown, real inbound-handler container decoding, service logs, authenticated PN restart/retrieval and actual Python/native control queries pass. Actual source cost-1 peering generation can divide by zero when Windows reports zero elapsed time; acceptance uses the real default cost 18 rather than modifying the reference.
 
 The daemon process topology is an actual Python transport/propagation node connected to two published native nodes. Validly stamped Python API-seeded messages propagate autonomously to both native nodes; an actual Python network deposit into native A propagates back to Python and native B. Initial transfers do not invoke explicit sync. Startup is staged with Python and native A first, then native B, avoiding a short test deadline depending on Python's random two-peer scheduler. Native propagation announces repeat every one minute. Direct Python-to-B synchronization is not independently asserted: convergence may use native A. Killing B does not stop A receiving another Python message; B restarts with the same identity/store, announces, and automatically catches up with all three messages. Valid remote sync queues work and remote unpeer removes the peer. Seeding through the Python router API is disclosed setup, not an over-the-network origin claim.
+
+The selected integrated Windows e52-stack `lxmd` candidate is independently
+strict-published with SDK10.0.403/compiler and runtime10.0.14; native SHA-256
+`1c0a16b525f9a5569858084b071aacbeaa0bd9adac2a118e237e7b6997d9c226`.
+Help and all six unchanged Native Pester cases pass in504.22seconds, including
+actual-primary delivery/container restart, authenticated propagation retrieval,
+both-origin daemon/control queries with real expiry timing, and the two-native/
+Python propagation topology and failed-peer restart above. All production
+source hashes remain unchanged through publish and process acceptance. Replay:
+
+```powershell
+& artifacts\tests\Parent-CoreNativeE52.ps1 -Utility lxmd
+```
+
+Receipts, exact commands, toolchain assets and before/after hashes are retained
+under `artifacts\tests\core-native-e52\lxmd`. The ordinary current Windows LXMF
+suite also passes162/28 explicit skips, including two full solution gates.
+Current Linux e52 integration replay is blocked by WSL storage I/O and an
+emergency read-only filesystem; the preceding Linux results retain their actual
+source/pin boundary. Neither this gate nor passing repetitions explain the
+separately retained intermittent propagation test failure.
 
 A separate identified bad-stamp Resource closes its link, stores no invalid message, and causes a new offer to return upstream `F6` while control remains operational. The enhanced process case is included in the current six-case native acceptance on both platforms. It constructs three actual upstream `Resource(advertise=False)` advertisements, sends them without registering senders/data-part processing, and observes an independent identity's offer rejected with `F6`. Offers deliberately include an already stored ID and a new ID, exercising upstream's subset-offer slot tracking. Closing the stalled links restores admission. After a bad stamp, an actual stopwatch runs for 181 seconds with repeated successful control queries; a fresh offer is accepted and a valid stamped Resource is stored. This is disclosed incomplete-advertisement fault injection, not three simultaneous complete payload transfers or fake-clock expiry.
 
@@ -425,7 +497,7 @@ All router files live beneath `<storagepath>/lxmf` upstream. No claim of full re
 | `outbound_stamp_costs`: destination cache with time and cost | Implemented bounded atomic binary-key `[time,cost]` map, 45-day expiry and announce updates; actual Python writer/cleaner fixture and import/restart/null-cost tests. |
 | `available_tickets`: `{"outbound":{destination:[expiry,ticket]}, "inbound":{destination:{ticket:[expiry]}}, "last_deliveries":{destination:time}}` | Implemented with atomic writes/exclusive ownership and upstream fixture import. Expired inbound keys remain through grace but are not returned for validation. |
 | `messagestore/<transient-id>_<received-time>_<stamp-value>`: encrypted message plus PN stamp | Implemented atomic files, hash/size-validated restart index, 30-day expiry and age/size/priority eviction. Admission is more strictly bounded than upstream periodic cleanup; full crash/loss interoperability remains unverified. |
-| `peers`: list of individually MsgPack-serialized peer dictionaries | Implemented representation, known-identity/available-ID reopen filtering, static exceptions and strategy; actual daemon persistent restart/autonomous catch-up plus source startup vectors. Original-data counters and compressed-wire rates match executed completion observations. |
+| `peers`: list of individually MsgPack-serialized peer dictionaries | Implemented representation, available-ID filtering, static exceptions and strategy; known-identity records activate only with matching destination derivation. Unknown identities are intentionally retained in a bounded unresolved collection rather than reproducing the primary's destructive drop; see the lifecycle boundary above. Actual daemon persistent restart/autonomous catch-up and source startup vectors remain distinct evidence. Original-data counters and compressed-wire rates match executed completion observations. |
 | `node_stats`: persisted propagation RX/TX and client/unpeered counters | Implemented representation and graceful flush/reload; native/Python propagation and source accounting evidence cover the counter dimensions. |
 | Application message container named full message hash | Implemented container primitives and standalone atomic file write/read, with executed source names/bytes and cancellation/bounds/error tests; daemon inbox ownership/acceptance is separate. |
 | Interrupted writes, malformed persistence, restart while queued, full store and version migration | Implemented atomic files/leases, owned-remnant cleanup, strict hash/size/structure validation, corrupt-startup lease release and retained-store/peer replay. Ticket reload is transactional. Actual process restart and byte/priority bounds have focused evidence. Source does not persist in-flight transport jobs or define version migration; such jobs fail/cancel and application retries use retained store/history. Hardware power loss and exhaustive full-store/fault combinations are unverified, not claimed as tested. |

@@ -323,8 +323,8 @@ Describe 'Published rnphone CLI' -Tag Integration, Native -Skip:(!$env:DOTLXST_R
 }
 
 Describe 'Native rnphone configuration and phonebook persistence' -Tag Integration, Native, NativeUtility -Skip:(
-    !$IsLinux -or (!$env:DOTLXST_RNPHONE_BINARY -and !$env:DOTRETICULUM_RNPHONE_BINARY)) {
-    It 'runs service mode without reading commands and handles SIGTERM cleanly before restart' {
+    !$env:DOTLXST_RNPHONE_BINARY -and !$env:DOTRETICULUM_RNPHONE_BINARY) {
+    It 'runs service mode without reading commands and handles SIGTERM cleanly before restart' -Skip:(!$IsLinux) {
         $root = Join-Path $script:phoneArtifacts ('rnphone-service-' + [Guid]::NewGuid().ToString('N'))
         $phoneConfig = Join-Path $root 'phone'
         $rnsConfig = Join-Path $root 'rns'

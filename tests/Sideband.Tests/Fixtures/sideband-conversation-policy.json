@@ -1,7 +1,7 @@
 {
     "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
     "source_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
-    "method": "actual is_trusted and send_message; injected database, message factory, destination, router and ingestion APIs",
+    "method": "actual is_trusted/send_message/raw_display_name/peer_display_name plus named_conversation/_db_conversation_set_name on real private SQLite; injected connection/read/announce cache/message/router APIs and synthetic owner",
     "cases": [
         {
             "name": "missing",
@@ -32,6 +32,82 @@
             "database_trust": -1,
             "trusted": false,
             "include_ticket": false
+        }
+    ],
+    "name_cases": [
+        {
+            "saved": null,
+            "announced": "Announced first",
+            "raw": "",
+            "display": "Announced first"
+        },
+        {
+            "saved": null,
+            "announced": "Announced replacement",
+            "raw": "",
+            "display": "Announced replacement"
+        },
+        {
+            "saved": "",
+            "announced": "Announced first",
+            "raw": "",
+            "display": "Announced first"
+        },
+        {
+            "saved": "",
+            "announced": "Announced replacement",
+            "raw": "",
+            "display": "Announced replacement"
+        },
+        {
+            "saved": "Saved peer",
+            "announced": "Announced first",
+            "raw": "Saved peer",
+            "display": "Saved peer"
+        },
+        {
+            "saved": "Saved peer",
+            "announced": "Announced replacement",
+            "raw": "Saved peer",
+            "display": "Saved peer"
+        },
+        {
+            "saved": "Saved \u03b1",
+            "announced": "Announced first",
+            "raw": "Saved \u03b1",
+            "display": "Saved \u03b1"
+        },
+        {
+            "saved": "Saved \u03b1",
+            "announced": "Announced replacement",
+            "raw": "Saved \u03b1",
+            "display": "Saved \u03b1"
+        }
+    ],
+    "rename_cases": [
+        {
+            "name": "clear",
+            "input": "",
+            "error": null,
+            "raw": "",
+            "display": "Announced first",
+            "after_announce": "Announced replacement"
+        },
+        {
+            "name": "replace",
+            "input": "New saved \u03bb",
+            "error": null,
+            "raw": "New saved \u03bb",
+            "display": "New saved \u03bb",
+            "after_announce": "New saved \u03bb"
+        },
+        {
+            "name": "null",
+            "input": null,
+            "error": "AttributeError",
+            "raw": "Saved peer",
+            "display": "Saved peer",
+            "after_announce": "Saved peer"
         }
     ]
 }

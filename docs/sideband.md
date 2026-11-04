@@ -128,7 +128,7 @@ runtime evidence.
 | Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. The map passively inspects the selected configuration's discovery cache without autoconnect; shared-owner blackhole policy is queried through actual management RPC. Interface editing, remote shared-owner discovery-cache access and Android interface loading remain absent; `SidebandClient.Discovery.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
 | Long-lived service and OS integration | partial | The desktop window and headless daemon own the same cancellable client. Linux published daemon/interactive processes stop on SIGTERM with closed/blocked stdin; native console quit and restart pass on both hosts. Days-long Sideband service operation remains unverified. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are deferred mobile contracts; `SidebandDaemon.cs`, `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
 | Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/object classification/text/files/images/audio/methods, known client-router tickets/own ratchets/caches, synchronization anchors, bounded delivery/PN announce history, retained call assertions, voice-only identity/name/trust and supported telemetry/settings/permissions/appearance/cursors/map-overlay settings. Unimplemented semantics remain archived; source files never change. Other voice-object metadata, other fields and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `SidebandTelemetryProfile.cs`, `SidebandAnnounceProfile.cs`, `SidebandVoiceProfile.cs`, `SidebandVoicePeerProfile.cs`, `sbapp/main.py:209–273`. |
-| CLI and headless operation | partial | Help/version, init/check, data/config selection, JSON settings exchange, daemon/interactive operation and native extensions `--import-profile`, `--check-media`, `--synthetic-audio` exist. Daemon ignores closed stdin and stops on cancellation; original interactive console bounds input and supports functional voice commands. All twelve pinned upstream voice command handlers execute `Not yet implemented`; native functionality is an extension, not evidence that these primary placeholders work. Native `--interactive`, `--verbose` and synthetic audio require daemon mode; conflicting modes fail before state/UI. Broader upstream console commands remain missing; `Program.cs`, `SidebandDaemon.cs`, `sbapp/main.py`, `sbapp/sideband/cli/cmd_voice.py`. |
+| CLI and headless operation | implemented bounded subset | The desktop/headless console has an executed inventory of all56 primary registrations, quoted arguments, longest-prefix resolution, general status, conversation/message/paper/command workflows, propagation/announce/link inspection, active native configuration and telemetry/tracking. Long network operations are owned/cancellable; Unicode pipes, malformed input, persistence and restart are tested. Arbitrary Python evaluation/plugins and runtime RNS log-level control fail explicitly; unsupported configuration is never activated by archiving keys. All twelve primary voice handlers are placeholders; functional native voice remains an extension. See the dedicated console section below for exact inventory, limits, evidence and core gaps; `SidebandDaemon.cs`, `SidebandConsole*.cs`, `sbapp/sideband/cli/*.py`. |
 | Repository server | implemented bounded subset | Utilities explicitly starts/stops a public unauthenticated HTTPS static mirror with a package list, persistent private certificate, visible fingerprint and joined window shutdown. Default loopback/4444; reachable LAN exposure requires explicit bind and consent. No bundled upstream assets, automatic content downloads or update execution. Original bounded GET-only service, not RNS/rngit Git hosting; safety differences and acceptance are below; `SidebandRepository*.cs`, `MainWindow.Repository.cs`, `sbapp/sideband/core.py`, `sbapp/ui/layouts.py`. |
 | Native packaging and upgrades | partial | Windows and Linux NativeAOT publishes succeed with trimming/linker warnings treated as errors. Package the full publish directory, including Windows `sideband.exe`, `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, `libSkiaSharp.dll` and desktop/shared third-party notices; Linux `sideband`, `libHarfBuzzSharp.so`, `libSkiaSharp.so`, `libSystem.IO.Ports.Native.so` and the same notices. These include Avalonia/Skia/HarfBuzz MIT texts, ANGLE's BSD license, .NET serial runtime notices and `ThirdPartyNotices/ZXing.Net.Apache-2.0.txt`. Installer/signing, self-upgrade and other upstream package formats remain absent; `src/Sideband.Desktop/Sideband.Desktop.csproj`, `src/Sideband.Desktop/THIRD-PARTY-NOTICES*.txt`, `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
 
@@ -1430,7 +1430,7 @@ The process isolates one borrowed console read because `Console.In` can block
 synchronously before returning an async result; cancellation releases the
 client without waiting for another keystroke. Process exit ends any blocked
 borrowed stdin read; it is not an owned application/device worker.
-Interactive EOF/`quit` shuts down. Its original console supports `voice enable`,
+Interactive EOF/`quit` shuts down. Its voice extension supports `voice enable`,
 `voice announce`, `voice dial IDENTITY`, `voice answer`, `voice reject`,
 `voice hangup`, `voice status`, `voice profile VALUE`, `voice mode VALUE`,
 mute/unmute mic/spk, PTT on/off, `voice log` and `voice log clear`.
@@ -1446,6 +1446,10 @@ an intentional difference from primary GUI option handling.
 all twelve primary voice commands: every handler returns `Not yet implemented`.
 Functional native commands are explicitly native extensions, not copied Python
 console behavior or evidence that these upstream placeholders work.
+
+The broader desktop/headless command inventory, active configuration subset,
+strict argument parsing and independent console acceptance are documented in
+[Desktop/headless interactive console](#desktopheadless-interactive-console).
 
 Focused voice acceptance uses the pinned Python/RNS/LXST paths plus
 `DOTRETICULUM_SIDEBAND_SOURCE` and `DOTRETICULUM_SIDEBAND_VOICE_LIVE=1`.
@@ -2498,3 +2502,360 @@ file fields display metadata and can be explicitly saved. Image/audio compositio
 preview/playback and persistence have the bounded, separately evidenced behavior
 above. Voice calls have the separately evidenced subset above; remaining
 application inventory entries are still required work, not passes or hardware deferrals.
+
+## Desktop/headless interactive console
+
+The original native `sideband --daemon --interactive` console executes the
+supported application core; it does not embed Python, evaluate shell text or
+duplicate LXMF. `status` reports the application/router, identity/delivery,
+propagation, transport, telemetry/voice, conversation/announce and pending-work
+state. Voice state remains explicitly available through `voice status`.
+The utility name is still `sideband`.
+
+### Executed primary inventory
+
+Reference: primary Sideband2.2.0
+`d069122af14880e43607aed0b71add4c7806fbe0`. Sources below are under
+`sbapp/sideband/cli/`. `GenerateSidebandCliVectors.py` imports the actual
+registry and every command module, registers all56 commands, executes their
+argument checks and handlers, observes parser/longest-prefix results, and
+executes configuration conversion cases. Arbitrary `raw` evaluation is not
+executed. Handler vectors use explicitly disclosed recording core/context
+boundary doubles, **not** a substitute application core or live evidence.
+`Fixtures/sideband-cli.json` records every module SHA-256, all166 configuration
+aliases/types and each handler's actual result/API calls. Its canonical UTF-8/LF
+SHA-256 is `c930d2b20c54a6482480fe89551943447e2cf1492829d57e65aab89f4541033a`;
+independent Windows/Linux executions produce identical bytes.
+
+Every primary registration has **no aliases**. `*` below means an unbounded
+primary argument remainder, bounded by the native command/token limits.
+Status `native` means functionality beyond a primary placeholder; it does
+not assert that Python implements that function.
+
+| Registration | Arguments min..max | Source | Native status |
+|---|---:|---|---|
+| `help` | 0..10 | `cmd_system.py` | implemented, generated bounds/source/status help |
+| `raw` | 1..* | `cmd_system.py` | unsupported; visible error, never evaluated |
+| `log` | 0..1 | `cmd_system.py` | missing native core runtime severity/level API; visible error |
+| `log stream` | 0..0 | `cmd_system.py` | partial: contextual native reports/voice events, Enter ends stream; not all RNS severities |
+| `clear` | 0..* | `cmd_system.py` | implemented, explicit local ANSI clear |
+| `quit` | 0..* | `cmd_system.py` | implemented, cancels owned work/disposes core |
+| `status` | 0..0 | `cmd_system.py` | implemented, general application status |
+| `conv` | 0..0 | `cmd_conv.py` | implemented, known conversations including objects |
+| `conv send` | 2..* | `cmd_conv.py` | implemented, core text delivery; submission is not delivery |
+| `conv command` | 2..* | `cmd_conv.py` | implemented, existing bounded remote-command core; no local evaluation |
+| `conv announce` | 0..0 | `cmd_conv.py` | implemented, actual LXMF announce |
+| `conv sync` | 0..1 | `cmd_conv.py` | implemented, configured or explicit nonnegative limit |
+| `conv sync cancel` | 0..0 | `cmd_conv.py` | implemented, cancels pending path lookup and transfer |
+| `conv sync status` | 0..0 | `cmd_conv.py` | implemented, actual core state/progress |
+| `conv msgs` | 1..2 | `cmd_conv.py` | implemented, latest12 by default, bounded1..1000 |
+| `conv create` | 1..2 | `cmd_conv.py` | implemented, explicit duplicate/self refusal |
+| `conv delete` | 1..1 | `cmd_conv.py` | implemented, selected conversation/messages/telemetry removed |
+| `conv clear` | 1..1 | `cmd_conv.py` | implemented, messages removed, conversation retained |
+| `conv trust` | 1..1 | `cmd_conv.py` | implemented, actual persisted trust/voice policy |
+| `conv untrust` | 1..1 | `cmd_conv.py` | implemented, actual persisted trust/voice policy |
+| `conv name` | 2..* | `cmd_conv.py` | implemented, explicit bounded saved name takes precedence; empty string restores automatic announce naming |
+| `conv paper` | 2..* | `cmd_conv.py` | implemented, existing signed/encrypted paper core, durable URI |
+| `net propagation` | 0..1 | `cmd_net.py` | implemented, configured/effective node inspection |
+| `net propagation set` | 1..1 | `cmd_net.py` | implemented, actual persisted selection |
+| `net announces` | 0..0 | `cmd_net.py` | implemented, latest32 of bounded persisted stream |
+| `net identity` | 0..0 | `cmd_net.py` | implemented, actual public identity/delivery/name |
+| `net link` | 1..1 | `cmd_net.py` | implemented, outbound link state/MTU/RTT; not inbound-link inventory |
+| `config` | 0..0 | `cmd_config.py` | implemented active-native category listing |
+| `config list` | 0..1 | `cmd_config.py` | partial, active aliases only, never archive keys |
+| `config get` | 2..2 | `cmd_config.py` | partial, active aliases only |
+| `config set` | 2..* | `cmd_config.py` | partial, typed validated active changes, atomically saved |
+| `config save` | 0..0 | `cmd_config.py` | implemented, successful changes already atomically persisted |
+| `config reload` | 0..0 | `cmd_config.py` | implemented, validated reload/runtime policy refresh; interfaces require restart |
+| `telemetry` | 0..1 | `cmd_telemetry.py` | implemented, actual own/latest peer readings |
+| `telemetry request` | 1..1 | `cmd_telemetry.py` | implemented, actual bounded queue/policy/status |
+| `telemetry send` | 1..1 | `cmd_telemetry.py` | implemented, actual bounded queue/policy/status |
+| `telemetry track` | 3..3 | `cmd_telemetry.py` | implemented, bounded core tracking schedule |
+| `telemetry untrack` | 1..1 | `cmd_telemetry.py` | implemented, removes actual schedule |
+| `telemetry list` | 0..2 | `cmd_telemetry.py` | implemented, bounded1..256 reports, default20 |
+| `telemetry on` | 0..0 | `cmd_telemetry.py` | implemented, actual configured collection/refresh |
+| `telemetry off` | 0..0 | `cmd_telemetry.py` | implemented, actual collection/cache stop |
+| `telemetry sensors` | 0..0 | `cmd_telemetry.py` | partial, active native information/fixed-location/runtime sensors; hardware explicitly unsupported |
+| `voice status` | 0..0 | `cmd_voice.py` | primary placeholder; native functional extension |
+| `voice announce` | 0..0 | `cmd_voice.py` | primary placeholder; native functional extension |
+| `voice dial` | 1..2 | `cmd_voice.py` | primary placeholder; native identity plus optional defined profile |
+| `voice hangup` | 0..0 | `cmd_voice.py` | primary placeholder; native functional extension |
+| `voice answer` | 0..0 | `cmd_voice.py` | primary placeholder; native functional extension |
+| `voice log` | 0..0 | `cmd_voice.py` | primary placeholder; native functional extension |
+| `voice mute mic` | 0..0 | `cmd_voice.py` | primary placeholder; native functional extension |
+| `voice mute spk` | 0..0 | `cmd_voice.py` | primary placeholder; native functional extension |
+| `voice unmute mic` | 0..0 | `cmd_voice.py` | primary placeholder; native functional extension |
+| `voice unmute spk` | 0..0 | `cmd_voice.py` | primary placeholder; native functional extension |
+| `voice profile` | 1..1 | `cmd_voice.py` | primary placeholder; native functional extension |
+| `voice mode` | 1..1 | `cmd_voice.py` | primary placeholder; native functional extension |
+| `plugins` | 0..0 | `cmd_plugins.py` | unsupported Python plugin ABI; visible error |
+| `plugins reload` | 0..0 | `cmd_plugins.py` | unsupported Python plugin ABI; visible error |
+
+Additional native commands are `exit`, `cancel`, `voice enable`,
+`voice disable`, `voice reject`, `voice log clear`, `voice ptt on` and
+`voice ptt off`; all take zero extra arguments. Existing native voice
+behavior is retained, with a two-minute dialing deadline.
+
+### Active configuration and intentional boundaries
+
+`config list` lists only native-active settings, with their current values and
+types. Unsupported aliases fail before mutation, including plugin/MQTT/mobile/
+hardware/connectivity templates, archive-only values and the primary
+`voice output` alias (the actual supported native setting is separately
+named `voice_speaker` in settings exchange). There is no success-shaped
+placeholder or Python plugin ABI claim.
+
+Active aliases:
+
+* `general`: `display_name`, `dark_ui`, `start_announce`, `lxm_limit_1mb`.
+* `lxmf`: `propagation_node`, `propagation_by_default`, `periodic_sync`,
+  `sync_interval`, `try_propagation_on_fail`, `ignore_unknown`,
+  `require_stamps`, `ignore_invalid_stamps`, `inbound_stamp_cost`, `sync_max`,
+  and nullable `sync_limit`.
+* `voice`: `enabled`, `trusted_only`, `input`, `ringer`.
+* `telemetry`: `enabled`, `send_to_trusted`, `send_to_collector`,
+  `request_from_collector`, `collector_enabled`, `send_all_to_collector`,
+  `allow_requests_from_anyone`, `allow_requests_from_trusted`,
+  `receive_trusted_only`, `display_trusted_only`, `send_appearance`,
+  `use_propagation_only`, `try_propagation_on_fail`,
+  `requests_only_send_latest`, `collector`, `send_interval`,
+  `request_interval`, `icon`, `fg`, `bg`.
+* `sensors`: `rns_transport`, `information`, `information_text`,
+  `fixed_location`, `fixed_latlon`, `fixed_altitude`. These do not open devices.
+* `map`: `history_limit`, `lat`, `lon`, `zoom`, `use_offline`, `layer`,
+  `cluster`, `interfaces`, using the actual map view store. No external
+  paths are followed and no online consent is granted. Keyed/custom providers
+  require their separately supported explicit configuration, not bundled keys.
+
+The primary CLI metadata incorrectly declares `lxmf sync_limit` as integer,
+although the actual core/persisted contract is boolean-or-null. Executed
+conversion vectors preserve that mismatch. Native `config set lxmf sync_limit
+none` clears the optional limit; integer writes fail visibly instead of
+archiving an integer as active behavior. The separately supported Preferences/
+settings synchronization workflow activates boolean limits and maximum counts.
+Primary `sync_max` metadata calls it retries, but the actual core uses it as
+the manual maximum message count; native behavior follows the actual core.
+
+Single/double quotes, empty quoted arguments and POSIX-style backslash grouping
+match executed primary parser cases. Resolution tries the longest path first
+(up to four tokens). Native rejects unbalanced quotes, trailing escapes,
+control characters, more than256 tokens or more than8,192 input characters;
+the primary instead falls back to whitespace splitting malformed quotes.
+No shell expansion, command substitution or expression evaluation occurs.
+Tabs group arguments as whitespace; standard line endings delimit commands.
+Windows/Linux native stdin/stdout use UTF-8. Output removes remote terminal
+controls/bidirectional overrides; only the explicit local `clear` command
+emits a terminal control sequence. Names resolve case-insensitively; ambiguous
+names require hashes instead of silently choosing a peer. Unlike the primary,
+native resolution also accepts an untrusted conversation's bare saved name;
+the primary resolves its displayed name including the appended hash.
+
+Network sends/paper/announces/synchronization run as at most four owned tasks,
+each bounded to two minutes, with visible queued/completed/error/cancelled
+results. A second concurrent sync fails. `cancel` stops all console network
+work; `conv sync cancel` stops that sync; quit/EOF cancels and joins all work
+before core disposal. Quick foreground commands have a five-second budget,
+including waiting behind a busy core lifecycle gate. Telemetry/command
+admission uses the core's existing bounded workers, not an unowned console
+task. Counts, tracking intervals/durations and rendering are bounded; rendered
+telemetry is explicitly truncated at display budgets without changing stored
+wire data. Queued/submitted is never reported as recipient delivery/execution.
+There is no days-long service, exhaustive packet-loss or physical audio claim.
+
+Pending voice dialing owns the exact public task returned to its caller.
+Disposal and hangup cancel and join that task, rather than a completion signal
+raised before the async method itself finished. Outgoing admission, incoming
+authorization and busy reporting also retain the reservation until the exact
+task finishes, preventing an old cancelled dial's cleanup from hanging up a
+new call. Dial failures remain on the caller's task; joining does not rethrow
+an already owned call failure. The retained Windows hangup negative control
+fails its exact-task completion assertion before this correction. All16
+lifecycle cases then pass, including16 fresh pending-dial/hangup/healthy-next-call
+cycles and the separate16-service/four-concurrent-disposer regression.
+Linux replay of this later correction is blocked by WSL filesystem I/O errors
+before process startup; the preceding24-case lifecycle/ringer result on each
+host does not validate it. Native acceptance remains distinct from those earlier
+console candidates. The TCP voice fixture also binds port0 directly and uses
+the actual bound endpoint, removing the observed Linux release/rebind
+port-ownership race.
+
+Conversation clear/delete are atomic for native conversation/message state;
+delete also clears the peer's telemetry store. These are separate stores, not
+a cross-store transaction; a concurrent newly arriving message can re-create
+activity, as with the primary's separate operations. Content-addressed media
+blobs are not removed by these commands. Unknown-conversation mutations fail
+visibly rather than returning an upstream-shaped success for a no-op.
+Explicitly saved conversation names take precedence over later delivery
+announcements, matching eight observations from the pinned primary's actual
+`raw_display_name` and `peer_display_name` methods. Announcement-only and
+unnamed conversations continue following announcements. The nullable persisted
+`NameIsUserDefined` marker distinguishes these cases; legacy known conversations
+with non-address names are conservatively treated as saved, while discovery-only
+and address-placeholder names remain automatic. Explicit edits and supported
+primary imports set the marker. Creating an unnamed conversation no longer
+incorrectly saves its address as an explicit alias. Empty-string rename, also
+available as the original desktop **Use announced name** control, atomically
+clears the marker and resolves the bounded persisted delivery-announce cache
+or falls back to the address. It preserves trust/unread and other peer policy.
+Cache eviction and unusable names retain the native safety boundary: no
+unbounded reference identity-cache lookup or name longer than80 characters.
+The executed primary public `named_conversation` wrapper and actual SQLite
+setter independently establish empty-string clearing, explicit replacement
+and null rejection; null raises primary `AttributeError`, while the typed
+native API rejects it with `ArgumentNullException`. The private SQLite read/
+connection boundary is injected, not the primary constructor or full database.
+Generator output SHA-256:
+`4c4365c4235573f593a7bba55f9c25211bca75b6eaf544ec56a95a803ed025d5`.
+T319–320 and T369–372 verify reference outputs, restart persistence, rejected/
+cancelled write immutability, automatic creation, console and desktop controls.
+The strengthened native-pair case retains default startup
+announcements and requires an actual changed announcement before checking the
+saved alias; current-source native acceptance remains separate from the older
+candidates below.
+
+Private SQLite snapshots now use canonical extended Windows local/UNC paths,
+the native `win32-longpath` VFS and correctly escaped immutable map URIs, including
+spaces, Unicode, `#` and `%`. The actual Linux SQLite3.46.1 VFS has a512-byte
+pathname budget;600-character cases explicitly skip there, while300-character
+snapshot paths run on both hosts and600-character managed cases run on Windows.
+Source profile/map files remain unchanged. T321 exercises actual native profile
+and map maintenance plus imported-identity restart. The preceding Linux
+candidate passes. Its retained Windows failure exposed the stack's raw Win32
+atomic-publication limit, not a SQLite failure. The selected e52 stack path fix
+and fresh Windows strict NativeAOT replay now pass T321 without shortening paths
+or changing the assertions. The Linux current-source/pin replay is blocked by
+WSL storage failure.
+
+`net propagation set none` clears the configured node but retains the existing
+core's automatic/last-node selection; its output says so. The primary's
+`set_active_propagation_node(None)` also does not clear an already active node,
+despite its CLI response saying “cleared”. Runtime RNS log-level changes cannot
+be implemented through the current public core reporting API, which discards
+severity. `log` therefore fails explicitly; `log stream` exposes contextual
+native reports/voice events, not a claim of full primary log capture.
+
+### Console evidence and replay
+
+`SidebandConsoleSyntaxTests`, `SidebandConsoleApplicationTests` and
+`SidebandDaemonTests` cover the primary registration/parser vectors, Unicode,
+quotes/escapes/control/huge arguments, active versus unsupported configuration,
+map persistence, trust/name/history mutations, no-subscriber operation,
+bounded cancellation, failed/corrupt reload and continued service.
+`SidebandConsoleLiveTests` executes the actual primary CLI registry/handlers
+over an actual primary Sideband core, not the recording boundary double:
+messages pass both directions directly, through a Python transport and through
+a .NET transport, including identity-preserving native-core restart. A separate
+Python transport/propagation node verifies both propagation directions and
+explicit native retrieval limits. No reference source or callback is replaced.
+
+`SidebandConsole.Tests.ps1` exercises selected strict Windows/Linux NativeAOT
+processes: offline conversation/configuration/telemetry/maps and persistence,
+malformed/unsupported/huge input plus pending-send cancellation/EOF, native
+messages both ways after clean/abrupt restart, and actual primary CLI/core
+messages both ways after clean/abrupt native restart. The native pair separately
+exchanges at least five Opus64 frames in each direction using synthetic capture
+and discard output. That is software/audio-codec evidence, not physical audio.
+All network configurations are isolated, with shared instances disabled.
+The primary observation adapter explicitly disables automatic startup announces
+and uses actual manual announces. Its propagation/transport peer uses the
+shared harness settings: propagation stamp cost13, delivery limit1,000KB,
+propagation message limit256KB and propagation synchronization limit10,240KB.
+These are reference-node test parameters, not a claim of unchanged defaults.
+Live commands use the actual pinned imported primary source, RNS1.5.7,
+LXMF1.2.1 and LXST0.5.4. The thin JSON/base64 process envelope is harness-only.
+
+Focused commands:
+
+```powershell
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --filter "FullyQualifiedName~SidebandConsole|FullyQualifiedName~SidebandDaemonTests"
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release
+# Separate explicit live gate:
+# DOTRETICULUM_LIVE=1; DOTRETICULUM_SIDEBAND_LIVE=1
+# DOTRETICULUM_PYTHON, DOTRETICULUM_UPSTREAM,
+# DOTRETICULUM_LXST_UPSTREAM, DOTRETICULUM_SIDEBAND_UPSTREAM point to actual pins.
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --filter "FullyQualifiedName~SidebandConsoleLiveTests"
+```
+
+Native Pester additionally requires `DOTRETICULUM_SIDEBAND_CONSOLE=1`,
+`DOTRETICULUM_SIDEBAND_BINARY`, its exact
+`DOTRETICULUM_SIDEBAND_CONSOLE_SHA256` and optional
+`DOTRETICULUM_SIDEBAND_CONSOLE_RESULTS`. Missing native/live opt-ins explicitly
+skip rather than passing. Strict publishing uses both trim/ILC warnings as
+errors and executes the resulting binary's help and feature flows.
+Frozen candidate manifests, PDB/source/generated-source checks, actual
+compiler/runtime/ILC response receipts, failures and no-republish replay
+operators are retained separately under ignored
+`artifacts/tests/sideband-console`. Independent parent replay accepted the older
+Windows full/focused/live/native candidate and the Linux focused/live/native
+candidate. The Linux full replay failed the heavy-profile window-readiness wait;
+that failure remains retained. Its test now awaits the window's actual owned
+initialization task before asserting readiness and the unchanged save/close
+contract. Current-source integrated/native acceptance is separate, and neither
+candidate acceptance nor the readiness correction establishes overall application
+completion.
+
+Retained older console candidate runs: focused selectors **25 passed /4 explicit live
+skips** on each host; separately enabled live selectors **4 passed /0 skipped**
+on each host; full Sideband managed suite **2,060 passed /74 skipped** on Windows
+and **2,062 passed /72 skipped** on Linux; native Pester **4 passed /0 skipped**
+on each host. Full-suite skip receipts retain their individual opt-in/platform
+reasons. Both strict NativeAOT publishes pass with no warnings, and repeated
+publishes preserve the selected native digest. Earlier failed live/name-lookup,
+Unicode and native observer-race receipts remain retained; the final observers
+assert the actual message content rather than dropping output between polls.
+Windows primary LXST reports its own normal Python filter fallback during CLI
+vector import; CLI vectors do not exercise physical audio or filter acceleration.
+
+The preceding guarded `sqlite-final` source repeats the full managed suite on both
+hosts: **2069 passed /74 explicit skips** each; separately enabled live selectors
+pass **4/0** each. Linux strict NativeAOT/help and all **five native cases pass**,
+including T321 source-preserving profile/map maintenance and identity restart.
+Selected Linux SHA-256:
+`cdb9019e9b46e021f6c2e129e7af6966c48b87ccf50f83db50b7dcdc62a25da4`.
+The guarded receipt and per-mode logs are at
+`/home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/tests/sideband-console/linux-sqlite-final`.
+Windows's four previous native flows pass, but T321 fails transport-identity
+atomic publication at the long imported path. Retained
+`artifacts\tests\sideband-console\windows-sqlite-final\Native.log` is a failure,
+not full native acceptance. This preceding run includes saved-name/default-startup assertions, exact owned
+pending-dial completion, actual bound-port voice fixture and SQLite path fixes;
+it does not establish missing configuration/plugin/hardware contracts.
+
+The selected Windows `atomic-hangup-final` candidate includes the exact public
+hangup-task correction and committed e52 stack path fix. Full Sideband managed
+acceptance passes2070/74 explicit skips; separately enabled actual-primary live
+cases pass4/0. Strict NativeAOT/help and all five native cases pass, including
+the unchanged long-path profile/map and imported-identity restart assertions.
+The source-before/after guard remains unchanged across every mode. Selected
+native SHA-256:
+`475dded1fd88aab15f0c4ad7d1a05950c9d8b4b4a05bdbded3753e6603b5d200`.
+The receipt, commands and per-mode logs are under
+`artifacts\tests\sideband-console\windows-atomic-hangup-final`.
+
+```powershell
+& artifacts\tests\sideband-console\Parent-CurrentConsole.ps1 -Managed -Run atomic-hangup-final
+```
+
+Current Linux replay cannot start because its WSL filesystem reports storage
+I/O errors and is mounted emergency read-only. No current-source/pin Linux pass
+is inferred from the preceding candidates. No shared distribution restart or
+filesystem repair was performed.
+
+The current `automatic-names-final` Windows candidate also fixes unnamed
+creation and alias clearing. Fresh managed acceptance is2074/74 explicit
+skips, actual-primary live4/0, and strict NativeAOT/help/native5/0. The native
+pair requires empty-name creation, saved alias precedence over an actual
+changed announcement, empty-string clearing, and a later actual announcement
+after identity-preserving restart, without losing trust. All production
+source hashes remain unchanged through the four gates. Selected native
+SHA-256:
+`d4d862a6dd4680ece5765b92f5b325cfc87c5e3c87e296c9fdcb5bc0e290190c`.
+
+```powershell
+& artifacts\tests\sideband-console\Parent-CurrentConsole.ps1 -Managed -Run automatic-names-final
+```
+
+Receipts/logs are under
+`artifacts\tests\sideband-console\windows-automatic-names-final`.
+The preceding candidate does not include this name-policy correction; Linux
+acceptance of it remains blocked by the same unavailable WSL filesystem.

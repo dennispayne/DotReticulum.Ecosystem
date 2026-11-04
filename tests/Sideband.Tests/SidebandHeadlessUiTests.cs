@@ -243,6 +243,36 @@ public sealed partial class SidebandHeadlessUiTests
     }
 
     [AvaloniaFact]
+    [Trait("TestId", "T372")]
+    public async Task ConversationCanRestoreAnnouncedNameAndPersistAutomaticPolicy()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "sideband-name-ui-" + Guid.NewGuid().ToString("N"));
+        const string peer = "00112233445566778899aabbccddeeff";
+        MainWindow? window = null;
+        try
+        {
+            var store = new SidebandStateStore(path);
+            await store.AddContactAsync(SidebandContact.Create("Saved alias", peer));
+            await store.ObserveAnnounceAsync(new(peer, SidebandAnnounce.Delivery, DateTimeOffset.UtcNow, "Announced peer"));
+            window = new MainWindow(path, Path.Combine(path, "isolated-rns"));
+            window.Show();
+            await WaitForAsync(() => window.FindControl<ListBox>("ContactList")?.ItemCount == 1);
+            window.FindControl<ListBox>("ContactList")!.SelectedIndex = 0;
+            window.FindControl<Button>("FollowConversationAnnounceButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => window.FindControl<TextBlock>("StatusText")?.Text == "Conversation now follows delivery announcements.");
+            await window.CloseAndWaitAsync();
+            var persisted = Assert.Single((await new SidebandStateStore(path).LoadAsync()).Contacts);
+            Assert.Equal("Announced peer", persisted.DisplayName);
+            Assert.False(persisted.NameIsUserDefined);
+        }
+        finally
+        {
+            if (window?.IsVisible == true) await window.CloseAndWaitAsync();
+            if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task ConversationTrustUnreadAndReadingSurviveWindowRestart()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "sideband-conversation-ui-" + Guid.NewGuid().ToString("N"));
@@ -362,7 +392,8 @@ public sealed partial class SidebandHeadlessUiTests
 
             window = new MainWindow(path, rnsConfig);
             window.Show();
-            await WaitForAsync(() => window.FindControl<TextBox>("DisplayNameBox")?.Text == "Sideband");
+            await window.Initialization.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+            Assert.Equal("Sideband", window.FindControl<TextBox>("DisplayNameBox")?.Text);
             window.FindControl<TextBox>("DisplayNameBox")!.Text = "Alice";
             window.FindControl<ComboBox>("ThemeSelector")!.SelectedItem = "Light";
             window.FindControl<Button>("SavePreferencesButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

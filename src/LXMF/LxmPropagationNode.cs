@@ -89,7 +89,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             LoadStore();
             LoadPeers();
             LoadNodeStats();
-            if (_peers.Keys.Concat(_options.StaticPeers.Select(Convert.ToHexStringLower)).Distinct().Count() > 65_536)
+            if (_peers.Keys.Concat(_unresolvedPeers.Keys).Concat(_options.StaticPeers.Select(Convert.ToHexStringLower)).Distinct().Count() > MaximumPersistedPeers)
                 throw new InvalidDataException("Persisted and static peers exceed the bounded peer capacity.");
         }
         catch { _storeLease.Dispose(); throw; }
@@ -349,17 +349,12 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
             var output = path + ".out";
             try
             {
-                using (var stream = new FileStream(output, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-                {
-                    stream.Write(stamped);
-                    stream.Flush(flushToDisk: true);
-                }
-
+                WritePrivatePersistedFile(output, stamped);
                 File.Move(output, path);
                 _entries.Add(key, new Entry(id, data[..16].ToArray(), path, stamped.LongLength, received, stampValue));
                 _storedBytes += stamped.LongLength;
-                foreach (var (destination, peer) in _peers)
-                    if (destination != fromPeer) peer.AddUnhandled(id);
+                foreach (var peer in PersistedPeers)
+                    if (Convert.ToHexStringLower(peer.DestinationHash) != fromPeer) peer.AddUnhandled(id);
             }
             finally { if (File.Exists(output)) File.Delete(output); }
         }
@@ -441,8 +436,15 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             var name = Convert.ToHexStringLower(destinationHash);
+            if (_unresolvedPeers.TryGetValue(name, out var unresolved))
+            {
+                unresolved.SyncStrategy = (int)strategy;
+                SavePeers();
+                return;
+            }
             if (!_peers.TryGetValue(name, out var peer))
             {
+                CheckPeerCapacity();
                 if (_peers.Count >= Math.Min(_options.MaxPeers, 65_536)) throw new InvalidOperationException("Propagation peer capacity reached.");
                 peer = new LxmPeer(destinationHash.ToArray()) { LastHeard = Now };
                 foreach (var entry in _entries.Values) peer.AddUnhandled(entry.Id);
@@ -465,9 +467,13 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         {
             lock (_gate)
             {
+                ResolvePersistedPeers();
                 var name = Convert.ToHexStringLower(destinationHash);
+                if (_unresolvedPeers.ContainsKey(name))
+                    throw new IOException("Persisted propagation peer is unresolved; await genuine identity discovery before synchronizing.");
                 if (!_peers.TryGetValue(name, out peer))
                 {
+                    CheckPeerCapacity();
                     if (_peers.Count >= Math.Min(_options.MaxPeers, 65_536)) throw new InvalidOperationException("Propagation peer capacity reached.");
                     peer = new LxmPeer(destinationHash) { LastHeard = Now, SyncStrategy = (int)_options.SyncStrategy };
                     foreach (var entry in _entries.Values) peer.AddUnhandled(entry.Id);
@@ -642,7 +648,7 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         File.Delete(entry.Path);
         _entries.Remove(Convert.ToHexStringLower(entry.Id));
         _storedBytes -= entry.Size;
-        foreach (var peer in _peers.Values) peer.Forget(entry.Id);
+        foreach (var peer in PersistedPeers) peer.Forget(entry.Id);
     }
 
     private void LoadPeers()
@@ -650,20 +656,22 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         var path = Path.Combine(Path.GetDirectoryName(_directory)!, "peers");
         LxmPersistence.RemoveInterruptedWrites(path);
         if (!File.Exists(path)) return;
-        if (new FileInfo(path).Length > 16 * 1024 * 1024) throw new InvalidDataException("Propagation peer file is oversized.");
-        if (MsgPack.UnpackApplicationValue(File.ReadAllBytes(path)) is not object?[] entries || entries.Length > 65_536)
-            throw new InvalidDataException("Invalid propagation peer list.");
+        if (new FileInfo(path).Length > MaximumPersistedPeerBytes) throw new InvalidDataException("Propagation peer file is oversized.");
+        var entries = ReadPeerArray(File.ReadAllBytes(path));
         foreach (var value in entries)
         {
             if (value is not byte[] bytes) throw new InvalidDataException("Invalid serialized propagation peer.");
             var peer = LxmPeer.FromBytes(bytes, id => _entries.ContainsKey(Convert.ToHexStringLower(id)));
+            var key = Convert.ToHexStringLower(peer.DestinationHash);
+            if (_peers.ContainsKey(key) || _unresolvedPeers.ContainsKey(key))
+                throw new InvalidDataException("Duplicate persisted propagation peer.");
             using var identity = _router.Engine.Known.Recall(peer.DestinationHash);
-            if (identity is null)
+            if (identity is null || !PropagationHash(identity).AsSpan().SequenceEqual(peer.DestinationHash))
             {
-                Report("Discarding persisted propagation peer whose identity cannot be recalled.");
+                _unresolvedPeers.Add(key, peer);
                 continue;
             }
-            _peers.Add(Convert.ToHexStringLower(peer.DestinationHash), peer);
+            _peers.Add(key, peer);
         }
     }
 
@@ -673,7 +681,10 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
         var output = path + "." + Guid.NewGuid().ToString("N") + ".out";
         try
         {
-            File.WriteAllBytes(output, MsgPack.Pack(_peers.Values.Select(peer => (object?)peer.ToBytes()).ToArray()));
+            var bytes = MsgPack.Pack(PersistedPeers.Select(peer => (object?)peer.ToBytes()).ToArray());
+            if (bytes.Length > MaximumPersistedPeerBytes)
+                throw new InvalidDataException("Propagation peer persistence exceeds the bounded file size.");
+            WritePrivatePersistedFile(output, bytes);
             File.Move(output, path, overwrite: true);
         }
         finally { if (File.Exists(output)) File.Delete(output); }

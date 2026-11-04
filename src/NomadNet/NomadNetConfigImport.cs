@@ -39,10 +39,12 @@ public static class NomadNetConfigImport
             settings.LogFile = Scalar(logFile);
         var unsupported = new List<string>();
         var warnings = new List<string>();
+        ApplyPrinting(values, settings, warnings);
         var disablePropagation = true;
         foreach (var (key, raw) in values)
         {
             if (key is "logging.loglevel" or "logging.destination" or "logging.logfile") continue;
+            if (key is "printing.print_messages" or "printing.print_command" or "printing.print_from" or "printing.message_template") continue;
             if (key is "node.static_peers" or "node.prioritise_destinations")
             {
                 var destinations = Destinations(raw, key, warnings);
@@ -50,7 +52,7 @@ public static class NomadNetConfigImport
                 else settings.PrioritisedDestinations = destinations.Distinct(StringComparer.Ordinal).ToList();
                 continue;
             }
-            if (key is not ("textui.image_loading" or "client.compose_in_markdown" or "rrc.render_markdown" or "rrc.render_micron" or
+            if (key is not ("textui.image_loading" or "textui.clipboard_copy" or "client.compose_in_markdown" or "rrc.render_markdown" or "rrc.render_micron" or
                 "client.enable_client" or "client.announce_at_start" or "client.announce_interval" or
                 "client.periodic_lxmf_sync" or "client.lxmf_sync_interval" or "client.lxmf_sync_limit" or
                 "client.try_propagation_on_send_fail" or "client.required_stamp_cost" or "client.accept_invalid_stamps" or
@@ -68,6 +70,7 @@ public static class NomadNetConfigImport
             switch (key)
             {
                 case "textui.image_loading": settings.ImageLoading = NomadNetImagePolicy.Parse(value); break;
+                case "textui.clipboard_copy": settings.ClipboardCopy = Boolean(value); break;
                 case "client.compose_in_markdown": settings.ComposeInMarkdown = Boolean(value); break;
                 case "rrc.render_markdown": settings.RrcRenderMarkdown = Boolean(value); break;
                 case "rrc.render_micron": settings.RrcRenderMicron = Boolean(value); break;
@@ -120,6 +123,7 @@ public static class NomadNetConfigImport
             settings.PropagationSyncLimitBytes = Math.Max(settings.PropagationTransferLimitBytes, settings.PropagationSyncLimitBytes);
         _ = NomadNetNodeConfiguration.CreateOptions(settings);
         settings.ValidateAttachmentPath();
+        settings.ValidatePrinting();
         return new(settings, unsupported.Order(StringComparer.Ordinal).ToArray()) { Warnings = warnings.ToArray() };
     }
 
@@ -197,21 +201,7 @@ public static class NomadNetConfigImport
 
     private static List<string> Destinations(string raw, string key, List<string> warnings)
     {
-        var tokens = new List<string>();
-        var start = 0;
-        var quote = '\0';
-        for (var index = 0; index <= raw.Length; index++)
-        {
-            if (index < raw.Length && raw[index] is '\'' or '"')
-            {
-                if (quote == '\0') quote = raw[index];
-                else if (quote == raw[index]) quote = '\0';
-            }
-            if (index != raw.Length && (raw[index] != ',' || quote != '\0')) continue;
-            var token = raw[start..index].Trim();
-            if (token.Length != 0 || index != raw.Length || start == 0) tokens.Add(Scalar(token));
-            start = index + 1;
-        }
+        var tokens = CommaValues(raw);
         if (tokens.Count > 128) throw new InvalidDataException($"Imported {key} exceeds 128 entries.");
         var destinations = new List<string>();
         for (var index = 0; index < tokens.Count; index++)
@@ -232,6 +222,69 @@ public static class NomadNetConfigImport
             catch (ArgumentException) { warnings.Add($"Skipped invalid {key} destination at index {index + 1}."); }
         }
         return destinations;
+    }
+
+    private static List<string> CommaValues(string raw)
+    {
+        var tokens = new List<string>();
+        var start = 0;
+        var quote = '\0';
+        for (var index = 0; index <= raw.Length; index++)
+        {
+            if (index < raw.Length && raw[index] is '\'' or '"')
+            {
+                if (quote == '\0') quote = raw[index];
+                else if (quote == raw[index]) quote = '\0';
+            }
+            if (index != raw.Length && (raw[index] != ',' || quote != '\0')) continue;
+            var token = raw[start..index].Trim();
+            if (token.Length != 0 || index != raw.Length || start == 0) tokens.Add(Scalar(token));
+            start = index + 1;
+        }
+        return tokens;
+    }
+
+    private static void ApplyPrinting(Dictionary<string, string> values, NomadNetSettings settings, List<string> warnings)
+    {
+        if (!values.TryGetValue("printing.print_messages", out var enabled)) return;
+        settings.PrintMessages = Boolean(Scalar(enabled));
+        if (values.TryGetValue("printing.print_command", out var command)) settings.PrintCommand = Scalar(command);
+        if (!settings.PrintMessages) return;
+        if (values.TryGetValue("printing.print_from", out var raw)) ApplyPrintFrom(settings, raw);
+        if (values.TryGetValue("printing.message_template", out var template))
+        {
+            var path = ExpandHome(Scalar(template));
+            if (string.IsNullOrWhiteSpace(path) || path.Length > 2048 || path.Any(char.IsControl))
+                throw new InvalidDataException("Invalid printing template path.");
+            path = Path.GetFullPath(path);
+            if (File.Exists(path) || Directory.Exists(path))
+                settings.PrintingMessageTemplate = NomadNetPrintingPolicy.ReadTemplateAsync(path).GetAwaiter().GetResult();
+            else warnings.Add("Missing printing.message_template uses the original native default; import does not create foreign files.");
+        }
+    }
+
+    internal static void ApplyPrintFrom(NomadNetSettings settings, string raw)
+    {
+        var tokens = CommaValues(raw);
+        settings.PrintAllMessages = false;
+        settings.PrintTrustedMessages = false;
+        settings.AllowedMessagePrintDestinations = [];
+        // ConfigObj distinguishes a scalar from a comma-list, even one with a trailing comma.
+        var scalar = tokens.Count == 1 && raw.TrimEnd().LastOrDefault() != ',' &&
+            (raw.TrimStart().StartsWith('\'') || raw.TrimStart().StartsWith('"') || !raw.Contains(','));
+        if (scalar)
+        {
+            var value = tokens[0];
+            settings.PrintAllMessages = value.Equals("everywhere", StringComparison.OrdinalIgnoreCase);
+            settings.PrintTrustedMessages = value.Equals("trusted", StringComparison.OrdinalIgnoreCase);
+            if (value.Length == 32) settings.AllowedMessagePrintDestinations.Add(value);
+        }
+        else
+        {
+            settings.AllowedMessagePrintDestinations = tokens;
+            settings.PrintTrustedMessages = tokens.Any(value => value.Equals("trusted", StringComparison.OrdinalIgnoreCase));
+        }
+        settings.ValidatePrinting();
     }
 
     private static bool Boolean(string value) => value.ToLowerInvariant() switch

@@ -74,7 +74,11 @@ public sealed class NomadNetConfigTests
         Assert.Equal(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"),
             result.Settings.DownloadsPath);
         Assert.Equal(NomadNetImageLoading.Manual, result.Settings.ImageLoading);
-        Assert.Equal(["printing.print_from", "textui.mouse_enabled"], result.UnsupportedKeys);
+        Assert.Equal(["textui.mouse_enabled"], result.UnsupportedKeys);
+        Assert.False(result.Settings.PrintMessages);
+        Assert.False(result.Settings.PrintAllMessages);
+        Assert.False(result.Settings.PrintTrustedMessages);
+        Assert.Empty(result.Settings.AllowedMessagePrintDestinations);
     }
 
     [Theory]

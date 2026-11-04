@@ -43,9 +43,9 @@ public sealed partial class LxmPropagationNode
         foreach (var destination in _options.StaticPeers)
         {
             var name = Convert.ToHexStringLower(destination);
-            if (!_peers.ContainsKey(name))
+            if (!_peers.ContainsKey(name) && !_unresolvedPeers.ContainsKey(name))
             {
-                if (_peers.Count >= 65_536) throw new ArgumentException("Static peers exceed bounded peer capacity.");
+                CheckPeerCapacity();
                 var peer = new LxmPeer(destination) { SyncStrategy = (int)_options.SyncStrategy };
                 foreach (var entry in _entries.Values) peer.AddUnhandled(entry.Id);
                 _peers.Add(name, peer);
@@ -62,10 +62,14 @@ public sealed partial class LxmPropagationNode
 
     private async Task RequestStaticPeerPathsAsync(CancellationToken ct)
     {
-        foreach (var destination in _options.StaticPeers.DistinctBy(Convert.ToHexStringLower))
+        byte[][] destinations;
+        lock (_gate) destinations = _options.StaticPeers.Concat(_unresolvedPeers.Values.Select(peer => peer.DestinationHash))
+            .DistinctBy(Convert.ToHexStringLower).Select(hash => hash.ToArray()).ToArray();
+        foreach (var destination in destinations)
         {
             bool request;
-            lock (_gate) request = _peers.TryGetValue(Convert.ToHexStringLower(destination), out var peer) && peer.LastHeard == 0;
+            lock (_gate) request = _unresolvedPeers.ContainsKey(Convert.ToHexStringLower(destination)) ||
+                _peers.TryGetValue(Convert.ToHexStringLower(destination), out var peer) && peer.LastHeard == 0;
             if (!request) continue;
             try { await _router.RequestPathAsync(destination, cancellationToken: ct).ConfigureAwait(false); }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
@@ -82,8 +86,11 @@ public sealed partial class LxmPropagationNode
             (_router.HopsTo(destination) ?? int.MaxValue) > _options.AutoPeerMaxDepth) return;
         lock (_gate)
         {
+            if (_disposed || !_enabled) return;
+            ResolvePersistedPeers();
             var key = Convert.ToHexStringLower(destination);
-            if (_disposed || !_enabled || _peers.ContainsKey(key) || _peers.Count >= Math.Min(_options.MaxPeers, 65_536)) return;
+            if (_peers.ContainsKey(key) || _peers.Count >= Math.Min(_options.MaxPeers, MaximumPersistedPeers) ||
+                _peers.Count + _unresolvedPeers.Count >= MaximumPersistedPeers) return;
             var peer = new LxmPeer(destination)
             {
                 SyncStrategy = (int)_options.SyncStrategy,
@@ -128,8 +135,10 @@ public sealed partial class LxmPropagationNode
         lock (_gate)
         {
             var key = Convert.ToHexStringLower(destination);
-            if (!_peers.TryGetValue(key, out var peer) || timebase is { } timestamp && timestamp < peer.PeeringTimebase) return false;
+            if (!_peers.TryGetValue(key, out var peer) && !_unresolvedPeers.TryGetValue(key, out peer) ||
+                timebase is { } timestamp && timestamp < peer.PeeringTimebase) return false;
             _peers.Remove(key);
+            _unresolvedPeers.Remove(key);
             SavePeers();
             return true;
         }
@@ -143,6 +152,8 @@ public sealed partial class LxmPropagationNode
         {
             if (_disposed || !_enabled || received.DestinationHash.AsSpan().SequenceEqual(DestinationHash)) return;
             var key = Convert.ToHexStringLower(received.DestinationHash);
+            if (PropagationHash(identity).AsSpan().SequenceEqual(received.DestinationHash))
+                ResolvePersistedPeers();
             var isStatic = _options.StaticPeers.Any(hash => hash.AsSpan().SequenceEqual(received.DestinationHash));
             _peers.TryGetValue(key, out var peer);
             if (isStatic && received.IsPathResponse && peer?.LastHeard > 0) return;
@@ -156,7 +167,8 @@ public sealed partial class LxmPropagationNode
 
             if (peer is null)
             {
-                if (_peers.Count >= Math.Min(_options.MaxPeers, 65_536)) return;
+                if (_peers.Count >= Math.Min(_options.MaxPeers, MaximumPersistedPeers) ||
+                    _peers.Count + _unresolvedPeers.Count >= MaximumPersistedPeers) return;
                 peer = new LxmPeer(received.DestinationHash) { SyncStrategy = (int)_options.SyncStrategy };
                 foreach (var entry in _entries.Values) peer.AddUnhandled(entry.Id);
                 _peers.Add(key, peer);
@@ -202,6 +214,7 @@ public sealed partial class LxmPropagationNode
                     lock (_gate)
                     {
                         if (_disposed) break;
+                        ResolvePersistedPeers();
                         if (++_maintenanceTicks % 6 != 0) continue;
                         CleanThrottledPeers();
                         if (!_enabled) continue;
@@ -379,6 +392,7 @@ public sealed partial class LxmPropagationNode
                 ["static_peers"] = (long)staticCount,
                 ["discovered_peers"] = (long)(_peers.Count - staticCount),
                 ["total_peers"] = (long)_peers.Count,
+                ["unresolved_persisted_peers"] = (long)_unresolvedPeers.Count,
                 ["max_peers"] = (long)_options.MaxPeers,
                 ["peers"] = peerStats,
             };
@@ -397,9 +411,9 @@ public sealed partial class LxmPropagationNode
         var path = Path.Combine(Path.GetDirectoryName(_directory)!, "node_stats");
         LxmPersistence.RemoveInterruptedWrites(path);
         if (!File.Exists(path)) return;
-        if (new FileInfo(path).Length > 4096 ||
-            MsgPack.UnpackApplicationValue(File.ReadAllBytes(path)) is not Dictionary<object, object?> map)
+        if (new FileInfo(path).Length > 4096)
             throw new InvalidDataException("Invalid propagation statistics.");
+        var map = ReadNodeStatistics(File.ReadAllBytes(path));
         long Count(string key)
         {
             var value = MsgPack.ToInt64(map.GetValueOrDefault(key) ?? 0L);
@@ -417,7 +431,7 @@ public sealed partial class LxmPropagationNode
         var output = path + "." + Guid.NewGuid().ToString("N") + ".out";
         try
         {
-            File.WriteAllBytes(output, MsgPack.Pack(new Dictionary<object, object?>
+            WritePrivatePersistedFile(output, MsgPack.Pack(new Dictionary<object, object?>
             {
                 ["client_propagation_messages_received"] = _clientMessagesReceived,
                 ["client_propagation_messages_served"] = _clientMessagesServed,

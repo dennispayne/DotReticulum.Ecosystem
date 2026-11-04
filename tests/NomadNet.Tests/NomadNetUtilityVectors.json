@@ -1,0 +1,275 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "method": "Actual imported ProbeView.on_probe/_timeout, SpeedTestView._verify_incoming/_begin_resource/_recv_concluded, Transport formatting and RNS.Transport.expire_path; synthetic UI/transport owners, no wire claim",
+  "sources": {
+    "nomadnet/ui/textui/Utilities.py": "61a75d64a244d13e543d7c915d1611bbde87cf28db8450def4424a5634c7c1b1",
+    "nomadnet/ui/textui/Transport.py": "57bd1e08e5c68b452f2314626ec67d73871ea2468a5af54cc15a5b54f17323e9"
+  },
+  "defaults": {
+    "probeSize": 16,
+    "probeTimeout": 12,
+    "rncpApplication": "rncp",
+    "speedName": "nomadnetwork.utilities.speedtest",
+    "speedDefault": "1 MB",
+    "speedMemoryMaximum": 8388608,
+    "speedSizes": [
+      [
+        "2 KB",
+        2048
+      ],
+      [
+        "8 KB",
+        8192
+      ],
+      [
+        "32 KB",
+        32768
+      ],
+      [
+        "128 KB",
+        131072
+      ],
+      [
+        "512 KB",
+        524288
+      ],
+      [
+        "1 MB",
+        1048576
+      ],
+      [
+        "4 MB",
+        4194304
+      ],
+      [
+        "16 MB",
+        16777216
+      ],
+      [
+        "64 MB",
+        67108864
+      ],
+      [
+        "256 MB",
+        268435456
+      ],
+      [
+        "1000 MB",
+        1048576000
+      ],
+      [
+        "2000 MB",
+        2097152000
+      ]
+    ]
+  },
+  "probes": [
+    {
+      "size": "",
+      "count": "",
+      "payload": 16,
+      "remaining": 1,
+      "name": "rnstransport",
+      "aspects": [
+        "probe"
+      ]
+    },
+    {
+      "size": "junk",
+      "count": "junk",
+      "payload": 16,
+      "remaining": 1,
+      "name": "rnstransport",
+      "aspects": [
+        "probe"
+      ]
+    },
+    {
+      "size": "0",
+      "count": "0",
+      "payload": 1,
+      "remaining": 1,
+      "name": "rnstransport",
+      "aspects": [
+        "probe"
+      ]
+    },
+    {
+      "size": "-1",
+      "count": "-4",
+      "payload": 1,
+      "remaining": 1,
+      "name": "rnstransport",
+      "aspects": [
+        "probe"
+      ]
+    },
+    {
+      "size": "17",
+      "count": "3",
+      "payload": 17,
+      "remaining": 3,
+      "name": "rnstransport",
+      "aspects": [
+        "probe"
+      ]
+    }
+  ],
+  "timeouts": [
+    {
+      "firstHop": 0,
+      "medium": 0,
+      "seconds": 12,
+      "speedSeconds": 12
+    },
+    {
+      "firstHop": 3,
+      "medium": 5,
+      "seconds": 15,
+      "speedSeconds": 15
+    },
+    {
+      "firstHop": 2,
+      "medium": 30,
+      "seconds": 30,
+      "speedSeconds": 30
+    }
+  ],
+  "authorization": [
+    {
+      "name": "matching",
+      "closed": false,
+      "resources": true
+    },
+    {
+      "name": "different",
+      "closed": true,
+      "resources": false
+    },
+    {
+      "name": "absent",
+      "closed": true,
+      "resources": false
+    }
+  ],
+  "pathExpiry": {
+    "results": [
+      true,
+      true,
+      false
+    ],
+    "timestamp": 0,
+    "rnsRevision": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+    "rnsTransportSha256": "60ba0eed08d8a9b4fb2bef45de2f7bef1d0f2241fbc0fc664b2edb0e1c57add8"
+  },
+  "resources": [
+    {
+      "bytes": 25,
+      "autoCompress": false,
+      "metadata": null
+    }
+  ],
+  "received": {
+    "linkClosed": false,
+    "progress": 100,
+    "activeCleared": true,
+    "resourceCleared": true
+  },
+  "reception": [
+    {
+      "shared": false,
+      "rssi": null,
+      "snr": null,
+      "quality": null,
+      "text": ""
+    },
+    {
+      "shared": false,
+      "rssi": -80.5,
+      "snr": 8.25,
+      "quality": null,
+      "text": " [RSSI -80.5 dBm] [SNR 8.25 dB]"
+    },
+    {
+      "shared": true,
+      "rssi": -80.5,
+      "snr": 8.25,
+      "quality": 50.5,
+      "text": " [RSSI -80.5 dBm] [SNR 8.25 dB] [Q 50.5%]"
+    }
+  ],
+  "sizes": [
+    {
+      "input": 0,
+      "text": "0.0 B"
+    },
+    {
+      "input": 16,
+      "text": "16.0 B"
+    },
+    {
+      "input": 1024,
+      "text": "1.0 KB"
+    },
+    {
+      "input": 1048576,
+      "text": "1.0 MB"
+    },
+    {
+      "input": 1073741824,
+      "text": "1.0 GB"
+    }
+  ],
+  "rates": [
+    {
+      "input": 0,
+      "text": "0.0 bps"
+    },
+    {
+      "input": 1,
+      "text": "8.0 bps"
+    },
+    {
+      "input": 125,
+      "text": "1.0 Kbps"
+    },
+    {
+      "input": 125000,
+      "text": "1.0 Mbps"
+    },
+    {
+      "input": 125000000,
+      "text": "1.0 Gbps"
+    }
+  ],
+  "durations": [
+    {
+      "input": 0,
+      "text": "n/a"
+    },
+    {
+      "input": 1,
+      "text": "1s"
+    },
+    {
+      "input": 59,
+      "text": "59s"
+    },
+    {
+      "input": 60,
+      "text": "1m"
+    },
+    {
+      "input": 3599,
+      "text": "59m"
+    },
+    {
+      "input": 3600,
+      "text": "1h 0m"
+    },
+    {
+      "input": 86400,
+      "text": "1d 0h"
+    }
+  ]
+}

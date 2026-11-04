@@ -92,6 +92,8 @@ public static class NomadNetProfileImport
                     warnings.Add("Peer settings counters, node announce timestamp, quit-confirm and unknown peer keys are archived, not active native settings.");
                 }
                 await settings.SaveAsync(staging, cancellationToken).ConfigureAwait(false);
+                await NomadNetNodeProfile.ImportAsync(source, staging, identity, snapshot, settings, activated,
+                    warnings, cancellationToken).ConfigureAwait(false);
                 var ignoredBytes = snapshot.ContainsKey("ignored") ? await ReadAsync(source, "ignored",
                     NomadNetDirectoryImport.MaximumIgnoredBytes, cancellationToken).ConfigureAwait(false) : [];
                 var directory = snapshot.ContainsKey("storage/directory")

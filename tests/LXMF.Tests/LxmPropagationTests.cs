@@ -1,7 +1,7 @@
 namespace LXMF.Tests;
 
 [Trait("Category", "Integration")]
-public class LxmPropagationTests
+public class LxmPropagationTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     [Fact]
     public async Task PropagationResourceCompletion_ExposesActualCompressedWireAndOriginalDataSizes()
@@ -165,22 +165,35 @@ public class LxmPropagationTests
             try
             {
                 Directory.CreateDirectory(Path.Combine(path, "lxmf"));
-                File.WriteAllBytes(Path.Combine(path, "lxmf", "peers"), DotReticulum.Core.MsgPack.Pack(
-                    testCase.GetProperty("peers").EnumerateArray().Select(peer => (object?)Convert.FromHexString(peer.GetString()!)).ToArray()));
-                await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = path });
-                foreach (var serialized in testCase.GetProperty("peers").EnumerateArray())
+                var mapped = new Dictionary<string, string>(StringComparer.Ordinal);
+                var identities = new List<DotReticulum.Core.Identity>();
+                var encoded = testCase.GetProperty("peers").EnumerateArray().Select(peer =>
                 {
-                    var peer = LxmPeer.FromBytes(Convert.FromHexString(serialized.GetString()!), _ => false);
-                    pair.ServerRouter.Engine.Known.Remember(peer.DestinationHash, new byte[32], pair.ClientIdentity.ExportPublicKey(), null);
+                    var map = (Dictionary<object, object?>)DotReticulum.Core.MsgPack.UnpackApplicationValue(Convert.FromHexString(peer.GetString()!))!;
+                    var identity = DotReticulum.Core.Identity.Generate();
+                    identities.Add(identity);
+                    var hash = DotReticulum.Core.Destination.ComputeHashFromNameAndIdentity("lxmf.propagation", identity.Hash);
+                    mapped[Convert.ToHexStringLower((byte[])map["destination_hash"]!)] = Convert.ToHexStringLower(hash);
+                    map["destination_hash"] = hash;
+                    return (object?)DotReticulum.Core.MsgPack.Pack(map);
+                }).ToArray();
+                File.WriteAllBytes(Path.Combine(path, "lxmf", "peers"), DotReticulum.Core.MsgPack.Pack(
+                    encoded));
+                await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = path });
+                foreach (var identity in identities)
+                {
+                    var hash = DotReticulum.Core.Destination.ComputeHashFromNameAndIdentity("lxmf.propagation", identity.Hash);
+                    pair.ServerRouter.Engine.Known.Remember(hash, new byte[32], identity.ExportPublicKey(), null);
+                    identity.Dispose();
                 }
                 var node = pair.Server.EnablePropagationNode(new LxmPropagationOptions
                 {
                     MaxPeers = 3,
                     AutoPeer = false,
-                    StaticPeers = testCase.GetProperty("static").EnumerateArray().Select(peer => Convert.FromHexString(peer.GetString()!)).ToArray(),
+                    StaticPeers = testCase.GetProperty("static").EnumerateArray().Select(peer => Convert.FromHexString(mapped[peer.GetString()!])).ToArray(),
                 });
                 Assert.Equal(1, node.RotatePeers());
-                Assert.Equal(testCase.GetProperty("remaining").EnumerateArray().Select(peer => peer.GetString()),
+                Assert.Equal(testCase.GetProperty("remaining").EnumerateArray().Select(peer => mapped[peer.GetString()!]),
                     node.Peers.Select(peer => Convert.ToHexStringLower(peer.DestinationHash)));
             }
             finally { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); }
@@ -257,6 +270,11 @@ public class LxmPropagationTests
         try
         {
             await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { StoragePath = path });
+            var logs = new System.Collections.Concurrent.ConcurrentQueue<string>();
+            pair.Client.Log = logs.Enqueue;
+            pair.Server.Log = logs.Enqueue;
+            pair.ClientRouter.Log = logs.Enqueue;
+            pair.ServerRouter.Log = logs.Enqueue;
             var node = pair.Server.EnablePropagationNode(new LxmPropagationOptions { StampCost = 13, StampFlexibility = 3, PeeringCost = 0 });
             await node.AnnounceAsync();
             await pair.WaitAsync(() => pair.ClientRouter.HasPath(node.DestinationHash));
@@ -264,7 +282,11 @@ public class LxmPropagationTests
             pair.ClientRouter.Engine.Known.Remember(pair.Client.DeliveryHash, new byte[32], pair.ClientIdentity.ExportPublicKey(), null);
             var message = LxMessage.Create(pair.Client.DeliveryHash, pair.ClientIdentity, "stored message", method: LxmMethod.Propagated);
             await pair.Client.SendAsync(message);
-            Assert.Equal(LxmState.Sent, await message.Completion.WaitAsync(TimeSpan.FromSeconds(60)));
+            var completed = await message.Completion.WaitAsync(TimeSpan.FromSeconds(60));
+            if (completed != LxmState.Sent)
+                output.WriteLine($"Propagation finished {completed} after {message.DeliveryAttempts} attempts.\n" +
+                    string.Join('\n', logs.TakeLast(128)));
+            Assert.Equal(LxmState.Sent, completed);
             await pair.WaitAsync(() => node.MessageCount == 1);
             Assert.Equal(1, await pair.Client.RequestMessagesFromPropagationNodeAsync());
             Assert.Equal(1, pair.Client.PropagationTransferLastResult);

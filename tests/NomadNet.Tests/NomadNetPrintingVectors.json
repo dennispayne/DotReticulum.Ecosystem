@@ -1,0 +1,406 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sourceBlobSha256": {
+    "nomadnet/NomadNetworkApp.py": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2"
+  },
+  "method": "Actual unchanged NomadNetworkApp constructor/ConfigObj/applyConfig/should_print and real DirectoryEntry trust; actual applyConfig reads an existing public synthetic UTF-8 template unchanged; unchanged print_message AST on synthetic owner with in-memory open/unlink/print_file observers only, local mktime calendar dates (no timezone shim); actual print_file with subprocess.call argv observer. No real printer, copied default template, primary modification, or /tmp creation.",
+  "hash": "abcdef0123456789abcdef0123456789",
+  "template": "From {origin}\nSent {stime}\nReceived {rtime}\nTitle {mtitle}\n{{message}}\n{mbody}\n",
+  "customTemplateLoadedUnchanged": true,
+  "vectors": [
+    {
+      "name": "absent",
+      "input": "",
+      "enabled": false,
+      "all": false,
+      "trusted": false,
+      "command": "lp",
+      "filters": [
+        {
+          "trust": 0,
+          "print": false
+        },
+        {
+          "trust": 1,
+          "print": false
+        },
+        {
+          "trust": 2,
+          "print": false
+        },
+        {
+          "trust": 255,
+          "print": false
+        }
+      ]
+    },
+    {
+      "name": "command-alone",
+      "input": "[printing]\nprint_command=ignored\n",
+      "enabled": false,
+      "all": false,
+      "trusted": false,
+      "command": "lp",
+      "filters": [
+        {
+          "trust": 0,
+          "print": false
+        },
+        {
+          "trust": 1,
+          "print": false
+        },
+        {
+          "trust": 2,
+          "print": false
+        },
+        {
+          "trust": 255,
+          "print": false
+        }
+      ]
+    },
+    {
+      "name": "disabled",
+      "input": "[printing]\nprint_messages=no\nprint_command='printer --flag'\nprint_from=everywhere\n",
+      "enabled": false,
+      "all": false,
+      "trusted": false,
+      "command": "printer --flag",
+      "filters": [
+        {
+          "trust": 0,
+          "print": false
+        },
+        {
+          "trust": 1,
+          "print": false
+        },
+        {
+          "trust": 2,
+          "print": false
+        },
+        {
+          "trust": 255,
+          "print": false
+        }
+      ]
+    },
+    {
+      "name": "no-filter",
+      "input": "[printing]\nprint_messages=yes\n",
+      "enabled": true,
+      "all": false,
+      "trusted": false,
+      "command": "lp",
+      "filters": [
+        {
+          "trust": 0,
+          "print": false
+        },
+        {
+          "trust": 1,
+          "print": false
+        },
+        {
+          "trust": 2,
+          "print": false
+        },
+        {
+          "trust": 255,
+          "print": false
+        }
+      ]
+    },
+    {
+      "name": "everywhere",
+      "input": "[printing]\nprint_messages=yes\nprint_from=EvErYwHeRe\n",
+      "enabled": true,
+      "all": true,
+      "trusted": false,
+      "command": "lp",
+      "filters": [
+        {
+          "trust": 0,
+          "print": true
+        },
+        {
+          "trust": 1,
+          "print": true
+        },
+        {
+          "trust": 2,
+          "print": true
+        },
+        {
+          "trust": 255,
+          "print": true
+        }
+      ]
+    },
+    {
+      "name": "trusted",
+      "input": "[printing]\nprint_messages=yes\nprint_from=TrUsTeD\n",
+      "enabled": true,
+      "all": false,
+      "trusted": true,
+      "command": "lp",
+      "filters": [
+        {
+          "trust": 0,
+          "print": false
+        },
+        {
+          "trust": 1,
+          "print": false
+        },
+        {
+          "trust": 2,
+          "print": false
+        },
+        {
+          "trust": 255,
+          "print": true
+        }
+      ]
+    },
+    {
+      "name": "lower-hash",
+      "input": "[printing]\nprint_messages=yes\nprint_from=abcdef0123456789abcdef0123456789\n",
+      "enabled": true,
+      "all": false,
+      "trusted": false,
+      "command": "lp",
+      "filters": [
+        {
+          "trust": 0,
+          "print": true
+        },
+        {
+          "trust": 1,
+          "print": true
+        },
+        {
+          "trust": 2,
+          "print": true
+        },
+        {
+          "trust": 255,
+          "print": true
+        }
+      ]
+    },
+    {
+      "name": "upper-hash",
+      "input": "[printing]\nprint_messages=yes\nprint_from=ABCDEF0123456789ABCDEF0123456789\n",
+      "enabled": true,
+      "all": false,
+      "trusted": false,
+      "command": "lp",
+      "filters": [
+        {
+          "trust": 0,
+          "print": false
+        },
+        {
+          "trust": 1,
+          "print": false
+        },
+        {
+          "trust": 2,
+          "print": false
+        },
+        {
+          "trust": 255,
+          "print": false
+        }
+      ]
+    },
+    {
+      "name": "trusted-list",
+      "input": "[printing]\nprint_messages=yes\nprint_from=TRUSTED,abcdef0123456789abcdef0123456789\n",
+      "enabled": true,
+      "all": false,
+      "trusted": true,
+      "command": "lp",
+      "filters": [
+        {
+          "trust": 0,
+          "print": true
+        },
+        {
+          "trust": 1,
+          "print": true
+        },
+        {
+          "trust": 2,
+          "print": true
+        },
+        {
+          "trust": 255,
+          "print": true
+        }
+      ]
+    },
+    {
+      "name": "everywhere-list",
+      "input": "[printing]\nprint_messages=yes\nprint_from=everywhere,unused\n",
+      "enabled": true,
+      "all": false,
+      "trusted": false,
+      "command": "lp",
+      "filters": [
+        {
+          "trust": 0,
+          "print": false
+        },
+        {
+          "trust": 1,
+          "print": false
+        },
+        {
+          "trust": 2,
+          "print": false
+        },
+        {
+          "trust": 255,
+          "print": false
+        }
+      ]
+    },
+    {
+      "name": "single-list",
+      "input": "[printing]\nprint_messages=yes\nprint_from=abcdef0123456789abcdef0123456789,\n",
+      "enabled": true,
+      "all": false,
+      "trusted": false,
+      "command": "lp",
+      "filters": [
+        {
+          "trust": 0,
+          "print": true
+        },
+        {
+          "trust": 1,
+          "print": true
+        },
+        {
+          "trust": 2,
+          "print": true
+        },
+        {
+          "trust": 255,
+          "print": true
+        }
+      ]
+    }
+  ],
+  "formatting": [
+    {
+      "trust": 0,
+      "title": "",
+      "sentLocal": [
+        2024,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "receivedLocal": [
+        2024,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "content": "Public body\nline two",
+      "output": "From Public Sender <abcdef0123456789abcdef0123456789>\nSent 2024-02-03 04:05:06\nReceived 2024-03-04 05:06:07\nTitle None\n{message}\nPublic body\nline two\n"
+    },
+    {
+      "trust": 1,
+      "title": "Public title",
+      "sentLocal": [
+        2024,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "receivedLocal": [
+        2024,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "content": "Public body\nline two",
+      "output": "From Public Sender <abcdef0123456789abcdef0123456789>\nSent 2024-02-03 04:05:06\nReceived 2024-03-04 05:06:07\nTitle Public title\n{message}\nPublic body\nline two\n"
+    },
+    {
+      "trust": 2,
+      "title": "Public title",
+      "sentLocal": [
+        2024,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "receivedLocal": [
+        2024,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "content": "Public body\nline two",
+      "output": "From Public Sender\nSent 2024-02-03 04:05:06\nReceived 2024-03-04 05:06:07\nTitle Public title\n{message}\nPublic body\nline two\n"
+    },
+    {
+      "trust": 255,
+      "title": "Public title",
+      "sentLocal": [
+        2024,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "receivedLocal": [
+        2024,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "content": "Public body\nline two",
+      "output": "From Public Sender\nSent 2024-02-03 04:05:06\nReceived 2024-03-04 05:06:07\nTitle Public title\n{message}\nPublic body\nline two\n"
+    }
+  ],
+  "subprocess": {
+    "success": true,
+    "arguments": [
+      [
+        "printer",
+        "--flag",
+        "two words",
+        "public-file.txt"
+      ],
+      [
+        "printer",
+        "--flag",
+        "two words",
+        "public",
+        "file.txt"
+      ]
+    ]
+  }
+}

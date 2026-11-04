@@ -1,0 +1,2435 @@
+{
+  "sideband_sha": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "source_sha256": {
+    "sbapp/sideband/cli/commands.py": "d06f6d7a6f8f5b64647d2e9b2ef2c61712175b7555dc064f2a02e376e363e34d",
+    "sbapp/sideband/cli/config_tree.py": "86640ee81b5dd70f7207922a2449575c71108162f72cd363bc5346c15d4e42d9",
+    "sbapp/sideband/cli/cmd_system.py": "4a4202a38caf3c6926104679da17875e8daaf3e0ee8e54afdce33cb0a7d5c24a",
+    "sbapp/sideband/cli/cmd_conv.py": "4441b4b9b3ae1dd4c7bbfb961778c4e1eca56f543fc6cb00020a2f8e795e23d3",
+    "sbapp/sideband/cli/cmd_net.py": "d9a50e9362e74dbbf686c4cfa009fae33727ff9e8551437d0affad16555b2d43",
+    "sbapp/sideband/cli/cmd_config.py": "df2a9dae05615a3fb31cac26e4c3139c86f653ff58c63f92f9c5fda1b51c44f0",
+    "sbapp/sideband/cli/cmd_telemetry.py": "e0dae0844cfd75ff1ba8af0a74786199f8a897e38ab5ac55db4f31a591fe4cbe",
+    "sbapp/sideband/cli/cmd_voice.py": "17b867e9448c2cf15d973395c18f3f3c973af2efcb171c2deb4034d631451853",
+    "sbapp/sideband/cli/cmd_plugins.py": "f19d58e0ab9ea9e0f136778de10bbc50fb88050ee05bdc2d246bd08a7ca0d3ad"
+  },
+  "method": "Actual registrations, Command validation/execution, shlex parsing and config conversions; handler core/context are recording boundary doubles, not live core.",
+  "commands": [
+    {
+      "command": "help",
+      "source": "cmd_system.py",
+      "aliases": [],
+      "min": 0,
+      "max": 10,
+      "handler": true,
+      "arguments": [],
+      "result": "Available commands:\n\nclear\nconfig\n  config get\n  config list\n  config reload\n  config save\n  config set\nconv\n  conv announce\n  conv clear\n  conv command\n  conv create\n  conv delete\n  conv msgs\n  conv name\n  conv paper\n  conv send\n  conv sync\n    conv sync cancel\n    conv sync status\n  conv trust\n  conv untrust\nhelp\nlog\n  log stream\nnet\n  net announces\n  net identity\n  net link\n  net propagation\n    net propagation set\nplugins\n  plugins reload\nquit\nraw\nstatus\ntelemetry\n  telemetry list\n  telemetry off\n  telemetry on\n  telemetry request\n  telemetry send\n  telemetry sensors\n  telemetry track\n  telemetry untrack\nvoice\n  voice announce\n  voice answer\n  voice dial\n  voice hangup\n  voice log\n  voice mode\n  mute\n    voice mute mic\n    voice mute spk\n  voice profile\n  voice status\n  unmute\n    voice unmute mic\n    voice unmute spk\n\nUse 'help <command>' for detailed help on a specific command",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. help [command path]"
+    },
+    {
+      "command": "raw",
+      "source": "cmd_system.py",
+      "aliases": [],
+      "min": 1,
+      "max": null,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "not executed: arbitrary evaluation excluded",
+      "calls": [],
+      "too_few": "Too few arguments. raw <expression>",
+      "too_many": null
+    },
+    {
+      "command": "log",
+      "source": "cmd_system.py",
+      "aliases": [],
+      "min": 0,
+      "max": 1,
+      "handler": true,
+      "arguments": [],
+      "result": "Current log level: 3 (warning)",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. log [level]"
+    },
+    {
+      "command": "log stream",
+      "source": "cmd_system.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": null,
+      "calls": [
+        {
+          "method": "enter_stream_mode",
+          "args": [],
+          "kwargs": {}
+        }
+      ],
+      "too_few": null,
+      "too_many": "Too many arguments. log stream"
+    },
+    {
+      "command": "clear",
+      "source": "cmd_system.py",
+      "aliases": [],
+      "min": 0,
+      "max": null,
+      "handler": true,
+      "arguments": [],
+      "result": null,
+      "calls": [
+        {
+          "method": "clear",
+          "args": [],
+          "kwargs": {}
+        }
+      ],
+      "too_few": null,
+      "too_many": null
+    },
+    {
+      "command": "quit",
+      "source": "cmd_system.py",
+      "aliases": [],
+      "min": 0,
+      "max": null,
+      "handler": true,
+      "arguments": [],
+      "result": null,
+      "calls": [
+        {
+          "method": "quit",
+          "args": [],
+          "kwargs": {}
+        }
+      ],
+      "too_few": null,
+      "too_many": null
+    },
+    {
+      "command": "status",
+      "source": "cmd_system.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "Sideband Status\n---------------\nLXMF router                    inactive\nDisplay name                   CLI reference\nMode                           daemon\nReticulum                      not started\nTelemetry                      no\nVoice                          no\nVoice running                  no\nConversations                  0\nAnnounce Stream                0\nPlugins                        cmd=0 svc=0 telemetry=0",
+      "calls": [
+        {
+          "method": "list_conversations",
+          "args": [],
+          "kwargs": {}
+        },
+        {
+          "method": "list_announces",
+          "args": [],
+          "kwargs": {}
+        }
+      ],
+      "too_few": null,
+      "too_many": "Too many arguments. status"
+    },
+    {
+      "command": "conv",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "No conversations",
+      "calls": [
+        {
+          "method": "list_conversations",
+          "args": [],
+          "kwargs": {
+            "objects": true
+          }
+        }
+      ],
+      "too_few": null,
+      "too_many": "Too many arguments. conv"
+    },
+    {
+      "command": "conv send",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 2,
+      "max": null,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef",
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Message sent to Recorded peer",
+      "calls": [
+        {
+          "method": "peer_display_name",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        },
+        {
+          "method": "send_message",
+          "args": [
+            "0123456789abcdef0123456789abcdef",
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            },
+            false
+          ],
+          "kwargs": {}
+        }
+      ],
+      "too_few": "Too few arguments. conv send <dest> <message>",
+      "too_many": null
+    },
+    {
+      "command": "conv command",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 2,
+      "max": null,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef",
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Command sent to Recorded peer",
+      "calls": [
+        {
+          "method": "peer_display_name",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        },
+        {
+          "method": "send_command",
+          "args": [
+            "0123456789abcdef0123456789abcdef",
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            },
+            false
+          ],
+          "kwargs": {}
+        }
+      ],
+      "too_few": "Too few arguments. conv command <dest> <command>",
+      "too_many": null
+    },
+    {
+      "command": "conv announce",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "LXMF announce sent.",
+      "calls": [
+        {
+          "method": "lxmf_announce",
+          "args": [],
+          "kwargs": {}
+        }
+      ],
+      "too_few": null,
+      "too_many": "Too many arguments. conv announce"
+    },
+    {
+      "command": "conv sync",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 0,
+      "max": 1,
+      "handler": true,
+      "arguments": [],
+      "result": "LXMF sync requested.",
+      "calls": [
+        {
+          "method": "request_lxmf_sync",
+          "args": [
+            null
+          ],
+          "kwargs": {}
+        }
+      ],
+      "too_few": null,
+      "too_many": "Too many arguments. conv sync [limit]"
+    },
+    {
+      "command": "conv sync cancel",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "LXMF sync cancelled",
+      "calls": [
+        {
+          "method": "cancel_lxmf_sync",
+          "args": [],
+          "kwargs": {}
+        }
+      ],
+      "too_few": null,
+      "too_many": "Too many arguments. conv sync cancel"
+    },
+    {
+      "command": "conv sync status",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "Sync status: idle\nProgress: 0%",
+      "calls": [
+        {
+          "method": "get_sync_status",
+          "args": [],
+          "kwargs": {}
+        },
+        {
+          "method": "get_sync_progress",
+          "args": [],
+          "kwargs": {}
+        }
+      ],
+      "too_few": null,
+      "too_many": "Too many arguments. conv sync status"
+    },
+    {
+      "command": "conv msgs",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 1,
+      "max": 2,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "No messages in conversation with Recorded peer.",
+      "calls": [
+        {
+          "method": "peer_display_name",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        },
+        {
+          "method": "list_messages",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {
+            "limit": 12
+          }
+        }
+      ],
+      "too_few": "Too few arguments. conv msgs <dest> [count]",
+      "too_many": "Too many arguments. conv msgs <dest> [count]"
+    },
+    {
+      "command": "conv create",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 1,
+      "max": 2,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Conversation created with <0123456789abcdef0123456789abcdef>",
+      "calls": [
+        {
+          "method": "has_conversation",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        },
+        {
+          "method": "new_conversation",
+          "args": [
+            "0123456789abcdef0123456789abcdef",
+            ""
+          ],
+          "kwargs": {
+            "trusted": false
+          }
+        }
+      ],
+      "too_few": "Too few arguments. conv create <dest> [name]",
+      "too_many": "Too many arguments. conv create <dest> [name]"
+    },
+    {
+      "command": "conv delete",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 1,
+      "max": 1,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Conversation with Recorded peer deleted",
+      "calls": [
+        {
+          "method": "peer_display_name",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        },
+        {
+          "method": "delete_conversation",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        }
+      ],
+      "too_few": "Too few arguments. conv delete <dest>",
+      "too_many": "Too many arguments. conv delete <dest>"
+    },
+    {
+      "command": "conv clear",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 1,
+      "max": 1,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Messages cleared for conversation with Recorded peer",
+      "calls": [
+        {
+          "method": "peer_display_name",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        },
+        {
+          "method": "clear_conversation",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        }
+      ],
+      "too_few": "Too few arguments. conv clear <dest>",
+      "too_many": "Too many arguments. conv clear <dest>"
+    },
+    {
+      "command": "conv trust",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 1,
+      "max": 1,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Conversation with Recorded peer marked as trusted",
+      "calls": [
+        {
+          "method": "peer_display_name",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        },
+        {
+          "method": "trusted_conversation",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        }
+      ],
+      "too_few": "Too few arguments. conv trust <dest>",
+      "too_many": "Too many arguments. conv trust <dest>"
+    },
+    {
+      "command": "conv untrust",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 1,
+      "max": 1,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Conversation with Recorded peer marked as untrusted",
+      "calls": [
+        {
+          "method": "peer_display_name",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        },
+        {
+          "method": "untrusted_conversation",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        }
+      ],
+      "too_few": "Too few arguments. conv untrust <dest>",
+      "too_many": "Too many arguments. conv untrust <dest>"
+    },
+    {
+      "command": "conv name",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 2,
+      "max": null,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef",
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Display name set to '0123456789abcdef0123456789abcdef' for <0123456789abcdef0123456789abcdef>",
+      "calls": [
+        {
+          "method": "peer_display_name",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        },
+        {
+          "method": "named_conversation",
+          "args": [
+            "0123456789abcdef0123456789abcdef",
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        }
+      ],
+      "too_few": "Too few arguments. conv name <dest> <name>",
+      "too_many": null
+    },
+    {
+      "command": "conv paper",
+      "source": "cmd_conv.py",
+      "aliases": [],
+      "min": 2,
+      "max": null,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef",
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Paper message created for Recorded peer",
+      "calls": [
+        {
+          "method": "peer_display_name",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        },
+        {
+          "method": "paper_message",
+          "args": [
+            "0123456789abcdef0123456789abcdef",
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        }
+      ],
+      "too_few": "Too few arguments. conv paper <dest> <message>",
+      "too_many": null
+    },
+    {
+      "command": "net propagation",
+      "source": "cmd_net.py",
+      "aliases": [],
+      "min": 0,
+      "max": 1,
+      "handler": true,
+      "arguments": [],
+      "result": "LXMF Propagation Node\n---------------------\nConfigured                     none\nActive                         none",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. net propagation"
+    },
+    {
+      "command": "net propagation set",
+      "source": "cmd_net.py",
+      "aliases": [],
+      "min": 1,
+      "max": 1,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Propagation node set to <0123456789abcdef0123456789abcdef>.",
+      "calls": [
+        {
+          "method": "set_active_propagation_node",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        }
+      ],
+      "too_few": "Too few arguments. net propagation set <hash>",
+      "too_many": "Too many arguments. net propagation set <hash>"
+    },
+    {
+      "command": "net announces",
+      "source": "cmd_net.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "No announces in database.",
+      "calls": [
+        {
+          "method": "list_announces",
+          "args": [],
+          "kwargs": {}
+        }
+      ],
+      "too_few": null,
+      "too_many": "Too many arguments. net announces"
+    },
+    {
+      "command": "net identity",
+      "source": "cmd_net.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "Identity\n--------\nIdentity hash                  -\nLXMF destination               -\nDisplay name                   CLI reference",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. net identity"
+    },
+    {
+      "command": "net link",
+      "source": "cmd_net.py",
+      "aliases": [],
+      "min": 1,
+      "max": 1,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Link with <0123456789abcdef0123456789abcdef>\n--------------------------------------------\nNo active link to this destination.",
+      "calls": [],
+      "too_few": "Too few arguments. net link <dest>",
+      "too_many": "Too many arguments. net link <dest>"
+    },
+    {
+      "command": "config",
+      "source": "cmd_config.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "Configuration Categories\n------------------------\nUse 'config list <category>' to list aliases in a category.\n\n  connect          (37 aliases)\n  general          (19 aliases)\n  lxmf             (15 aliases)\n  map              (12 aliases)\n  modem            (10 aliases)\n  plugins          (3 aliases)\n  rnode            (16 aliases)\n  sensors          (17 aliases)\n  serial           (4 aliases)\n  telemetry        (27 aliases)\n  voice            (6 aliases)\n  total            (166 keys)",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. config"
+    },
+    {
+      "command": "config list",
+      "source": "cmd_config.py",
+      "aliases": [],
+      "min": 0,
+      "max": 1,
+      "handler": true,
+      "arguments": [],
+      "result": "All Configuration Entries\n-------------------------\n  [connect]\n    discover_interfaces            None\n    i2p                            None\n    i2p_b32                        None\n    i2p_ifac_netname               None\n    i2p_ifac_passphrase            None\n    ifmode_bluetooth               None\n    ifmode_i2p                     None\n    ifmode_local                   None\n    ifmode_modem                   None\n    ifmode_rnode                   None\n    ifmode_serial                  None\n    ifmode_tcp                     None\n    ifmode_weave                   None\n    local                          None\n    local_groupid                  None\n    local_ifac_netname             None\n    local_ifac_passphrase          None\n    modem                          None\n    modem_ifac_netname             None\n    modem_ifac_passphrase          None\n    obfuscate_hops                 None\n    rnode                          None\n    rnode_ifac_netname             None\n    rnode_ifac_passphrase          None\n    serial                         None\n    serial_ifac_netname            None\n    serial_ifac_passphrase         None\n    share_instance                 None\n    tcp                            None\n    tcp_host                       None\n    tcp_ifac_netname               None\n    tcp_ifac_passphrase            None\n    tcp_port                       None\n    transport                      None\n    weave                          None\n    weave_ifac_netname             None\n    weave_ifac_passphrase          None\n\n  [general]\n    allow_predictive_text          None\n    block_predictive_text          None\n    classic_message_colors         None\n    compose_in_markdown            None\n    config_template                None\n    confirm_calls                  None\n    dark_ui                        None\n    debug                          None\n    display_name                   CLI reference\n    display_style_in_contact_list  None\n    eink_mode                      None\n    hq_ptt                         None\n    input_language                 None\n    lxm_limit_1mb                  None\n    notifications_on               None\n    print_command                  None\n    start_announce                 None\n    start_at_boot                  None\n    trusted_markup_only            None\n\n  [lxmf]\n    broadcast_repeater             None\n    home_node                      None\n    ignore_invalid_stamps          None\n    ignore_unknown                 None\n    inbound_stamp_cost             None\n    last_propagation_node          None\n    periodic_sync                  None\n    propagation_by_default         None\n    propagation_node               None\n    require_stamps                 None\n    send_telemetry_to_home_node    None\n    sync_interval                  None\n    sync_limit                     None\n    sync_max                       None\n    try_propagation_on_fail        None\n\n  [map]\n    cluster                        None\n    history_limit                  None\n    interfaces                     None\n    lat                            None\n    layer                          None\n    lon                            None\n    storage_external               None\n    storage_file                   None\n    storage_path                   None\n    use_offline                    None\n    use_online                     None\n    zoom                           None\n\n  [modem]\n    baudrate                       None\n    beacon_data                    None\n    beacon_interval                None\n    databits                       None\n    parity                         None\n    persistence                    None\n    preamble                       None\n    slottime                       None\n    stopbits                       None\n    tail                           None\n\n  [plugins]\n    commands                       None\n    path                           None\n    services                       None\n\n  [rnode]\n    atl_long                       None\n    atl_short                      None\n    bandwidth                      None\n    beacon_data                    None\n    beacon_interval                None\n    ble                            None\n    bluetooth                      None\n    bt_device                      None\n    coding_rate                    None\n    enable_framebuffer             None\n    frequency                      None\n    modulation                     None\n    spreading_factor               None\n    tcp                            None\n    tcp_host                       None\n    tx_power                       None\n\n  [sensors]\n    acceleration                   None\n    ambient_light                  None\n    angular_velocity               None\n    battery                        None\n    fixed_altitude                 None\n    fixed_latlon                   None\n    fixed_location                 None\n    gravity                        None\n    humidity                       None\n    information                    None\n    information_text               None\n    location                       None\n    magnetic_field                 None\n    pressure                       None\n    proximity                      None\n    rns_transport                  None\n    temperature                    None\n\n  [serial]\n    baudrate                       None\n    databits                       None\n    parity                         None\n    stopbits                       None\n\n  [telemetry]\n    allow_requests_from_anyone     None\n    allow_requests_from_trusted    None\n    bg                             None\n    collector                      None\n    collector_enabled              None\n    display_style_from_all         None\n    display_trusted_only           None\n    enabled                        false\n    fg                             None\n    icon                           None\n    mqtt_host                      None\n    mqtt_pass                      None\n    mqtt_port                      None\n    mqtt_user                      None\n    mqtt_validate_ssl              None\n    receive_trusted_only           None\n    request_from_collector         None\n    request_interval               None\n    requests_only_send_latest      None\n    send_all_to_collector          None\n    send_appearance                None\n    send_interval                  None\n    send_to_collector              None\n    send_to_trusted                None\n    to_mqtt                        None\n    try_propagation_on_fail        None\n    use_propagation_only           None\n\n  [voice]\n    enabled                        None\n    input                          None\n    low_latency                    None\n    output                         None\n    ringer                         None\n    trusted_only                   None\n",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. config list [category]"
+    },
+    {
+      "command": "config get",
+      "source": "cmd_config.py",
+      "aliases": [],
+      "min": 2,
+      "max": 2,
+      "handler": true,
+      "arguments": [
+        "general",
+        "display_name"
+      ],
+      "result": "general display_name = CLI reference (str)",
+      "calls": [],
+      "too_few": "Too few arguments. config get <category> <alias>",
+      "too_many": "Too many arguments. config get <category> <alias>"
+    },
+    {
+      "command": "config set",
+      "source": "cmd_config.py",
+      "aliases": [],
+      "min": 2,
+      "max": null,
+      "handler": true,
+      "arguments": [
+        "general",
+        "display_name",
+        "Observed Unicode Ω"
+      ],
+      "result": "general display_name: CLI reference -> Observed Unicode Ω",
+      "calls": [
+        {
+          "method": "save_configuration",
+          "args": [],
+          "kwargs": {}
+        }
+      ],
+      "too_few": "Too few arguments. config set <category> <alias> <value>",
+      "too_many": null
+    },
+    {
+      "command": "config save",
+      "source": "cmd_config.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "Configuration saved",
+      "calls": [
+        {
+          "method": "save_configuration",
+          "args": [],
+          "kwargs": {}
+        }
+      ],
+      "too_few": null,
+      "too_many": "Too many arguments. config save"
+    },
+    {
+      "command": "config reload",
+      "source": "cmd_config.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "Configuration reloaded",
+      "calls": [
+        {
+          "method": "reload_configuration",
+          "args": [],
+          "kwargs": {}
+        }
+      ],
+      "too_few": null,
+      "too_many": "Too many arguments. config reload"
+    },
+    {
+      "command": "telemetry",
+      "source": "cmd_telemetry.py",
+      "aliases": [],
+      "min": 0,
+      "max": 1,
+      "handler": true,
+      "arguments": [],
+      "result": "Telemetry collection is disabled. Use 'telemetry on' to enable.",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. telemetry"
+    },
+    {
+      "command": "telemetry request",
+      "source": "cmd_telemetry.py",
+      "aliases": [],
+      "min": 1,
+      "max": 1,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Request status: True",
+      "calls": [
+        {
+          "method": "request_latest_telemetry",
+          "args": [],
+          "kwargs": {
+            "from_addr": {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          }
+        }
+      ],
+      "too_few": "Too few arguments. telemetry request <dest>",
+      "too_many": "Too many arguments. telemetry request <dest>"
+    },
+    {
+      "command": "telemetry send",
+      "source": "cmd_telemetry.py",
+      "aliases": [],
+      "min": 1,
+      "max": 1,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Telemetry sent to <0123456789abcdef0123456789abcdef>.",
+      "calls": [
+        {
+          "method": "send_latest_telemetry",
+          "args": [],
+          "kwargs": {
+            "to_addr": {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          }
+        }
+      ],
+      "too_few": "Too few arguments. telemetry send <dest>",
+      "too_many": "Too many arguments. telemetry send <dest>"
+    },
+    {
+      "command": "telemetry track",
+      "source": "cmd_telemetry.py",
+      "aliases": [],
+      "min": 3,
+      "max": 3,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef",
+        "60",
+        "120"
+      ],
+      "result": "Tracking <0123456789abcdef0123456789abcdef> every 60s for 120s.",
+      "calls": [
+        {
+          "method": "start_tracking",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            },
+            60,
+            120
+          ],
+          "kwargs": {}
+        }
+      ],
+      "too_few": "Too few arguments. telemetry track <dest> <interval> <duration>",
+      "too_many": "Too many arguments. telemetry track <dest> <interval> <duration>"
+    },
+    {
+      "command": "telemetry untrack",
+      "source": "cmd_telemetry.py",
+      "aliases": [],
+      "min": 1,
+      "max": 1,
+      "handler": true,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Stopped tracking <0123456789abcdef0123456789abcdef>.",
+      "calls": [
+        {
+          "method": "stop_tracking",
+          "args": [
+            {
+              "hex": "0123456789abcdef0123456789abcdef"
+            }
+          ],
+          "kwargs": {}
+        }
+      ],
+      "too_few": "Too few arguments. telemetry untrack <dest>",
+      "too_many": "Too many arguments. telemetry untrack <dest>"
+    },
+    {
+      "command": "telemetry list",
+      "source": "cmd_telemetry.py",
+      "aliases": [],
+      "min": 0,
+      "max": 2,
+      "handler": true,
+      "arguments": [],
+      "result": "No telemetry entries found.",
+      "calls": [
+        {
+          "method": "list_telemetry",
+          "args": [],
+          "kwargs": {
+            "context_dest": null,
+            "limit": 20
+          }
+        }
+      ],
+      "too_few": null,
+      "too_many": "Too many arguments. telemetry list [dest] [count]"
+    },
+    {
+      "command": "telemetry on",
+      "source": "cmd_telemetry.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "Telemetry collection enabled.",
+      "calls": [
+        {
+          "method": "run_telemetry",
+          "args": [],
+          "kwargs": {}
+        }
+      ],
+      "too_few": null,
+      "too_many": "Too many arguments. telemetry on"
+    },
+    {
+      "command": "telemetry off",
+      "source": "cmd_telemetry.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "Telemetry collection disabled.",
+      "calls": [
+        {
+          "method": "stop_telemetry",
+          "args": [],
+          "kwargs": {}
+        }
+      ],
+      "too_few": null,
+      "too_many": "Too many arguments. telemetry off"
+    },
+    {
+      "command": "telemetry sensors",
+      "source": "cmd_telemetry.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "Telemetry Sensors\n-----------------\n  Location                  disabled\n  Information text          disabled\n  Battery level             disabled\n  Barometric pressure       disabled\n  Temperature               disabled\n  Humidity                  disabled\n  Magnetic field            disabled\n  Ambient light             disabled\n  Gravity                   disabled\n  Angular velocity          disabled\n  Acceleration              disabled\n  Proximity                 disabled\n  RNS transport stats       disabled",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. telemetry sensors"
+    },
+    {
+      "command": "voice status",
+      "source": "cmd_voice.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": false,
+      "arguments": [],
+      "result": "Not yet implemented",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. voice status"
+    },
+    {
+      "command": "voice announce",
+      "source": "cmd_voice.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": false,
+      "arguments": [],
+      "result": "Not yet implemented",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. voice announce"
+    },
+    {
+      "command": "voice dial",
+      "source": "cmd_voice.py",
+      "aliases": [],
+      "min": 1,
+      "max": 2,
+      "handler": false,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Not yet implemented",
+      "calls": [],
+      "too_few": "Too few arguments. voice dial <dest>",
+      "too_many": "Too many arguments. voice dial <dest>"
+    },
+    {
+      "command": "voice hangup",
+      "source": "cmd_voice.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": false,
+      "arguments": [],
+      "result": "Not yet implemented",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. voice hangup"
+    },
+    {
+      "command": "voice answer",
+      "source": "cmd_voice.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": false,
+      "arguments": [],
+      "result": "Not yet implemented",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. voice answer"
+    },
+    {
+      "command": "voice log",
+      "source": "cmd_voice.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": false,
+      "arguments": [],
+      "result": "Not yet implemented",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. voice log"
+    },
+    {
+      "command": "voice mute mic",
+      "source": "cmd_voice.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": false,
+      "arguments": [],
+      "result": "Not yet implemented",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. voice mute mic"
+    },
+    {
+      "command": "voice mute spk",
+      "source": "cmd_voice.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": false,
+      "arguments": [],
+      "result": "Not yet implemented",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. voice mute spk"
+    },
+    {
+      "command": "voice unmute mic",
+      "source": "cmd_voice.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": false,
+      "arguments": [],
+      "result": "Not yet implemented",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. voice unmute mic"
+    },
+    {
+      "command": "voice unmute spk",
+      "source": "cmd_voice.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": false,
+      "arguments": [],
+      "result": "Not yet implemented",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. voice unmute spk"
+    },
+    {
+      "command": "voice profile",
+      "source": "cmd_voice.py",
+      "aliases": [],
+      "min": 1,
+      "max": 1,
+      "handler": false,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Not yet implemented",
+      "calls": [],
+      "too_few": "Too few arguments. voice profile <name>",
+      "too_many": "Too many arguments. voice profile <name>"
+    },
+    {
+      "command": "voice mode",
+      "source": "cmd_voice.py",
+      "aliases": [],
+      "min": 1,
+      "max": 1,
+      "handler": false,
+      "arguments": [
+        "0123456789abcdef0123456789abcdef"
+      ],
+      "result": "Not yet implemented",
+      "calls": [],
+      "too_few": "Too few arguments. voice mode <name>",
+      "too_many": "Too many arguments. voice mode <name>"
+    },
+    {
+      "command": "plugins",
+      "source": "cmd_plugins.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "Loaded Plugins\n--------------\nNo plugins currently loaded.\n",
+      "calls": [],
+      "too_few": null,
+      "too_many": "Too many arguments. plugins"
+    },
+    {
+      "command": "plugins reload",
+      "source": "cmd_plugins.py",
+      "aliases": [],
+      "min": 0,
+      "max": 0,
+      "handler": true,
+      "arguments": [],
+      "result": "Plugins reloaded. 0 active (0 service, 0 telemetry, 0 command).",
+      "calls": [
+        {
+          "method": "reload_plugins",
+          "args": [],
+          "kwargs": {}
+        }
+      ],
+      "too_few": null,
+      "too_many": "Too many arguments. plugins reload"
+    }
+  ],
+  "parsing": [
+    {
+      "line": "",
+      "tokens": [],
+      "command": null,
+      "remaining": []
+    },
+    {
+      "line": "conv send peer \"hello world\"",
+      "tokens": [
+        "conv",
+        "send",
+        "peer",
+        "hello world"
+      ],
+      "command": "conv send",
+      "remaining": [
+        "peer",
+        "hello world"
+      ]
+    },
+    {
+      "line": "conv create abc ''",
+      "tokens": [
+        "conv",
+        "create",
+        "abc",
+        ""
+      ],
+      "command": "conv create",
+      "remaining": [
+        "abc",
+        ""
+      ]
+    },
+    {
+      "line": "conv name abc 'Unicode Ω 雪'",
+      "tokens": [
+        "conv",
+        "name",
+        "abc",
+        "Unicode Ω 雪"
+      ],
+      "command": "conv name",
+      "remaining": [
+        "abc",
+        "Unicode Ω 雪"
+      ]
+    },
+    {
+      "line": "conv send abc escaped\\ space",
+      "tokens": [
+        "conv",
+        "send",
+        "abc",
+        "escaped space"
+      ],
+      "command": "conv send",
+      "remaining": [
+        "abc",
+        "escaped space"
+      ]
+    },
+    {
+      "line": "conv send abc \"quote\\\"here\"",
+      "tokens": [
+        "conv",
+        "send",
+        "abc",
+        "quote\"here"
+      ],
+      "command": "conv send",
+      "remaining": [
+        "abc",
+        "quote\"here"
+      ]
+    },
+    {
+      "line": "conv sync status",
+      "tokens": [
+        "conv",
+        "sync",
+        "status"
+      ],
+      "command": "conv sync status",
+      "remaining": []
+    },
+    {
+      "line": "config set general display_name a b",
+      "tokens": [
+        "config",
+        "set",
+        "general",
+        "display_name",
+        "a",
+        "b"
+      ],
+      "command": "config set",
+      "remaining": [
+        "general",
+        "display_name",
+        "a",
+        "b"
+      ]
+    },
+    {
+      "line": "conv send abc 'unclosed",
+      "tokens": [
+        "conv",
+        "send",
+        "abc",
+        "'unclosed"
+      ],
+      "command": "conv send",
+      "remaining": [
+        "abc",
+        "'unclosed"
+      ]
+    },
+    {
+      "line": "conv send abc trailing\\",
+      "tokens": [
+        "conv",
+        "send",
+        "abc",
+        "trailing\\"
+      ],
+      "command": "conv send",
+      "remaining": [
+        "abc",
+        "trailing\\"
+      ]
+    },
+    {
+      "line": "status; quit",
+      "tokens": [
+        "status;",
+        "quit"
+      ],
+      "command": null,
+      "remaining": [
+        "status;",
+        "quit"
+      ]
+    },
+    {
+      "line": "conv\tsend abc\tmessage",
+      "tokens": [
+        "conv",
+        "send",
+        "abc",
+        "message"
+      ],
+      "command": "conv send",
+      "remaining": [
+        "abc",
+        "message"
+      ]
+    },
+    {
+      "line": "conv send abc \"a\\q\"",
+      "tokens": [
+        "conv",
+        "send",
+        "abc",
+        "a\\q"
+      ],
+      "command": "conv send",
+      "remaining": [
+        "abc",
+        "a\\q"
+      ]
+    }
+  ],
+  "configuration": [
+    {
+      "key": "debug",
+      "category": "general",
+      "alias": "debug",
+      "type": "bool"
+    },
+    {
+      "key": "display_name",
+      "category": "general",
+      "alias": "display_name",
+      "type": "str"
+    },
+    {
+      "key": "notifications_on",
+      "category": "general",
+      "alias": "notifications_on",
+      "type": "bool"
+    },
+    {
+      "key": "dark_ui",
+      "category": "general",
+      "alias": "dark_ui",
+      "type": "bool"
+    },
+    {
+      "key": "start_announce",
+      "category": "general",
+      "alias": "start_announce",
+      "type": "bool"
+    },
+    {
+      "key": "start_at_boot",
+      "category": "general",
+      "alias": "start_at_boot",
+      "type": "bool"
+    },
+    {
+      "key": "print_command",
+      "category": "general",
+      "alias": "print_command",
+      "type": "str"
+    },
+    {
+      "key": "eink_mode",
+      "category": "general",
+      "alias": "eink_mode",
+      "type": "bool"
+    },
+    {
+      "key": "lxm_limit_1mb",
+      "category": "general",
+      "alias": "lxm_limit_1mb",
+      "type": "bool"
+    },
+    {
+      "key": "trusted_markup_only",
+      "category": "general",
+      "alias": "trusted_markup_only",
+      "type": "bool"
+    },
+    {
+      "key": "compose_in_markdown",
+      "category": "general",
+      "alias": "compose_in_markdown",
+      "type": "bool"
+    },
+    {
+      "key": "confirm_calls",
+      "category": "general",
+      "alias": "confirm_calls",
+      "type": "bool"
+    },
+    {
+      "key": "classic_message_colors",
+      "category": "general",
+      "alias": "classic_message_colors",
+      "type": "bool"
+    },
+    {
+      "key": "display_style_in_contact_list",
+      "category": "general",
+      "alias": "display_style_in_contact_list",
+      "type": "bool"
+    },
+    {
+      "key": "hq_ptt",
+      "category": "general",
+      "alias": "hq_ptt",
+      "type": "bool"
+    },
+    {
+      "key": "input_language",
+      "category": "general",
+      "alias": "input_language",
+      "type": "str"
+    },
+    {
+      "key": "allow_predictive_text",
+      "category": "general",
+      "alias": "allow_predictive_text",
+      "type": "bool"
+    },
+    {
+      "key": "block_predictive_text",
+      "category": "general",
+      "alias": "block_predictive_text",
+      "type": "bool"
+    },
+    {
+      "key": "config_template",
+      "category": "general",
+      "alias": "config_template",
+      "type": "str"
+    },
+    {
+      "key": "lxmf_propagation_node",
+      "category": "lxmf",
+      "alias": "propagation_node",
+      "type": "str"
+    },
+    {
+      "key": "lxmf_sync_limit",
+      "category": "lxmf",
+      "alias": "sync_limit",
+      "type": "int"
+    },
+    {
+      "key": "lxmf_sync_max",
+      "category": "lxmf",
+      "alias": "sync_max",
+      "type": "int"
+    },
+    {
+      "key": "lxmf_periodic_sync",
+      "category": "lxmf",
+      "alias": "periodic_sync",
+      "type": "bool"
+    },
+    {
+      "key": "lxmf_ignore_unknown",
+      "category": "lxmf",
+      "alias": "ignore_unknown",
+      "type": "bool"
+    },
+    {
+      "key": "lxmf_sync_interval",
+      "category": "lxmf",
+      "alias": "sync_interval",
+      "type": "int"
+    },
+    {
+      "key": "lxmf_require_stamps",
+      "category": "lxmf",
+      "alias": "require_stamps",
+      "type": "bool"
+    },
+    {
+      "key": "lxmf_inbound_stamp_cost",
+      "category": "lxmf",
+      "alias": "inbound_stamp_cost",
+      "type": "int"
+    },
+    {
+      "key": "lxmf_try_propagation_on_fail",
+      "category": "lxmf",
+      "alias": "try_propagation_on_fail",
+      "type": "bool"
+    },
+    {
+      "key": "lxmf_ignore_invalid_stamps",
+      "category": "lxmf",
+      "alias": "ignore_invalid_stamps",
+      "type": "bool"
+    },
+    {
+      "key": "last_lxmf_propagation_node",
+      "category": "lxmf",
+      "alias": "last_propagation_node",
+      "type": "str"
+    },
+    {
+      "key": "propagation_by_default",
+      "category": "lxmf",
+      "alias": "propagation_by_default",
+      "type": "bool"
+    },
+    {
+      "key": "home_node_as_broadcast_repeater",
+      "category": "lxmf",
+      "alias": "broadcast_repeater",
+      "type": "bool"
+    },
+    {
+      "key": "send_telemetry_to_home_node",
+      "category": "lxmf",
+      "alias": "send_telemetry_to_home_node",
+      "type": "bool"
+    },
+    {
+      "key": "nn_home_node",
+      "category": "lxmf",
+      "alias": "home_node",
+      "type": "str"
+    },
+    {
+      "key": "connect_transport",
+      "category": "connect",
+      "alias": "transport",
+      "type": "bool"
+    },
+    {
+      "key": "connect_local",
+      "category": "connect",
+      "alias": "local",
+      "type": "bool"
+    },
+    {
+      "key": "connect_local_groupid",
+      "category": "connect",
+      "alias": "local_groupid",
+      "type": "str"
+    },
+    {
+      "key": "connect_local_ifac_netname",
+      "category": "connect",
+      "alias": "local_ifac_netname",
+      "type": "str"
+    },
+    {
+      "key": "connect_local_ifac_passphrase",
+      "category": "connect",
+      "alias": "local_ifac_passphrase",
+      "type": "str"
+    },
+    {
+      "key": "connect_tcp",
+      "category": "connect",
+      "alias": "tcp",
+      "type": "bool"
+    },
+    {
+      "key": "connect_tcp_host",
+      "category": "connect",
+      "alias": "tcp_host",
+      "type": "str"
+    },
+    {
+      "key": "connect_tcp_port",
+      "category": "connect",
+      "alias": "tcp_port",
+      "type": "str"
+    },
+    {
+      "key": "connect_tcp_ifac_netname",
+      "category": "connect",
+      "alias": "tcp_ifac_netname",
+      "type": "str"
+    },
+    {
+      "key": "connect_tcp_ifac_passphrase",
+      "category": "connect",
+      "alias": "tcp_ifac_passphrase",
+      "type": "str"
+    },
+    {
+      "key": "connect_i2p",
+      "category": "connect",
+      "alias": "i2p",
+      "type": "bool"
+    },
+    {
+      "key": "connect_i2p_b32",
+      "category": "connect",
+      "alias": "i2p_b32",
+      "type": "str"
+    },
+    {
+      "key": "connect_i2p_ifac_netname",
+      "category": "connect",
+      "alias": "i2p_ifac_netname",
+      "type": "str"
+    },
+    {
+      "key": "connect_i2p_ifac_passphrase",
+      "category": "connect",
+      "alias": "i2p_ifac_passphrase",
+      "type": "str"
+    },
+    {
+      "key": "connect_rnode",
+      "category": "connect",
+      "alias": "rnode",
+      "type": "bool"
+    },
+    {
+      "key": "connect_rnode_ifac_netname",
+      "category": "connect",
+      "alias": "rnode_ifac_netname",
+      "type": "str"
+    },
+    {
+      "key": "connect_rnode_ifac_passphrase",
+      "category": "connect",
+      "alias": "rnode_ifac_passphrase",
+      "type": "str"
+    },
+    {
+      "key": "connect_serial",
+      "category": "connect",
+      "alias": "serial",
+      "type": "bool"
+    },
+    {
+      "key": "connect_serial_ifac_netname",
+      "category": "connect",
+      "alias": "serial_ifac_netname",
+      "type": "str"
+    },
+    {
+      "key": "connect_serial_ifac_passphrase",
+      "category": "connect",
+      "alias": "serial_ifac_passphrase",
+      "type": "str"
+    },
+    {
+      "key": "connect_modem",
+      "category": "connect",
+      "alias": "modem",
+      "type": "bool"
+    },
+    {
+      "key": "connect_modem_ifac_netname",
+      "category": "connect",
+      "alias": "modem_ifac_netname",
+      "type": "str"
+    },
+    {
+      "key": "connect_modem_ifac_passphrase",
+      "category": "connect",
+      "alias": "modem_ifac_passphrase",
+      "type": "str"
+    },
+    {
+      "key": "connect_weave",
+      "category": "connect",
+      "alias": "weave",
+      "type": "bool"
+    },
+    {
+      "key": "connect_weave_ifac_netname",
+      "category": "connect",
+      "alias": "weave_ifac_netname",
+      "type": "str"
+    },
+    {
+      "key": "connect_weave_ifac_passphrase",
+      "category": "connect",
+      "alias": "weave_ifac_passphrase",
+      "type": "str"
+    },
+    {
+      "key": "connect_obfuscate_hops",
+      "category": "connect",
+      "alias": "obfuscate_hops",
+      "type": "bool"
+    },
+    {
+      "key": "connect_ifmode_local",
+      "category": "connect",
+      "alias": "ifmode_local",
+      "type": "str"
+    },
+    {
+      "key": "connect_ifmode_tcp",
+      "category": "connect",
+      "alias": "ifmode_tcp",
+      "type": "str"
+    },
+    {
+      "key": "connect_ifmode_i2p",
+      "category": "connect",
+      "alias": "ifmode_i2p",
+      "type": "str"
+    },
+    {
+      "key": "connect_ifmode_rnode",
+      "category": "connect",
+      "alias": "ifmode_rnode",
+      "type": "str"
+    },
+    {
+      "key": "connect_ifmode_modem",
+      "category": "connect",
+      "alias": "ifmode_modem",
+      "type": "str"
+    },
+    {
+      "key": "connect_ifmode_serial",
+      "category": "connect",
+      "alias": "ifmode_serial",
+      "type": "str"
+    },
+    {
+      "key": "connect_ifmode_bluetooth",
+      "category": "connect",
+      "alias": "ifmode_bluetooth",
+      "type": "str"
+    },
+    {
+      "key": "connect_ifmode_weave",
+      "category": "connect",
+      "alias": "ifmode_weave",
+      "type": "str"
+    },
+    {
+      "key": "connect_share_instance",
+      "category": "connect",
+      "alias": "share_instance",
+      "type": "bool"
+    },
+    {
+      "key": "discover_interfaces",
+      "category": "connect",
+      "alias": "discover_interfaces",
+      "type": "bool"
+    },
+    {
+      "key": "hw_rnode_frequency",
+      "category": "rnode",
+      "alias": "frequency",
+      "type": "float"
+    },
+    {
+      "key": "hw_rnode_modulation",
+      "category": "rnode",
+      "alias": "modulation",
+      "type": "str"
+    },
+    {
+      "key": "hw_rnode_bandwidth",
+      "category": "rnode",
+      "alias": "bandwidth",
+      "type": "int"
+    },
+    {
+      "key": "hw_rnode_spreading_factor",
+      "category": "rnode",
+      "alias": "spreading_factor",
+      "type": "int"
+    },
+    {
+      "key": "hw_rnode_coding_rate",
+      "category": "rnode",
+      "alias": "coding_rate",
+      "type": "int"
+    },
+    {
+      "key": "hw_rnode_tx_power",
+      "category": "rnode",
+      "alias": "tx_power",
+      "type": "int"
+    },
+    {
+      "key": "hw_rnode_beaconinterval",
+      "category": "rnode",
+      "alias": "beacon_interval",
+      "type": "int"
+    },
+    {
+      "key": "hw_rnode_beacondata",
+      "category": "rnode",
+      "alias": "beacon_data",
+      "type": "str"
+    },
+    {
+      "key": "hw_rnode_bluetooth",
+      "category": "rnode",
+      "alias": "bluetooth",
+      "type": "bool"
+    },
+    {
+      "key": "hw_rnode_ble",
+      "category": "rnode",
+      "alias": "ble",
+      "type": "bool"
+    },
+    {
+      "key": "hw_rnode_bt_device",
+      "category": "rnode",
+      "alias": "bt_device",
+      "type": "str"
+    },
+    {
+      "key": "hw_rnode_tcp",
+      "category": "rnode",
+      "alias": "tcp",
+      "type": "bool"
+    },
+    {
+      "key": "hw_rnode_tcp_host",
+      "category": "rnode",
+      "alias": "tcp_host",
+      "type": "str"
+    },
+    {
+      "key": "hw_rnode_atl_short",
+      "category": "rnode",
+      "alias": "atl_short",
+      "type": "float"
+    },
+    {
+      "key": "hw_rnode_atl_long",
+      "category": "rnode",
+      "alias": "atl_long",
+      "type": "float"
+    },
+    {
+      "key": "hw_rnode_enable_framebuffer",
+      "category": "rnode",
+      "alias": "enable_framebuffer",
+      "type": "bool"
+    },
+    {
+      "key": "hw_modem_baudrate",
+      "category": "modem",
+      "alias": "baudrate",
+      "type": "int"
+    },
+    {
+      "key": "hw_modem_databits",
+      "category": "modem",
+      "alias": "databits",
+      "type": "int"
+    },
+    {
+      "key": "hw_modem_stopbits",
+      "category": "modem",
+      "alias": "stopbits",
+      "type": "int"
+    },
+    {
+      "key": "hw_modem_parity",
+      "category": "modem",
+      "alias": "parity",
+      "type": "str"
+    },
+    {
+      "key": "hw_modem_preamble",
+      "category": "modem",
+      "alias": "preamble",
+      "type": "int"
+    },
+    {
+      "key": "hw_modem_tail",
+      "category": "modem",
+      "alias": "tail",
+      "type": "int"
+    },
+    {
+      "key": "hw_modem_persistence",
+      "category": "modem",
+      "alias": "persistence",
+      "type": "int"
+    },
+    {
+      "key": "hw_modem_slottime",
+      "category": "modem",
+      "alias": "slottime",
+      "type": "int"
+    },
+    {
+      "key": "hw_modem_beaconinterval",
+      "category": "modem",
+      "alias": "beacon_interval",
+      "type": "int"
+    },
+    {
+      "key": "hw_modem_beacondata",
+      "category": "modem",
+      "alias": "beacon_data",
+      "type": "str"
+    },
+    {
+      "key": "hw_serial_baudrate",
+      "category": "serial",
+      "alias": "baudrate",
+      "type": "int"
+    },
+    {
+      "key": "hw_serial_databits",
+      "category": "serial",
+      "alias": "databits",
+      "type": "int"
+    },
+    {
+      "key": "hw_serial_stopbits",
+      "category": "serial",
+      "alias": "stopbits",
+      "type": "int"
+    },
+    {
+      "key": "hw_serial_parity",
+      "category": "serial",
+      "alias": "parity",
+      "type": "str"
+    },
+    {
+      "key": "telemetry_s_location",
+      "category": "sensors",
+      "alias": "location",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_s_battery",
+      "category": "sensors",
+      "alias": "battery",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_s_pressure",
+      "category": "sensors",
+      "alias": "pressure",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_s_temperature",
+      "category": "sensors",
+      "alias": "temperature",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_s_humidity",
+      "category": "sensors",
+      "alias": "humidity",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_s_magnetic_field",
+      "category": "sensors",
+      "alias": "magnetic_field",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_s_ambient_light",
+      "category": "sensors",
+      "alias": "ambient_light",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_s_gravity",
+      "category": "sensors",
+      "alias": "gravity",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_s_angular_velocity",
+      "category": "sensors",
+      "alias": "angular_velocity",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_s_acceleration",
+      "category": "sensors",
+      "alias": "acceleration",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_s_proximity",
+      "category": "sensors",
+      "alias": "proximity",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_s_rns_transport",
+      "category": "sensors",
+      "alias": "rns_transport",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_s_fixed_location",
+      "category": "sensors",
+      "alias": "fixed_location",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_s_fixed_latlon",
+      "category": "sensors",
+      "alias": "fixed_latlon",
+      "type": "list"
+    },
+    {
+      "key": "telemetry_s_fixed_altitude",
+      "category": "sensors",
+      "alias": "fixed_altitude",
+      "type": "float"
+    },
+    {
+      "key": "telemetry_s_information",
+      "category": "sensors",
+      "alias": "information",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_s_information_text",
+      "category": "sensors",
+      "alias": "information_text",
+      "type": "str"
+    },
+    {
+      "key": "voice_enabled",
+      "category": "voice",
+      "alias": "enabled",
+      "type": "bool"
+    },
+    {
+      "key": "voice_output",
+      "category": "voice",
+      "alias": "output",
+      "type": "str"
+    },
+    {
+      "key": "voice_input",
+      "category": "voice",
+      "alias": "input",
+      "type": "str"
+    },
+    {
+      "key": "voice_ringer",
+      "category": "voice",
+      "alias": "ringer",
+      "type": "str"
+    },
+    {
+      "key": "voice_trusted_only",
+      "category": "voice",
+      "alias": "trusted_only",
+      "type": "bool"
+    },
+    {
+      "key": "voice_low_latency",
+      "category": "voice",
+      "alias": "low_latency",
+      "type": "bool"
+    },
+    {
+      "key": "map_history_limit",
+      "category": "map",
+      "alias": "history_limit",
+      "type": "int"
+    },
+    {
+      "key": "map_lat",
+      "category": "map",
+      "alias": "lat",
+      "type": "float"
+    },
+    {
+      "key": "map_lon",
+      "category": "map",
+      "alias": "lon",
+      "type": "float"
+    },
+    {
+      "key": "map_zoom",
+      "category": "map",
+      "alias": "zoom",
+      "type": "int"
+    },
+    {
+      "key": "map_storage_external",
+      "category": "map",
+      "alias": "storage_external",
+      "type": "bool"
+    },
+    {
+      "key": "map_use_offline",
+      "category": "map",
+      "alias": "use_offline",
+      "type": "bool"
+    },
+    {
+      "key": "map_use_online",
+      "category": "map",
+      "alias": "use_online",
+      "type": "bool"
+    },
+    {
+      "key": "map_layer",
+      "category": "map",
+      "alias": "layer",
+      "type": "str"
+    },
+    {
+      "key": "map_cluster",
+      "category": "map",
+      "alias": "cluster",
+      "type": "bool"
+    },
+    {
+      "key": "map_interfaces",
+      "category": "map",
+      "alias": "interfaces",
+      "type": "bool"
+    },
+    {
+      "key": "map_storage_path",
+      "category": "map",
+      "alias": "storage_path",
+      "type": "str"
+    },
+    {
+      "key": "map_storage_file",
+      "category": "map",
+      "alias": "storage_file",
+      "type": "str"
+    },
+    {
+      "key": "service_plugins_enabled",
+      "category": "plugins",
+      "alias": "services",
+      "type": "bool"
+    },
+    {
+      "key": "command_plugins_enabled",
+      "category": "plugins",
+      "alias": "commands",
+      "type": "bool"
+    },
+    {
+      "key": "command_plugins_path",
+      "category": "plugins",
+      "alias": "path",
+      "type": "str"
+    },
+    {
+      "key": "telemetry_enabled",
+      "category": "telemetry",
+      "alias": "enabled",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_icon",
+      "category": "telemetry",
+      "alias": "icon",
+      "type": "str"
+    },
+    {
+      "key": "telemetry_fg",
+      "category": "telemetry",
+      "alias": "fg",
+      "type": "list"
+    },
+    {
+      "key": "telemetry_bg",
+      "category": "telemetry",
+      "alias": "bg",
+      "type": "list"
+    },
+    {
+      "key": "telemetry_send_to_trusted",
+      "category": "telemetry",
+      "alias": "send_to_trusted",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_send_to_collector",
+      "category": "telemetry",
+      "alias": "send_to_collector",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_collector",
+      "category": "telemetry",
+      "alias": "collector",
+      "type": "str"
+    },
+    {
+      "key": "telemetry_request_from_collector",
+      "category": "telemetry",
+      "alias": "request_from_collector",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_send_interval",
+      "category": "telemetry",
+      "alias": "send_interval",
+      "type": "int"
+    },
+    {
+      "key": "telemetry_request_interval",
+      "category": "telemetry",
+      "alias": "request_interval",
+      "type": "int"
+    },
+    {
+      "key": "telemetry_collector_enabled",
+      "category": "telemetry",
+      "alias": "collector_enabled",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_to_mqtt",
+      "category": "telemetry",
+      "alias": "to_mqtt",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_mqtt_host",
+      "category": "telemetry",
+      "alias": "mqtt_host",
+      "type": "str"
+    },
+    {
+      "key": "telemetry_mqtt_port",
+      "category": "telemetry",
+      "alias": "mqtt_port",
+      "type": "int"
+    },
+    {
+      "key": "telemetry_mqtt_user",
+      "category": "telemetry",
+      "alias": "mqtt_user",
+      "type": "str"
+    },
+    {
+      "key": "telemetry_mqtt_pass",
+      "category": "telemetry",
+      "alias": "mqtt_pass",
+      "type": "str"
+    },
+    {
+      "key": "telemetry_mqtt_validate_ssl",
+      "category": "telemetry",
+      "alias": "mqtt_validate_ssl",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_send_appearance",
+      "category": "telemetry",
+      "alias": "send_appearance",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_display_trusted_only",
+      "category": "telemetry",
+      "alias": "display_trusted_only",
+      "type": "bool"
+    },
+    {
+      "key": "display_style_from_all",
+      "category": "telemetry",
+      "alias": "display_style_from_all",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_receive_trusted_only",
+      "category": "telemetry",
+      "alias": "receive_trusted_only",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_send_all_to_collector",
+      "category": "telemetry",
+      "alias": "send_all_to_collector",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_use_propagation_only",
+      "category": "telemetry",
+      "alias": "use_propagation_only",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_try_propagation_on_fail",
+      "category": "telemetry",
+      "alias": "try_propagation_on_fail",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_requests_only_send_latest",
+      "category": "telemetry",
+      "alias": "requests_only_send_latest",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_allow_requests_from_trusted",
+      "category": "telemetry",
+      "alias": "allow_requests_from_trusted",
+      "type": "bool"
+    },
+    {
+      "key": "telemetry_allow_requests_from_anyone",
+      "category": "telemetry",
+      "alias": "allow_requests_from_anyone",
+      "type": "bool"
+    }
+  ],
+  "conversions": [
+    {
+      "key": "debug",
+      "input": "true",
+      "result": true
+    },
+    {
+      "key": "debug",
+      "input": "enabled",
+      "result": true
+    },
+    {
+      "key": "debug",
+      "input": "disable",
+      "result": false
+    },
+    {
+      "key": "debug",
+      "input": "invalid",
+      "error": "Invalid boolean value: 'invalid'. Use true/false, yes/no, on/off, or 1/0."
+    },
+    {
+      "key": "lxmf_sync_limit",
+      "input": "none",
+      "result": null
+    },
+    {
+      "key": "lxmf_sync_limit",
+      "input": "3",
+      "result": 3
+    },
+    {
+      "key": "lxmf_sync_limit",
+      "input": "true",
+      "error": "Invalid integer value: 'true'"
+    },
+    {
+      "key": "lxmf_sync_limit",
+      "input": "-1",
+      "result": -1
+    },
+    {
+      "key": "display_name",
+      "input": "none",
+      "result": null
+    },
+    {
+      "key": "display_name",
+      "input": "",
+      "result": ""
+    },
+    {
+      "key": "display_name",
+      "input": "Unicode Ω",
+      "result": "Unicode Ω"
+    },
+    {
+      "key": "map_lat",
+      "input": "1.25",
+      "result": 1.25
+    },
+    {
+      "key": "map_lat",
+      "input": "null",
+      "result": null
+    },
+    {
+      "key": "map_lat",
+      "input": "oops",
+      "error": "Invalid float value: 'oops'"
+    },
+    {
+      "key": "telemetry_s_fixed_latlon",
+      "input": "[1,2]",
+      "result": [
+        1,
+        2
+      ]
+    },
+    {
+      "key": "telemetry_s_fixed_latlon",
+      "input": "1, 2",
+      "result": [
+        "1",
+        "2"
+      ]
+    },
+    {
+      "key": "telemetry_s_fixed_latlon",
+      "input": "3",
+      "result": [
+        3
+      ]
+    }
+  ]
+}

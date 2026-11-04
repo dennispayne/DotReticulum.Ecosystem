@@ -421,22 +421,33 @@ public class LxmNodePolicyTests
                 AutoPeer = false,
                 StaticPeers = reload ? [] : [Enumerable.Repeat((byte)'s', 16).ToArray()],
             };
+            byte[] expected = Enumerable.Repeat((byte)'s', 16).ToArray();
             if (reload)
             {
                 var row = vectors.RootElement.GetProperty("reload");
+                using var known = Identity.FromPublicKey(Convert.FromHexString(row.GetProperty("known_public_key").GetString()!));
+                expected = Destination.ComputeHashFromNameAndIdentity("lxmf.propagation", known.Hash);
                 Directory.CreateDirectory(Path.Combine(path, "lxmf"));
                 File.WriteAllBytes(Path.Combine(path, "lxmf", "peers"), MsgPack.Pack(row.GetProperty("serialized")
-                    .EnumerateArray().Select(value => (object?)Convert.FromHexString(value.GetString()!)).ToArray()));
-                pair.ServerRouter.Engine.Known.Remember(Enumerable.Repeat((byte)'k', 16).ToArray(), new byte[32],
+                    .EnumerateArray().Select(value =>
+                    {
+                        var map = (Dictionary<object, object?>)MsgPack.UnpackApplicationValue(Convert.FromHexString(value.GetString()!))!;
+                        if (((byte[])map["destination_hash"]!).AsSpan().SequenceEqual(Enumerable.Repeat((byte)'k', 16).ToArray()))
+                            map["destination_hash"] = expected;
+                        return (object?)MsgPack.Pack(map);
+                    }).ToArray()));
+                pair.ServerRouter.Engine.Known.Remember(expected, new byte[32],
                     Convert.FromHexString(row.GetProperty("known_public_key").GetString()!), null);
             }
             var node = pair.Server.EnablePropagationNode(options);
             Assert.Single(node.Peers);
-            Assert.Equal(Enumerable.Repeat((byte)(reload ? 'k' : 's'), 16), node.Peers[0].DestinationHash);
+            Assert.Equal(expected, node.Peers[0].DestinationHash);
+            Assert.Equal(reload ? 1 : 0, node.UnresolvedPeers.Count);
             await node.DisposeAsync();
             await using var reopened = new LxmPropagationNode(pair.ServerRouter, pair.ServerIdentity, path, options);
-            Assert.Single(reopened.Peers);
-            Assert.Equal(Enumerable.Repeat((byte)(reload ? 'k' : 's'), 16), reopened.Peers[0].DestinationHash);
+            Assert.Equal(reload ? 1 : 0, reopened.Peers.Count);
+            Assert.Single(reopened.UnresolvedPeers);
+            Assert.Equal(expected, (reload ? reopened.Peers : reopened.UnresolvedPeers)[0].DestinationHash);
         }
         finally { if (Directory.Exists(path)) Directory.Delete(path, true); }
     }

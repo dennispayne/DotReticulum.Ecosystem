@@ -21,6 +21,7 @@ public sealed record NomadNetSettings
     public NomadNetUserInterface UserInterface { get; set; } = NomadNetUserInterface.Text;
     public bool NotifyOnNewMessage { get; set; } = true;
     public bool CompactAnnounceStream { get; set; } = true;
+    public bool ClipboardCopy { get; set; }
     public int? LogLevel { get; set; } = 4;
     public NomadNetLogDestination? LogDestination { get; set; } = NomadNetLogDestination.File;
     public string? LogFile { get; set; }
@@ -62,6 +63,12 @@ public sealed record NomadNetSettings
     public string? FilesPath { get; set; }
     public string? DownloadsPath { get; set; }
     public string? AttachmentSavePath { get; set; }
+    public bool PrintMessages { get; set; }
+    public bool PrintAllMessages { get; set; }
+    public bool PrintTrustedMessages { get; set; }
+    public List<string> AllowedMessagePrintDestinations { get; set; } = [];
+    public string PrintCommand { get; set; } = "lp";
+    public string PrintingMessageTemplate { get; set; } = NomadNetPrintingPolicy.DefaultTemplate;
 
     public async Task SaveAsync(string directory, CancellationToken cancellationToken = default)
     {
@@ -125,6 +132,7 @@ public sealed record NomadNetSettings
         TrustedNodes = [.. TrustedNodes],
         PropagationStaticPeers = [.. PropagationStaticPeers],
         PrioritisedDestinations = [.. PrioritisedDestinations],
+        AllowedMessagePrintDestinations = [.. AllowedMessagePrintDestinations],
     };
 
     internal void ValidateNode()
@@ -153,6 +161,7 @@ public sealed record NomadNetSettings
     {
         ValidateNode();
         ValidateAttachmentPath();
+        ValidatePrinting();
         if (InboundStampCost is < 1 or > 254)
             throw new InvalidDataException("Inbound stamp cost must be null or 1–254; the primary's 255 clamp is unsupported by pinned LXMF 1.2.1.");
         if (ClientAnnounceIntervalMinutes is < 30 or > 10080)
@@ -178,6 +187,15 @@ public sealed record NomadNetSettings
             throw new InvalidDataException("NomadNet settings contain an invalid version or display name.");
         if (PropagationNode is not null) _ = NomadNetAddress.NormalizeHash(PropagationNode);
         foreach (var hash in TrustedNodes) _ = NomadNetAddress.NormalizeHash(hash);
+    }
+
+    internal void ValidatePrinting()
+    {
+        _ = NomadNetPrintingPolicy.CommandArguments(PrintCommand);
+        NomadNetPrintingPolicy.ValidateTemplate(PrintingMessageTemplate);
+        if (AllowedMessagePrintDestinations is null || AllowedMessagePrintDestinations.Count > 128 ||
+            AllowedMessagePrintDestinations.Any(value => value is null || value.Length > 128 || value.Any(char.IsControl)))
+            throw new InvalidDataException("Print source list exceeds 128 bounded entries.");
     }
 }
 
@@ -214,6 +232,7 @@ public sealed record NomadNetMessage(
     public int? HistoricalState { get; init; }
     public int? HistoricalMethod { get; init; }
     public string ImportedAttachmentNames { get; init; } = "";
+    public string? PrintingContent { get; init; }
 }
 
 public sealed record NomadNetBookmark(string DestinationHash, string Path, string Title);

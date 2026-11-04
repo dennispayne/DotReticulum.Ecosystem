@@ -110,7 +110,7 @@ public sealed class ConversationStateTests
         contact = Assert.Single((await profile.ReloadAsync()).Contacts, item => item.DeliveryHash == Peer);
         Assert.False(contact.Trusted);
         Assert.True(contact.Unread);
-        Assert.Equal(new SidebandContact(other, "Other", true, true),
+        Assert.Equal(new SidebandContact(other, "Other", true, true, NameIsUserDefined: true),
             Assert.Single((await profile.ReloadAsync()).Contacts, item => item.DeliveryHash == other));
     }
 

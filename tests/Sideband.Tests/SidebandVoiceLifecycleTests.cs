@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Net;
-using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using DotReticulum.Core;
@@ -285,6 +284,48 @@ public sealed class SidebandVoiceLifecycleTests
         Assert.Equal(0, rig.Devices.Playbacks);
     }
 
+    [Fact]
+    public async Task ConcurrentDisposersJoinTheExactPendingDialTaskAcrossRepeatedServices()
+    {
+        using var remote = Identity.Generate();
+        for (var iteration = 0; iteration < 16; iteration++)
+        {
+            await using var rig = new Rig();
+            await rig.StartAsync();
+            var dial = rig.Service.CallAsync(remote, cancellationToken: TestContext.Current.CancellationToken);
+            Assert.True(rig.Service.IsBusy);
+            await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => rig.Service.DisposeAsync().AsTask()))
+                .WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+            Assert.True(dial.IsCompleted);
+            var exception = await Record.ExceptionAsync(() => dial);
+            Assert.True(exception is OperationCanceledException or ObjectDisposedException, exception?.ToString());
+            Assert.Equal(0, rig.Devices.Captures);
+            Assert.Equal(0, rig.Devices.Playbacks);
+        }
+    }
+
+    [Fact]
+    public async Task HangupJoinsTheExactPendingDialBeforeAnotherCallCanUseTheEndpoint()
+    {
+        using var remote = Identity.Generate();
+        for (var iteration = 0; iteration < 16; iteration++)
+        {
+            await using var rig = new Rig();
+            await rig.StartAsync();
+            var dial = rig.Service.CallAsync(remote, cancellationToken: TestContext.Current.CancellationToken);
+            await rig.Service.HangupAsync(TestContext.Current.CancellationToken).AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+            Assert.True(dial.IsCompleted);
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => dial);
+            Assert.False(rig.Service.IsBusy);
+            await rig.Service.CallAsync(rig.PeerIdentity, cancellationToken: TestContext.Current.CancellationToken);
+            await UntilAsync(() => rig.Peer.State == CallState.Ringing);
+            await rig.Service.HangupAsync(TestContext.Current.CancellationToken);
+            await UntilAsync(() => rig.Peer.State == CallState.Available);
+            Assert.Equal(0, rig.Devices.Captures);
+        }
+    }
+
     internal static async Task UntilAsync(Func<bool> predicate)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
@@ -373,13 +414,9 @@ public sealed class SidebandVoiceLifecycleTests
         public TelephoneEndpoint Peer { get; }
         public Rig()
         {
-            using var listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start();
-            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            listener.Stop();
-            _serverInterface = new(new IPEndPoint(IPAddress.Loopback, port));
+            _serverInterface = new(new IPEndPoint(IPAddress.Loopback, 0));
             _serverManager = new([_serverInterface]);
-            _clientManager = new([new TcpClientPacketInterface("127.0.0.1", port)]);
+            _clientManager = new([], keepAlive: true);
             Server = new(_serverManager, new());
             Client = new(_clientManager, new());
             Service = new(Server, Identity, Devices, new(new() { Ringer = "fake-ringer" }));
@@ -388,8 +425,11 @@ public sealed class SidebandVoiceLifecycleTests
         public async Task StartAsync()
         {
             await _serverManager.StartAsync(_stop.Token);
+            var endpoint = Assert.IsType<IPEndPoint>(_serverInterface.LocalEndpoint);
+            Assert.InRange(endpoint.Port, 1, ushort.MaxValue);
             _serverRun = Server.RunAsync(_stop.Token);
             await _clientManager.StartAsync(_stop.Token);
+            await _clientManager.AttachAsync(new TcpClientPacketInterface("127.0.0.1", endpoint.Port), _stop.Token);
             _clientRun = Client.RunAsync(_stop.Token);
             await UntilAsync(() => _serverInterface.ClientCount == 1);
             Service.Start();

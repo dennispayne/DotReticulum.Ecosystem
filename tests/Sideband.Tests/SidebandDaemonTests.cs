@@ -17,7 +17,7 @@ public sealed class SidebandDaemonTests
             using var input = new StringReader(new string('x', 8193) + "\nhelp\nvoice enable\nvoice status\n" +
                 "voice profile invalid\nvoice dial 0123456789abcdef0123456789abcdef\nvoice hangup\n" +
                 "voice dial fedcba9876543210fedcba9876543210\nvoice hangup\nvoice log\n" +
-                "voice dial aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nvoice disable\nvoice log clear\nstatus\n");
+                "voice dial aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nvoice disable\nvoice log clear\nvoice status\nstatus\n");
             using var output = new StringWriter();
             using var error = new StringWriter();
             var result = await SidebandDaemon.RunAsync(Path.Combine(root, "profile"), config, true, true, true,
@@ -28,6 +28,7 @@ public sealed class SidebandDaemonTests
             Assert.Contains("STATUS voice=Available", output.ToString());
             Assert.Contains("STATUS voice=disabled", output.ToString());
             Assert.Contains("OK voice log cleared", output.ToString());
+            Assert.Contains("Sideband Status", output.ToString());
             Assert.Equal(3, output.ToString().Split("CANCELLED voice dial").Length - 1);
             Assert.Contains("8,192 characters", error.ToString());
             Assert.Contains("Unsupported voice profile or mode", error.ToString());

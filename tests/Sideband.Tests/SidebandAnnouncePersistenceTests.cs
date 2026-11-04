@@ -13,7 +13,8 @@ public sealed class SidebandAnnouncePersistenceTests
         try
         {
             var store = new SidebandStateStore(root);
-            var contact = SidebandContact.Create("Known", new string('a', 32), trusted: true, unread: true);
+            var contact = SidebandContact.Create("Known", new string('a', 32), trusted: true, unread: true)
+                with { NameIsUserDefined = true };
             await store.AddContactAsync(contact, token);
             await store.SetPropagationAsync(new string('b', 32), true, token);
             await Task.WhenAll(Enumerable.Range(1, 100).Select(index => store.ObserveAnnounceAsync(

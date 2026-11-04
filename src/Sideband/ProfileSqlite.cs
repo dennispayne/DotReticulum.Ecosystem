@@ -16,12 +16,20 @@ internal sealed class ProfileSqlite : IDisposable
     {
         _token = token;
         _progress = _ => token.IsCancellationRequested || --_remainingSteps <= 0 ? 1 : 0;
-        var filename = immutable ? new Uri(Path.GetFullPath(path)).AbsoluteUri + "?immutable=1" : path;
-        var result = Native.sqlite3_open_v2(filename, out _database, immutable ? 1 | 0x40 : 1, IntPtr.Zero);
+        var windows = OperatingSystem.IsWindows();
+        var fullPath = Path.GetFullPath(path);
+        if (windows && !fullPath.StartsWith(@"\\?\", StringComparison.Ordinal))
+            fullPath = fullPath.StartsWith(@"\\", StringComparison.Ordinal)
+                ? @"\\?\UNC\" + fullPath[2..] : @"\\?\" + fullPath;
+        var filename = immutable
+            ? (windows ? "file:" + Uri.EscapeDataString(fullPath) : new Uri(fullPath).AbsoluteUri) + "?immutable=1"
+            : fullPath;
+        var result = Native.sqlite3_open_v2(filename, out _database, immutable ? 1 | 0x40 : 1,
+            windows ? "win32-longpath" : null);
         if (result != 0)
         {
             Dispose();
-            throw new InvalidDataException("Cannot open the profile SQLite snapshot.");
+            throw new InvalidDataException($"Cannot open the profile SQLite snapshot (SQLite result {result}).");
         }
         try
         {
@@ -119,7 +127,8 @@ internal sealed class ProfileSqlite : IDisposable
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate int Progress(IntPtr argument);
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int sqlite3_open_v2([MarshalAs(UnmanagedType.LPUTF8Str)] string path, out IntPtr database, int flags, IntPtr vfs);
+        internal static extern int sqlite3_open_v2([MarshalAs(UnmanagedType.LPUTF8Str)] string path, out IntPtr database, int flags,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string? vfs);
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int sqlite3_close_v2(IntPtr database);
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

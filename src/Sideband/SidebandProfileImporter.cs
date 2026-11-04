@@ -125,7 +125,8 @@ public static class SidebandProfileImporter
                             _ => throw new InvalidDataException("Invalid conversation name."),
                         };
                         contacts.Add(SidebandTelemetryProfile.Conversation(SidebandContact.Create(string.IsNullOrWhiteSpace(name) ? address : name, address,
-                            ReadFlag(row[3], "conversation trust"), ReadFlag(row[4], "conversation unread")), row[5]));
+                            ReadFlag(row[3], "conversation trust"), ReadFlag(row[4], "conversation unread")) with
+                            { NameIsUserDefined = !string.IsNullOrWhiteSpace(name) }, row[5]));
                     }
                     var attachments = new SidebandAttachmentStore(staging);
                     foreach (var row in database.Rows("SELECT lxm_hash, dest, source, state, method, data FROM lxm LIMIT 10001", 10_000))

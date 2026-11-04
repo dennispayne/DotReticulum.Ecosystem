@@ -8,12 +8,14 @@ using System.Runtime.InteropServices;
 
 namespace NomadNet;
 
-internal static class Program
+internal static partial class Program
 {
     public static async Task<int> Main(string[] args)
     {
         Console.InputEncoding = new UTF8Encoding(false, true);
         Console.OutputEncoding = new UTF8Encoding(false);
+        if (await NomadNetLinuxPrintProcess.TryRunSupervisorAsync(args).ConfigureAwait(false) is { } printExit)
+            return printExit;
         if (args.Contains("--help", StringComparer.Ordinal) || args.Contains("-h", StringComparer.Ordinal))
         {
             PrintHelp();
@@ -287,10 +289,13 @@ internal static class Program
         announceStream.Accept = async (hash, token) =>
             !(await state.IgnoredDestinationsAsync(token).ConfigureAwait(false)).Contains(hash);
         announceStream.Start(node.Router.Engine);
-        await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host, clientAnnounces, logging);
+        await using var printer = new NomadNetPrinter(options.DataDirectory)
+        { Log = message => logging.Write(message.EndsWith("completed.", StringComparison.Ordinal) ? 5 : 1, message) };
+        printer.Start();
+        await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host, clientAnnounces, logging, printer);
         session.AnnounceStream = announceStream;
         var receiver = PersistIncomingAsync(inbox.Reader, state, options.DataDirectory, session.ObserveConversationImageAsync,
-            () => propagationPolicy.Settings, headless, logging, cancellationToken);
+            () => propagationPolicy.Settings, headless, logging, printer, cancellationToken);
         logging.Write(3, "NomadNet client started");
 
         Console.WriteLine("NomadNet .NET client (scoped native implementation; type help for commands)");
@@ -316,7 +321,7 @@ internal static class Program
 
     private static async Task PersistIncomingAsync(ChannelReader<ReceivedMessage> reader, NomadNetStore store, string directory,
         Func<NomadNetMessage, CancellationToken, Task> observeImage, Func<NomadNetSettings> settings, bool headless,
-        NomadNetLogging logging, CancellationToken cancellationToken)
+        NomadNetLogging logging, NomadNetPrinter printer, CancellationToken cancellationToken)
     {
         try
         {
@@ -344,9 +349,12 @@ internal static class Program
                     }
                     var stored = new NomadNetMessage(id, Convert.ToHexStringLower(message.SourceHash), "inbound",
                         DateTimeOffset.FromUnixTimeMilliseconds((long)(message.Timestamp * 1000)), message.Title, content, "received")
-                        { Renderer = NomadNetPresentation.Renderer(message.Fields), ImageAttachmentIndex = imageIndex };
+                        { Renderer = NomadNetPresentation.Renderer(message.Fields), ImageAttachmentIndex = imageIndex,
+                            PrintingContent = message.Content };
                     await store.SaveMessageAsync(stored, cancellationToken).ConfigureAwait(false);
                     logging.Write(4, $"LXMF message persisted: {id}");
+                    printer.TryPrintIncoming(settings(), stored,
+                        await store.FindContactAsync(stored.PeerHash, cancellationToken).ConfigureAwait(false), DateTimeOffset.Now);
                     NomadNetClientRuntime.NotifyReceived(settings(), headless, id,
                         () => { Console.Out.Write('\a'); Console.Out.Flush(); }, message => logging.Write(1, message));
                     if (await store.ActiveConversationAsync(cancellationToken).ConfigureAwait(false) == Convert.ToHexStringLower(message.SourceHash))
@@ -414,6 +422,8 @@ internal static class Program
               conversation active <hash|off> Mark read and select viewed conversation
               conversation read|delete|purge-failed <hash>
               conversation export <hash> <name.txt>
+              clipboard [on|off]              Save opt-in OSC52 terminal clipboard policy
+              copy message <id> | copy url   Copy content only or current URL, including form variables
               conversation images status|load|reload|cancel
                                              Preview shown conversation images as ASCII
               send <hash> <message>          Send a text LXMF message
@@ -428,6 +438,11 @@ internal static class Program
               paper <hash> <message>         Generate an encrypted lxm:// URI
               paper-qr <hash> <message>      Save encrypted paper PNG and conversation
               paper-save <hash> <message>    Save encrypted paper URI and conversation
+              paper-print <hash> <message>   Print encrypted paper QR; save history only on success
+              print <message-id>             Explicitly print a stored message
+              printing [on|off|from <filter>|command <argv>|template <file>|default-template]
+                                            Edit persisted incoming print policy; default off
+              utility help                  Original bounded local/network utilities
               qr <lxm://uri> <name.png>       Export an existing paper QR PNG
               qr-show <lxm://uri>             Display a black-on-white terminal QR
               ingest <lxm://uri>             Ingest a paper URI for this identity
@@ -506,9 +521,9 @@ internal static class Program
         }
     }
 
-    private sealed class TerminalSession(ReticulumNode node, Identity identity, LxmRouter router, NomadNetStore store,
+    private sealed partial class TerminalSession(ReticulumNode node, Identity identity, LxmRouter router, NomadNetStore store,
         string dataDirectory, NomadNetPropagation propagation, NomadNetHost? host, NomadNetClientAnnounces clientAnnounces,
-        NomadNetLogging logging) : IAsyncDisposable
+        NomadNetLogging logging, NomadNetPrinter printer) : IAsyncDisposable
     {
         private readonly NomadNetDelivery _delivery = new(router, identity, store,
             () => propagation.Settings.TryPropagationOnSendFail)
@@ -535,6 +550,7 @@ internal static class Program
 
         public async ValueTask DisposeAsync()
         {
+            await DisposeUtilitiesAsync().ConfigureAwait(false);
             if (_browser is not null) await _browser.DisposeAsync().ConfigureAwait(false);
             if (_inlineImages is not null) await _inlineImages.DisposeAsync().ConfigureAwait(false);
             if (_conversationImages is not null) await _conversationImages.DisposeAsync().ConfigureAwait(false);
@@ -575,6 +591,9 @@ internal static class Program
 
         private async Task<bool> ExecuteAsync(string command, CancellationToken cancellationToken)
         {
+            if (await TryHandleClipboardAsync(command, cancellationToken).ConfigureAwait(false)) return false;
+            if (await TryHandleUtilityAsync(command, cancellationToken).ConfigureAwait(false)) return false;
+            if (await TryHandlePrintingAsync(command, cancellationToken).ConfigureAwait(false)) return false;
             if (command.Equals("quit", StringComparison.OrdinalIgnoreCase) || command.Equals("exit", StringComparison.OrdinalIgnoreCase))
                 return true;
             if (command.Equals("help", StringComparison.OrdinalIgnoreCase)) { PrintHelp(); return false; }

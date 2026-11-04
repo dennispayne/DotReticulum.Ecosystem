@@ -1,0 +1,167 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "method": "Actual imported Helpers.osc52_copy, Browser.current_url and PageEditorDisplay._confine/_atomic_write; captured stdout/log levels and synthetic owners/storage, canonical root/separator path projections, no rendered primary UI or clipboard-device claim",
+  "sources": {
+    "nomadnet/ui/textui/Helpers.py": "031cb6872ec33eb6b58be24770c1daa77026a0a7b77fbd790db10c31bc2e6bb3",
+    "nomadnet/ui/textui/Editor.py": "ae6c09cde38d473fd97d1758ebcbc13edaf5d7e1f97dc4e698a870c68cd8d378",
+    "nomadnet/ui/textui/Browser.py": "cbce04302ec092ae6bb3cc6ce9f423139b1339b9e903f14f12cf8e6ebe736729",
+    "nomadnet/ui/textui/Conversations.py": "f1b47c7d93db25e8ddb582ca735631963beab6990e7373e78a27ff9a81ad0d6e",
+    "nomadnet/ui/textui/Config.py": "13a0a531ccc2fc207dc6b4c7f644c3eff6d261bb34edf84781c1c6f76f4b0421"
+  },
+  "clipboard": [
+    {
+      "name": "absent",
+      "accepted": false,
+      "output": "",
+      "errorLevels": [],
+      "input": null
+    },
+    {
+      "name": "empty",
+      "accepted": false,
+      "output": "",
+      "errorLevels": [],
+      "input": ""
+    },
+    {
+      "name": "ascii",
+      "accepted": true,
+      "output": "\u001b]52;c;U3ludGhldGljIG1lc3NhZ2U=\u0007",
+      "errorLevels": [],
+      "input": "Synthetic message"
+    },
+    {
+      "name": "unicode",
+      "accepted": true,
+      "output": "\u001b]52;c;U3ludGhldGljIM67IPCfjI0=\u0007",
+      "errorLevels": [],
+      "input": "Synthetic \u03bb \ud83c\udf0d"
+    },
+    {
+      "name": "multiline",
+      "accepted": true,
+      "output": "\u001b]52;c;b25lCnR3bw==\u0007",
+      "errorLevels": [],
+      "input": "one\ntwo"
+    },
+    {
+      "name": "controls",
+      "accepted": true,
+      "output": "\u001b]52;c;G101MjtjO3VudHJ1c3RlZAcA\u0007",
+      "errorLevels": [],
+      "input": "\u001b]52;c;untrusted\u0007\u0000"
+    },
+    {
+      "name": "invalid-utf8",
+      "accepted": false,
+      "output": "",
+      "errorLevels": [
+        1
+      ],
+      "inputUtf16": [
+        55296
+      ]
+    }
+  ],
+  "urls": [
+    {
+      "name": "absent",
+      "hash": null,
+      "path": null,
+      "fields": null,
+      "url": ""
+    },
+    {
+      "name": "empty-path",
+      "hash": "000102030405060708090a0b0c0d0e0f",
+      "path": null,
+      "fields": null,
+      "url": "000102030405060708090a0b0c0d0e0f:"
+    },
+    {
+      "name": "page",
+      "hash": "000102030405060708090a0b0c0d0e0f",
+      "path": "/page/index.mu",
+      "fields": null,
+      "url": "000102030405060708090a0b0c0d0e0f:/page/index.mu"
+    },
+    {
+      "name": "fields",
+      "hash": "000102030405060708090a0b0c0d0e0f",
+      "path": "/page/search.mu",
+      "fields": {
+        "var_query": "Synthetic \u03bb",
+        "ignored": "not-in-url",
+        "var_empty": ""
+      },
+      "url": "000102030405060708090a0b0c0d0e0f:/page/search.mu`query=Synthetic \u03bb|empty="
+    }
+  ],
+  "confinement": [
+    {
+      "name": "empty",
+      "input": "",
+      "result": null
+    },
+    {
+      "name": "blank",
+      "input": "  ",
+      "result": null
+    },
+    {
+      "name": "relative",
+      "input": "index.mu",
+      "result": "pages/index.mu"
+    },
+    {
+      "name": "nested",
+      "input": "manual/chapter.mu",
+      "result": "pages/manual/chapter.mu"
+    },
+    {
+      "name": "sibling-root",
+      "input": "../files/data.txt",
+      "result": "files/data.txt"
+    },
+    {
+      "name": "escape",
+      "input": "../outside.txt",
+      "result": null
+    },
+    {
+      "name": "traversal",
+      "input": "../../outside.txt",
+      "result": null
+    },
+    {
+      "name": "absolute-pages",
+      "input": "<root>/pages/absolute.mu",
+      "result": "pages/absolute.mu"
+    },
+    {
+      "name": "absolute-files",
+      "input": "<root>/files/data.bin",
+      "result": "files/data.bin"
+    },
+    {
+      "name": "outside-absolute",
+      "input": "<root>/outside.txt",
+      "result": null
+    },
+    {
+      "name": "root",
+      "input": "<root>/pages",
+      "result": "pages"
+    },
+    {
+      "name": "home",
+      "input": "~",
+      "result": null
+    }
+  ],
+  "atomicWrite": {
+    "text": ">Original preview\nSynthetic \u03bb\n",
+    "modePreserved": true,
+    "temporaryFiles": []
+  }
+}

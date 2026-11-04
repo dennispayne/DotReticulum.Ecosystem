@@ -8,6 +8,167 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Nomad node-state migration C74 now has independent parent no-build/no-republish
+replay of both immutable candidates. Windows full snapshot Nomad267/9 and
+Linux276/0, shared LXMF162/28 each, the separate primary observation and three
+native cases pass. Both recipes verify873 compiled-source/179 generated-source
+documents and the exact native/compiler/reference inputs. These are retained
+pre-printing source snapshots, not current whole-project acceptance.
+The retained first Windows printing `childhang` failure exposed unjoined
+descendants. Its suspended-start/private-Job correction independently passes
+the selected20-case native primary gate and deterministic exited-root/locked-file
+cleanup/recovery. A separately reproduced Linux exited-root orphan requires the
+new subreaper/pidfd supervisor and fresh acceptance; Windows evidence does not
+close that Linux gap.
+
+The independently executed Linux current-source C74 gate subsequently passes
+the full LXMF/Nomad suites, strict publish/help and four primary/native cases.
+Its receipt is `/home/dennis/fleet-nomad-node-parent-current-results/current-source.json`,
+with native SHA-256
+`5af5579142e4b6e72fe1d6ed19b41f436b432a64b1ce5106e7c54313f9c0b70d`.
+The fixed-stack repeat also passes with selected native SHA-256
+`bdd71abb789779e9799987ca23bee83869c051468d1e70341c08a8cebaf8a043`.
+Neither is acceptance of subsequently added clipboard/printing behavior.
+
+The later ordinary resumed solution gate builds without warnings but fails
+`PropagatedMessage_IsStoredRetrievedAndAcknowledged` (`Sent` expected, `Failed`
+observed). The isolated case and subsequent full LXMF162/28 rerun pass; these
+do not explain or close the original intermittent failure. Failure-only router
+diagnostics now accompany the unchanged state assertion. Evidence remains under
+`artifacts\tests\resume-resource-lifetime`. The later ordinary Windows
+`parent-resource-unified-windows` gate passes build, all managed projects,
+Pester tooling, strict compatibility aggregation and merged coverage against
+stack2331aee. That pass is scoped to its retained source snapshot; it does not
+explain the original intermittent propagation failure or accept later edits.
+
+Nomad utilities C79 currently passes13 focused managed/reference/TCP cases on
+each host. Three separate immutable native process cases pass per host for
+owner/cancellation/restart and both-origin4-MiB authorized speed transfers,
+refusal and recovery. Fresh guarded fixed-stack native candidates include
+the proof measurements and whole-staging file deadline. The actual primary-controller
+bridge uses original utility classes/Urwid widgets with a disclosed bounded
+headless owner, not a primary application constructor or GUI. Primary/native
+testing reproduces a required stack3cdf callback-lifetime race: a successful
+primary sender normally closes before an external completed-Resource callback
+can open already-disposed data. Passing repetitions do not resolve that gap.
+The local independent stack commit2331aee fixes callback ownership, with no
+Python mutation or teardown delay. Parent independently replays the selected
+Windows/Linux actual-primary T362/T363 gates2/0 each, including sixteen spaced
+both-origin4-MiB pairs in unchanged processes over at least600 seconds and
+payload cleanup before/after shutdown. Windows's primary rncp unlink defect is
+explicitly asserted. New hop/impaired, hours-long and maximum-size acceptance
+remain unverified. Exact source/native hashes, commands and retained failures
+are in [NomadNet's reference](nomadnet.md).
+
+The preceding Sideband console candidate passes full managed2069/74 explicit skips and
+enabled live4/0 on both hosts. Linux strict NativeAOT/help and five native cases
+pass with selected SHA-256
+`cdb9019e9b46e021f6c2e129e7af6966c48b87ccf50f83db50b7dcdc62a25da4`.
+Windows's four existing native flows pass; added T321 profile/map long-path
+restart fails the stack's raw Win32 atomic-publication limit. Its retained
+`windows-sqlite-final` failure must not be relabelled accepted. SQLite itself
+passes canonical extended-path/VFS and escaped immutable-URI managed cases.
+Linux VFS512-byte pathname budget remains explicit;600-character cases skip
+there. The exact public pending-dial task is now owned/joined on disposal and
+voice fixtures bind their actual port0 server rather than releasing/rebinding
+a probe socket. These preceding source boundaries are distinct from the current
+Windows acceptance below.
+
+A subsequent retained Windows hangup regression fails because hangup returns
+before that same public dial task completes. Hangup now joins it, and all call
+admission/busy checks retain the pending-dial reservation. All16 Windows voice
+lifecycle cases pass, including16 immediate-hangup/healthy-next-call cycles.
+The new Linux replay cannot start: WSL reports filesystem I/O errors reading
+both ordinary/root account and locale files. Reclaiming79.94GiB of redundant
+generated SkiaSharp package-symbol copies leaves the error unchanged. No shared
+WSL shutdown, filesystem repair or distribution restart was attempted. This is
+a current platform blocker (`/dev/sdd`, ext4 `emergency_ro`), not a Linux pass or a reason to waive the unchanged
+assertions; previous Linux evidence retains its original source boundary.
+
+The independent stack path fix is locally committed as
+`e52da394658f6f6c723214a9f811552418789cb6` on2331aee, with no wire change or push.
+Its Windows whole-stack result1855/77 is explicitly **serialized xUnit collection
+acceptance** after two retained default-parallel timing failures; Linux full
+default acceptance is1851/76. Parent independently replays the exact Windows
+strict-native binary5/0, including four eight-process long-path identity
+contention/restart cases (local, extended and authorized loopback UNC) and the
+existing encrypted/compressed2.2MB resource. This is not a claim of default-
+parallel Windows stack acceptance. The same old raw Win32 path defect
+independently fails the retained parent C74 Windows replay2/4 at nested
+ordinary paths; paths/assertions remain unchanged.
+
+The preceding e52 integrated Windows solution builds without warnings and
+passes2689 managed cases/146 explicit skips. Its guarded Sideband acceptance
+passes2070/74, separately enabled live4/0 and strict NativeAOT/help/native5/0,
+including unchanged T321 long paths and exact pending-dial hangup ownership.
+Selected native SHA-256:
+`475dded1fd88aab15f0c4ad7d1a05950c9d8b4b4a05bdbded3753e6603b5d200`.
+Fresh guarded Nomad NativeAOT SHA-256
+`34d1ff11278cf7679e5c973b71697f90008333cbabafb11c09a0e07de03f4110`
+independently passes22 printing/ownership/private-mode checks and nine separate
+node-migration/clipboard/utility cases. C74 repeats its real multi-megabyte
+primary/node transfers after clean/abrupt native restart at longer nested paths,
+not shortened workspaces. This same source-guarded Nomad candidate also repeats
+actual-primary T362/T3632/0:601.876 measured endurance seconds, sixteen both-origin
+4MiB pairs/128MiB payload, continued responsiveness, exact digests, no payload
+leaks before/after shutdown and zero process exit codes. The complete unchanged
+two-case run takes613.18seconds. Linux current-source/pin replay remains blocked.
+
+The preceding Windows unified
+`pwsh -NoProfile -File tests\run-tests.ps1 -Coverage -Pester
+-ArtifactsPath artifacts\builds\fleet-e52-unified
+-OutputDirectory artifacts\tests\fleet-e52-unified`
+also passes all selected managed/Pester/strict aggregation checks. Coverage
+unions ten reports by source line/branch; the ordinary run's explicit missing
+live/native/hardware records remain visible rather than being promoted by
+separate scoped gates. It does not explain the retained intermittent propagation
+failure or establish complete application parity.
+
+The automatic conversation-name correction adds independently executed
+primary SQLite write observations and four regressions, including original
+desktop controls. The current full Windows solution builds with zero warnings/
+errors and passes2693/146 explicit skips:
+
+```powershell
+dotnet build DotReticulum.Ecosystem.slnx -c Release --artifacts-path artifacts\builds\fleet-e52-integration --nologo -v:q
+dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build --artifacts-path artifacts\builds\fleet-e52-integration --logger trx --results-directory artifacts\tests\fleet-e52-auto-names --nologo -v:q
+```
+
+Fresh source-guarded Sideband managed2074/74, actual-primary live4/0 and
+strict NativeAOT/help/native5/0 pass for
+`d4d862a6dd4680ece5765b92f5b325cfc87c5e3c87e296c9fdcb5bc0e290190c`.
+The native pair now also verifies automatic creation, alias clearing and
+continued announce-name updates after restart. Separate Nomad/lxmd/rnphone
+accepted candidates above are unaffected by this Sideband-only correction.
+Current Linux evidence remains blocked, not inferred.
+
+The refreshed unified gate also passes:
+
+```powershell
+& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-e52-unified-auto-names -OutputDirectory artifacts\tests\fleet-e52-unified-auto-names
+```
+
+Its80 claims/345 selectors retain explicit unavailable live/native/hardware
+records; ten coverage reports are unioned, not averaged. This ordinary gate
+does not substitute for the separately opted-in native/live acceptance.
+
+Fresh strict Windows e52 `lxmd` help/six unchanged native daemon cases also pass
+(504.22seconds), including actual primary delivery, authenticated retrieval,
+control/expiry timing and two-native/Python propagation with failed-peer restart.
+Fresh `rnphone` help and four native cases pass with synthetic real-Opus phones,
+CLI rejection and the existing phonebook/reload/identity-restart case now enabled
+on Windows. Only the separate SIGTERM case retains its Linux-only skip; four
+Linux device/service/virtual-audio cases skip in the Windows gate. Toolchain
+assets verify SDK10.0.403 and compiler/runtime10.0.14. Exact native hashes and
+topology boundaries are in [LXMF](lxmf.md) and [LXST](lxst.md); this is not physical
+audio or a fresh Linux pass.
+
+The unexplained original propagation failure also has a bounded no-build
+20-repetition diagnostic replay against the2331aee compiled ecosystem snapshot:
+all20 unchanged cases pass. Per-run TRX and test/library hashes remain in
+`artifacts\tests\nomad-utilities\propagation-repeat`; this is additional evidence,
+not retroactive root-cause attribution.
+
 Sideband standalone startup C76/T290–296 records14 actual passing cases per
 host:12 managed/reference/original-UI/actual-primary cases and2 strict native
 offline cases. Enabled startup is measured at no less than8 seconds in both

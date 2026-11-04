@@ -6,11 +6,16 @@ public sealed partial class SidebandStateStore
 {
     internal Task ObserveDeliveryAnnounceAsync(SidebandContact contact, CancellationToken cancellationToken = default)
     {
-        var validated = SidebandContact.Create(contact.DisplayName, contact.DeliveryHash) with { ConversationKnown = false };
+        var validated = SidebandContact.Create(contact.DisplayName, contact.DeliveryHash)
+            with { ConversationKnown = false, NameIsUserDefined = false };
         return MutateAsync(state =>
         {
             var existing = state.Contacts.FirstOrDefault(item => item.DeliveryHash == validated.DeliveryHash);
-            var observed = existing is null ? validated : existing with { DisplayName = validated.DisplayName };
+            var observed = existing is null ? validated : existing with
+            {
+                DisplayName = existing.HasSavedName ? existing.DisplayName : validated.DisplayName,
+                NameIsUserDefined = existing.HasSavedName,
+            };
             var contacts = state.Contacts.Where(item => item.DeliveryHash != observed.DeliveryHash).Append(observed).ToArray();
             if (contacts.Length > 1_000) throw new InvalidOperationException("The contact list is full.");
             return state with { Contacts = contacts };

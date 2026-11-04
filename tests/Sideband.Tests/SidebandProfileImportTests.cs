@@ -361,8 +361,9 @@ public sealed partial class SidebandProfileImportTests
         internal string Root { get; } = Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "profile-tests-" + Guid.NewGuid().ToString("N"));
         internal string Source => Path.Combine(Root, "source");
         internal string Target => Path.Combine(Root, "native");
-        internal Profile()
+        internal Profile(string? root = null)
         {
+            if (root is not null) Root = root;
             Directory.CreateDirectory(Source);
             using var fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "sideband-profile.json")));
             File.WriteAllBytes(Path.Combine(Source, "sideband.db"), Convert.FromBase64String(fixture.RootElement.GetProperty("emptyDatabase").GetString()!));

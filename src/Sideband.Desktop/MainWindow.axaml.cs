@@ -45,6 +45,7 @@ public sealed partial class MainWindow : Window
     private CancellationTokenSource? _dialCancellation;
 
     internal static bool SmokeUiSucceeded { get; private set; }
+    public Task Initialization => _initializationTask;
 
     public MainWindow() : this(Program.DataDirectory, null, smokeUi: false) { }
 
@@ -756,6 +757,17 @@ public sealed partial class MainWindow : Window
             SetStatus("Conversation trust saved. Trusted outgoing messages request a signed reply ticket.");
         }
         catch (Exception ex) { ShowError("Could not save conversation trust: " + ex.Message); }
+    });
+
+    private void FollowConversationAnnounceClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
+    {
+        try
+        {
+            var peer = _selectedContact ?? throw new InvalidOperationException("Select a conversation before changing its name.");
+            await _client.SetConversationNameAsync(peer, string.Empty, _windowCancellation.Token);
+            SetStatus("Conversation now follows delivery announcements.");
+        }
+        catch (Exception ex) { ShowError("Could not change conversation name: " + ex.Message); }
     });
 
     private void MarkConversationUnreadClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>

@@ -7,6 +7,8 @@ namespace NomadNet;
 /// <summary>Bounded local attachment reads that do not open Unix FIFOs in blocking mode.</summary>
 public static partial class NomadNetLocalFiles
 {
+    internal static FileStream OpenRead(string path) => new(Open(Normalize(path)), FileAccess.Read, 8192, isAsync: false);
+
     public static bool IsRegularFile(string path)
     {
         path = Normalize(path);

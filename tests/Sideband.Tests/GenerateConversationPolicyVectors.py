@@ -1,10 +1,13 @@
 """Execute primary Sideband trust and send policy with disclosed API dependencies."""
 import argparse
 import ast
+import contextlib
 import hashlib
 import json
 from pathlib import Path
+import sqlite3
 import subprocess
+import threading
 from types import MethodType, SimpleNamespace
 
 import LXMF
@@ -32,7 +35,8 @@ def main():
     core = next(node for node in ast.parse(source).body
                 if isinstance(node, ast.ClassDef) and node.name == "SidebandCore")
     methods = [node for node in core.body if isinstance(node, ast.FunctionDef)
-               and node.name in ("is_trusted", "send_message")]
+               and node.name in ("is_trusted", "send_message", "raw_display_name", "peer_display_name",
+                                 "named_conversation", "_db_conversation_set_name")]
     created = []
 
     def message(*_, **kwargs):
@@ -51,7 +55,8 @@ def main():
     namespace = {"RNS": rns, "LXMF": SimpleNamespace(
         LXMessage=message, FIELD_RENDERER=LXMF.FIELD_RENDERER,
         RENDERER_MARKDOWN=LXMF.RENDERER_MARKDOWN,
-        RENDERER_BBCODE=LXMF.RENDERER_BBCODE)}
+        RENDERER_BBCODE=LXMF.RENDERER_BBCODE,
+        display_name_from_app_data=LXMF.display_name_from_app_data)}
     for name in ("DIRECT", "OPPORTUNISTIC", "PROPAGATED"):
         setattr(message, name, getattr(LXMF.LXMessage, name))
     exec(compile(ast.Module(body=methods, type_ignores=[]), "core.py", "exec"), namespace)
@@ -75,10 +80,55 @@ def main():
         cases.append({"name": name, "database_trust": trust,
                       "trusted": owner.is_trusted(bytes(16)),
                       "include_ticket": created[-1]["include_ticket"]})
-    args.output.write_text(json.dumps({
+    names = []
+    for saved in (None, "", "Saved peer", "Saved \u03b1"):
+        for announced in ("Announced first", "Announced replacement"):
+            rns.Identity.recall_app_data = lambda _, value=announced: value.encode("utf-8")
+            owner = SimpleNamespace(
+                lxmf_destination=SimpleNamespace(hash=bytes(16)),
+                config={"display_name": "Local"},
+                _db_conversation=lambda _, value=saved: {"name": value, "trust": 1})
+            names.append({"saved": saved, "announced": announced,
+                          "raw": namespace["raw_display_name"](owner, bytes([1]) * 16),
+                          "display": namespace["peer_display_name"](owner, bytes([1]) * 16)})
+    renames = []
+    peer = bytes([1]) * 16
+    for label, value in (("clear", ""), ("replace", "New saved \u03bb"), ("null", None)):
+        with contextlib.closing(sqlite3.connect(":memory:")) as database:
+            database.execute("CREATE TABLE conv(dest_context BLOB, name BLOB, trust INTEGER)")
+            database.execute("INSERT INTO conv VALUES(?,?,?)", (peer, b"Saved peer", 1))
+
+            def conversation(destination):
+                row = database.execute(
+                    "SELECT name,trust FROM conv WHERE dest_context=?", (destination,)).fetchone()
+                return None if row is None else {"name": row[0].decode("utf-8"), "trust": row[1]}
+
+            observed = {"name": "Announced first"}
+            rns.Identity.recall_app_data = lambda _: observed["name"].encode("utf-8")
+            owner = SimpleNamespace(
+                lxmf_destination=SimpleNamespace(hash=bytes(16)), config={"display_name": "Local"},
+                db_lock=threading.Lock(), _db_conversation=conversation)
+            owner.__db_connect = lambda: database
+            owner._db_conversation_set_name = MethodType(namespace["_db_conversation_set_name"], owner)
+            error = None
+            try:
+                namespace["named_conversation"](owner, value, peer)
+            except AttributeError as exception:
+                if value is not None:
+                    raise
+                error = type(exception).__name__
+            row = {"name": label, "input": value, "error": error,
+                   "raw": namespace["raw_display_name"](owner, peer),
+                   "display": namespace["peer_display_name"](owner, peer)}
+            observed["name"] = "Announced replacement"
+            row["after_announce"] = namespace["peer_display_name"](owner, peer)
+            renames.append(row)
+    result = {
         "revision": PIN, "source_sha256": DIGEST,
-        "method": "actual is_trusted and send_message; injected database, message factory, destination, router and ingestion APIs",
-        "cases": cases}, indent=4) + "\n", encoding="utf-8")
+        "method": "actual is_trusted/send_message/raw_display_name/peer_display_name plus named_conversation/_db_conversation_set_name on real private SQLite; injected connection/read/announce cache/message/router APIs and synthetic owner",
+        "cases": cases, "name_cases": names, "rename_cases": renames}
+    with args.output.open("w", encoding="utf-8", newline="\n") as output:
+        output.write(json.dumps(result, indent=4) + "\n")
 
 
 if __name__ == "__main__":

@@ -78,7 +78,7 @@ internal static class NomadNetRouterProfile
                     UnixFileMode.UserRead | UnixFileMode.UserWrite);
         token.ThrowIfCancellationRequested();
         warnings.Add("Activated only primary storage/lxmf client tickets, outbound stamp costs, delivered/processed duplicate histories and this identity's signed delivery ratchets when present; shared LXMF expiry/grace rules apply on load.");
-        warnings.Add("Client queues/links are memory-only and are not resumed. node_stats is written by a primary client but reloaded only when enabling propagation; it is not activated. Propagation peers/messagestore, other identities' ratchets, interrupted writes, unknown files and RNS global caches/interfaces are not imported.");
+        warnings.Add("Client queues/links are memory-only and are not resumed. node_stats is written by a primary client but reloaded only when enabling propagation; node_stats/peers/messagestore are handled separately only when imported configuration enables propagation. Other identities' ratchets, interrupted writes, unknown files and RNS global caches/interfaces are not imported.");
         warnings.Add("Router bounds: 4 MiB tickets, 8 MiB each cache, 4096 destinations per ticket map, 16 inbound tickets per destination, 65536 cache entries and 512 own signed ratchets. Malformed or unsupported stores fail the entire profile transaction, never silently reset, truncate or replace the identity.");
     }
 

@@ -93,6 +93,8 @@
                   <Button x:Name="SaveConversationTrustButton" Content="Save trust" Click="SaveConversationTrustClicked" />
                   <Button x:Name="MarkConversationUnreadButton" Content="Mark unread" Click="MarkConversationUnreadClicked" />
                 </StackPanel>
+                <Button x:Name="FollowConversationAnnounceButton" Content="Use announced name" Margin="0,6,0,0"
+                        Click="FollowConversationAnnounceClicked" />
               </StackPanel>
               <StackPanel Grid.Row="1" Spacing="6">
                 <ListBox x:Name="MessageList" MinHeight="240" SelectionChanged="MessageSelectionChanged" />

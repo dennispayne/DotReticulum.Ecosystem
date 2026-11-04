@@ -54,7 +54,7 @@ public sealed class SidebandVoiceService : IAsyncDisposable
     private Task _autoAnswer = Task.CompletedTask;
     private Task _ending = Task.CompletedTask;
     private long _endingGeneration;
-    private TaskCompletionSource? _dialCompletion;
+    private Task _dial = Task.CompletedTask;
     private Task? _disposal;
 
     public SidebandVoiceService(TransportRouter router, Identity identity, IAudioDeviceBackend devices,
@@ -86,7 +86,7 @@ public sealed class SidebandVoiceService : IAsyncDisposable
     public SidebandVoicePolicy Policy => Volatile.Read(ref _policy);
     public bool IsBusy
     {
-        get { var telephoneBusy = _telephone.IsBusy; lock (_gate) return telephoneBusy || _callActive; }
+        get { var telephoneBusy = _telephone.IsBusy;         lock (_gate) return telephoneBusy || _callActive || !_dial.IsCompleted; }
     }
 
     public SidebandVoiceSnapshot Snapshot
@@ -116,7 +116,7 @@ public sealed class SidebandVoiceService : IAsyncDisposable
     private bool AuthorizeCaller(Identity peer)
     {
         if (!Policy.IsAllowed(peer.HexHash)) return false;
-        lock (_gate) return !_disposed && !_callActive;
+        lock (_gate) return !_disposed && !_callActive && _dial.IsCompleted;
     }
 
     public void Start()
@@ -171,7 +171,7 @@ public sealed class SidebandVoiceService : IAsyncDisposable
         Publish();
     }
 
-    public async Task CallAsync(Identity remote, TelephoneProfile profile = TelephoneProfile.MediumQuality,
+    public Task CallAsync(Identity remote, TelephoneProfile profile = TelephoneProfile.MediumQuality,
         TelephoneMode mode = TelephoneMode.FullDuplex, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(remote);
@@ -179,17 +179,20 @@ public sealed class SidebandVoiceService : IAsyncDisposable
         if (!Enum.IsDefined(profile)) throw new ArgumentOutOfRangeException(nameof(profile));
         if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
         cancellationToken.ThrowIfCancellationRequested();
-        long generation;
-        CancellationToken token;
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_callActive) throw new InvalidOperationException("Voice is busy.");
-            generation = BeginCall(remote.HexHash, incoming: false);
-            token = _callStop!.Token;
-            _dialCompletion = completion;
+            if (_callActive || !_dial.IsCompleted) throw new InvalidOperationException("Voice is busy.");
+            var generation = BeginCall(remote.HexHash, incoming: false);
+            var token = _callStop!.Token;
+            // Register the exact public task before endpoint work can take its own lock.
+            return _dial = Task.Run(() => CallCoreAsync(remote, profile, mode, generation, token, cancellationToken));
         }
+    }
+
+    private async Task CallCoreAsync(Identity remote, TelephoneProfile profile, TelephoneMode mode,
+        long generation, CancellationToken token, CancellationToken cancellationToken)
+    {
         using var request = CancellationTokenSource.CreateLinkedTokenSource(token, cancellationToken);
         try
         {
@@ -227,12 +230,6 @@ public sealed class SidebandVoiceService : IAsyncDisposable
             ResetUnattachedCall(generation);
             throw;
         }
-        finally
-        {
-            completion.TrySetResult();
-            lock (_gate)
-                if (ReferenceEquals(_dialCompletion, completion)) _dialCompletion = null;
-        }
     }
 
     public ValueTask AnswerAsync(CancellationToken cancellationToken = default)
@@ -268,9 +265,12 @@ public sealed class SidebandVoiceService : IAsyncDisposable
         await _telephone.HangupAsync(cancellationToken).ConfigureAwait(false);
         Task capture;
         Task autoAnswer;
+        Task dial;
         Task ending;
-        lock (_gate) { capture = _capture; autoAnswer = _autoAnswer; ending = _ending; }
-        await Task.WhenAll(capture, autoAnswer, ending, _ringer.StopAsync()).WaitAsync(cancellationToken).ConfigureAwait(false);
+        lock (_gate) { capture = _capture; autoAnswer = _autoAnswer; dial = _dial; ending = _ending; }
+        // A cancelled dial must finish its endpoint cleanup before the next caller can reuse it.
+        await Task.WhenAll(capture, autoAnswer, Task.WhenAny(dial), ending, _ringer.StopAsync())
+            .WaitAsync(cancellationToken).ConfigureAwait(false);
         ResetUnattachedCall(generation);
     }
 
@@ -538,8 +538,9 @@ public sealed class SidebandVoiceService : IAsyncDisposable
             Task autoAnswer;
             Task dial;
             Task ending;
-            lock (_gate) { capture = _capture; autoAnswer = _autoAnswer; dial = _dialCompletion?.Task ?? Task.CompletedTask; ending = _ending; }
-            await Task.WhenAll(capture, autoAnswer, dial, ending).ConfigureAwait(false);
+            lock (_gate) { capture = _capture; autoAnswer = _autoAnswer; dial = _dial; ending = _ending; }
+            // Dial errors belong to the caller; disposal joins the exact public task without rethrowing them.
+            await Task.WhenAll(capture, autoAnswer, Task.WhenAny(dial), ending).ConfigureAwait(false);
         }
         finally
         {

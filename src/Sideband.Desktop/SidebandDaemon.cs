@@ -10,15 +10,30 @@ public static class SidebandDaemon
     public static async Task<int> RunAsync(string dataDirectory, string? reticulumConfig, bool interactive,
         bool syntheticAudio, bool verbose, TextReader input, TextWriter output, TextWriter error, CancellationToken token)
     {
+        var standardInput = ReferenceEquals(input, Console.In);
+        var standardOutput = ReferenceEquals(output, Console.Out);
+        var standardError = ReferenceEquals(error, Console.Error);
+        if (standardInput)
+        {
+            Console.InputEncoding = new UTF8Encoding(false, true);
+            input = Console.In;
+        }
+        if (standardOutput || standardError)
+        {
+            Console.OutputEncoding = new UTF8Encoding(false);
+            if (standardOutput) output = Console.Out;
+            if (standardError) error = Console.Error;
+        }
         var store = new SidebandStateStore(dataDirectory);
         await using var client = new SidebandClient(store, syntheticAudio ? new HeadlessAudioDeviceBackend() : null);
         var outputGate = new object();
+        await using var console = new SidebandConsole(client, store, text => Write(output, text), text => Write(error, "ERROR " + text), token);
         CancellationTokenSource? dialStop = null;
         Task dial = Task.CompletedTask;
-        client.ErrorReported += message => Write(error, "ERROR " + message);
+        client.ErrorReported += message => Write(error, "ERROR " + SidebandConsoleSyntax.Safe(message));
         client.VoiceStateChanged += snapshot =>
         {
-            if (verbose) Write(output, $"VOICE state={snapshot.State} peer={snapshot.RemoteIdentityHash ?? "none"}");
+            if (verbose || console.IsStreaming) Write(output, $"VOICE state={snapshot.State} peer={snapshot.RemoteIdentityHash ?? "none"}");
         };
         try
         {
@@ -37,14 +52,17 @@ public static class SidebandDaemon
                 try { line = await Task.Run(() => ReadLineAsync(input, token), CancellationToken.None).WaitAsync(token).ConfigureAwait(false); }
                 catch (InvalidDataException exception) { Write(error, "ERROR " + exception.Message); continue; }
                 if (line is null) break;
-                var args = line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                if (args.Length == 0) continue;
                 try
                 {
-                    if (args is ["quit"] or ["exit"]) break;
-                    if (args is ["help"])
-                        Write(output, "Native console: status; voice status|enable|disable|announce|dial IDENTITY|answer|reject|hangup|log|log clear|profile VALUE|mode VALUE|mute mic|mute spk|unmute mic|unmute spk|ptt on|ptt off; quit. Functional voice commands are native extensions; pinned upstream handlers are placeholders.");
-                    else if (args is ["status"] or ["voice", "status"])
+                    using var commandStop = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    commandStop.CancelAfter(TimeSpan.FromSeconds(5));
+                    var args = SidebandConsoleSyntax.Parse(line);
+                    if (console.EndStream(args)) continue;
+                    var invocation = SidebandConsoleSyntax.Resolve(args);
+                    if (invocation is null) continue;
+                    if (invocation.Command.Name is "quit" or "exit") break;
+                    if (await console.ExecuteAsync(invocation, commandStop.Token).ConfigureAwait(false)) continue;
+                    if (args is ["voice", "status"])
                     {
                         var voice = client.VoiceSnapshot;
                         Write(output, voice is null ? "STATUS voice=disabled" :
@@ -71,7 +89,18 @@ public static class SidebandDaemon
                         if (!dial.IsCompleted) throw new InvalidOperationException("A call is already being placed.");
                         dialStop?.Dispose();
                         dialStop = CancellationTokenSource.CreateLinkedTokenSource(token);
-                        dial = DialAsync(identity, dialStop.Token);
+                        dialStop.CancelAfter(TimeSpan.FromMinutes(2));
+                        dial = DialAsync(identity, TelephoneProfile.MediumQuality, dialStop.Token);
+                        Write(output, "OK voice dial queued");
+                    }
+                    else if (args is ["voice", "dial", var selectedIdentity, var selectedProfile])
+                    {
+                        var profile = ParseEnum<TelephoneProfile>(selectedProfile);
+                        if (!dial.IsCompleted) throw new InvalidOperationException("A call is already being placed.");
+                        dialStop?.Dispose();
+                        dialStop = CancellationTokenSource.CreateLinkedTokenSource(token);
+                        dialStop.CancelAfter(TimeSpan.FromMinutes(2));
+                        dial = DialAsync(selectedIdentity, profile, dialStop.Token);
                         Write(output, "OK voice dial queued");
                     }
                     else if (args is ["voice", "hangup"])
@@ -129,7 +158,11 @@ public static class SidebandDaemon
                 }
                 catch (Exception exception) when (IsCommandFailure(exception))
                 {
-                    Write(error, "ERROR " + exception.Message);
+                    Write(error, "ERROR " + SidebandConsoleSyntax.Safe(exception.Message));
+                }
+                catch (OperationCanceledException) when (!token.IsCancellationRequested)
+                {
+                    Write(error, "ERROR foreground command exceeded its five-second budget or was cancelled; inspect status before retrying.");
                 }
             }
             return 0;
@@ -142,11 +175,11 @@ public static class SidebandDaemon
             dialStop?.Dispose();
         }
 
-        async Task DialAsync(string identity, CancellationToken dialToken)
+        async Task DialAsync(string identity, TelephoneProfile profile, CancellationToken dialToken)
         {
-            try { await client.CallIdentityAsync(identity, cancellationToken: dialToken).ConfigureAwait(false); }
+            try { await client.CallIdentityAsync(identity, profile, cancellationToken: dialToken).ConfigureAwait(false); }
             catch (OperationCanceledException) when (dialToken.IsCancellationRequested) { Write(output, "CANCELLED voice dial"); }
-            catch (Exception exception) when (IsCommandFailure(exception)) { Write(error, "ERROR " + exception.Message); }
+            catch (Exception exception) when (IsCommandFailure(exception)) { Write(error, "ERROR " + SidebandConsoleSyntax.Safe(exception.Message)); }
         }
 
         void Write(TextWriter writer, string text)
@@ -156,7 +189,8 @@ public static class SidebandDaemon
     }
 
     private static bool IsCommandFailure(Exception exception) => exception is ArgumentException or InvalidOperationException or
-        IOException or InvalidDataException or TimeoutException or DllNotFoundException or EntryPointNotFoundException or NotSupportedException;
+        IOException or InvalidDataException or TimeoutException or DllNotFoundException or EntryPointNotFoundException or NotSupportedException or
+        System.Text.Json.JsonException or FormatException or OverflowException;
 
     private static T ParseEnum<T>(string value) where T : struct, Enum =>
         Enum.TryParse<T>(value, true, out var parsed) && Enum.IsDefined(parsed)

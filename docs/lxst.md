@@ -630,6 +630,29 @@ Other Windows codec/file DLLs have not been verified by this headless Opus gate.
 
 ## Evidence and reproduction
 
+### Selected Windows native integration
+
+The fresh e52-stack `rnphone` NativeAOT candidate uses SDK10.0.403 and serviced
+compiler/runtime10.0.14, with strict trim/ILC warnings as errors. SHA-256:
+`6eafd7c9637f0f34d3ca016bf593a913b74b8fe95306d47b81e7c4c1bfc8c63b`.
+Its help and four native cases pass: two-process real Opus profiles in both
+directions with synthetic silence/identity restart, CLI validation, explicit
+unsupported hardware rejection, and actual phonebook/config/identity reload/
+restart. The existing phonebook case is now independently enabled on Windows;
+only its separate SIGTERM service case remains Linux-only. No assertion was
+removed or relaxed.
+
+Four Linux-only device/service/virtual-audio cases explicitly skip. This
+Windows result is not Python-phone, physical audio or Linux current-pin
+acceptance. Linux replay is blocked by WSL storage I/O and an emergency read-only
+filesystem. Earlier Linux and one-hour results below retain their exact source
+and native provenance. Source hashes are unchanged through strict publication
+and the complete Windows process gate. Replay:
+
+```powershell
+& artifacts\tests\Parent-CoreNativeE52.ps1 -Utility rnphone
+```
+
 ### Serviced Linux native utility
 
 The selected freshly published Linux phone uses SDK10.0.403/NativeAOT

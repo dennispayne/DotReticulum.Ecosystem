@@ -7,7 +7,7 @@ public enum LxmPeerSyncStrategy { Lazy = 1, Persistent = 2 }
 internal sealed record LxmPeerOfferEntry(byte[] Id, double Weight, long Size, int StampValue);
 
 /// <summary>Persistent propagation peer state. Wire storage matches LXMPeer.to_bytes/from_bytes.</summary>
-public sealed class LxmPeer
+public sealed partial class LxmPeer
 {
     private readonly HashSet<string> _handled = [];
     private readonly HashSet<string> _unhandled = [];
@@ -150,9 +150,8 @@ public sealed class LxmPeer
     public static LxmPeer FromBytes(ReadOnlySpan<byte> bytes, Func<byte[], bool> messageExists)
     {
         ArgumentNullException.ThrowIfNull(messageExists);
-        if (MsgPack.UnpackApplicationValue(bytes) is not Dictionary<object, object?> map ||
-            !map.TryGetValue("destination_hash", out var destination) || destination is not byte[] { Length: 16 } hash)
-            throw new FormatException("Invalid propagation peer.");
+        var map = ReadPersistedMap(bytes);
+        var hash = (byte[])map["destination_hash"]!;
         double Number(string key, double fallback = 0) => map.TryGetValue(key, out var value) && value is not null ? MsgPack.ToDouble(value) : fallback;
         int? Cost(string key) => map.TryGetValue(key, out var value) && value is not null ? checked((int)MsgPack.ToInt64(value)) : null;
         var peer = new LxmPeer(hash)
@@ -170,11 +169,11 @@ public sealed class LxmPeer
             StampFlexibility = Cost("propagation_stamp_cost_flexibility"),
             PeeringCost = Cost("peering_cost"),
             LastSyncAttempt = Number("last_sync_attempt"),
-            Offered = checked((long)Number("offered")),
-            Outgoing = checked((long)Number("outgoing")),
-            Incoming = checked((long)Number("incoming")),
-            RxBytes = checked((long)Number("rx_bytes")),
-            TxBytes = checked((long)Number("tx_bytes")),
+            Offered = MsgPack.ToInt64(map.GetValueOrDefault("offered") ?? 0L),
+            Outgoing = MsgPack.ToInt64(map.GetValueOrDefault("outgoing") ?? 0L),
+            Incoming = MsgPack.ToInt64(map.GetValueOrDefault("incoming") ?? 0L),
+            RxBytes = MsgPack.ToInt64(map.GetValueOrDefault("rx_bytes") ?? 0L),
+            TxBytes = MsgPack.ToInt64(map.GetValueOrDefault("tx_bytes") ?? 0L),
         };
         if (map.GetValueOrDefault("peering_key") is object?[] { Length: 2 } key &&
             key[0] is byte[] { Length: 32 } token)

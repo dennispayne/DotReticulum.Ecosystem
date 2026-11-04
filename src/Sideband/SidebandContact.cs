@@ -2,8 +2,12 @@ namespace Sideband;
 
 public sealed record SidebandContact(string DeliveryHash, string DisplayName, bool Trusted = false, bool Unread = false,
     bool DirectPushToTalk = false, bool SendTelemetry = false, bool AllowTelemetryRequests = false,
-    SidebandTelemetryAppearance? Appearance = null, bool ConversationKnown = true, bool IsObject = false)
+    SidebandTelemetryAppearance? Appearance = null, bool ConversationKnown = true, bool IsObject = false,
+    bool? NameIsUserDefined = null)
 {
+    internal bool HasSavedName => NameIsUserDefined ??
+        (ConversationKnown && !string.Equals(DisplayName, DeliveryHash, StringComparison.OrdinalIgnoreCase));
+
     public static bool TryNormalizeDeliveryHash(string? value, out string normalized)
     {
         normalized = string.Empty;

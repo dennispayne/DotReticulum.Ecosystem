@@ -4,9 +4,13 @@ Experimental, independently authored .NET terminal application targeting primary
 NomadNet **1.4.4**, not an official implementation or a full port. The application
 reuses `ReticulumNode`, `ClientLinks` and `LxmRouter`; it does not duplicate LXMF,
 paper encryption, propagation, Reticulum links or Resource protocols.
-**Required software remains missing**, including remaining RRC layout/presentation,
-remaining terminal/Kitty presentation and configuration/UI parity. These are implementation gaps, not
-hardware or optional-platform blockers. Sideband has its own implementation and
+**Required software remains missing**, including editor/guide workflows,
+remaining configuration and terminal workflows. Scoped primary-peer utilities
+and ten-minute transfer endurance now have separate Windows/Linux evidence;
+current integrated Linux replay is blocked as recorded below. Missing features are
+software gaps, not hardware or optional-platform blockers. Original terminal/RRC/
+Kitty presentation differences do not establish full upstream UI parity.
+Sideband has its own implementation and
 inventory in [sideband.md](sideband.md); this document does not track it.
 
 ## Primary reference and licensing
@@ -55,7 +59,8 @@ Underlying-library acceptance is not automatically application acceptance.
 | Client announcements; `NomadNetworkApp.START_ANNOUNCE_DELAY`, `__jobs`, `announce_now`, `apply_config`, `set_display_name` | **implemented bounded subset**: configurable three-second startup, strict periodic interval after90seconds with five-second checks, manual delivery-only or combined announces, durable successful timestamp, runtime display-name and stamp-cost edits through existing LXMF APIs. Display-name changes save without announcing or replacing the identity/destination. Retains unused `enable_client` metadata rather than inventing delivery-disable semantics. Native safety differences for names, fresh null timestamps, failed background work, serialization and interval bounds are explicit below. |
 | Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, per-peer direct/propagated/opportunistic preference, unread/failure counters, explicit viewed/read state, latest-activity listing, deletion/failed purge and plain-text export. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. Native opportunistic text is received by the actual primary; direct reply/viewed state and both applications' read counters are exercised. Primary conversation/container/attachment import and inert `.index` preservation with honest historical authentication are implemented below; full conversation UI remains missing. |
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Typed image references support explicit/automatic original ASCII conversation previews, using the existing converter/cache and never/manual/auto/always controls; this is not primary UI parity. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
-| Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. `paper-qr`/`paper-save` save PNG/URI and outbound history; `qr` exports an existing URI, `qr-show` renders explicit black-on-white half-blocks. All QR encoding uses shared `LxPaperQr`, not a second codec. Executed primary save-QR vectors and terminal module tests exist; selected application acceptance is recorded below. Image-import/scanner and printer commands remain missing/unverified; no physical scanning/printing claim. |
+| Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. `paper-qr`/`paper-save` save PNG/URI and outbound history; `paper-print` passes the shared-codec PNG to an explicit local print command and saves outbound history only on successful process exit. `qr` exports an existing URI, `qr-show` renders explicit black-on-white half-blocks. All QR encoding uses shared `LxPaperQr`, not a second codec. Executed primary save-QR vectors and terminal module tests exist; selected application acceptance is recorded below. Image-import/scanner and physical scanning/printing remain unverified. |
+| Printing; `NomadNetworkApp.should_print`, `print_file`, `print_message`, `applyConfig`; `Conversation.paper_output` | **implemented bounded software subset**: persisted/imported opt-in incoming filters, explicit stored-message print and success-only paper-QR print. Original text template, five safe named placeholders, local sent/received calendar times, saved-directory classification, no-shell argv, bounded private jobs/queue/process lifecycle, explicit failure and recovery. Default printer is never invoked without explicit manual action or enabled matching incoming policy. Native safety/template differences and selected software evidence are described under C78; no physical printer/scanner claim. |
 | Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; hosted propagation uses `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Configured static-peer transfers are now application-verified both ways on Windows/Linux through a separate Python transport, with restart, real loss and2.2MB attachment assertions. Storage/limit/cost/static/priority settings are imported/persisted through existing LXMF options. Full peer management, storage-pressure eviction-order acceptance and additional peer failure/topology cases remain missing/unverified. |
 | Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Saved-node listing/opening, primary rank/trust/name ordering, explicit browser identification consent and existing associated-node trust updates are operational. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Current and legacy primary saved-directory/ignored-list import is operational through offline CLI and terminal, with atomic additive merging, idempotence and conflict rejection. Bounded compact/full announce history, separate explicit transient import, per-type/search/name-or-address terminal presentation and restart persistence are implemented below. Complete Urwid stream/node-directory presentation remains missing. |
 | Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **partial**: `nomadnetwork.node`, UTF-8 name app-data, default index, nested static pages, configurable six-second startup announce and periodic node announce; independent configurable page/file rescan intervals, explicit refresh and bounded handler inspection. New/deleted paths update handlers. `.allowed` identity lists enforced. Node announces chain the existing hosted propagation announce rather than duplicate its protocol. Source-specific counters and upstream default assets remain missing. |
@@ -65,8 +70,9 @@ Underlying-library acceptance is not automatically application acceptance.
 | Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file/media retrieval with explicit identification consent, links/bookmarks, reload, session navigation history with back/forward and submitted-field replay, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Automatic/manual inline ASCII previews preserve descriptor/form indices and collapsed visibility, including partial media; a local interactive file picker supports transactional attachment composition. Upstream Kitty widgets and complete layout remain missing. |
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron switches render live/history bodies against executed primary widget vectors; JSON string composition preserves multiline/raw content. Complete Channels layout, mention-span styling, colours/gutters and remaining configuration remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
-| UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop and local attachment picker. Complete menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
-| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Saved-directory/ignored-policy import preserves existing native history/settings/identity, rejects conflicting contacts atomically and persists through terminal/daemon restarts. Offline profile import retains identity/signed ratchets, bounded client-router tickets/stamp-cost and duplicate histories, supported peer settings with backup fallback, contacts/conversations/attachments/paper and bounded primary RRC hubs/nicks/joined/parted rooms/retained history without silently authenticating cached claims. Complete ConfigObj compatibility, propagation-node state migration and full restart policy remain required gaps. |
+| UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop, local attachment picker, bounded notification policy and opt-in OSC52 content/URL copying. Windows clipboard native command/restart acceptance passes; current Linux native replay is blocked by WSL storage failure. Editor, guide integration and remaining configuration/workflows are missing. Utilities have their separate bounded contract below; original presentation is not Urwid layout parity. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
+| Network utilities; `ui/textui/Utilities.py`, `ui/textui/Transport.py` | **implemented bounded subset**: current-owner tables, identity/path resolution/expiry, receipt-backed probes, named rncp sending and identified streamed speed tests. Executed reference vectors, managed TCP and native-pair evidence are separate from independently replayed actual-primary Windows/Linux direct-loopback gates, including unchanged-process ten-minute service operation. Stack callback ownership is fixed in the selected local stack commit; see C79 below. No new hop/loss, maximum-size, full primary GUI or physical-RF claim. |
+| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Saved-directory/ignored-policy import preserves existing native history/settings/identity, rejects conflicting contacts atomically and persists through terminal/daemon restarts. Offline profile import retains identity/signed ratchets, bounded client-router tickets/stamp-cost and duplicate histories, supported peer settings with backup fallback, contacts/conversations/attachments/paper and bounded primary RRC hubs/nicks/joined/parted rooms/retained history without silently authenticating cached claims. Separate bounded propagation-node migration has immutable-source and current integrated Windows native acceptance; current Linux pin replay is blocked by WSL storage failure. Complete ConfigObj compatibility and full restart policy remain required gaps. |
 
 ### Configuration audit
 
@@ -177,8 +183,244 @@ non-regular files, Unix permissions/symlinks and healthy recovery. The
 commands on the selected published binary, primary application file exchange in
 both directions, configured and explicit exports and same-identity restart.
 Physical GUI/file-picker behavior is not exercised or claimed by this slice.
-Printing, utilities, propagation-node migration and other complete
-configuration/presentation contracts remain required elsewhere.
+Utilities and other complete configuration/presentation contracts remain
+required elsewhere. Printing and bounded propagation-node migration are described below.
+
+### Opt-in bounded printing software (C78)
+
+Primary `NomadNetworkApp.py:709–791,1235–1282` and
+`Conversation.py:358–409` define the printing behavior. No primary template,
+UI source or assets are copied. The native default is an original plain text
+layout; its appearance is intentionally not the primary's shipped template.
+
+`printMessages`, `printAllMessages`, `printTrustedMessages`,
+`allowedMessagePrintDestinations`, `printCommand` and `printingMessageTemplate`
+persist in `settings.json`. Missing printing fields retain disabled defaults,
+empty filters, `lp` and the original native template. `printing on|off`,
+`printing from <filter>`, `printing command <argv>`,
+`printing template <file>` and `printing default-template` edit policy
+transactionally for subsequent jobs, without changing queued snapshots.
+`printing` displays policy without exposing command arguments/template bodies.
+`print <stored-message-id>` is an independent explicit action and does not
+require automatic printing to be enabled.
+
+Explicit ConfigObj migration activates `[printing] print_messages`,
+`print_command`, `print_from` and `message_template`. As in the primary, a
+command without `print_messages` is inert; an explicitly false flag still
+imports the command but does not process filters/templates. Only true processes
+`print_from`: scalar case-insensitive `everywhere` permits all, scalar/list
+`trusted` enables **saved** trust255, scalar32-character source or list entries
+retain their exact spelling. Received hashes compare as lowercase: uppercase
+configured hashes do not match. List `everywhere` never implies all.
+Discovery, alleged names and historical signatures cannot grant printing trust.
+Saved warning/untrusted names carry their address, unknown/trusted names may
+stand alone; names use the native terminal-safe display rather than primary
+Urwid/Micron presentation.
+
+Custom templates accept exactly `{origin}`, `{stime}`, `{rtime}`, `{mtitle}`,
+`{mbody}` and doubled braces. Empty titles become `None`; local timestamps use
+`yyyy-MM-dd HH:mm:ss`. Inserted text is not recursively interpreted. Python
+attribute/index expressions, conversions, format specifiers, unknown fields and
+malformed braces fail explicitly. UTF-8 templates are bounded16KiB; rendered
+jobs2MiB. Custom file reads reject links, pipes/devices, invalid UTF-8 and
+oversize input. Explicit import expands the current user's home, captures an
+existing regular file's text in the staged native settings and never creates
+foreign files. Missing template files produce a warning and the original
+native default, not the primary's side-effectful default-file write. Later
+edits/deletion of a template file do not silently alter captured policy.
+
+Automatic jobs are enqueued **after successful history persistence** and never
+wait on the printer in the receive loop. An owned single worker accepts at
+most eight queued jobs in addition to its active job; overload is explicitly
+reported with message ID, not content. Manual and paper jobs share the same
+bound. Each job snapshots rendered bytes and parsed argv; no shell evaluation
+is used. The randomly named regular job file is one final argv value,
+fixing the primary's unquoted-filename splitting for profiles with spaces.
+Files live only under `<profile>/storage/print-jobs`, with Unix0700 directory/
+0600 files and inherited profile ACLs on Windows; the workspace rejects
+symlink/reparse ancestors. The worker never uses primary's public deterministic
+`/tmp/<content-hash>` file. It drains but does not log subprocess output, bounds
+each output stream64KiB, applies a15-second deadline, cancels/kills and joins the
+owned process on cancellation/disposal, zeroes queued text buffers and deletes
+job files. Restart removes only bounded, recognizable, regular stale job files.
+Unavailable commands, nonzero exits, floods and timeouts are visible failures;
+one failed process or optional log observer does not disable subsequent jobs.
+On Windows, the command starts suspended, enters a private job limited to64
+active processes, then resumes with only its three explicit standard handles
+inherited. Cleanup joins kernel-verified job members and waits for the private
+completion port's `ACTIVE_PROCESS_ZERO` notification before deletion; waiting
+for the root alone is insufficient. Cleanup failure cannot report success.
+No reported printer PID is used to terminate a process. Two deterministic
+Windows regressions hold both a job file and capture file in a child after the
+root exits, exercising timeout/cancellation and strict cleanup without retries.
+The preserved pre-fix implementation fails the orphan regression; eight fresh
+post-fix launches pass104 lifecycle cases.
+
+Linux starts a dedicated same-executable supervisor **before** normal CLI
+help/version dispatch. The supervisor creates a private session, enables child
+subreaping and no-new-privileges, and gives the actual command a separate closed
+stdin. Its own private stdin carries only owner lifetime: EOF requests cleanup,
+including after an abrupt native-owner exit. Command-root exit does not release
+supervision. Orphaned and double-forked descendants are adopted, including those
+that create another session. Cleanup opens pidfds from this supervisor's kernel
+child lists, rechecks direct parentage **after** opening each descriptor, signals
+only that pinned owned identity, and reaps adopted children. A kernel `ECHILD`
+barrier after the directly tracked command exits establishes that no children
+remain; only then can the supervisor finish and remove its recognizable private
+job on owner EOF. No reported marker PID, process-name kill, system-wide process
+scan or shell evaluation is termination authority. Repeated disposal shares one
+cleanup task and the owner bounds its supervisor join to five seconds; a failed
+join is a visible cleanup failure, never success.
+
+This requires Linux pidfd syscalls (`pidfd_open`, kernel5.3+, and
+`pidfd_send_signal`), `setsid`, `prctl` child-subreaper/no-new-privileges, `waitpid`,
+and mounted procfs child/status files. Syscall and procfs preflight happens before
+starting any printer command; there is no unsafe legacy fallback. The production
+implementation uses libc/kernel APIs, **not** an external `setsid`, Python,
+PowerShell, systemd or native helper package. Syscall numbers are selected only
+for x64/arm64; only Linux x64 is verified. The detached-session test fixture
+separately requires `/usr/bin/setsid` (util-linux), and printer stubs use
+PowerShell7; neither is a production supervisor dependency. This is lifetime
+ownership, not a sandbox or a guarantee against a hostile privileged command,
+supervisor/kernel failure or indefinitely uninterruptible kernel I/O.
+
+`paper-print <hash> <message>` uses existing `LxMessage` PAPER encryption and
+`NomadNetPaperQr`, not another crypto/QR implementation. Only a zero exit
+creates the outbound paper conversation entry; failures/cancellation create
+none. This is local print-command software, not evidence that a physical
+printer produced or a scanner read paper.
+
+`GenerateNomadNetPrintingVectors.py` executes the actual pinned primary
+constructor, ConfigObj/applyConfig/should_print and real saved DirectoryEntry
+trust, including reading an existing public synthetic custom UTF-8 template
+without changing it. For formatting only, the unchanged exact `print_message`
+AST runs with a synthetic owner and in-memory open/unlink/print-file observers because Windows
+primary hardcodes `/tmp`. A separate actual `print_file` subprocess callback
+observer records shlex argv without invoking hardware. Fixed **local calendar**
+dates use `mktime`; there is no timezone shim. This is explicitly not an
+unmodified real primary printing path. Windows/Linux vectors match byte-for-byte:
+`954d823858a7c45944f2d9c2608d2191eb60855fb1968bc0a0377d15f3a22bc1`;
+the recorded primary blob SHA is
+`c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2`.
+
+The managed selector
+`FullyQualifiedName~NomadNetPrinting|FullyQualifiedName~NomadNetPrinter`
+includes explicitly skipped other-platform ownership theories and exercises
+actual synthetic PowerShell processes, failures, queue saturation, immutable queued snapshots,
+active/queued cancellation, joined disposal, no-subscriber processing and
+throwing-observer isolation. `NomadNetPrinting.Tests.ps1` provides twenty
+opt-in real-process cases T330–349. It uses actual full-primary messaging,
+public synthetic printer captures, independent zxing-cpp QR decode followed
+by actual primary decryption/signature validation, success/failure history,
+clean/abrupt native restart and healthy recovery. The printed paper is received
+as method3 by pinned `ingest_lxm_uri`'s propagated-delivery path, not assumed
+to retain the composition method5.
+
+`tests\Pester\Invoke-NomadNetPrintingAcceptance.ps1 -Binary <selected-binary>
+-EvidenceDirectory <absent-owned-directory> -NativeObjectDirectory <obj-root>
+-CompiledSourceDirectory <captured-source> -ManagedTestDirectory <built-tests>
+[-Repository <repository>] [-ManagedSourceRoot <managed-captured-source>]`
+also accepts `-NativeSourceRoot <native-captured-source>` for snapshot builds and
+never builds or republishes. It snapshots source/harness/PDB/generated receipts,
+reference hashes before/after, binary hash/version/help, toolchain information
+and exact Pester results. The historical printing-only strict NativeAOT candidates (SDK10.0.403,
+runtime/ILC10.0.14; both linker/compiler warnings-as-errors) pass20/20 on each
+host, followed by another20/20 per host using
+`tests\Pester\Replay-NomadNetPrintingAcceptance.ps1 -CandidateDirectory
+<frozen-candidate> -EvidenceDirectory <absent-replay-directory> -FrozenProduction`, without
+rebuilding. The Windows executable SHA256 is
+`a2b5ba5077caacc77cf749201e94862037e1533eb9318cec8d582cc726a6ffca`;
+Linux is
+`0e7be32b9098bb9c5450ac85dc25d9a145c13dd5785f8dc952d5834f23f6aeaa`.
+Each receipt checks291 native and327 managed regular compiled-source documents
+plus70 native and75 managed generated documents against portable-PDB SHA256,
+and verifies the actual embedded fixture. The matching captured-source managed
+selector `FullyQualifiedName~NomadNetPrinting|FullyQualifiedName~NomadNetPrinter|FullyQualifiedName~NomadNetConfigTests`
+passes45 cases on Windows and43 with one skip on Linux. The captured full Nomad
+suite passes307 with13 skips on Windows and314 with5 skips on Linux; skipped
+tests are not printing evidence. These immutable candidates retain stack
+`3cdf5bee5adbd1da903a163882a31e53c3057aec`; they are not silently relabeled as
+evidence for the subsequently selected `2331aeed1d54b4ead2e83422255d3b8734881780`.
+`-FrozenProduction` deliberately replays captured production while still checking
+the current printing harness and every compiled-source PDB hash. Omit it to
+additionally require current printing-owned production files to match.
+This is not a freeze or acceptance of other concurrently developed features.
+Parent integration acceptance is separate.
+
+Separate preceding-stack evidence uses the parent's exact strict-published
+`2331aeed1d54b4ead2e83422255d3b8734881780` binaries without rebuilding:
+Windows SHA256
+`72a5466825a29831c3330ddaf31fda4f6f645c7c7dd74416ee551c5f87a1b71a`,
+Linux
+`e4c5db792112ba823dce58c8cdfdbdd4b843478a2060dcd308888d6f53484802`.
+Each passes T330–34920/20 in two independent launches. Each selected binary's291
+regular and70 generated compiled-source documents match portable-PDB SHA256;
+the captured before/after source manifests, compiler response files, serviced
+runtime/compiler metadata, and before/after reference-file hashes are retained.
+The exact Windows NativeAOT executable additionally passes two deterministic
+orphan-owner runs: its command root exits while a child holds the job file and
+exclusively locks the public capture; timeout terminates/joins the child, an exclusive
+reopen succeeds, strict capture-directory deletion succeeds **without retry**,
+and the next healthy print succeeds. This supplements, rather than replaces,
+the retained original failed cleanup test and managed negative-control evidence.
+Current receipts and exact no-publish replay commands are in the ignored
+`artifacts\tests\nomad-printing\current-stack-handoff.json`; historical snapshots
+remain unchanged. Shared printing production is stable and handed back for
+independent integration work.
+
+The Linux ownership follow-up retains a deterministic pre-fix failure:
+an exited command reported success while its child still held the job.
+The captured `2331aee` follow-up candidates pass20 primary cases on each host;
+the Linux native supervisor additionally passes five deterministic process
+cases: root-exit timeout, detached double-fork timeout, abrupt owner EOF with
+descendant reaping/job removal/restart recovery, and literal `--help`/`--version`
+printer arguments. Procfs observations establish actual orphan adoption by the
+private-session supervisor, inherited no-new-privileges, and child/supervisor
+exit before exclusive capture reopen and strict deletion without retries.
+These are real native subprocess tests, not only managed or mocked ownership.
+
+The latest diagnostic refinement reports invalid private mode with exit125 and
+bounded context, and normal supervisor failures with a fixed operation name,
+exception type and native errno where available; it never includes argv,
+filenames or printed content. The final Windows diagnostic-inclusive native
+candidate passes20 primary cases, the locked-capture ownership case and the
+explicit unsupported-private-mode failure case. The corresponding full Windows
+managed suite passes313 with14 skips. Its Linux diagnostic-focused managed
+checks pass3/3, but the latest full Linux run and diagnostic-inclusive NativeAOT
+rebuild were interrupted by host disk exhaustion/read-only WSL, not accepted as
+functional failures or passes. The preceding full Linux suite passes329 with5
+skips. Latest Linux diagnostic-inclusive native verification remains pending
+host recovery; the retained20+5 native ownership evidence is explicitly from
+the preceding captured source, not relabeled as the diagnostic refinement.
+Follow-up receipts, exact commands, hashes and the storage-failure records are
+under the ignored `artifacts\tests\nomad-printing\linux-ownership` workspace.
+
+The selected integrated Windows candidate now uses local stack
+`e52da394658f6f6c723214a9f811552418789cb6`, with native SHA-256
+`34d1ff11278cf7679e5c973b71697f90008333cbabafb11c09a0e07de03f4110`.
+Parent independently passes the20 unchanged primary cases, exited-root/
+locked-capture ownership and explicit private-mode diagnostic case:22/0.
+Its294 regular and70 generated compiled-source documents, before/after source
+hashes, serviced SDK/compiler/runtime and binary hash are checked without
+republishing. This candidate includes the printing supervisor, clipboard,
+utilities and node migration together. Replay:
+
+```powershell
+& artifacts\tests\nomad-utilities\Parent-AtomicAcceptance.ps1 -Mode Printing
+```
+
+The current Linux source/pin replay remains blocked by `/dev/sdd` I/O failures
+and an `emergency_ro` ext4 mount. Reclaiming Windows disk space did not restore
+WSL process startup; the shared distribution was not terminated or repaired.
+The preceding native Linux supervisor observations above are not promoted to
+current integrated acceptance.
+
+Enable the pinned-reference environment variables
+documented by other NomadNet live tests; on Linux set `DOTNET_ROOT`, put its SDK
+first on `PATH`, and select an actual PowerShell apphost with
+`DOTRETICULUM_PWSH` (not a `dotnet` tool launcher). This software evidence does
+not establish physical-printer, camera, RF, additional-topology or exhaustive
+NomadNet compatibility.
 
 ### Bounded compact/full announce history (C71)
 
@@ -634,8 +876,8 @@ identity's signed delivery-ratchet file.
 | `outbound_stamp_costs`; constructor, `update_stamp_cost`, save/clean APIs |16-byte destination to `[timestamp,cost]`; finite timestamp and null or integer1–254 cost. Existing LXMF45-day cache policy applies. No inferred cost is invented from conversation text. |
 | `local_deliveries`, `locally_processed`; constructor, save/clean APIs |32-byte message/transient ID to finite timestamp; existing LXMF180-day retention applies on load. Raw files can still contain expired entries until a later native write; this does not reactivate expired entries. |
 | `ratchets/<own-delivery-hash>.ratchets`; delivery registration and RNS `Destination` | Existing signature/ownership decoding and native512-key limit. Other destinations' ratchets, even malformed ones, remain not imported. No RNS global remote-ratchet cache is copied. |
-| `node_stats`; `save_node_stats`, constructor/`enable_propagation` | **not imported**: a primary client writes it, including on exit, but only propagation enable reloads its counters. It is not a required client cache. |
-| `peers`, `messagestore`; propagation enable/exit | **missing node-migration contract**, explicitly not imported. Client cache acceptance does not establish propagation-node restart/synchronization migration. |
+| `node_stats`; `save_node_stats`, constructor/`enable_propagation` | Not a client cache. The separate bounded node importer validates/activates all four counters only when imported configuration enables propagation. Otherwise explicitly excluded. |
+| `peers`, `messagestore`; propagation enable/exit | Implemented by the separate bounded node importer below, not inferred from client cache acceptance. Unresolved peers are preserved separately until matching identity discovery. |
 | Pending inbound/outbound, deferred stamps, direct/backchannel links, path-request caches | Memory-only primary state, **not applicable as persistence files**. Import never resumes historical sends or manufactures sockets/jobs. |
 | Unknown files, `.tmp.*`/interrupted writes, other identities' ratchets, RNS/interface files | Individually reported not imported, never silently copied or activated. |
 
@@ -762,6 +1004,177 @@ NUnit receipts. C72/T240–249 maps ten actual passing cases per host; receipts 
 `/home/dennis/fleet-router-parent-results/c72.json`. Current-source acceptance
 does not relabel the frozen native binaries as an integration-HEAD build.
 
+#### Bounded propagation-node profile migration (C74)
+
+The absent-target importer activates validated node state when the imported
+configuration enables propagation. It uses shared LXMF persistence/inspection
+APIs and a public node preflight inside private staging, not a second node-format
+implementation. Strict Windows/Linux native candidates pass executed primary
+fixture regeneration, node reverse cross-load and the complete mixed-node
+sync/retrieval/restart flow (three Pester cases per host), plus the separate
+primary cache/drop observation. Independent parent acceptance remains outstanding.
+
+| Pinned source contract | Observed node persistence and required boundary |
+|---|---|
+| `LXMRouter.enable_propagation` (563–699), `save_node_stats` (1264–1280) | `storage/lxmf/node_stats` is a MessagePack map of exactly four nonnegative integer counters: `client_propagation_messages_received`, `client_propagation_messages_served`, `unpeered_propagation_incoming`, `unpeered_propagation_rx_bytes`. All are validated before activation; missing/malformed values are not silently reset. |
+| `LXMPeer.to_bytes/from_bytes` (53–175), `LXMRouter.exit_handler` (1377–1433) | `storage/lxmf/peers` is an array of binary MessagePack peer maps, not identities. Destination, timestamps/alive state, policy/limits, strategy, metadata, counters/rates, optional peering proof and handled/unhandled transient IDs are validated. The optional `peering_key` is a proof token/value, **not an identity public key**. Stale/duplicate/overlapping indices abort import rather than being repaired. |
+| `LXMRouter.enable_propagation` (609–645), `LXMPeer.__init__` (177–225) | The primary drops a saved peer when its public identity is absent from the separate global RNS known-destinations cache. **Intentional native safety difference:** preserve a distinct unresolved record through restart; activate the same record only after recalled identity material derives its exact propagation hash. Never create/reset that peer or mark it synchronized to conceal missing identity material. |
+| `enable_propagation` (575–603), `lxmf_propagation` (2604–2641), `clean_message_store` (1154–1207) | Store names carry full transient-ID hex, receive timestamp and stamp value; contents are opaque propagated LXMF bytes plus a32-byte PN stamp. ID hashes the payload without that stamp. Actual upstream workblock/stamp vectors precede implementation. Offline import checks filename/content/stamp agreement, finite metadata,30-day expiry and imported storage/transfer/sync quotas. Historical valid stamp values are not retroactively charged at today's admission cost. |
+
+`ObserveNomadNetNodeProfile.py` executes the actual unmodified complete primary
+node constructor, real `peer`, `LXMPeer.to_bytes`, `exit_handler` and RNS
+`save_known_destinations` APIs. It uses published RFC7748/RFC8032 **public keys
+only**, synthetic counters23/17 and node counters7/8/9/10, with no reference
+algorithm/class/clock patch. Separate process restarts retain one peer with the
+original RNS cache, but retain zero peers with an isolated fresh RNS cache.
+The latter process overwrites the saved peers array with an empty array on exit.
+Node statistics remain intact in both cases. Random application private identity
+files stay only in ignored runtime profiles; the checked-in fixture has no private
+key, real traffic, ticket or peering secret.
+
+Shared `LxmPropagationNode.UnresolvedPeers` remains separate from active `Peers`.
+Unresolved records are not scheduled, rotated or unreachable-expired, and a sync
+request fails without charging an attempt or resetting counters. New/removed
+store IDs update both sets. `ResolvePersistedPeers()` and genuine signed
+announcement/maintenance processing activate matching identities without
+claiming a transfer. Activation completes the state batch before optional
+observer callbacks; observer failures/reentry do not corrupt the collection.
+No RNS cache is imported, reconstructed or modified by offline migration.
+
+Bounds are4096 peers/8MiB outer peer file, the shared8MiB individual-peer and
+65,536-ID disjoint index limits,64KiB metadata and4096-byte complete node
+statistics. Existing20MiB/file,512MiB/12,000-entry whole-profile bounds also apply.
+Expired messages, exceeded quotas, malformed/oversize records, stale IDs and
+stamp/filename mismatches abort the whole import without eviction or partial
+publication. Disabled node files and interrupted/unknown files are visibly
+excluded. Node files are private on Unix, including atomic rewrites after
+restart. Cancellation after staging creation and a later conversation failure
+both remove node staging; retry uses the same source identity. The independently
+selected RNS profile remains unchanged during import.
+
+`GenerateNomadNetNodeProfile.py` executes the complete primary constructor, real
+storage/peer/flush/exit APIs and real LXStamper generation/validation. Public
+opaque512-byte and5120-byte payload fixtures are **not decryptable application
+messages**. Only receive metadata/filename are normalized to a public future
+timestamp for reproducible nonexpiring fixtures; no reference algorithm, class
+or clock is patched. Actual generated proof bytes are reused and validated
+during independent regeneration. Current diagnostic names transparently replace
+the former native destructive-drop expectation; old failing/diagnostic receipts
+are retained and not relabelled as migration acceptance.
+
+Managed selectors are the three `NomadNetNodeProfileBoundaryTests`, six
+`NomadNetNodeProfileTests` and four `LXMF.Tests.LxmUnresolvedPeerTests`.
+Pester `NomadNetNodeProfileBoundary.Tests.ps1` retains the primary drop
+observation (T263); `NomadNetNodeProfile.Tests.ps1` adds executed fixture
+regeneration (T269), native/primary node reverse cross-load and atomic refusals
+(T270), and actual mixed-node migration/sync/retrieval/restart (T271).
+Both require explicit `DOTRETICULUM_NOMADNET_NODE_PROFILE=1` plus selected
+binary/Python/source environment; unsupported modes explicitly skip.
+
+The live fixture configures4,000,000-byte transfers,8,000,000-byte syncs,
+16,000,000-byte storage, stamp cost13 and20 peers on both nodes, with normal
+peering cost18. External native clients use application identities initialized
+by complete primary client constructors and the existing profile importer.
+After replacing the Python transport with the independent native transport,
+those external clients use fresh RNS profiles and must observe genuine two-hop
+signed discovery; their application identities remain unchanged. The actual
+primary node peer retains its original RNS profile throughout recovery.
+Existing external-client cached-route recovery across that transport-identity
+handover timed out and is **not claimed**; its failed profiles/logs are retained.
+No global cache is copied or repaired to make this fixture pass.
+
+T271 transfers a real SHA-checked2.2MB attachment from a native origin through
+the original Python node, migrates that node, and synchronizes its persisted
+message to a second unmodified Python node after genuine peer discovery.
+The same native receiver retrieves it from that second node over the native
+transport. A second2.2MB attachment travels via the Python node back to the
+migrated native node's local delivery destination. Actual primary reverse
+cross-load checks the synchronized store and handled peer index. Both clean
+and abrupt native restarts precede identity recovery; peer bytes remain unchanged
+while unresolved.
+
+The selected native binaries predate concurrent printing/utility changes.
+Their complete C74 source snapshots use retained pre-printing non-owned Nomad
+sources and the stable C74 overlay, checked against actual compiled portable-PDB
+source SHA-256s. Managed suites are rebuilt against those exact snapshot sources,
+not relabelled as validation of the changing whole-project source tree.
+Frozen manifests and no-republish replay operators retain native, source,
+generated-code, fixture, converter, reference and serviced toolchain provenance;
+the separate current-source operator rebuilds the eventual integrated tree.
+
+Selected-source full suites pass **267/9** (passed/explicit Linux-only skipped)
+on Windows and **276/0** on Linux; the complete shared LXMF suite passes
+**162/28** on each. All13 C74 managed cases also pass without skips when rebuilt
+against the later current printing/utility tree. Strict native publish/help,
+the separate primary observation and all three native Pester cases pass on
+both hosts; the same full suites/help/four Pester cases pass again through
+the frozen **no-build/no-republish** operator. Parent independently repeats
+both immutable recipes: the same full managed suites, separate primary
+observation and three native cases pass without rebuilding or republishing.
+Their source/toolchain hashes and all eight owned production hashes match.
+This accepts the scoped immutable candidates, not the current integrated tree.
+The first current Windows full-suite attempt exposes a printing child-process
+cleanup failure, retained separately. The fixed-stack ordinary Windows integrated
+gate subsequently passes all projects/tooling/aggregation/coverage, and Linux
+repeats full LXMF/Nomad, strict publish/help and the four C74 cases with native
+SHA-256 `bdd71abb789779e9799987ca23bee83869c051468d1e70341c08a8cebaf8a043`.
+These source snapshots precede later clipboard/Linux-printing work.
+
+A separate parent Windows replay uses the accepted fixed-stack72a5 native
+candidate and verifies all eight C74-owned production hashes unchanged. Its two
+actual-reference cases pass, but T270/T271 fail creating `transport_identity`
+when the nested regular path exceeds raw Win32 `MAX_PATH`. The retained
+`artifacts\tests\nomad-utilities\parent-fixed-stack-node-windows` result is
+**2 passed /2 failed**, not a migration pass. It shares the Sideband T321 atomic
+publication cause; test paths/assertions are not shortened or relaxed.
+The separate local stack fix `e52da394658f6f6c723214a9f811552418789cb6`
+canonicalizes/prefixes Win32 paths while preserving create-only hard links.
+Parent independently replays its exact NativeAOT candidate **5/0**, covering
+local/extended/authorized loopback-UNC identity contention/restart and encrypted
+compressed2.2MB Resource transfer. Fresh source-guarded Windows ecosystem
+NativeAOT replay now passes all four node/reference cases with that selected
+stack, including T270/T271 at longer nested paths without relaxed assertions.
+The same native candidate separately passes current printing, clipboard and
+utility process gates. Its SHA-256 is
+`34d1ff11278cf7679e5c973b71697f90008333cbabafb11c09a0e07de03f4110`;
+results are under
+`artifacts\tests\nomad-utilities\parent-fixed-stack-node-windows-atomic-replay`.
+Replay uses `Parent-AtomicAcceptance.ps1 -Mode Process`. The selected stack
+object remains local/unpushed. Current Linux replay is blocked by WSL storage
+failure, distinct from the earlier accepted C74 Linux snapshots.
+
+Local immutable manifests are
+`artifacts/tests/nomad-node-migration/frozen-win-final/manifest.json` and the
+corresponding native Linux workspace
+`artifacts/tests/nomad-node-migration/frozen-linux-final/manifest.json`.
+Each verifies873 compiled portable-PDB source documents,179 generated-source
+documents and all three embedded fixtures. Native embedded version is
+`1.4.4.106+f8bac40f5b`, base
+`f8bac40f5b032c5643cffdeff5b905c98182fe86`, plus the recorded uncommitted C74
+sources. Snapshot managed metadata is `1.4.4+f8bac40f5b` (untracked snapshot
+version files have no Git height), not a newly invented release.
+SDK10.0.403/runtime and ILCompiler10.0.14 provenance, actual ILC response files
+and converter/reference digests are retained. Windows native SHA-256:
+`c599a5b62eef325d6f5226876b51ffa13a09ffe27cff3efd0abbd2a571c6af62`;
+Linux:
+`70c9960de3d30e0dade3fd9671bdca4a5cca488c9424a2316aea81f043db5fb9`.
+`Replay-NodeCandidate.ps1` verifies frozen inputs before/after execution;
+`Current-NodeCandidate.ps1` separately builds/tests/publishes the eventual
+coherent parent tree. Exact T260–276 selectors, commands, explicit skips,
+provenance and retained failures are in the bounded local `handoff.json`.
+
+Upstream pins remain NomadNet
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`, LXMF
+`e8ba02483217af43be284a72f1c059c730b7d047`, RNS
+`a29bfb51c468945c96a1ee22cae0114e993e2391`. Source Git-blob SHA-256s are recorded
+in the three node fixtures. The declared newer NomadNet dependency-minimum gap
+remains: pinned RNS1.5.7/LXMF1.2.1 do not meet NomadNet's declared
+RNS>=1.6.0/LXMF>=1.2.2 minima. No dependency pin changes, third-party cache import,
+hardware, new impairment/latency/third-transport topology or full NomadNet parity
+is implied. C75 native binaries predate the shared unresolved-peer support;
+C76 candidates use their own earlier freeze, before the final C74 private-write
+and reentrant-observer hardening. Independent parent C74 acceptance is separate.
+
 #### Bounded primary RRC contracts
 
 The independent `GenerateNomadNetRrcImportVectors.py` executes the complete primary
@@ -879,8 +1292,9 @@ Frozen replay logs are `frozen-acceptance-win-final-v5.log` and
 
 These are implementation receipts awaiting independent parent acceptance.
 The newer primary NomadNet dependency-minimum gap, full ConfigObj/runtime
-configuration, propagation-node migration and remaining terminal/Channels UI remain
-explicitly outside this bounded slice. No release, push or tag was performed.
+configuration and remaining terminal/Channels UI remain explicitly outside this
+bounded RRC slice; node migration has its separate C74 contract above.
+No release, push or tag was performed.
 
 #### Import integrity, ownership and usage
 
@@ -1037,10 +1451,10 @@ same reference process. The frozen v4 recipe passes five successive fresh
 actual-primary/imported-native starts per host (Windows and Linux), including
 the post-restart bidirectional application flow on every run. Production,
 native binaries and the unchanged primary adapter are not modified.
-This is implementation evidence, **not parent acceptance** until those frozen
-recipes are independently replayed. Full ConfigObj/remaining settings, additional
-propagation-node state migration and remaining
-terminal workflows are still required software gaps.
+The frozen identity/conversation recipes have their independently recorded
+acceptance; additional propagation-node migration has its separate C74 contract
+and current-integration gate above. Full ConfigObj/remaining settings and
+remaining terminal workflows are still required software gaps.
 
 ### Primary saved-directory and ignored-list import
 
@@ -1279,7 +1693,7 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   Windows/Linux, described below; generic underlying LXMF tests are not substituted.
 - `[textui]`: `intro_time`, `intro_text`, `theme`, `colormode`, `glyphs`, `image_loading`,
   `mouse_enabled`, `editor`, `hide_guide`, `sanitize_names`, `clipboard_copy`, `animation_interval`
-  — **partial**: `image_loading` is imported and operational for original inline ASCII, not Kitty; other listed UI options remain missing. Native terminal output sanitises control characters.
+  — **partial**: `image_loading` is imported and operational for original inline ASCII, not Kitty. `clipboard_copy` activates explicitly opted-in OSC52 content/URL copying; remaining listed UI options are missing. Ordinary native terminal output sanitises control characters; clipboard content is Base64-framed rather than rendered.
 - `[rrc]`: `history_per_room_cap`, `filter_loaded_history`,
   `max_accepted_resource_size`, `ephemeral_notices`, `justify_msgs`, `space_msgs`,
   `nick_colors`, `mention_color`, `color_mention_timestamps`, `nick_colors_theme`,
@@ -1288,16 +1702,17 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   options remain missing as configuration surfaces. The implemented RRC core uses the
   upstream 256 KiB resource default, a local 1,000-item/2 MiB aggregate history
   bound and terminal-safe plain display; these are not configuration parity.
-- `[utilities] enable_utilities`; `[printing] print_messages`, `print_command`,
-  `print_from`, `message_template` — **missing** software configuration/command
-  workflows; physical printer acceptance is a separate boundary, not the reason
-  the software is missing.
+- `[utilities] enable_utilities` — **missing** complete configuration/UI
+  workflows. `[printing] print_messages`, `print_command`, `print_from`,
+  `message_template` — **implemented bounded software subset**, with exact
+  opt-in filter semantics and documented original-template/safety differences
+  under C78; physical printer acceptance remains unverified separately.
 
 The remaining required configuration surface is not silently deferred:
-the two client keys above; every listed TextUI key except `image_loading`;
+the two client keys above; every listed TextUI key except `image_loading` and `clipboard_copy`;
 every listed global RRC key except the two render switches (history cap/filter
 currently affect offline migration only, not global runtime policy);
-utilities and printing/template software; primary config-directory discovery
+utilities; primary config-directory discovery
 (`/etc/nomadnetwork`, `~/.config/nomadnetwork`, `~/.nomadnetwork`) versus the native
 ApplicationData default; complete ConfigObj grammar and configuration-editor/
 hot-reload workflows; safe external-root activation during full profile import;
@@ -1585,8 +2000,8 @@ with zero warnings/errors. `dotnet test DotReticulum.Ecosystem.slnx -c Release
 --logger 'trx;LogFilePrefix=integrated' -v:q` passes **2117tests,89explicit skips,
 zero failures**. Separately selected converter tests above cover the integrated
 run's converter skips. Inline media, remaining UI/configuration, migration,
-printing and application propagation peering remain required software, not
-reclassified as hardware or optional omissions.
+application propagation peering remain required software, not reclassified as
+hardware or optional omissions. Bounded printing software is described under C78.
 
 ### Node hosting configuration acceptance
 
@@ -2388,6 +2803,189 @@ bounds, not primary layout defaults.
 
 ## Validation and reproduction
 
+### Terminal network utilities (C79)
+
+**Implemented bounded native software with independently replayed actual-primary
+direct-loopback acceptance.** The original terminal exposes the six primary utility functions
+through `utility help`, reusing the existing Reticulum owner, Links, receipts
+and streaming Resources rather than implementing a second transport:
+
+```text
+utility paths|rates|interfaces
+utility identity [destination-hash]
+utility path <destination-hash>
+utility drop <destination-hash>
+utility probe <full.destination.name> <hash> [bytes] [count]
+utility send <rncp-receive-hash> <file-path>
+utility speed address
+utility speed listen <expected-peer-speed-hash>
+utility speed send <peer-speed-hash> [size-label]
+utility speed status|off
+utility status|cancel|wait
+```
+
+The file path is the literal remainder of the command, including spaces; it is
+not evaluated by a shell. Speed labels include their spaces, for example
+`4 MB`. None of these commands implicitly enables a receiver. Identity output
+distinguishes Reticulum identity, LXMF, optional hosted-node and speed addresses.
+Management calls target the current local/shared Reticulum owner. Expiring a
+path marks its timestamp zero; a repeated expiration can still succeed until
+the owner's next cull, exactly as executed `RNS.Transport.expire_path`.
+
+Probes default to16 bytes, one request and
+`max(12 + first_hop_timeout, medium_path_timeout)`. Genuine identity discovery
+and the full destination-name/hash match precede encrypted packets and
+validated delivery receipts. Results retain RTT, hops and loss. Local proof
+RSSI/SNR and shared-owner proof RSSI/SNR/Q are optional local measurements,
+not authenticated peer assertions or evidence of physical-radio acceptance.
+The native safety bounds are500 requested bytes,1,000 probes and finite
+timeout hints no greater than one hour; an encrypted packet can exceed its
+actual MDU below that requested-size bound and then fails explicitly.
+Ordinary nonnumeric inputs retain the primary defaults; enormous integers
+fail rather than overflowing into an apparently successful default.
+
+File sending identifies the application identity and uses `rncp.receive` with
+the primary UTF-8-byte `name` metadata and compression enabled. Private staging
+retains a protected regular-file handle through borrowed-stream transfer and
+Link teardown; it does not reopen a DeleteOnClose file by name on Windows.
+The complete staging/transfer operation has a five-minute deadline and a
+2,000-MiB input bound. Selected peer policy can reject smaller files.
+
+Speed tests use `nomadnetwork.utilities.speedtest`, all12 primary size labels
+from2 KiB to2,000 MiB, the1-MiB default, no metadata and no compression.
+Authorization compares the entered destination against the genuine identified
+peer in constant time. The listener owns one incoming Link/Resource, applies
+the primary `max(8 seconds, medium_path_timeout)` identification deadline,
+then a five-minute transfer deadline. Sending waits600ms after identification.
+Random payload generation and reception are streamed with bounded buffers;
+SHA-256 and summed physical segment sizes are separately observed. One terminal
+operation can run at a time; cancellation/disposal joins owned work. A successful
+receiver leaves Link closure to the proven sender rather than racing the final
+proof. The storage ownership marker is retained; payload/staging files are not.
+
+`GenerateNomadNetUtilityVectors.py` executes unchanged primary controller,
+authorization, completion, formatting and receipt-stat methods with disclosed
+synthetic UI/transport owners. The canonical independently generated
+Windows/Linux fixture SHA-256 is
+`a071ac4e231274968cc719d545a460a2e6f5bc56270e1360d04c72681445ead4`.
+It records primary1.4.4 commit
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`,
+`Utilities.py` SHA-256
+`61a75d64a244d13e543d7c915d1611bbde87cf28db8450def4424a5634c7c1b1`,
+`Transport.py` SHA-256
+`57bd1e08e5c68b452f2314626ec67d73871ea2468a5af54cc15a5b54f17323e9`,
+and the actual pinned RNS path-expiry source revision/hash.
+These vectors are not network or primary GUI evidence.
+
+The current focused command
+`dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release
+--filter "FullyQualifiedName~NomadNetUtility"` passes13/0 on Windows and Linux.
+It includes actual TCP owner/identity/path/proof behavior, authorized4-MiB
+segmented transfers, both speed origins, named rncp bytes, refusal/recovery,
+the measured eight-second unidentified timeout, malformed/bounded input,
+no-subscriber processing, throwing observers and cancellation/disposal cleanup.
+`NomadNetUtilities.Tests.ps1` separately passes3/0 per host against guarded
+NativeAOT candidates: reference regeneration, native owner/cancellation/restart,
+and both-origin4-MiB speed/refusal/recovery. Selected fixed-stack candidates are
+Windows SHA-256
+`72a5466825a29831c3330ddaf31fda4f6f645c7c7dd74416ee551c5f87a1b71a`
+and Linux SHA-256
+`e4c5db792112ba823dce58c8cdfdbdd4b843478a2060dcd308888d6f53484802`.
+These include receipt measurements and the whole-staging deadline, and retain
+SDK10.0.403/runtime and NativeAOT compiler10.0.14, dirty base
+`f8bac40f5b032c5643cffdeff5b905c98182fe86`, guarded source/generated-version
+snapshots and binary receipts are retained under
+`artifacts\tests\nomad-utilities\native-windows` and
+`/home/dennis/fleet-nomad-utilities/native`.
+
+The actual primary-controller bridge `nomadnet_utility_peer.py` constructs
+unchanged utility classes and original Urwid widgets with a disclosed bounded
+headless scheduler/minimal application owner, not `NomadNetworkApp` or its GUI.
+Its primary-primary Windows/Linux observations cover both speed origins,
+refusal/recovery, probes, file sending, cancellation and input bounds.
+The retained negative controls reproduce an intermittent stack3cdf
+completed-Resource callback lifetime failure: the primary sender completes and
+normally tears down, but native `ResourceReceived` can receive an already
+disposed Resource before its first synchronous `OpenRead`. The separate
+DotReticulum commit `2331aeed1d54b4ead2e83422255d3b8734881780` reserves completed
+Resource ownership before external callback admission and defers disposal until
+callback release. A synchronously acquired reader owns its subsequent lifetime.
+It changes no wire format, Python source or normal sender teardown.
+
+The selected binaries above independently pass T362/T363 **2/0 per host** through
+`NomadNetUtilitiesLive.Tests.ps1`: both speed origins, authenticated3/3 probes,
+an authorized named1-MiB primary rncp transfer, and sixteen spaced4-MiB pairs in
+unchanged primary/native processes over at least600 monotonic seconds.
+The endurance case transfers128 MiB of pair payloads, observes continued
+responsiveness, exact lengths/SHA-256 and bounded work/logs/storage, and verifies
+payload cleanup while alive and after shutdown. The two valid ownership markers
+are not payload leaks. Parent replays take614.11s Windows and610.4s Linux for
+the two cases, with retained receipts under
+`artifacts\tests\nomad-utilities\parent-fixed-stack-live` and
+`/home/dennis/fleet-nomad-utilities/parent-fixed-stack-live`.
+The original fast T362 five-observation shape is unchanged.
+
+The integrated e52 Windows candidate
+`34d1ff11278cf7679e5c973b71697f90008333cbabafb11c09a0e07de03f4110`
+also independently passes both unchanged cases, with601.876 measured endurance
+seconds, sixteen pairs and128MiB pair payload, exact bytes/digests, no leftover
+payloads while alive or after shutdown, and zero exit codes for both processes.
+The entire two-case gate takes613.18seconds. Source and binary hashes remain
+unchanged through the run. Its separate three native utility process cases also
+pass. Replay and receipts:
+
+```powershell
+& artifacts\tests\nomad-utilities\Parent-AtomicAcceptance.ps1 -Mode Live
+# artifacts\tests\nomad-utilities\parent-atomic-live-windows
+```
+
+Enable the usual pinned utility/live variables plus
+`DOTRETICULUM_NOMADNET_UTILITIES_ENDURANCE=1` for T363. Windows primary rncp's
+open-file unlink `WinError32` is explicitly asserted despite correct saved bytes;
+Linux requires zero such errors. The earlier failed hidden-marker harness lookup
+is retained separately; the corrected lookup does not mutate production or
+reference code. These selected source snapshots predate later clipboard/Linux
+printing work and are not whole-application acceptance. The stack object is
+local/unpushed; no remote availability is claimed. New transport-hop/impairment,
+hours/days-long operation, maximum-size transfers, full Urwid rendering and
+physical RF measurements remain unverified.
+
+### Opt-in terminal clipboard (C80)
+
+`clipboard on|off` atomically persists the default-disabled `ClipboardCopy`
+policy; `[textui] clipboard_copy` imports the same setting. Only an explicit
+`copy message <id>` or `copy url` requests output. Message copying selects
+stored content, never its title/attachment labels; URL copying includes ordered
+`var_` form fields using the primary's literal backtick/pipe representation.
+An absent current URL or empty content emits no sequence. The terminal must be
+trusted and implement OSC52; no OS clipboard, shell or Python plugin is invoked.
+
+`NomadNetClipboard` emits the primary `ESC ]52;c;<Base64 UTF8> BEL` framing,
+flushes the writer and reports encoding/write/flush failures contextually.
+Strict UTF8 and a one-megabyte input-byte bound deliberately reject malformed
+or excessive text. Embedded controls remain Base64 data, not terminal commands.
+The primary's temporary two-second icon/banner presentation is not reproduced
+by the original textual status output.
+
+`GenerateNomadNetWorkflowVectors.py` executes actual `Helpers.osc52_copy`,
+`Browser.current_url` and editor confinement/atomic writes at primary
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`, with disclosed synthetic owners,
+captured stdout/log levels and real private temporary filesystem writes.
+Independent Windows/Linux canonical fixture SHA-256:
+`f4144ffcee4735f777860d51de3f0d27cceafb8d1598b5932f10691fe7afd8e9`.
+Raw source hashes are in the fixture; no primary UI/guide/template asset is copied.
+The three clipboard/URL/config unit cases pass on both hosts, including disabled
+policy, exact UTF8 bounds, invalid surrogate, hostile embedded controls and
+writer/flush failure. T367/T368 pass2/0 on Windows against the independently
+verified2331aee printing candidate and again against the integrated e52
+NativeAOT candidate above. They regenerate the reference fixture and exercise
+default denial, explicit opt-in, exactly one framed content-only copy, unchanged
+message state, persisted policy/identity across restart and explicit disabling.
+Their stored native message history is disclosed synthetic input, not primary
+message reception evidence. Current Linux native acceptance is blocked by WSL
+storage failure; its managed process preflight is not relabelled NativeAOT.
+Editor observations are research evidence, not an implemented editor claim.
+
 ### Selected local picker/composer acceptance
 
 `GenerateNomadNetFileBrowserVectors.py` executes actual primary
@@ -2449,9 +3047,9 @@ errors. `dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build
 --results-directory artifacts\tests\nomadnet-file-picker-integrated -v:q`
 passes **1,799 tests, 87 explicit skips, zero failures**. Converter-dependent
 checks skipped there are separately exercised by the selected scoped runs.
-Remaining Kitty presentation, configuration, migration, editor/notification/clipboard,
-printing and remaining presentation workflows are not declared complete; the
-bounded QR export/display slice is described separately above.
+Remaining Kitty presentation, configuration, migration, editor/notification,
+and remaining presentation workflows are not declared complete; bounded QR
+export/display, opt-in clipboard and printing software are described separately above.
 
 ### Selected hosted-policy acceptance
 

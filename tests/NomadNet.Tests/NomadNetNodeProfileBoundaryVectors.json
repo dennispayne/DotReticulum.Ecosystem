@@ -1,0 +1,52 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "rnsVersion": "1.5.7",
+  "lxmfVersion": "1.2.1",
+  "method": "Complete unmodified NomadNetworkApp constructor with propagation enabled. Seed only public peer/cache attributes through real peer/save/exit APIs. A published public-key-only synthetic peer is not live traffic. No private identity or peering key is exported.",
+  "layout": "storage/lxmf",
+  "propagationNode": true,
+  "peerIdentityRecalled": true,
+  "peersOnLoad": 1,
+  "offered": 23,
+  "publicKeyHex": "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4fd75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+  "peerHashHex": "f7e499712307a962982a708e5c86baab",
+  "sources": {
+    "nomadnet/NomadNetworkApp.py": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2",
+    "LXMF/LXMRouter.py": "56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9",
+    "LXMF/LXMPeer.py": "64b066894d854734ac4c1238ebef74cca3060a2fddc88c27a7793c84beb525ef",
+    "RNS/Identity.py": "447d6a8406ab0f824c9c6488de1f14434003d21bdfef65d33d79b20d8a2698e3"
+  },
+  "peersAfterSave": 1,
+  "peerFields": [
+    "alive",
+    "destination_hash",
+    "handled_ids",
+    "incoming",
+    "last_heard",
+    "last_sync_attempt",
+    "link_establishment_rate",
+    "metadata",
+    "offered",
+    "outgoing",
+    "peering_cost",
+    "peering_key",
+    "peering_timebase",
+    "propagation_stamp_cost",
+    "propagation_stamp_cost_flexibility",
+    "propagation_sync_limit",
+    "propagation_transfer_limit",
+    "rx_bytes",
+    "sync_strategy",
+    "sync_transfer_rate",
+    "tx_bytes",
+    "unhandled_ids"
+  ],
+  "peerHex": "de0016b070656572696e675f74696d6562617365ce77359400a5616c697665c3a86d65746164617461c0aa6c6173745f6865617264ce77359400ad73796e635f737472617465677902ab70656572696e675f6b6579c0b064657374696e6174696f6e5f68617368c410f7e499712307a962982a708e5c86baabb76c696e6b5f65737461626c6973686d656e745f7261746500b273796e635f7472616e736665725f7261746500ba70726f7061676174696f6e5f7472616e736665725f6c696d6974cd0100b670726f7061676174696f6e5f73796e635f6c696d6974cd2800b670726f7061676174696f6e5f7374616d705f636f737410d92270726f7061676174696f6e5f7374616d705f636f73745f666c65786962696c69747903ac70656572696e675f636f737412b16c6173745f73796e635f617474656d707400a76f66666572656417a86f7574676f696e6711a8696e636f6d696e6700a872785f627974657300a874785f627974657300ab68616e646c65645f69647390ad756e68616e646c65645f69647390",
+  "statsHex": "84d924636c69656e745f70726f7061676174696f6e5f6d657373616765735f726563656976656407d922636c69656e745f70726f7061676174696f6e5f6d657373616765735f73657276656408bd756e7065657265645f70726f7061676174696f6e5f696e636f6d696e6709bd756e7065657265645f70726f7061676174696f6e5f72785f62797465730a",
+  "nodeStats": {
+    "client_propagation_messages_received": 7,
+    "client_propagation_messages_served": 8,
+    "unpeered_propagation_incoming": 9,
+    "unpeered_propagation_rx_bytes": 10
+  }
+}

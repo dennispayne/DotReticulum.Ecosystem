@@ -53,7 +53,7 @@ public sealed partial class SidebandStateStore
         ArgumentNullException.ThrowIfNull(contact);
         var validated = SidebandContact.Create(contact.DisplayName, contact.DeliveryHash, contact.Trusted, contact.Unread, contact.DirectPushToTalk)
             with { SendTelemetry = contact.SendTelemetry, AllowTelemetryRequests = contact.AllowTelemetryRequests,
-                Appearance = contact.Appearance, IsObject = contact.IsObject };
+                Appearance = contact.Appearance, IsObject = contact.IsObject, NameIsUserDefined = true };
         await MutateAsync(state =>
         {
             var existing = state.Contacts.FirstOrDefault(item => item.DeliveryHash == validated.DeliveryHash);

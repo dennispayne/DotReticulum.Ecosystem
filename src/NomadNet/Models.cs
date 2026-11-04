@@ -12,6 +12,7 @@ public sealed class NomadNetState
 
 public sealed record NomadNetSettings
 {
+    public const int MaximumSettingsBytes = 64 * 1024;
     public int SchemaVersion { get; init; } = 1;
     public string DisplayName { get; init; } = "NomadNet user";
     public bool EnableClient { get; set; } = true;
@@ -26,6 +27,13 @@ public sealed record NomadNetSettings
     public double NodeFileRefreshIntervalMinutes { get; set; } = 5d / 60;
     public bool EnableExecutablePages { get; set; }
     public bool EnablePropagation { get; set; }
+    public long PropagationTransferLimitBytes { get; set; } = 256_000;
+    public long PropagationSyncLimitBytes { get; set; } = 10_240_000;
+    public long PropagationStorageLimitBytes { get; set; } = 2_000_000_000;
+    public int PropagationStampCost { get; set; } = 16;
+    public int? PropagationMaxPeers { get; set; }
+    public List<string> PropagationStaticPeers { get; set; } = [];
+    public List<string> PrioritisedDestinations { get; set; } = [];
     public string? PropagationNode { get; set; }
     public bool UsePropagation { get; set; } = true;
     public List<string> TrustedNodes { get; set; } = [];
@@ -49,13 +57,16 @@ public sealed record NomadNetSettings
     public async Task SaveAsync(string directory, CancellationToken cancellationToken = default)
     {
         Validate();
+        var data = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(this, NomadNetJsonContext.Default.NomadNetSettings);
+        if (data.Length > MaximumSettingsBytes) throw new InvalidDataException("NomadNet settings exceed the size limit.");
+        cancellationToken.ThrowIfCancellationRequested();
         Directory.CreateDirectory(directory);
         var path = Path.Combine(directory, "settings.json");
         var staged = path + "." + Guid.NewGuid().ToString("N") + ".new";
         try
         {
-            await File.WriteAllBytesAsync(staged, System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(this,
-                NomadNetJsonContext.Default.NomadNetSettings), cancellationToken).ConfigureAwait(false);
+            await File.WriteAllBytesAsync(staged, data, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             File.Move(staged, path, overwrite: true);
         }
         finally { if (File.Exists(staged)) File.Delete(staged); }
@@ -81,22 +92,49 @@ public sealed record NomadNetSettings
             finally { if (File.Exists(temporary)) File.Delete(temporary); }
         }
 
-        if (new FileInfo(path).Length > 16 * 1024) throw new InvalidDataException("NomadNet settings exceed the size limit.");
-        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
-        var settings = await System.Text.Json.JsonSerializer.DeserializeAsync(stream, NomadNetJsonContext.Default.NomadNetSettings,
-            cancellationToken).ConfigureAwait(false) ?? throw new InvalidDataException("NomadNet settings file is empty.");
+        var bytes = await NomadNetContent.ReadBoundedAsync(path, MaximumSettingsBytes, cancellationToken).ConfigureAwait(false);
+        var offset = bytes.Length >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb && bytes[2] == 0xbf ? 3 : 0;
+        var settings = System.Text.Json.JsonSerializer.Deserialize(bytes.AsSpan(offset), NomadNetJsonContext.Default.NomadNetSettings)
+            ?? throw new InvalidDataException("NomadNet settings file is empty.");
+        using (var document = System.Text.Json.JsonDocument.Parse(bytes.AsMemory(offset)))
+            if (!document.RootElement.TryGetProperty("propagationStorageLimitBytes", out _))
+                settings.PropagationStorageLimitBytes = 500_000_000;
         settings.Validate();
         return settings with
         {
             DisplayName = settings.DisplayName.Trim(),
             PropagationNode = settings.PropagationNode is null ? null : NomadNetAddress.NormalizeHash(settings.PropagationNode),
             TrustedNodes = settings.TrustedNodes.Select(NomadNetAddress.NormalizeHash).Distinct(StringComparer.Ordinal).ToList(),
+            PropagationStaticPeers = settings.PropagationStaticPeers.Select(NomadNetAddress.NormalizeHash).ToList(),
+            PrioritisedDestinations = settings.PrioritisedDestinations.Select(NomadNetAddress.NormalizeHash)
+                .Distinct(StringComparer.Ordinal).ToList(),
         };
     }
 
-    private void Validate()
+    internal NomadNetSettings Copy() => this with
     {
+        TrustedNodes = [.. TrustedNodes],
+        PropagationStaticPeers = [.. PropagationStaticPeers],
+        PrioritisedDestinations = [.. PrioritisedDestinations],
+    };
+
+    internal void ValidateNode()
+    {
+        if (PropagationTransferLimitBytes is < 1000 or > 64 * 1024 * 1024 ||
+            PropagationSyncLimitBytes is < 1000 or > 256 * 1024 * 1024 ||
+            PropagationStorageLimitBytes is < 5000 or > 16L * 1024 * 1024 * 1024 ||
+            PropagationStampCost is < 13 or > 256 ||
+            PropagationMaxPeers is < 0 or > 65536 ||
+            PropagationStaticPeers is null || PropagationStaticPeers.Count > 128 ||
+            PrioritisedDestinations is null || PrioritisedDestinations.Count > 128)
+            throw new InvalidDataException("Propagation limits, cost, peer capacity or destination lists exceed native safety bounds.");
+        foreach (var hash in PropagationStaticPeers) _ = NomadNetAddress.NormalizeHash(hash);
+        foreach (var hash in PrioritisedDestinations) _ = NomadNetAddress.NormalizeHash(hash);
+    }
+
+    internal void Validate()
+    {
+        ValidateNode();
         if (InboundStampCost is < 1 or > 254)
             throw new InvalidDataException("Inbound stamp cost must be null or 1–254; the primary's 255 clamp is unsupported by pinned LXMF 1.2.1.");
         if (ClientAnnounceIntervalMinutes is < 30 or > 10080)

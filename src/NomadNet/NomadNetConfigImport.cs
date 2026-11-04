@@ -3,7 +3,10 @@ using System.Text;
 
 namespace NomadNet;
 
-public sealed record NomadNetConfigImportResult(NomadNetSettings Settings, IReadOnlyList<string> UnsupportedKeys);
+public sealed record NomadNetConfigImportResult(NomadNetSettings Settings, IReadOnlyList<string> UnsupportedKeys)
+{
+    public IReadOnlyList<string> Warnings { get; init; } = [];
+}
 
 /// <summary>Explicit core ConfigObj migration, not a replacement for the complete ConfigObj grammar.</summary>
 public static class NomadNetConfigImport
@@ -18,16 +21,26 @@ public static class NomadNetConfigImport
         var settings = new NomadNetSettings { EnableClient = false, NodeAnnounceIntervalMinutes = 720, NodeAnnounceAtStart = false,
             NodePageRefreshIntervalMinutes = 0, NodeFileRefreshIntervalMinutes = 0 };
         var unsupported = new List<string>();
+        var warnings = new List<string>();
         var disablePropagation = true;
         foreach (var (key, raw) in values)
         {
+            if (key is "node.static_peers" or "node.prioritise_destinations")
+            {
+                var destinations = Destinations(raw, key, warnings);
+                if (key == "node.static_peers") settings.PropagationStaticPeers = destinations;
+                else settings.PrioritisedDestinations = destinations.Distinct(StringComparer.Ordinal).ToList();
+                continue;
+            }
             if (key is not ("textui.image_loading" or "client.compose_in_markdown" or "rrc.render_markdown" or "rrc.render_micron" or
                 "client.enable_client" or "client.announce_at_start" or "client.announce_interval" or
                 "client.periodic_lxmf_sync" or "client.lxmf_sync_interval" or "client.lxmf_sync_limit" or
                 "client.try_propagation_on_send_fail" or "client.required_stamp_cost" or "client.accept_invalid_stamps" or
                 "client.max_accepted_size" or "client.downloads_path" or "node.enable_node" or "node.disable_propagation" or
                 "node.node_name" or "node.announce_interval" or "node.pages_path" or "node.files_path" or
-                "node.announce_at_start" or "node.page_refresh_interval" or "node.file_refresh_interval"))
+                "node.announce_at_start" or "node.page_refresh_interval" or "node.file_refresh_interval" or
+                "node.max_transfer_size" or "node.max_sync_size" or "node.propagation_cost" or
+                "node.max_peers" or "node.message_storage_limit"))
             {
                 unsupported.Add(key);
                 continue;
@@ -72,10 +85,18 @@ public static class NomadNetConfigImport
                 case "node.file_refresh_interval": settings.NodeFileRefreshIntervalMinutes = Math.Max(0, Integer(value)); break;
                 case "node.pages_path": settings.PagesPath = value; break;
                 case "node.files_path": settings.FilesPath = value; break;
+                case "node.max_transfer_size": settings.PropagationTransferLimitBytes = NomadNetNodeConfiguration.Bytes(value, 1000, 1); break;
+                case "node.max_sync_size": settings.PropagationSyncLimitBytes = NomadNetNodeConfiguration.Bytes(value, 1000, 1); break;
+                case "node.message_storage_limit": settings.PropagationStorageLimitBytes = NomadNetNodeConfiguration.Bytes(value, 1_000_000, 0.005); break;
+                case "node.propagation_cost": settings.PropagationStampCost = Math.Max(13, Integer(value)); break;
+                case "node.max_peers": settings.PropagationMaxPeers = Math.Max(0, Integer(value)); break;
             }
         }
         settings.EnablePropagation = settings.EnableNode && !disablePropagation;
-        return new(settings, unsupported.Order(StringComparer.Ordinal).ToArray());
+        if (values.ContainsKey("node.max_sync_size"))
+            settings.PropagationSyncLimitBytes = Math.Max(settings.PropagationTransferLimitBytes, settings.PropagationSyncLimitBytes);
+        _ = NomadNetNodeConfiguration.CreateOptions(settings);
+        return new(settings, unsupported.Order(StringComparer.Ordinal).ToArray()) { Warnings = warnings.ToArray() };
     }
 
     public static async Task<NomadNetConfigImportResult> ImportAsync(string configFile, string targetDirectory,
@@ -105,7 +126,7 @@ public static class NomadNetConfigImport
         string? section = null;
         foreach (var raw in text.TrimStart('\uFEFF').Split('\n'))
         {
-            if (raw.Length > 4096) throw new InvalidDataException("Configuration line exceeds 4096 characters.");
+            if (raw.Length > 8192) throw new InvalidDataException("Configuration line exceeds 8192 characters.");
             var line = StripComment(raw).Trim();
             if (line.Length == 0) continue;
             if (line.StartsWith('['))
@@ -148,6 +169,45 @@ public static class NomadNetConfigImport
         if (value.Contains(',') || value.Contains('"') || value.Contains('\''))
             throw new InvalidDataException("Expected an unambiguous scalar configuration value.");
         return value;
+    }
+
+    private static List<string> Destinations(string raw, string key, List<string> warnings)
+    {
+        var tokens = new List<string>();
+        var start = 0;
+        var quote = '\0';
+        for (var index = 0; index <= raw.Length; index++)
+        {
+            if (index < raw.Length && raw[index] is '\'' or '"')
+            {
+                if (quote == '\0') quote = raw[index];
+                else if (quote == raw[index]) quote = '\0';
+            }
+            if (index != raw.Length && (raw[index] != ',' || quote != '\0')) continue;
+            var token = raw[start..index].Trim();
+            if (token.Length != 0 || index != raw.Length || start == 0) tokens.Add(Scalar(token));
+            start = index + 1;
+        }
+        if (tokens.Count > 128) throw new InvalidDataException($"Imported {key} exceeds 128 entries.");
+        var destinations = new List<string>();
+        for (var index = 0; index < tokens.Count; index++)
+        {
+            try
+            {
+                var compact = new StringBuilder(tokens[index].Length);
+                foreach (var character in tokens[index])
+                {
+                    if (character is ' ' or '\t' or '\r' or '\n' or '\v' or '\f')
+                    {
+                        if ((compact.Length & 1) != 0) throw new ArgumentException("Hex whitespace interrupts a byte.");
+                    }
+                    else compact.Append(character);
+                }
+                destinations.Add(NomadNetAddress.NormalizeHash(compact.ToString()));
+            }
+            catch (ArgumentException) { warnings.Add($"Skipped invalid {key} destination at index {index + 1}."); }
+        }
+        return destinations;
     }
 
     private static bool Boolean(string value) => value.ToLowerInvariant() switch

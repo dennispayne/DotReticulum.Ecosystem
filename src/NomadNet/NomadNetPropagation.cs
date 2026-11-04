@@ -31,7 +31,7 @@ public sealed class NomadNetPropagation : IAsyncDisposable
         Func<int, CancellationToken, Task<int>> retrieve, Action cancel, TimeProvider? timeProvider = null)
     {
         _directory = directory;
-        _settings = settings with { TrustedNodes = [.. settings.TrustedNodes] };
+        _settings = settings.Copy();
         _candidates = candidates;
         _select = select;
         _retrieve = retrieve;
@@ -46,7 +46,7 @@ public sealed class NomadNetPropagation : IAsyncDisposable
         get
         {
             var current = Volatile.Read(ref _settings);
-            return current with { TrustedNodes = [.. current.TrustedNodes] };
+            return current.Copy();
         }
     }
     public string? Selected => Volatile.Read(ref _selected);
@@ -113,6 +113,8 @@ public sealed class NomadNetPropagation : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed != 0, this);
             var changed = update(Settings);
+            changed.Validate();
+            changed = changed.Copy();
             await changed.SaveAsync(_directory, cancellationToken).ConfigureAwait(false);
             _settings = changed;
             RefreshSelection();

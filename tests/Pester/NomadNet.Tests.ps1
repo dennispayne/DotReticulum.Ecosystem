@@ -1,3 +1,314 @@
+Describe 'NomadNet configured propagation peer workflows' -Tag 'Live', 'NodeConfiguration' {
+    It 'imports and persists node limits and static priority policies, peers application attachments both ways, and restores all profiles' {
+        if ($env:DOTRETICULUM_NOMADNET_NODE_CONFIG_LIVE -ne '1') {
+            Set-ItResult -Skipped -Because 'Enable actual application node-configuration acceptance with DOTRETICULUM_NOMADNET_NODE_CONFIG_LIVE=1.'
+            return
+        }
+        foreach ($variable in 'DOTRETICULUM_NOMADNET_BINARY', 'DOTRETICULUM_PYTHON',
+            'DOTRETICULUM_UPSTREAM', 'DOTRETICULUM_NOMADNET_SOURCE') {
+            if (-not [Environment]::GetEnvironmentVariable($variable)) { throw "$variable is required." }
+        }
+        $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        $work = Join-Path (Get-Location) "artifacts\tests\nomadnet-node-config-$([Guid]::NewGuid().ToString('N'))"
+        $null = New-Item $work -ItemType Directory -Force
+        $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
+        $pending = @{}
+        $errors = @{}
+        $names = @{}
+        $proxy = $null
+        $start = {
+            param([string] $name, [string] $binary, [string[]] $arguments)
+            $info = [Diagnostics.ProcessStartInfo]::new($binary)
+            $info.UseShellExecute = $false
+            $info.RedirectStandardInput = $true
+            $info.RedirectStandardOutput = $true
+            $info.RedirectStandardError = $true
+            $info.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
+            $info.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
+            foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
+            $paths = @($env:DOTRETICULUM_UPSTREAM, $env:DOTRETICULUM_NOMADNET_SOURCE, (Join-Path $root 'tests\Interop'))
+            if ($env:DOTRETICULUM_LXMF_UPSTREAM) { $paths += $env:DOTRETICULUM_LXMF_UPSTREAM }
+            $info.Environment['PYTHONPATH'] = $paths -join [IO.Path]::PathSeparator
+            $info.Environment['PYTHON_CPU_COUNT'] = '2'
+            foreach ($variable in 'TMP', 'TEMP', 'TMPDIR') { $info.Environment[$variable] = $work }
+            $process = [Diagnostics.Process]::new()
+            $process.StartInfo = $info
+            $null = $process.Start()
+            $processes.Add($process)
+            $names[$process.Id] = $name
+            $errors[$process.Id] = $process.StandardError.ReadToEndAsync()
+            return $process
+        }.GetNewClosure()
+        $send = {
+            param($process, [string] $text)
+            $process.StandardInput.WriteLine($text)
+            $process.StandardInput.Flush()
+        }
+        $read = {
+            param($process, [string] $pattern, [int] $seconds = 120)
+            $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+            while ([DateTime]::UtcNow -lt $deadline) {
+                if (-not $pending.ContainsKey($process.Id)) { $pending[$process.Id] = $process.StandardOutput.ReadLineAsync() }
+                try { $line = $pending[$process.Id].WaitAsync([TimeSpan]::FromMilliseconds(500)).GetAwaiter().GetResult() }
+                catch [TimeoutException] { continue }
+                $pending.Remove($process.Id)
+                if ($null -eq $line) { throw "$($names[$process.Id]) closed stdout before '$pattern'; diagnostics $work" }
+                Add-Content (Join-Path $work "$($names[$process.Id]).stdout") $line
+                if ($line -match '"event"\s*:\s*"(error|failed)"|(^|nomadnet> )Error:') { throw $line }
+                if ($line -match $pattern) { return $line }
+            }
+            throw "$($names[$process.Id]) timed out before '$pattern'; diagnostics $work"
+        }.GetNewClosure()
+        $json = { param([string] $line) $line.Substring($line.IndexOf('@@') + 2) | ConvertFrom-Json }
+        $stop = {
+            param($process)
+            & $send $process 'quit'
+            $process.WaitForExit(20000) | Should -BeTrue
+            $process.ExitCode | Should -Be 0
+        }.GetNewClosure()
+        $nativeArguments = {
+            param([string] $profile)
+            @('--config', (Join-Path $work $profile), '--rnsconfig', (Join-Path $work "$profile-rns"))
+        }.GetNewClosure()
+        $pythonArguments = @('-u', (Join-Path $root 'tests\Interop\nomadnet_live_node.py'),
+            '--config', (Join-Path $work 'python-node'), '--rnsconfig', (Join-Path $work 'python-node-rns'))
+        $waitAttachment = {
+            param([string] $profile, [string] $expected)
+            $deadline = [DateTime]::UtcNow.AddSeconds(180)
+            do {
+                $files = @(Get-ChildItem (Join-Path $work "$profile\attachments") -Filter '*.bin' -File -Recurse -ErrorAction SilentlyContinue)
+                foreach ($file in $files) {
+                    if ($file.Length -eq 2200000 -and (Get-FileHash $file.FullName).Hash.ToLowerInvariant() -eq $expected) { return }
+                }
+                Start-Sleep -Milliseconds 100
+            } while ([DateTime]::UtcNow -lt $deadline)
+            throw "Application $profile did not persist the SHA-checked attachment; diagnostics $work"
+        }.GetNewClosure()
+        $waitPeerRoute = {
+            param($process, $transport, [string] $target, [string] $local)
+            $deadline = [DateTime]::UtcNow.AddSeconds(30)
+            & $send $process "request-path $target"
+            $null = & $read $process '"event"\s*:\s*"path-requested"'
+            $ready = $false
+            do {
+                & $send $process 'peer-stats'
+                $peer = @((& $json (& $read $process '"event"\s*:\s*"peer-stats"')).peers |
+                    Where-Object hash -EQ $target)[0]
+                & $send $process "path-stats $target"
+                $route = & $json (& $read $process '"event"\s*:\s*"path-stats"')
+                & $send $transport "path-stats $target"
+                $transportRoute = & $json (& $read $transport '"event"\s*:\s*"path-stats"')
+                & $send $transport "path-stats $local"
+                $localRoute = & $json (& $read $transport '"event"\s*:\s*"path-stats"')
+                $ready = $peer.stamp_cost -eq 13 -and $peer.transfer_kb -eq 4000 -and
+                    $peer.sync_kb -eq 8000 -and $route.hops -eq 2 -and
+                    $route.online -eq $true -and $route.active -eq $true -and
+                    $transportRoute.online -eq $true -and $transportRoute.active -eq $true -and
+                    $localRoute.online -eq $true -and $localRoute.active -eq $true
+                if (-not $ready) { Start-Sleep -Milliseconds 100 }
+            } while (-not $ready -and [DateTime]::UtcNow -lt $deadline)
+            $ready | Should -BeTrue -Because 'actual propagation costs and the transport route, not only an application announce, must be ready'
+        }.GetNewClosure()
+        try {
+            $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+            $listener.Start()
+            $port = $listener.LocalEndpoint.Port
+            $listener.Stop()
+            if (-not ('NomadNetAcceptance.TcpImpairmentProxy' -as [type])) {
+                Add-Type -Path (Join-Path $root 'tests\NomadNet.Tests\TcpImpairmentProxy.cs')
+            }
+            $proxy = [NomadNetAcceptance.TcpImpairmentProxy]::new($port)
+            foreach ($name in 'transport', 'native-node', 'native-client', 'python-node') {
+                $null = New-Item (Join-Path $work "$name-rns") -ItemType Directory -Force
+                if ($name -ne 'native-node') { $null = New-Item (Join-Path $work $name) -ItemType Directory -Force }
+                $lines = @('[reticulum]', ' share_instance = No', ' enable_transport = No', '[logging]', ' loglevel = 2', '[interfaces]')
+                if ($name -eq 'transport') {
+                    $lines[2] = ' enable_transport = Yes'
+                    $lines += @(' [[Server]]', ' type = TCPServerInterface', ' enabled = Yes',
+                        ' listen_ip = 127.0.0.1', " listen_port = $port")
+                }
+                elseif ($name -in @('native-client', 'python-node')) {
+                    $lines += @(' [[Client]]', ' type = TCPClientInterface', ' enabled = Yes',
+                        ' target_host = 127.0.0.1', " target_port = $port")
+                }
+                $lines | Set-Content (Join-Path $work "$name-rns\config") -Encoding utf8
+            }
+            $transport = & $start 'transport' $env:DOTRETICULUM_PYTHON @('-u',
+                (Join-Path $root 'tests\Interop\nomadnet_transport_peer.py'), '--config', (Join-Path $work 'transport-rns'))
+            $null = & $read $transport '"event"\s*:\s*"transport-ready"'
+            $source = Join-Path $work 'primary-config'
+            @('[client]', 'max_accepted_size=4000', 'periodic_lxmf_sync=no', '[node]',
+                'enable_node=yes', 'disable_propagation=no', 'announce_at_start=no',
+                'max_transfer_size=1000', 'max_sync_size=2000', 'message_storage_limit=8',
+                'propagation_cost=13', 'max_peers=0') | Set-Content $source -Encoding utf8
+            $import = & $start 'native-import' $env:DOTRETICULUM_NOMADNET_BINARY @('--import-config', $source, '--config', (Join-Path $work 'native-node'))
+            $null = & $read $import 'Imported core configuration'
+            $import.WaitForExit(20000) | Should -BeTrue
+            $import.ExitCode | Should -Be 0
+            $nativeNode = & $start 'native-bootstrap' $env:DOTRETICULUM_NOMADNET_BINARY (& $nativeArguments 'native-node')
+            $nativeDelivery = [regex]::Match((& $read $nativeNode 'LXMF delivery address:'), '[0-9a-f]{32}').Value
+            $nativePn = [regex]::Match((& $read $nativeNode 'Propagation node address:'), '[0-9a-f]{32}').Value
+            @('[client]', 'user_interface=text', 'max_accepted_size=4000', 'periodic_lxmf_sync=no',
+                '[node]', 'enable_node=yes', 'disable_propagation=no', 'announce_at_start=no',
+                'max_transfer_size=4000', 'max_sync_size=8000', 'message_storage_limit=16',
+                'propagation_cost=13', 'max_peers=0', "static_peers=$nativePn", "prioritise_destinations=$nativeDelivery",
+                '[textui]', 'colormode=256', '[logging]', 'loglevel=7', 'destination=console') |
+                Set-Content (Join-Path $work 'python-node\config') -Encoding utf8
+            $python = & $start 'python-node' $env:DOTRETICULUM_PYTHON $pythonArguments
+            $ready = & $json (& $read $python '"event"\s*:\s*"ready"')
+            $ready.revision | Should -Be 'f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2'
+            '{"schemaVersion":1,"displayName":"Peer receiver","periodicLxmfSync":false,"deliveryTransferLimitBytes":4000000}' |
+                Set-Content (Join-Path $work 'native-client\settings.json') -Encoding utf8
+            $client = & $start 'native-client' $env:DOTRETICULUM_NOMADNET_BINARY (& $nativeArguments 'native-client')
+            $clientDelivery = [regex]::Match((& $read $client 'LXMF delivery address:'), '[0-9a-f]{32}').Value
+            foreach ($edit in @('transfer 4000', 'sync 8000', 'storage 16', 'cost 13', 'peers 0',
+                "static $($ready.propagation) on", "priority $clientDelivery on")) {
+                & $send $nativeNode "node-config $edit"
+                $null = & $read $nativeNode 'restart required'
+                $null = & $read $nativeNode 'Running node: transfer=1000 KB; sync=2000 KB; storage=8000000 bytes'
+            }
+            & $stop $nativeNode
+            @('[reticulum]', ' share_instance = No', '[logging]', ' loglevel = 2', '[interfaces]',
+                ' [[Client]]', ' type = TCPClientInterface', ' enabled = Yes', ' target_host = 127.0.0.1',
+                " target_port = $($proxy.Port)") | Set-Content (Join-Path $work 'native-node-rns\config') -Encoding utf8
+            $nativeNode = & $start 'native-configured' $env:DOTRETICULUM_NOMADNET_BINARY (& $nativeArguments 'native-node')
+            [regex]::Match((& $read $nativeNode 'LXMF delivery address:'), '[0-9a-f]{32}').Value | Should -Be $nativeDelivery
+            [regex]::Match((& $read $nativeNode 'Propagation node address:'), '[0-9a-f]{32}').Value | Should -Be $nativePn
+            & $send $nativeNode 'node-config'
+            $null = & $read $nativeNode "Saved static peers: $($ready.propagation)"
+            $null = & $read $nativeNode "Saved priority destinations: $clientDelivery"
+            $null = & $read $nativeNode 'Running node: transfer=4000 KB; sync=8000 KB; storage=16000000 bytes; cost=13'
+            & $send $python 'node-config-stats'
+            $configuration = & $json (& $read $python '"event"\s*:\s*"node-configuration"')
+            $configuration.effective_storage_bytes | Should -Be 16000000
+            $configuration.effective_max_peers | Should -Be 0
+            $configuration.effective_static_peers | Should -Contain $nativePn
+            $configuration.effective_priorities | Should -Contain $nativeDelivery
+            foreach ($process in @($nativeNode, $client)) {
+                & $send $process 'announce'
+                $null = & $read $process 'Destinations announced.'
+            }
+            & $send $python 'announce'
+            $null = & $read $python '"event"\s*:\s*"announced"'
+            & $waitPeerRoute $python $transport $nativePn $ready.propagation
+            & $send $python "propagation $nativePn"
+            $null = & $read $python '"event"\s*:\s*"propagation-selected"'
+            $bytes = [byte[]]::new(2200000)
+            [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+            $payload = Join-Path $work 'peer-transfer.bin'
+            [IO.File]::WriteAllBytes($payload, $bytes)
+            $digest = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+            & $send $python "send-file-propagated $clientDelivery $payload"
+            $null = & $read $python '"event"\s*:\s*"delivered"' 180
+            $deadline = [DateTime]::UtcNow.AddSeconds(30)
+            do {
+                & $send $nativeNode 'status'
+                $stored = & $read $nativeNode 'Propagation stored messages: \d+'
+                if ($stored -match 'Propagation stored messages: 1$') { break }
+                Start-Sleep -Milliseconds 100
+            } while ([DateTime]::UtcNow -lt $deadline)
+            $stored | Should -Match 'Propagation stored messages: 1$'
+            $proxy.ArmResourceDrop()
+            & $send $nativeNode "node-peer-sync $($ready.propagation)"
+            $null = & $read $nativeNode 'Propagation peer sync complete:' 180
+            $deadline = [DateTime]::UtcNow.AddSeconds(180)
+            do {
+                & $send $python 'stats'
+                $statistics = & $json (& $read $python '"event"\s*:\s*"stats"')
+                if ($statistics.propagation_messages -eq 1) { break }
+                Start-Sleep -Milliseconds 200
+            } while ([DateTime]::UtcNow -lt $deadline)
+            $statistics.propagation_messages | Should -Be 1
+            & $send $nativeNode 'node-peers'
+            $firstPeer = & $read $nativeNode "Peer $($ready.propagation).*outgoing=[1-9]"
+            & $send $python 'peer-stats'
+            $firstPythonPeer = @((& $json (& $read $python '"event"\s*:\s*"peer-stats"')).peers |
+                Where-Object hash -EQ $nativePn)[0]
+            $firstPythonPeer.incoming | Should -BeGreaterThan 0
+            foreach ($process in @($client, $nativeNode, $python)) { & $stop $process }
+            $python = & $start 'python-restarted' $env:DOTRETICULUM_PYTHON $pythonArguments
+            $restored = & $json (& $read $python '"event"\s*:\s*"ready"')
+            $restored.propagation | Should -Be $ready.propagation
+            $restored.delivery | Should -Be $ready.delivery
+            & $send $python 'stats'
+            (& $json (& $read $python '"event"\s*:\s*"stats"')).propagation_messages | Should -Be 1
+            $nativeNode = & $start 'native-restarted' $env:DOTRETICULUM_NOMADNET_BINARY (& $nativeArguments 'native-node')
+            [regex]::Match((& $read $nativeNode 'Propagation node address:'), '[0-9a-f]{32}').Value | Should -Be $nativePn
+            & $send $nativeNode 'node-peers'
+            $restoredPeer = & $read $nativeNode "Peer $($ready.propagation).*handled=[1-9]"
+            $client = & $start 'client-restarted' $env:DOTRETICULUM_NOMADNET_BINARY (& $nativeArguments 'native-client')
+            [regex]::Match((& $read $client 'LXMF delivery address:'), '[0-9a-f]{32}').Value | Should -Be $clientDelivery
+            foreach ($process in @($nativeNode, $client)) {
+                & $send $process 'announce'
+                $null = & $read $process 'Destinations announced.'
+            }
+            & $send $python 'announce'
+            $null = & $read $python '"event"\s*:\s*"announced"'
+            & $waitPeerRoute $python $transport $nativePn $ready.propagation
+            & $send $client "propagation $($ready.propagation)"
+            $null = & $read $client 'Propagation selection saved.'
+            & $send $client 'sync'
+            $null = & $read $client 'Propagation sync: 1 messages \(Complete\)' 180
+            & $waitAttachment 'native-client' $digest
+            & $send $client "contact delivery $nativeDelivery propagated"
+            $null = & $read $client 'Contact policy saved.'
+            & $send $client "attach $nativeDelivery $payload"
+            $null = & $read $client 'Message queued:' 180
+            $deadline = [DateTime]::UtcNow.AddSeconds(180)
+            do {
+                & $send $python 'stats'
+                $statistics = & $json (& $read $python '"event"\s*:\s*"stats"')
+                if ($statistics.propagation_messages -eq 1) { break }
+                Start-Sleep -Milliseconds 200
+            } while ([DateTime]::UtcNow -lt $deadline)
+            $statistics.propagation_messages | Should -Be 1
+            & $send $python "peer-sync $nativePn"
+            $null = & $read $python '"event"\s*:\s*"peer-sync-requested"'
+            $deadline = [DateTime]::UtcNow.AddSeconds(180)
+            do {
+                & $send $python 'peer-stats'
+                $secondPythonPeer = @((& $json (& $read $python '"event"\s*:\s*"peer-stats"')).peers |
+                    Where-Object hash -EQ $nativePn)[0]
+                if ($secondPythonPeer.key_ready -and $null -ne $secondPythonPeer.stamp_cost) { break }
+                Start-Sleep -Seconds 1
+            } while ([DateTime]::UtcNow -lt $deadline)
+            $secondPythonPeer.key_ready | Should -BeTrue
+            & $send $python "peer-sync $nativePn"
+            $null = & $read $python '"event"\s*:\s*"peer-sync-requested"'
+            & $waitAttachment 'native-node' $digest
+            & $send $python 'peer-stats'
+            $secondPythonPeer = @((& $json (& $read $python '"event"\s*:\s*"peer-stats"')).peers |
+                Where-Object hash -EQ $nativePn)[0]
+            $secondPythonPeer.outgoing | Should -BeGreaterThan 0
+            & $send $nativeNode 'node-peers'
+            $secondPeer = & $read $nativeNode "Peer $($ready.propagation).*incoming=[1-9]"
+            $proxy.Dropped | Should -Be 1
+            $proxy.ForwardedBytes | Should -BeGreaterThan $bytes.Length
+            @{ nativeBinary = $env:DOTRETICULUM_NOMADNET_BINARY;
+                nativeSha256 = (Get-FileHash $env:DOTRETICULUM_NOMADNET_BINARY).Hash;
+                primaryRevision = $ready.revision; payloadBytes = 2200000; payloadSha256 = $digest;
+                firstNativePeer = $firstPeer; restoredNativePeer = $restoredPeer; finalNativePeer = $secondPeer;
+                pythonIncoming = $firstPythonPeer.incoming; pythonOutgoing = $secondPythonPeer.outgoing;
+                maxPeers = 0; staticPeersExceedDynamicCap = $true;
+                droppedResourceParts = $proxy.Dropped; delayedFrames = $proxy.Forwarded; forwardedBytes = $proxy.ForwardedBytes;
+                delayMilliseconds = 5; topology = 'native PN and actual Python NomadNet PN peer across a separate actual Python transport hop; native PN leg delayed5ms with one Resource-part drop' } |
+                ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
+        }
+        finally {
+            foreach ($process in $processes) {
+                if (-not $process.HasExited) {
+                    try { & $send $process 'quit' } catch { }
+                    if (-not $process.WaitForExit(5000)) { $process.Kill($true); $process.WaitForExit() }
+                }
+                [IO.File]::WriteAllText((Join-Path $work "$($names[$process.Id]).stderr"), $errors[$process.Id].GetAwaiter().GetResult())
+                $process.Dispose()
+            }
+            if ($null -ne $proxy) { $proxy.DisposeAsync().AsTask().GetAwaiter().GetResult() }
+            if ($env:DOTRETICULUM_NOMADNET_KEEP_WORK -ne '1') { Remove-Item $work -Recurse -Force }
+        }
+    }
+}
+
 Describe 'NomadNet actual RRC presentation workflows' -Tag 'Live', 'RrcPresentation' {
     It 'preserves original group composition and renders all four policies through an actual Python transport hub across restart' {
         if ($env:DOTRETICULUM_NOMADNET_RRC_PRESENTATION_LIVE -ne '1' -or

@@ -1,0 +1,194 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sourceSha256": "beda2e618d67200cb14cf7d636efa34f13b4607f99717575f02a1c91fafcf60b",
+  "sourceBlobSha256": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2",
+  "rnsCommit": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "lxmfCommit": "e8ba02483217af43be284a72f1c059c730b7d047",
+  "method": "Actual unchanged NomadNetworkApp constructor, ConfigObj/apply_config and actual pinned LXMF router; isolated subprocess per vector with no network interfaces. Adapter only observes configuration and effective router values. Execution config explicitly selects text/colormode256 and console logging; daemon suppresses screen startup. No config/router handler seam.",
+  "vectors": [
+    {
+      "name": "defaults",
+      "input": "[node]\nenable_node = yes\ndisable_propagation = yes\n",
+      "executionConfig": "[client]\nuser_interface = text\n[node]\nenable_node = yes\ndisable_propagation = yes\n\n[textui]\ncolormode = 256\n[logging]\nloglevel = 7\ndestination = console\n",
+      "observed": {
+        "event": "node-configuration",
+        "transfer_kb": 256,
+        "sync_kb": 10240,
+        "storage_mb": 2000,
+        "stamp_cost": 16,
+        "max_peers": null,
+        "static_peers": [],
+        "priorities": [],
+        "effective_transfer_kb": 256,
+        "effective_sync_kb": 10240,
+        "effective_storage_bytes": 2000000000,
+        "effective_max_peers": 20,
+        "effective_static_peers": [],
+        "effective_priorities": []
+      }
+    },
+    {
+      "name": "minimum-clamps",
+      "input": "[node]\nenable_node = yes\ndisable_propagation = yes\nmax_transfer_size = 0.25\nmax_sync_size = 0.5\nmessage_storage_limit = 0.00001\npropagation_cost = 1\nmax_peers = -2\nstatic_peers =\nprioritise_destinations =\n",
+      "executionConfig": "[client]\nuser_interface = text\n[node]\nenable_node = yes\ndisable_propagation = yes\nmax_transfer_size = 0.25\nmax_sync_size = 0.5\nmessage_storage_limit = 0.00001\npropagation_cost = 1\nmax_peers = -2\nstatic_peers =\nprioritise_destinations =\n\n[textui]\ncolormode = 256\n[logging]\nloglevel = 7\ndestination = console\n",
+      "observed": {
+        "event": "node-configuration",
+        "transfer_kb": 1,
+        "sync_kb": 1,
+        "storage_mb": 0.005,
+        "stamp_cost": 13,
+        "max_peers": 0,
+        "static_peers": [
+          ""
+        ],
+        "priorities": [
+          ""
+        ],
+        "effective_transfer_kb": 1,
+        "effective_sync_kb": 1,
+        "effective_storage_bytes": 5000,
+        "effective_max_peers": 0,
+        "effective_static_peers": [],
+        "effective_priorities": []
+      }
+    },
+    {
+      "name": "fractional-and-lists",
+      "input": "[node]\nenable_node = yes\ndisable_propagation = yes\nmax_transfer_size = 1.5\nmax_sync_size = 3.75\nmessage_storage_limit = 0.125\npropagation_cost = 19\nmax_peers = 3\nstatic_peers = 00112233445566778899AABBCCDDEEFF, invalid, 11223344556677889900aabbccddeeff, 00112233445566778899aabbccddeeff\nprioritise_destinations = 11223344556677889900AABBCCDDEEFF, invalid, 11223344556677889900aabbccddeeff\n",
+      "executionConfig": "[client]\nuser_interface = text\n[node]\nenable_node = yes\ndisable_propagation = yes\nmax_transfer_size = 1.5\nmax_sync_size = 3.75\nmessage_storage_limit = 0.125\npropagation_cost = 19\nmax_peers = 3\nstatic_peers = 00112233445566778899AABBCCDDEEFF, invalid, 11223344556677889900aabbccddeeff, 00112233445566778899aabbccddeeff\nprioritise_destinations = 11223344556677889900AABBCCDDEEFF, invalid, 11223344556677889900aabbccddeeff\n\n[textui]\ncolormode = 256\n[logging]\nloglevel = 7\ndestination = console\n",
+      "observed": {
+        "event": "node-configuration",
+        "transfer_kb": 1.5,
+        "sync_kb": 3.75,
+        "storage_mb": 0.125,
+        "stamp_cost": 19,
+        "max_peers": 3,
+        "static_peers": [
+          "00112233445566778899AABBCCDDEEFF",
+          "invalid",
+          "11223344556677889900aabbccddeeff",
+          "00112233445566778899aabbccddeeff"
+        ],
+        "priorities": [
+          "11223344556677889900AABBCCDDEEFF",
+          "invalid",
+          "11223344556677889900aabbccddeeff"
+        ],
+        "effective_transfer_kb": 1.5,
+        "effective_sync_kb": 3.75,
+        "effective_storage_bytes": 125000,
+        "effective_max_peers": 3,
+        "effective_static_peers": [
+          "00112233445566778899aabbccddeeff",
+          "11223344556677889900aabbccddeeff",
+          "00112233445566778899aabbccddeeff"
+        ],
+        "effective_priorities": [
+          "11223344556677889900aabbccddeeff"
+        ]
+      }
+    },
+    {
+      "name": "absent-sync-router-clamp",
+      "input": "[node]\nenable_node = yes\ndisable_propagation = yes\nmax_transfer_size = 20000\n",
+      "executionConfig": "[client]\nuser_interface = text\n[node]\nenable_node = yes\ndisable_propagation = yes\nmax_transfer_size = 20000\n\n[textui]\ncolormode = 256\n[logging]\nloglevel = 7\ndestination = console\n",
+      "observed": {
+        "event": "node-configuration",
+        "transfer_kb": 20000.0,
+        "sync_kb": 10240,
+        "storage_mb": 2000,
+        "stamp_cost": 16,
+        "max_peers": null,
+        "static_peers": [],
+        "priorities": [],
+        "effective_transfer_kb": 20000.0,
+        "effective_sync_kb": 20000.0,
+        "effective_storage_bytes": 2000000000,
+        "effective_max_peers": 20,
+        "effective_static_peers": [],
+        "effective_priorities": []
+      }
+    },
+    {
+      "name": "reversed-config-order",
+      "input": "[node]\nenable_node = yes\ndisable_propagation = yes\nmax_sync_size = 1\nmax_transfer_size = 4000\n",
+      "executionConfig": "[client]\nuser_interface = text\n[node]\nenable_node = yes\ndisable_propagation = yes\nmax_sync_size = 1\nmax_transfer_size = 4000\n\n[textui]\ncolormode = 256\n[logging]\nloglevel = 7\ndestination = console\n",
+      "observed": {
+        "event": "node-configuration",
+        "transfer_kb": 4000.0,
+        "sync_kb": 4000.0,
+        "storage_mb": 2000,
+        "stamp_cost": 16,
+        "max_peers": null,
+        "static_peers": [],
+        "priorities": [],
+        "effective_transfer_kb": 4000.0,
+        "effective_sync_kb": 4000.0,
+        "effective_storage_bytes": 2000000000,
+        "effective_max_peers": 20,
+        "effective_static_peers": [],
+        "effective_priorities": []
+      }
+    },
+    {
+      "name": "configured-peer-cap-zero",
+      "input": "[node]\nenable_node = yes\ndisable_propagation = yes\nmax_transfer_size = 4000\nmax_sync_size = 8000\nmessage_storage_limit = 16\npropagation_cost = 13\nmax_peers = 0\nstatic_peers = 00112233445566778899aabbccddeeff,\nprioritise_destinations = 11223344556677889900aabbccddeeff\n",
+      "executionConfig": "[client]\nuser_interface = text\n[node]\nenable_node = yes\ndisable_propagation = yes\nmax_transfer_size = 4000\nmax_sync_size = 8000\nmessage_storage_limit = 16\npropagation_cost = 13\nmax_peers = 0\nstatic_peers = 00112233445566778899aabbccddeeff,\nprioritise_destinations = 11223344556677889900aabbccddeeff\n\n[textui]\ncolormode = 256\n[logging]\nloglevel = 7\ndestination = console\n",
+      "observed": {
+        "event": "node-configuration",
+        "transfer_kb": 4000.0,
+        "sync_kb": 8000.0,
+        "storage_mb": 16.0,
+        "stamp_cost": 13,
+        "max_peers": 0,
+        "static_peers": [
+          "00112233445566778899aabbccddeeff"
+        ],
+        "priorities": [
+          "11223344556677889900aabbccddeeff"
+        ],
+        "effective_transfer_kb": 4000.0,
+        "effective_sync_kb": 8000.0,
+        "effective_storage_bytes": 16000000,
+        "effective_max_peers": 0,
+        "effective_static_peers": [
+          "00112233445566778899aabbccddeeff"
+        ],
+        "effective_priorities": [
+          "11223344556677889900aabbccddeeff"
+        ]
+      }
+    },
+    {
+      "name": "quoted-byte-whitespace",
+      "input": "[node]\nenable_node = yes\ndisable_propagation = yes\nstatic_peers = \"00 11 22 33 44 55 66 77 88 99 aa bb cc dd ee ff\", \"0 0112233445566778899aabbccddeeff\"\nprioritise_destinations = \"11 22 33 44 55 66 77 88 99 00 aa bb cc dd ee ff\", \"1 1223344556677889900aabbccddeeff\"\n",
+      "executionConfig": "[client]\nuser_interface = text\n[node]\nenable_node = yes\ndisable_propagation = yes\nstatic_peers = \"00 11 22 33 44 55 66 77 88 99 aa bb cc dd ee ff\", \"0 0112233445566778899aabbccddeeff\"\nprioritise_destinations = \"11 22 33 44 55 66 77 88 99 00 aa bb cc dd ee ff\", \"1 1223344556677889900aabbccddeeff\"\n\n[textui]\ncolormode = 256\n[logging]\nloglevel = 7\ndestination = console\n",
+      "observed": {
+        "event": "node-configuration",
+        "transfer_kb": 256,
+        "sync_kb": 10240,
+        "storage_mb": 2000,
+        "stamp_cost": 16,
+        "max_peers": null,
+        "static_peers": [
+          "00 11 22 33 44 55 66 77 88 99 aa bb cc dd ee ff",
+          "0 0112233445566778899aabbccddeeff"
+        ],
+        "priorities": [
+          "11 22 33 44 55 66 77 88 99 00 aa bb cc dd ee ff",
+          "1 1223344556677889900aabbccddeeff"
+        ],
+        "effective_transfer_kb": 256,
+        "effective_sync_kb": 10240,
+        "effective_storage_bytes": 2000000000,
+        "effective_max_peers": 20,
+        "effective_static_peers": [
+          "00112233445566778899aabbccddeeff"
+        ],
+        "effective_priorities": [
+          "11223344556677889900aabbccddeeff"
+        ]
+      }
+    }
+  ]
+}

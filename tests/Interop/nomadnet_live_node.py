@@ -222,6 +222,46 @@ def main():
                         sync_state=app.message_router.propagation_transfer_state,
                     )
                     continue
+                if parts[0] == "node-config-stats":
+                    router = app.message_router
+                    emit("node-configuration",
+                         transfer_kb=app.lxmf_max_propagation_size,
+                         sync_kb=app.lxmf_max_sync_size,
+                         storage_mb=app.message_storage_limit,
+                         stamp_cost=app.node_propagation_cost,
+                         max_peers=app.max_peers,
+                         static_peers=app.static_peers,
+                         priorities=app.prioritised_lxmf_destinations,
+                         effective_transfer_kb=router.propagation_per_transfer_limit,
+                         effective_sync_kb=router.propagation_per_sync_limit,
+                         effective_storage_bytes=router.message_storage_limit,
+                         effective_max_peers=router.max_peers,
+                         effective_static_peers=[value.hex() for value in router.static_peers],
+                         effective_priorities=[value.hex() for value in router.prioritised_list])
+                    continue
+                if parts[0] == "peer-stats":
+                    emit("peer-stats", peers=[
+                        {"hash": destination.hex(), "alive": peer.alive, "state": peer.state,
+                         "outgoing": peer.outgoing, "incoming": peer.incoming,
+                         "tx_bytes": peer.tx_bytes, "rx_bytes": peer.rx_bytes,
+                         "transfer_kb": peer.propagation_transfer_limit,
+                         "sync_kb": peer.propagation_sync_limit,
+                         "stamp_cost": peer.propagation_stamp_cost,
+                         "key_ready": peer.peering_key_ready()}
+                        for destination, peer in app.message_router.peers.copy().items()])
+                    continue
+                if parts[0] == "peer-sync" and len(parts) == 2:
+                    destination = bytes.fromhex(parts[1])
+                    peer = app.message_router.peers[destination]
+                    def synchronize(current=peer, target=destination):
+                        try:
+                            current.sync()
+                            emit("peer-sync-returned", target=target.hex())
+                        except Exception as error:
+                            emit("error", context="actual-primary-peer-sync", message=str(error))
+                    threading.Thread(target=synchronize, daemon=True).start()
+                    emit("peer-sync-requested", target=destination.hex())
+                    continue
                 if parts[0] == "profile-stats":
                     emit("profile", name=app.get_display_name(), last_announce=app.peer_settings["last_announce"])
                     continue
@@ -255,6 +295,13 @@ def main():
                          active=interface in RNS.Transport.interfaces if interface else False,
                          interfaces=[{"name": str(item), "id": id(item), "online": getattr(item, "online", None)}
                                      for item in RNS.Transport.interfaces[:32]])
+                    continue
+                if parts[0] == "request-path" and len(parts) == 2:
+                    target = bytes.fromhex(parts[1])
+                    if len(target) != 16:
+                        raise ValueError("Path discovery requires a 16-byte destination")
+                    app.message_router.request_path(target)
+                    emit("path-requested", target=target.hex())
                     continue
                 if parts[0] == "observe-client-announces":
                     if observing_clients:
@@ -397,7 +444,7 @@ def main():
                             raise ValueError("Actual zxing-cpp did not decode an LXMF URI")
                         emit("qr-decoded", uri=decoded.text, width=image.width, height=image.height)
                     continue
-                if parts[0] not in ("send", "send-file", "send-files", "send-formatted", "send-propagated", "paper", "request", "request-media") or len(parts) != 3:
+                if parts[0] not in ("send", "send-file", "send-file-propagated", "send-files", "send-formatted", "send-propagated", "paper", "request", "request-media") or len(parts) != 3:
                     raise ValueError("expected send, send-file, paper, request, ingest, stats, or quit")
 
                 destination_hash = bytes.fromhex(parts[1])
@@ -471,7 +518,7 @@ def main():
                         raise ValueError("Formatted composition requires text and integer renderer")
                     content = payload["text"]
                     fields[LXMF.FIELD_RENDERER] = payload["renderer"]
-                if parts[0] == "send-file":
+                if parts[0] in ("send-file", "send-file-propagated"):
                     with open(parts[2], "rb") as stream:
                         attachment = stream.read(16000001)
                     if len(attachment) > 16000000:
@@ -499,7 +546,7 @@ def main():
                     content,
                     "",
                     desired_method=(LXMF.LXMessage.PAPER if parts[0] == "paper"
-                                    else LXMF.LXMessage.PROPAGATED if parts[0] == "send-propagated"
+                                    else LXMF.LXMessage.PROPAGATED if parts[0] in ("send-propagated", "send-file-propagated")
                                     else LXMF.LXMessage.DIRECT),
                     fields=fields,
                 )

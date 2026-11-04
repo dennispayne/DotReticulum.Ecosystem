@@ -33,6 +33,7 @@ internal static class Program
                 var imported = await NomadNetConfigImport.ImportAsync(configuration, options.DataDirectory).ConfigureAwait(false);
                 foreach (var key in imported.UnsupportedKeys)
                     Console.Error.WriteLine($"Unsupported upstream setting (not imported): {NomadNetTerminalText.Safe(key)}");
+                foreach (var warning in imported.Warnings) Console.Error.WriteLine(warning);
                 Console.WriteLine($"Imported core configuration into {options.DataDirectory}; unsupported settings: {imported.UnsupportedKeys.Count}.");
                 return 0;
             }
@@ -192,7 +193,7 @@ internal static class Program
         { Log = message => Console.WriteLine(message) };
         await propagationPolicy.RefreshSelectionAsync(cancellationToken).ConfigureAwait(false);
         propagationPolicy.Start();
-        var propagation = settings.EnablePropagation ? router.EnablePropagationNode() : null;
+        var propagation = settings.EnablePropagation ? router.EnablePropagationNode(NomadNetNodeConfiguration.CreateOptions(settings)) : null;
         await using var host = settings.EnableNode ? new NomadNetHost(node.Router, identity, options.DataDirectory, settings,
             _ =>
             {
@@ -355,6 +356,12 @@ internal static class Program
               bookmark [title] | bookmarks | open-bookmark <number>
               fetch <hash> <file-path> <name> Download a bounded /file response
               node paths|refresh|announce     Inspect, refresh or announce hosted content
+              node-config                    Show saved hosting limits (applied at startup)
+              node-config transfer|sync <KB> | node-config storage <MB>
+              node-config cost <13-256> | node-config peers <default|0-65536>
+              node-config static|priority <hash> <on|off>
+              node-peers                     Inspect actual hosted propagation peers
+              node-peer-sync <hash>          Request peer transfer through LXMF (three-minute deadline)
               rrc connect <hub> [nick]        Connect to an identified rrc.hub
               rrc join <room> [key] | rrc part <room>
               rrc send|action <room> <text>  Send group message/action
@@ -481,6 +488,46 @@ internal static class Program
                 Console.WriteLine($"Reticulum interfaces: {node.Interfaces.Count}; known destinations: {node.Router.Engine.Known.Count}");
                 Console.WriteLine(node.IsConnectedToSharedInstance ? "Connected to shared Reticulum instance." : "Using local Reticulum instance.");
                 if (router.PropagationNode is { } stored) Console.WriteLine($"Propagation stored messages: {stored.MessageCount}");
+                return false;
+            }
+            if (command.Equals("node-config", StringComparison.OrdinalIgnoreCase) ||
+                command.StartsWith("node-config ", StringComparison.OrdinalIgnoreCase))
+            {
+                var arguments = command.Split(' ', StringSplitOptions.RemoveEmptyEntries)[1..];
+                if (arguments.Length > 0)
+                {
+                    await propagation.UpdateSettingsAsync(current => NomadNetNodeConfiguration.Change(current, arguments),
+                        cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Node configuration saved; restart required to apply hosting changes.");
+                }
+                var saved = propagation.Settings;
+                var configured = NomadNetNodeConfiguration.CreateOptions(saved);
+                Console.WriteLine($"Saved node configuration (startup only): transfer={configured.TransferLimit} bytes; sync={configured.SyncLimit} bytes; storage={configured.StorageLimit} bytes; cost={configured.StampCost}; peers={configured.MaxPeers}.");
+                Console.WriteLine($"Saved static peers: {string.Join(',', saved.PropagationStaticPeers)}");
+                Console.WriteLine($"Saved priority destinations: {string.Join(',', saved.PrioritisedDestinations)}");
+                if (router.PropagationNode is { } running &&
+                    LxmfPropagationAnnounce.TryParse(running.GetAnnounceAppData(), out var announced))
+                    Console.WriteLine(FormattableString.Invariant($"Running node: transfer={announced!.TransferLimitKilobytes} KB; sync={announced.SyncLimitKilobytes} KB; storage={running.StorageLimit} bytes; cost={announced.StampCost}; stored={running.MessageCount}; bytes={running.StoredBytes}."));
+                return false;
+            }
+            if (command.Equals("node-peers", StringComparison.OrdinalIgnoreCase))
+            {
+                if (router.PropagationNode is not { } running) throw new InvalidOperationException("Propagation hosting is disabled.");
+                foreach (var peer in running.Peers)
+                    Console.WriteLine($"Peer {Convert.ToHexStringLower(peer.DestinationHash)}: alive={peer.Alive}; state={peer.State}; handled={peer.HandledCount}; unhandled={peer.UnhandledCount}; outgoing={peer.Outgoing}; incoming={peer.Incoming}; tx={peer.TxBytes}; rx={peer.RxBytes}.");
+                Console.WriteLine($"Propagation peers: {running.Peers.Count}.");
+                return false;
+            }
+            if (command.StartsWith("node-peer-sync ", StringComparison.OrdinalIgnoreCase))
+            {
+                if (router.PropagationNode is not { } running) throw new InvalidOperationException("Propagation hosting is disabled.");
+                var hash = Convert.FromHexString(NomadNetAddress.NormalizeHash(command["node-peer-sync ".Length..].Trim()));
+                if (!running.Peers.Any(peer => peer.DestinationHash.AsSpan().SequenceEqual(hash)))
+                    throw new InvalidOperationException("Select an existing propagation peer.");
+                using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                deadline.CancelAfter(TimeSpan.FromMinutes(3));
+                var transferred = await running.SynchronizePeerAsync(hash, deadline.Token).ConfigureAwait(false);
+                Console.WriteLine($"Propagation peer sync complete: {transferred} messages.");
                 return false;
             }
             if (command.Equals("announce", StringComparison.OrdinalIgnoreCase))

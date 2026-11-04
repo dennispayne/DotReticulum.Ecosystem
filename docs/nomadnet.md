@@ -56,7 +56,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, per-peer direct/propagated/opportunistic preference, unread/failure counters, explicit viewed/read state, latest-activity listing, deletion/failed purge and plain-text export. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. Native opportunistic text is received by the actual primary; direct reply/viewed state and both applications' read counters are exercised. Upstream `.index`/conversation import and full conversation UI remain missing. |
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Encoded image files can be explicitly converted with the local image adapter; automatic conversation-image display remains missing. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
 | Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. `paper-qr`/`paper-save` save PNG/URI and outbound history; `qr` exports an existing URI, `qr-show` renders explicit black-on-white half-blocks. All QR encoding uses shared `LxPaperQr`, not a second codec. Executed primary save-QR vectors and terminal module tests exist; selected application acceptance is recorded below. Image-import/scanner and printer commands remain missing/unverified; no physical scanning/printing claim. |
-| Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; optional hosted propagation node using `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Propagation-node peering and broader configuration remain unverified/incomplete at the application layer. |
+| Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; hosted propagation uses `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Configured static-peer transfers are now application-verified both ways on Windows/Linux through a separate Python transport, with restart, real loss and2.2MB attachment assertions. Storage/limit/cost/static/priority settings are imported/persisted through existing LXMF options. Full peer management, storage-pressure eviction-order acceptance and additional peer failure/topology cases remain missing/unverified. |
 | Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Saved-node listing/opening, primary rank/trust/name ordering, explicit browser identification consent and existing associated-node trust updates are operational. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Complete announce-stream/node-directory presentation and upstream directory import remain missing. |
 | Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **partial**: `nomadnetwork.node`, UTF-8 name app-data, default index, nested static pages, configurable six-second startup announce and periodic node announce; independent configurable page/file rescan intervals, explicit refresh and bounded handler inspection. New/deleted paths update handlers. `.allowed` identity lists enforced. Node announces chain the existing hosted propagation announce rather than duplicate its protocol. Source-specific counters and upstream default assets remain missing. |
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
@@ -91,13 +91,66 @@ contracts and reports unsupported keys; it is not complete configuration parity.
 | `imageLoading` | numeric never0/manual1/auto2/always3; default2. `images <mode>` persists policy; `images load` explicitly loads, `images reload` refetches media without replaying the page/form |
 | `inboundStampCost`, `acceptInvalidStamps` | null / false; stamp cost null or 1–254; existing LXMF enforces required stamps unless explicitly accepting invalid stamps |
 | `pagesPath`, `filesPath`, `downloadsPath` | null uses native `storage\pages`, `storage\files`, `downloads`; explicit paths override those roots; remote names still cannot escape selected roots |
-| `enablePropagation` | false; requires `enableNode`; uses existing LXMF propagation defaults |
+| `enablePropagation` | false; requires `enableNode`; maps the hosting settings below onto existing `LxmPropagationOptions`, not another propagation implementation |
+| `propagationTransferLimitBytes`, `propagationSyncLimitBytes` | 256,000 /10,240,000; effective sync is at least transfer. Native safety bounds: transfer1,000–64MiB, configured sync1,000–256MiB |
+| `propagationStorageLimitBytes`, `propagationStampCost` | Fresh/imported profiles2,000,000,000 /16, matching the actual primary node defaults; existing native files without the storage property retain their earlier500MB quota, which is made explicit on next save. Native storage5,000–16GiB and cost13–256 |
+| `propagationMaxPeers` | null maps onto existing LXMF default20; explicit0–65,536. Static peers can exist with the dynamic peer cap0 |
+| `propagationStaticPeers`, `prioritisedDestinations` | empty; at most128 validated16-byte hashes per list: respectively `lxmf.propagation` peer destinations and `lxmf.delivery` priority destinations, not `nomadnetwork.node` addresses. Import preserves valid static duplicates as upstream does; priorities are deduplicated. New policies are copied across application snapshots/updates |
 | `propagationNode`, `usePropagation` | null / true; `propagation <hash|auto|off>` persists manual, trusted automatic or disabled client selection |
 | `trustedNodes` | empty; at most 128 `nomadnetwork.node` hashes, not delivery/propagation hashes |
 | `periodicLxmfSync`, `lxmfSyncIntervalMinutes`, `lxmfSyncLimit` | true / 360 / 8; interval 1–525600 minutes, limit 0–100000 (0 is unlimited); five-second scheduler after 90-second startup deferral |
 | `lastLxmfSync` | absent until first attempt; persisted UTC timestamp before retrieval; failure/cancellation do not erase it |
 | `tryPropagationOnSendFail` | true; one propagation attempt after failed direct delivery if a node is selected |
 | `deliveryTransferLimitBytes` | 1,000,000; validated 1 KiB–64 MiB. Independent attachment extraction limit is 16 MiB. |
+
+### Node limits and peer policy
+
+The node-configuration fixture is generated by executing seven real, unchanged
+primary constructors, not by calling a replacement configuration parser.
+`GenerateNomadNetNodeConfigVectors.py` records the primary commit, Git-blob and
+working-copy SHA-256, RNS/LXMF pins, complete constructor input and observations.
+The working copy can have CRLF while the Git blob has LF; neither digest is
+presented as the other.
+
+`NomadNetworkApp.py:363–405,1128–1234` establishes decimal KB/MB units, transfer
+minimum1KB, explicitly configured sync minimum equal to transfer, storage
+minimum0.005MB, propagation cost minimum13, negative peer caps clamped0,
+and absent peer cap `None`. The actual LXMF constructor maps absent peer cap
+to20 and clamps effective sync even when the primary app's absent-sync value
+remains10,240KB. Both configured and effective values are retained in the fixture.
+Valid static duplicates survive the primary's decoding; priority registration
+deduplicates. Malformed hashes are skipped by the source application; the
+explicit native importer likewise skips them with bounded contextual warnings.
+Native JSON settings instead reject malformed hashes rather than silently
+discarding persisted policy.
+
+The importer supports scalar, quoted and comma-separated destination lists,
+including trailing commas and ASCII whitespace between complete bytes inside
+a quoted hex hash. Whitespace between nibbles is invalid, matching executed
+`bytes.fromhex` observations, and is skipped with a warning.
+The importer retains a64KiB aggregate/8Ki-character line bound, allowing a full
+128-entry quoted hash list. This is not general ConfigObj grammar. Unbounded source sizes/costs/lists are
+restricted to the documented native safety caps; fractional units are converted
+to whole bytes, so sub-byte announce precision is not claimed. The settings
+file is bounded at64KiB on both save and load, accommodating all three bounded
+policy lists plus escaped path strings; an over-limit write cannot replace a
+valid profile. Settings snapshots and completed updates do not expose mutable
+destination lists.
+
+`node-config` displays saved effective startup settings separately from actual
+running announce limits/storage/cost. `transfer`/`sync` take decimal KB,
+`storage` decimal MB, `cost` an integer, `peers` an integer or `default`,
+and `static`/`priority` a hash plus `on|off`. Successful edits are persisted
+before publication and explicitly require restart; there is no misleading
+partial hot reload or in-process eviction while saving policy. `node-peers`
+reports actual lower-layer counters without printing peering keys.
+Removing a static designation is not an implicit unpeer/blacklist operation;
+as in the primary configuration workflow, persisted peers can remain discovered
+peers. A terminal unpeer action and full peer-management UI remain missing.
+The primary's manual peer-sync action is in
+`ui/textui/Network.py:1887–1901`; the native command calls the existing
+`SynchronizePeerAsync` for a known peer and joins cancellation, without
+reimplementing offers, peering work, resources or storage.
 
 Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
 
@@ -117,9 +170,13 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   `announce_interval`, `pages_path`, `files_path`, `page_refresh_interval`,
   `file_refresh_interval`, `propagation_cost`, `max_transfer_size`, `max_sync_size`,
   `prioritise_destinations`, `static_peers`, `max_peers`, `message_storage_limit`
-  — **partial** enable/name/announce interval/manual propagation and custom
-  page/file roots, startup announce and independent rescan intervals; the other knobs are
-  **missing** at the application layer, even where LXMF has corresponding APIs.
+  — **partial**: named node keys are now imported, validated and mapped onto
+  existing LXMF hosting options. Terminal `node-config` edits persist atomically;
+  hosting changes require restart rather than claiming unsupported hot reload.
+  `node-peers` inspects actual peers and `node-peer-sync <hash>` requests transfer
+  for an existing peer using LXMF, with a joined three-minute cancellation deadline.
+  Configured static peering now has separate actual application acceptance on
+  Windows/Linux, described below; generic underlying LXMF tests are not substituted.
 - `[textui]`: `intro_time`, `theme`, `colormode`, `glyphs`, `image_loading`,
   `mouse_enabled`, `editor`, `hide_guide`, `sanitize_names`, `clipboard_copy`
   — **partial**: `image_loading` is imported and operational for original inline ASCII, not Kitty; other listed UI options remain missing. Native terminal output sanitises control characters.
@@ -411,6 +468,89 @@ zero failures**. Separately selected converter tests above cover the integrated
 run's converter skips. Inline media, remaining UI/configuration, migration,
 printing and application propagation peering remain required software, not
 reclassified as hardware or optional omissions.
+
+### Node hosting configuration acceptance
+
+The post-hex-whitespace configuration slice uses seven executed primary
+constructor observations, including a red/green regression for malformed
+whitespace between hex nibbles. It does not derive reference values from C#.
+All existing NomadNet tests are included in these scoped Release results:
+
+| Post-fix acceptance | Windows x64 | Linux x64 |
+|---|---|---|
+| Managed, with the selected real FFmpeg available |147 passed /5 explicit Linux-only skips |152 passed /0 skipped |
+| Strict NativeAOT publish, trim/ILC warnings as errors |passed, zero warnings/errors |passed, zero warnings/errors |
+| Native executable/core workflows |4/4 |4/4 |
+| Actual configured application peer/restart/impairment flow |1/1,91.74seconds |1/1,86.01seconds |
+| Existing mixed propagation/retrieval/restart/loss regression |not rerun in this slice |1/1,245.77seconds |
+
+Parent independent execution of both SHA-guarded post-fix recipes reproduces
+the managed and Native4/4 results above. Configured peering passes
+91.55seconds on Windows and88.76seconds on Linux; the separate Linux mixed
+propagation regression passes240.16seconds. These are fresh process runs
+against the frozen binaries/adapters, not the owner's earlier results or
+the superseded pre-hex-fix acceptance.
+
+Exact accepted post-fix executables:
+
+- Windows: `artifacts\builds\nomadnet-node-config-corrected-win\publish\NomadNet\release_win-x64\nomadnet.exe`,
+  SHA-256 `f9d8834c660b19a069810a8054496179f3cf7a72f887aec4ada7a246e024dd89`.
+- Linux: `artifacts\builds\nomadnet-node-config-corrected-linux\publish\NomadNet\release_linux-x64\nomadnet`,
+  SHA-256 `556f92625781fea49c43570bf1f009d19b156b90def78a5ffc5d3319036c7928`.
+
+Publishing uses `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r <rid>`
+with a host-specific `--artifacts-path`,
+`-p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror`;
+Windows uses the MSVC environment and publish in the same process.
+Scoped tests use
+`dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --filter "Category!=Live"`
+with the corresponding isolated artifacts/results paths and real converter.
+Portable PDB checksums match all five modified production source files in both
+publish builds. The13-path manifest and literal source snapshots are retained
+under `artifacts\tests\nomadnet-node-config-acceptance.json` and
+`artifacts\tests\nomadnet-node-config-post-hex-snapshot`.
+
+Guarded local reproduction recipes are
+`artifacts\tests\nomadnet-node-config-corrected-win-acceptance.ps1` and
+`artifacts\tests\nomadnet-node-config-corrected-linux-acceptance.ps1`.
+They verify exact executables, managed test DLLs, the frozen Pester suite,
+both thin adapters, the impairment helper and required third-party notice;
+TRX output directories are unique per invocation. The committed live case is
+the `NodeConfiguration` Pester tag, enabled only by
+`DOTRETICULUM_NOMADNET_NODE_CONFIG_LIVE=1` and explicit actual-reference/native
+paths. It never silently substitutes a PATH-selected executable.
+
+The topology has separate native PN, actual primary Python NomadNet PN and
+native client processes connected through an unmodified pinned Python RNS
+transport. Actual peer paths are asserted at two hops. The native PN leg has
+5ms per forwarded frame and one armed, actually dropped Resource part.
+Both peer directions carry a2,200,000-byte attachment, verified by SHA-256 in
+the receiving native application's attachment storage; actual Python and
+native peer incoming/outgoing counters also advance. All three applications
+restart with the same identities, configured policies, stored message and
+native handled-peer state before the reverse flow. Static peers operate with
+dynamic `max_peers=0`. Initial imported1MB/2MB/8MB limits remain running while
+terminal edits save4MB/8MB/16MB limits; only restart applies the new values.
+Cost13 and both priority destination configurations are explicit non-default
+test settings, not assumed defaults.
+
+Readiness requires actual cached peer costs, two-hop client routing and both
+gateway interfaces online/active within30seconds. One normal public
+`LXMRouter.request_path` call begins each phase, as used by the source
+`LXMPeer.sync`; there is no forced expiry, peer-state/backoff mutation or
+deadline extension. The Python reverse peer direction occurs after identity
+caches are persisted/reloaded: fresh unknown-static-peer outgoing resolution,
+storage-pressure eviction order, additional rejection/failure topologies and
+every daemon/control workflow are not established by this case.
+
+Earlier failed observations remain failures: Windows attempted sending before
+the20-second propagation announce/cached cost (13.27seconds); Linux waited for
+an unsolicited changed value after one premature stored-count snapshot
+(150.43seconds); passive post-restart discovery had no Python PN peer path even
+though both gateway routes were healthy (73.31seconds). The current gate
+observes storage repeatedly and uses normal explicit path discovery without
+weakening assertions. Pre-hex passing native/parent results and their manifest
+remain separate, not relabelled as acceptance of the corrected importer.
 
 ## Operation
 

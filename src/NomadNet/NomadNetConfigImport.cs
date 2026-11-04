@@ -21,7 +21,7 @@ public static class NomadNetConfigImport
         var disablePropagation = true;
         foreach (var (key, raw) in values)
         {
-            if (key is not ("client.compose_in_markdown" or "rrc.render_markdown" or "rrc.render_micron" or
+            if (key is not ("textui.image_loading" or "client.compose_in_markdown" or "rrc.render_markdown" or "rrc.render_micron" or
                 "client.enable_client" or "client.announce_at_start" or "client.announce_interval" or
                 "client.periodic_lxmf_sync" or "client.lxmf_sync_interval" or "client.lxmf_sync_limit" or
                 "client.try_propagation_on_send_fail" or "client.required_stamp_cost" or "client.accept_invalid_stamps" or
@@ -35,6 +35,7 @@ public static class NomadNetConfigImport
             var value = Scalar(raw);
             switch (key)
             {
+                case "textui.image_loading": settings.ImageLoading = NomadNetImagePolicy.Parse(value); break;
                 case "client.compose_in_markdown": settings.ComposeInMarkdown = Boolean(value); break;
                 case "rrc.render_markdown": settings.RrcRenderMarkdown = Boolean(value); break;
                 case "rrc.render_micron": settings.RrcRenderMicron = Boolean(value); break;

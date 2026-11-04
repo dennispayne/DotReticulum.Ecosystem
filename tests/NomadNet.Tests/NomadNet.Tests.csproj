@@ -30,5 +30,6 @@
     <EmbeddedResource Include="NomadNetClientAnnounceVectors.json" />
     <EmbeddedResource Include="NomadNetPresentationVectors.json" />
     <EmbeddedResource Include="NomadNetQrVectors.json" />
+    <EmbeddedResource Include="NomadNetInlineMediaVectors.json" />
   </ItemGroup>
 </Project>

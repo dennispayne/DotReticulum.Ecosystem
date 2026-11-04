@@ -50,6 +50,26 @@ public sealed partial record NomadNetRenderedPage
     public string DisplayText => string.Join('\n', DisplayRows().Where((_, row) =>
         !Folds.Any(fold => fold.Collapsed && row > fold.Row && row < fold.EndRow)));
 
+    public string DisplayWithImages(IReadOnlyDictionary<NomadNetPageMedia, string> previews)
+    {
+        var result = new List<string>();
+        var mediaRows = Tokens.Where(token => token.Kind == "media").GroupBy(token => token.Row)
+            .ToDictionary(group => group.Key, group => group.Select(token => Media[token.Index]));
+        var row = 0;
+        foreach (var text in DisplayRows())
+        {
+            if (!Folds.Any(fold => fold.Collapsed && row > fold.Row && row < fold.EndRow))
+            {
+                result.Add(text);
+                if (mediaRows.TryGetValue(row, out var images))
+                    foreach (var image in images)
+                        if (previews.TryGetValue(image, out var preview)) result.Add(preview);
+            }
+            row++;
+        }
+        return string.Join('\n', result);
+    }
+
     internal string TokenText(MicronInlineToken token, int index) => token.Kind switch
     {
         "link" => $"[{index + 1}] {Links[token.Index].Label}",

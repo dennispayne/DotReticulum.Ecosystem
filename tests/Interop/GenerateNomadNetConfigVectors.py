@@ -43,6 +43,8 @@ file_refresh_interval = 3
 [rrc]
 render_markdown = off
 render_micron = no
+[textui]
+image_loading = manual
 """),
         ("clamped", """[client]
 enable_client = yes
@@ -64,6 +66,8 @@ file_refresh_interval = -4
 [rrc]
 render_markdown = yes
 render_micron = yes
+[textui]
+image_loading = never
 """),
         ("no-stamps", """[client]
 required_stamp_cost = -1
@@ -73,8 +77,16 @@ max_accepted_size = 1000
 enable_node = 1
 disable_propagation = 1
 """),
+        ("always-images", """[client]
+max_accepted_size = 1000
+[textui]
+image_loading = always
+[node]
+enable_node = yes
+disable_propagation = yes
+"""),
     ]
-    root = Path("artifacts/tests/nomadnet-config-reference").resolve()
+    root = Path(f"artifacts/tests/nomadnet-config-reference-{os.getpid()}").resolve()
     root.mkdir(parents=True, exist_ok=True)
     vectors = []
     for name, config in cases:
@@ -83,7 +95,16 @@ disable_propagation = 1
         rns = work / "rns"
         app.mkdir(parents=True, exist_ok=True)
         rns.mkdir(parents=True, exist_ok=True)
-        (app / "config").write_text(config, encoding="utf-8")
+        # The primary parses TextUI options only while selecting user_interface=text;
+        # --daemon subsequently suppresses screen startup. This is a real config prerequisite.
+        execution_config = config.replace("[client]\n", "[client]\nuser_interface = text\n", 1) if "[client]\n" in config else "[client]\nuser_interface = text\n" + config
+        if "[textui]" not in execution_config:
+            execution_config += "\n[textui]\n"
+        # The pinned primary's missing-colormode branch references a nonexistent
+        # nomadnet.ui.COLORMODE_16; explicitly select its ordinary supported mode.
+        execution_config = execution_config.replace("[textui]\n", "[textui]\ncolormode = 256\n", 1)
+        execution_config += "\n[logging]\nloglevel = 7\ndestination = console\n"
+        (app / "config").write_text(execution_config, encoding="utf-8")
         (rns / "config").write_text("[reticulum]\n share_instance = No\n[logging]\n loglevel = 0\n[interfaces]\n", encoding="utf-8")
         environment = dict(os.environ)
         environment["PYTHONPATH"] = str(source) + os.pathsep + environment.get("PYTHONPATH", "")
@@ -110,7 +131,7 @@ disable_propagation = 1
                         process.stdin.write("quit\n")
                         process.stdin.flush()
                     if value.get("event") == "configuration":
-                        vectors.append({"name": name, "input": config, "observed": value})
+                        vectors.append({"name": name, "input": config, "executionConfig": execution_config, "observed": value})
                         process.stdin.write("quit\n")
                         process.stdin.flush()
             except Exception as error:
@@ -119,6 +140,11 @@ disable_propagation = 1
         reader.start()
         try:
             process.wait(timeout=45)
+        except subprocess.TimeoutExpired as error:
+            process.kill()
+            process.wait()
+            reader.join(timeout=5)
+            raise RuntimeError(f"Actual primary config timed out for {name}: {errors}, {lines}, {process.stderr.read()}") from error
         finally:
             if process.poll() is None:
                 process.kill()
@@ -128,7 +154,7 @@ disable_propagation = 1
             raise RuntimeError(f"Actual primary config failed: {errors}, {lines}, {process.stderr.read()}")
     result = {
         "commit": revision,
-        "method": "Actual unmodified NomadNetworkApp constructor/applyConfig in isolated no-interface subprocesses; adapter only observes public attributes. Standard PYTHON_CPU_COUNT=2 bounds workers; no constructor/config handler seam.",
+        "method": "Actual unmodified NomadNetworkApp constructor/applyConfig in isolated no-interface subprocesses; adapter only observes public attributes. executionConfig explicitly selects client.user_interface=text and textui.colormode=256 to exercise TextUI parsing (the missing-colormode branch references nonexistent nomadnet.ui.COLORMODE_16); --daemon suppresses screen startup. Console debug logging exposes configuration errors. Standard PYTHON_CPU_COUNT=2 bounds workers; no constructor/config handler seam.",
         "sourceSha256": hashlib.sha256((source / "nomadnet/NomadNetworkApp.py").read_bytes()).hexdigest(),
         "vectors": vectors,
     }

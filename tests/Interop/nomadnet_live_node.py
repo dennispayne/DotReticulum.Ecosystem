@@ -343,6 +343,7 @@ def main():
                     emit("configuration", enable_node=app.enable_node, node_name=app.node_name,
                          compose_in_markdown=app.compose_markdown, rrc_render_markdown=app.rrc_ui_render_markdown,
                          rrc_render_micron=app.rrc_ui_render_micron,
+                         image_loading=app.config.get("textui", {}).get("image_loading"),
                          enable_client=app.enable_client, client_announce_at_start=app.peer_announce_at_start,
                          client_announce_interval=app.announce_interval,
                          client_delivery_registered=app.lxmf_destination is not None,

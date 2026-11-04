@@ -349,6 +349,7 @@ internal static class Program
               partial <number>                Fetch a partial with current form data
               media <number> <name.webp>      Download image bytes (no visual decode)
               show-media <number> [color]    Decode to text/ANSI true-colour preview
+              images [mode|load|reload]      Inline ASCII images: never/manual/auto/always
               image-convert <file> <name.webp> Convert local image into downloads
               reload                          Fetch current page without cache
               bookmark [title] | bookmarks | open-bookmark <number>
@@ -397,10 +398,13 @@ internal static class Program
             () => propagation.Settings.TryPropagationOnSendFail)
         { Log = message => Console.Error.WriteLine(message) };
         private readonly NomadNetPageCache _cache = new(dataDirectory);
+        private readonly NomadNetRemoteMediaCache _mediaCache = new(dataDirectory);
         private string? _currentNode;
         private string _currentPath = NomadNetAddress.DefaultPagePath;
         private RrcClient? _rrc;
         private NomadNetMicronBrowser? _browser;
+        private NomadNetInlineMedia? _inlineImages;
+        private NomadNetImageLinkMetrics? _pageMetrics;
         private NomadNetRenderedPage? _page => _browser?.Current;
         private object? _currentRequestData;
         private readonly NomadNetNavigationHistory _navigation = new();
@@ -410,6 +414,8 @@ internal static class Program
         public async ValueTask DisposeAsync()
         {
             if (_browser is not null) await _browser.DisposeAsync().ConfigureAwait(false);
+            if (_inlineImages is not null) await _inlineImages.DisposeAsync().ConfigureAwait(false);
+            _mediaCache.Dispose();
             await _delivery.DisposeAsync().ConfigureAwait(false);
             if (_rrc is not null) await _rrc.DisposeAsync().ConfigureAwait(false);
         }
@@ -837,13 +843,40 @@ internal static class Program
             if (command.StartsWith("fold ", StringComparison.OrdinalIgnoreCase))
             {
                 var page = _page ?? throw new InvalidOperationException("Browse a page first.");
-                Console.WriteLine(_browser!.ToggleFold(ParseIndex(command[5..], page.Folds.Count)));
+                _browser!.ToggleFold(ParseIndex(command[5..], page.Folds.Count));
+                Console.WriteLine(_inlineImages?.Render(page) ?? page.DisplayText);
                 return false;
             }
             if (command.StartsWith("partial ", StringComparison.OrdinalIgnoreCase))
             {
                 var page = _page ?? throw new InvalidOperationException("Browse a page first.");
                 await _browser!.RefreshAsync(ParseIndex(command[8..], page.Partials.Count), cancellationToken).ConfigureAwait(false);
+                return false;
+            }
+            if (command.Equals("images", StringComparison.OrdinalIgnoreCase) || command.StartsWith("images ", StringComparison.OrdinalIgnoreCase))
+            {
+                var action = command.Length > 6 ? command[7..].Trim().ToLowerInvariant() : "status";
+                if (action == "status") Console.WriteLine($"Inline images: {propagation.Settings.ImageLoading.ToString().ToLowerInvariant()} (portable ASCII, not Kitty).");
+                else if (action is "load" or "reload")
+                {
+                    if (propagation.Settings.ImageLoading == NomadNetImageLoading.Never)
+                        throw new InvalidOperationException("Inline images are disabled; choose manual, auto or always first.");
+                    await (_inlineImages ?? throw new InvalidOperationException("Browse a page first.")).LoadAsync(action == "reload", cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Inline image loading complete.");
+                }
+                else
+                {
+                    var mode = NomadNetImagePolicy.Parse(action);
+                    await propagation.UpdateSettingsAsync(settings => settings with { ImageLoading = mode }, cancellationToken).ConfigureAwait(false);
+                    if (_inlineImages is { } previousImages)
+                    {
+                        _inlineImages = null;
+                        await previousImages.DisposeAsync().ConfigureAwait(false);
+                    }
+                    if (_page is { } currentPage && _currentNode is { } currentNode)
+                        StartInlineImages(currentPage, currentNode);
+                    Console.WriteLine($"Inline images: {action}.");
+                }
                 return false;
             }
             if (command.StartsWith("media ", StringComparison.OrdinalIgnoreCase))
@@ -1210,9 +1243,16 @@ internal static class Program
                 _browser = null;
                 await previous.DisposeAsync().ConfigureAwait(false);
             }
+            if (_inlineImages is { } previousImages)
+            {
+                _inlineImages = null;
+                await previousImages.DisposeAsync().ConfigureAwait(false);
+            }
+            _pageMetrics = null;
             if (reload) _cache.Remove(url);
             var cached = requestData is null ? await _cache.ReadAsync(url, cancellationToken).ConfigureAwait(false) : null;
-            var body = cached ?? await RequestAsync(hash, path, requestData, MicronText.MaximumPageBytes, cancellationToken).ConfigureAwait(false);
+            var body = cached ?? await RequestAsync(hash, path, requestData, MicronText.MaximumPageBytes, cancellationToken,
+                metrics => _pageMetrics = metrics).ConfigureAwait(false);
             if (cached is null && requestData is null) await _cache.StoreAsync(url, body, cancellationToken).ConfigureAwait(false);
             var page = MicronText.Render(body);
             _currentRequestData = requestData;
@@ -1230,14 +1270,43 @@ internal static class Program
             browser.Changed += updated =>
             {
                 if (!ReferenceEquals(_browser, browser)) return;
+                _inlineImages?.Show(updated, ShouldLoadInlineImages(origin));
                 Console.WriteLine("--- partials updated ---");
-                Console.WriteLine(updated.DisplayText);
+                Console.WriteLine(_inlineImages?.Render(updated) ?? updated.DisplayText);
             };
             Console.WriteLine($"--- {_currentNode}:{_currentPath} ---");
             if (cached is not null) Console.WriteLine("(cached page)");
             Console.WriteLine(page.DisplayText);
             ShowLinks();
+            StartInlineImages(page, origin);
             browser.Start();
+        }
+
+        private bool ShouldLoadInlineImages(string origin) => NomadNetImagePolicy.ShouldLoad(propagation.Settings.ImageLoading,
+            host is not null && host.DestinationHash == origin, _pageMetrics);
+
+        private void StartInlineImages(NomadNetRenderedPage page, string origin)
+        {
+            if (propagation.Settings.ImageLoading == NomadNetImageLoading.Never) return;
+            var images = new NomadNetInlineMedia(async (image, reload, token) =>
+            {
+                var target = NomadNetAddress.ParseUrl(image.Target, origin, media: true);
+                var url = target.DestinationHash + ":" + target.Path;
+                var bytes = await _mediaCache.GetAsync(url, ct => RequestAsync(Convert.FromHexString(target.DestinationHash), "/media",
+                    new Dictionary<object, object?> { ["path"] = target.Path, ["key"] = null }, NomadNetHost.MaximumFileBytes, ct),
+                    reload, token).ConfigureAwait(false);
+                return await new NomadNetImages(propagation.Settings.MediaConverter, Path.Combine(dataDirectory, "storage", "image-work"))
+                    .PreviewAsync(bytes, cancellationToken: token).ConfigureAwait(false);
+            }) { Log = message => Console.Error.WriteLine(message) };
+            images.Changed += updated =>
+            {
+                if (!ReferenceEquals(_inlineImages, images)) return;
+                Console.WriteLine("--- inline images updated ---");
+                Console.WriteLine(images.Render(updated));
+            };
+            _inlineImages = images;
+            images.Start();
+            images.Show(page, ShouldLoadInlineImages(origin));
         }
 
         private async Task FetchFileAsync(string hashText, string remotePath, string outputName, CancellationToken cancellationToken)
@@ -1269,7 +1338,8 @@ internal static class Program
             finally { if (File.Exists(temporary)) File.Delete(temporary); }
         }
 
-        private async Task<byte[]> RequestAsync(byte[] destinationHash, string path, object? data, long maximumBytes, CancellationToken cancellationToken)
+        private async Task<byte[]> RequestAsync(byte[] destinationHash, string path, object? data, long maximumBytes, CancellationToken cancellationToken,
+            Action<NomadNetImageLinkMetrics>? observe = null)
         {
             var connected = await ClientLinks.ConnectAsync(node, destinationHash, TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
             if (!connected.Ok || connected.Link is null) throw new IOException(connected.Error ?? "Could not connect to the page node.");
@@ -1278,9 +1348,12 @@ internal static class Program
             {
                 var contact = await store.FindContactAsync(Convert.ToHexStringLower(destinationHash), cancellationToken).ConfigureAwait(false);
                 if (NomadNetDirectoryPolicy.ShouldIdentify(contact)) link.Identify(identity);
+                var requestedAt = System.Diagnostics.Stopwatch.GetTimestamp();
                 var receipt = link.Request(path, data, timeout: 60, maxResponseSize: maximumBytes,
                     cancellationToken: cancellationToken) ?? throw new IOException("The Reticulum request could not be started.");
                 var response = await receipt.ResponseTask.WaitAsync(TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
+                observe?.Invoke(new(link.Rtt, link.ExpectedRate, receipt.ResponseTransferSize,
+                    System.Diagnostics.Stopwatch.GetElapsedTime(requestedAt).TotalSeconds));
                 return response switch
                 {
                     byte[] bytes when bytes.Length <= maximumBytes => bytes,

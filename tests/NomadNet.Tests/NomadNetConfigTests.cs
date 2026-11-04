@@ -24,6 +24,7 @@ public sealed class NomadNetConfigTests
             Assert.Equal(expected.GetProperty("compose_in_markdown").GetBoolean(), actual.ComposeInMarkdown);
             Assert.Equal(expected.GetProperty("rrc_render_markdown").GetBoolean(), actual.RrcRenderMarkdown);
             Assert.Equal(expected.GetProperty("rrc_render_micron").GetBoolean(), actual.RrcRenderMicron);
+            Assert.Equal(expected.GetProperty("image_loading").GetInt32(), (int)actual.ImageLoading);
             Assert.Equal(expected.GetProperty("enable_client").GetBoolean(), actual.EnableClient);
             Assert.Equal(expected.GetProperty("client_announce_at_start").GetBoolean(), actual.ClientAnnounceAtStart);
             Assert.Equal(expected.GetProperty("client_announce_interval").GetInt32(), actual.ClientAnnounceIntervalMinutes * 60);
@@ -61,7 +62,8 @@ public sealed class NomadNetConfigTests
             [client]
             downloads_path = ~/Downloads
             [textui]
-            image_loading = yes
+            image_loading = manual
+            mouse_enabled = yes
             [printing]
             print_from = trusted, everywhere
             """);
@@ -71,7 +73,8 @@ public sealed class NomadNetConfigTests
         Assert.Equal("public-files", result.Settings.FilesPath);
         Assert.Equal(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"),
             result.Settings.DownloadsPath);
-        Assert.Equal(["printing.print_from", "textui.image_loading"], result.UnsupportedKeys);
+        Assert.Equal(NomadNetImageLoading.Manual, result.Settings.ImageLoading);
+        Assert.Equal(["printing.print_from", "textui.mouse_enabled"], result.UnsupportedKeys);
     }
 
     [Theory]
@@ -86,6 +89,7 @@ public sealed class NomadNetConfigTests
     [InlineData("enable_node=yes")]
     [InlineData("[node]\nnode_name=one,two")]
     [InlineData("[client]\ndownloads_path=~another-user/Downloads")]
+    [InlineData("[textui]\nimage_loading=yes")]
     public void AmbiguousOrMalformedConfigurationFailsExplicitly(string text) =>
         Assert.Throws<InvalidDataException>(() => NomadNetConfigImport.Parse(text));
 }

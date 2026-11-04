@@ -288,6 +288,16 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
                 $pages = Join-Path $work "$name\storage\pages"
                 [IO.File]::WriteAllBytes((Join-Path $pages 'picture.png'), [Convert]::FromBase64String($vector.input))
                 [IO.File]::WriteAllText((Join-Path $pages 'index.mu'), "#!c=0`nImage application contract`n" + '`(public generated image`/media/picture.png)' + "`n", [Text.UTF8Encoding]::new($false))
+                if ($env:DOTRETICULUM_NOMADNET_INLINE_MEDIA_LIVE -eq '1') {
+                    [IO.File]::WriteAllText((Join-Path $pages 'index.mu'), "#!c=600`nImage application contract`n" +
+                        '`(public generated image`/media/picture.png)' + "`n" + '`{/page/inline-images.mu}' + "`n", [Text.UTF8Encoding]::new($false))
+                    [IO.File]::WriteAllText((Join-Path $pages 'inline-images.mu'), "INLINE_PARTIAL`n" +
+                        '`(missing generated image`/media/missing.webp)' + "`n" +
+                        '`(partial generated image`/media/picture.png)' + "`n", [Text.UTF8Encoding]::new($false))
+                    if (-not [OperatingSystem]::IsWindows()) {
+                        [IO.File]::SetUnixFileMode((Join-Path $pages 'inline-images.mu'), [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite)
+                    }
+                }
                 if ($env:DOTRETICULUM_NOMADNET_HISTORY_LIVE -eq '1') {
                     [IO.File]::WriteAllText((Join-Path $pages 'history.mu'), "#!c=0`nHISTORY_BRANCH", [Text.UTF8Encoding]::new($false))
                     if (-not [OperatingSystem]::IsWindows()) {
@@ -333,7 +343,8 @@ node_name = 'Configured native node'
 pages_path = '$customPages'
 files_path = '$customFiles'
 [textui]
-image_loading = yes
+image_loading = manual
+mouse_enabled = yes
 "@ | Set-Content $importSource -Encoding utf8
                 if ($env:DOTRETICULUM_NOMADNET_HOST_POLICY_LIVE -eq '1') {
                     [IO.File]::AppendAllText($importSource, "`n", [Text.UTF8Encoding]::new($false))
@@ -347,7 +358,7 @@ image_loading = yes
                 $null = & $read $importer 'Imported core configuration.*unsupported settings: 1'
                 $importer.WaitForExit(20000) | Should -BeTrue
                 $importer.ExitCode | Should -Be 0
-                $errors[$importer.Id].GetAwaiter().GetResult() | Should -Match 'textui.image_loading'
+                $errors[$importer.Id].GetAwaiter().GetResult() | Should -Match 'textui.mouse_enabled'
                 $occupied = & $start 'config-import-occupied' $env:DOTRETICULUM_NOMADNET_BINARY @(
                     '--import-config', $importSource, '--config', $importTarget)
                 $occupied.WaitForExit(20000) | Should -BeTrue
@@ -623,8 +634,34 @@ image_loading = yes
                 & $send $native "ingest $paper"
                 $null = & $read $native 'Paper ingest: Rejected'
             }
+            if ($env:DOTRETICULUM_NOMADNET_INLINE_MEDIA_LIVE -eq '1') {
+                & $send $native 'images never'
+                $null = & $read $native 'Inline images: never\.'
+            }
             & $send $native "browse $($ready.node)"
             $null = & $read $native 'Image application contract'
+            if ($env:DOTRETICULUM_NOMADNET_INLINE_MEDIA_LIVE -eq '1') {
+                $null = & $read $native 'INLINE_PARTIAL'
+                & $send $native 'images load'
+                $null = & $read $native 'Error: Inline images are disabled' 60 $true
+                & $send $native 'images manual'
+                $null = & $read $native 'Inline images: manual\.'
+                & $send $native 'images load'
+                $null = & $read $native '--- inline images updated ---'
+                $null = & $read $native 'Inline image loading complete'
+                $remoteImages = Join-Path $work 'native\storage\cache\remote-images'
+                @(Get-ChildItem $remoteImages -Filter '*.webp').Count | Should -Be 1
+                & $send $native 'images reload'
+                $null = & $read $native 'Inline image loading complete'
+                & $send $native 'images always'
+                $null = & $read $native 'Inline images: always\.'
+                $null = & $read $native '--- inline images updated ---'
+                & $send $native 'images load'
+                $null = & $read $native 'Inline image loading complete'
+                & $send $native 'images manual'
+                $null = & $read $native 'Inline images: manual\.'
+                ([IO.File]::ReadAllText($settingsPath) | ConvertFrom-Json).imageLoading | Should -Be 1
+            }
             & $send $native 'show-media 1'
             $null = & $read $native 'Image preview complete: 1200x600'
             & $send $native 'show-media 1 color'
@@ -864,6 +901,32 @@ image_loading = yes
             $image.width | Should -Be 1200
             $image.height | Should -Be 600
             $image.format | Should -Be 'PNG'
+            if ($env:DOTRETICULUM_NOMADNET_INLINE_MEDIA_LIVE -eq '1') {
+                & $send $python 'quit'
+                $python.WaitForExit(20000) | Should -BeTrue
+                $python.ExitCode | Should -Be 0
+                & $send $native 'quit'
+                $native.WaitForExit(20000) | Should -BeTrue
+                $native.ExitCode | Should -Be 0
+                $cachedImage = @(Get-ChildItem $remoteImages -Filter '*.webp')
+                $cachedImage.Count | Should -Be 1
+                $cachedHash = (Get-FileHash $cachedImage[0].FullName).Hash
+                $settings = [IO.File]::ReadAllText($settingsPath) | ConvertFrom-Json
+                $settings.mediaConverter = $env:DOTRETICULUM_NOMADNET_IMAGE_CONVERTER
+                $settings.imageLoading = 1
+                $settings | ConvertTo-Json | Set-Content $settingsPath -Encoding utf8
+                $native = & $start 'native-offline-inline-cache' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
+                $null = & $read $native 'Hosted node address:'
+                & $send $native "browse $($ready.node)"
+                $null = & $read $native '\(cached page\)'
+                & $send $native 'images load'
+                $null = & $read $native '--- inline images updated ---'
+                $null = & $read $native 'Inline image loading complete'
+                (Get-FileHash $cachedImage[0].FullName).Hash | Should -Be $cachedHash
+                & $send $native 'quit'
+                $native.WaitForExit(20000) | Should -BeTrue
+                $native.ExitCode | Should -Be 0
+            }
             @{ binary = (Get-FileHash $env:DOTRETICULUM_NOMADNET_BINARY -Algorithm SHA256).Hash;
                 converter = (Get-FileHash $env:DOTRETICULUM_NOMADNET_IMAGE_CONVERTER -Algorithm SHA256).Hash;
                 primary = $ready.revision; width = $image.width; height = $image.height;
@@ -876,6 +939,7 @@ image_loading = yes
                 filePicker = ($env:DOTRETICULUM_NOMADNET_FILE_PICKER_LIVE -eq '1');
                 clientAnnounce = ($env:DOTRETICULUM_NOMADNET_CLIENT_ANNOUNCE_LIVE -eq '1');
                 presentation = ($env:DOTRETICULUM_NOMADNET_PRESENTATION_LIVE -eq '1');
+                inlineMedia = ($env:DOTRETICULUM_NOMADNET_INLINE_MEDIA_LIVE -eq '1');
                 primaryStaticAuthorization = if ([OperatingSystem]::IsWindows()) { 'upstream Windows X_OK defect; actual identity observed instead' } else { 'allowed and denied' } } |
                 ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
         }
@@ -1066,12 +1130,19 @@ Describe 'NomadNet mixed propagation and impaired application workflows' -Tag 'L
             $nativeNode = & $start 'native-node-restart' $env:DOTRETICULUM_NOMADNET_BINARY (& $nativeArgs 'native-node')
             [regex]::Match((& $read $nativeNode 'Propagation node address:'), '[0-9a-f]{32}').Value | Should -Be $nativePn
             $deadline = [DateTime]::UtcNow.AddSeconds(30)
+            $restartRouteReady = $false
             do {
                 & $send $pythonClient "node-announces $nativePn"
                 $afterRestart = & $json (& $read $pythonClient '"event"\s*:\s*"node-announces"')
-                if ($afterRestart.count -le $beforeRestart) { Start-Sleep -Milliseconds 250 }
-            } while ($afterRestart.count -le $beforeRestart -and [DateTime]::UtcNow -lt $deadline)
+                if ($afterRestart.count -gt $beforeRestart) {
+                    & $send $pythonNode "path-stats $nativePn"
+                    $restartRoute = & $json (& $read $pythonNode '"event"\s*:\s*"path-stats"')
+                    $restartRouteReady = $restartRoute.online -eq $true -and $restartRoute.active -eq $true
+                }
+                if (-not $restartRouteReady) { Start-Sleep -Milliseconds 250 }
+            } while (-not $restartRouteReady -and [DateTime]::UtcNow -lt $deadline)
             $afterRestart.count | Should -BeGreaterThan $beforeRestart -Because 'a startup banner is not a refreshed live Reticulum path after restart'
+            $restartRouteReady | Should -BeTrue -Because 'a delayed announce can leave the transport path bound to the stopped TCP interface'
             foreach ($observer in @($pythonClient, $pythonNode)) {
                 & $send $observer "path-stats $nativePn"
                 $null = & $read $observer '"event"\s*:\s*"path-stats"'

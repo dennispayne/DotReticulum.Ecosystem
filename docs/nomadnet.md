@@ -5,7 +5,7 @@ NomadNet **1.4.4**, not an official implementation or a full port. The applicati
 reuses `ReticulumNode`, `ClientLinks` and `LxmRouter`; it does not duplicate LXMF,
 paper encryption, propagation, Reticulum links or Resource protocols.
 **Required software remains missing**, including remaining RRC layout/presentation,
-inline media integration and configuration/UI parity. These are implementation gaps, not
+remaining image presentation and configuration/UI parity. These are implementation gaps, not
 hardware or optional-platform blockers. Sideband has its own implementation and
 inventory in [sideband.md](sideband.md); this document does not track it.
 
@@ -61,8 +61,8 @@ Underlying-library acceptance is not automatically application acceptance.
 | Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **partial**: `nomadnetwork.node`, UTF-8 name app-data, default index, nested static pages, configurable six-second startup announce and periodic node announce; independent configurable page/file rescan intervals, explicit refresh and bounded handler inspection. New/deleted paths update handlers. `.allowed` identity lists enforced. Node announces chain the existing hosted propagation announce rather than duplicate its protocol. Source-specific counters and upstream default assets remain missing. |
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
 | Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. OS-process tests cover native execution; selected Linux native browser also submits real forms to unmodified Python executable pages across a Python transport. Python-to-native executable-form browser acceptance remains unverified. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
-| Media; `Node.serve_media`, `convert_media_to_webp` | **partial, live-verified core**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` responses and PNG/JPEG/BMP/GIF/TIFF conversion through configured external FFmpeg. Primary quality85/dimension1200 and content-hash cache naming, 256-file/192-MiB quota, corruption regeneration and restart/cache-only serving are exercised. `show-media` decodes browser images to ASCII or explicit ANSI true-colour half-blocks. Actual primary `ImageData` decodes native-served images and native previews primary-served images on Windows/Linux. Animated/multipage, alpha/EXIF behavior, automatic inline loading and Kitty graphics remain unverified/missing. |
-| Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file/media retrieval with explicit identification consent, links/bookmarks, reload, session navigation history with back/forward and submitted-field replay, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Explicit image previews and a local interactive file picker with transactional attachment composition work; automatic inline image widgets remain missing. |
+| Media; `Node.serve_media`, `convert_media_to_webp` | **partial, live-verified core**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` responses and PNG/JPEG/BMP/GIF/TIFF conversion through configured external FFmpeg. Primary quality85/dimension1200 and content-hash cache naming, 256-file/192-MiB quota, corruption regeneration and restart/cache-only serving are exercised. `show-media` provides ASCII/explicit ANSI previews; bounded browser inline ASCII uses imported/runtime never/manual/auto/always policy, a separate durable remote cache and joined cancellation. Actual primary `ImageData` decodes native-served images and native previews primary-served images on Windows/Linux; exact additional inline acceptance is recorded below. Animated/multipage, alpha/EXIF behavior, conversation-image integration and Kitty graphics remain unverified/missing. |
+| Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file/media retrieval with explicit identification consent, links/bookmarks, reload, session navigation history with back/forward and submitted-field replay, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Automatic/manual inline ASCII previews preserve descriptor/form indices and collapsed visibility, including partial media; a local interactive file picker supports transactional attachment composition. Upstream Kitty widgets and complete layout remain missing. |
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron switches render live/history bodies against executed primary widget vectors; JSON string composition preserves multiline/raw content. Complete Channels layout, mention-span styling, colours/gutters and remaining configuration remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop and local attachment picker. Complete menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
@@ -88,6 +88,7 @@ contracts and reports unsupported keys; it is not complete configuration parity.
 | `nodePageRefreshIntervalMinutes`, `nodeFileRefreshIntervalMinutes` | native defaults 5/60 minutes preserve earlier five-second scans; imported primary defaults0 disable rescans; independently validated finite0–10080 minutes |
 | `enableExecutablePages` | false; explicit Linux execution/authorization-generator opt-in |
 | `mediaConverter` | `ffmpeg`; local executable name or absolute path; no shell, 1–1024 printable characters; required only for conversion/preview, not cached or native WebP serving |
+| `imageLoading` | numeric never0/manual1/auto2/always3; default2. `images <mode>` persists policy; `images load` explicitly loads, `images reload` refetches media without replaying the page/form |
 | `inboundStampCost`, `acceptInvalidStamps` | null / false; stamp cost null or 1–254; existing LXMF enforces required stamps unless explicitly accepting invalid stamps |
 | `pagesPath`, `filesPath`, `downloadsPath` | null uses native `storage\pages`, `storage\files`, `downloads`; explicit paths override those roots; remote names still cannot escape selected roots |
 | `enablePropagation` | false; requires `enableNode`; uses existing LXMF propagation defaults |
@@ -121,7 +122,7 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   **missing** at the application layer, even where LXMF has corresponding APIs.
 - `[textui]`: `intro_time`, `theme`, `colormode`, `glyphs`, `image_loading`,
   `mouse_enabled`, `editor`, `hide_guide`, `sanitize_names`, `clipboard_copy`
-  — **missing** upstream UI; native terminal output sanitises control characters.
+  — **partial**: `image_loading` is imported and operational for original inline ASCII, not Kitty; other listed UI options remain missing. Native terminal output sanitises control characters.
 - `[rrc]`: `history_per_room_cap`, `filter_loaded_history`,
   `max_accepted_resource_size`, `ephemeral_notices`, `justify_msgs`, `space_msgs`,
   `nick_colors`, `mention_color`, `color_mention_timestamps`, `nick_colors_theme`,
@@ -251,7 +252,7 @@ passes **2079 tests, 87 explicit skips, zero failures**. Converter-dependent cas
 skipped in this integrated invocation are separately exercised above.
 Runtime peer display-name edits now use the existing LXMF setter as described
 below; logging, other configuration/UI contracts, migration,
-inline media and application-level propagation peering are not declared complete.
+complete image presentation and application-level propagation peering are not declared complete.
 
 ### Message presentation, runtime profile and paper QR
 
@@ -558,7 +559,235 @@ distributions, architectures and macOS are not inferred support.
 `show-media <number> [color]` downloads/decodes that descriptor for bounded ASCII
 or explicit ANSI true-colour preview; this is not Kitty graphics or a
 pixel-identical primary widget. `image-convert <file> <name.webp>` explicitly
-converts a local encoded image. Automatic inline loading remains required work.
+converts a local encoded image. Browser inline ASCII loading is described below;
+conversation-image integration and upstream Kitty rendering remain required work.
+
+#### Browser inline loading
+
+`images` reports the persisted policy. `images never` disables inline work and
+joins the previous loader before returning; `manual` waits for `images load`;
+`always` automatically loads page and new partial descriptors. `auto` follows
+executed primary `Browser.should_load_images`: local is eligible without a
+link; remote needs truthy RTT strictly below1.5seconds and measured rate
+strictly above10,000 **bits/second**, not bytes/second. A nonzero link expected
+rate wins; otherwise the primary fallback is
+`responseTransferBytes / max(responseSeconds, 0.0001) * 8`.
+Equality at either threshold does not admit loading. Native request metrics
+are captured before normal link teardown. Cached pages without metrics do not
+qualify for remote automatic loading; explicit manual/always still works.
+Negative/nonfinite network measurements are rejected as a native safety policy.
+
+`GenerateNomadNetInlineMediaVectors.py` executes both actual primary methods on
+data-only hosts for60 combinations (four modes, local/missing link, strict
+thresholds, missing/zero rate, fallback and time clamp). It replaces neither
+method. Actual `Browser.py` SHA-256:
+`a36f393f3e6a356a4c5b19f39596ca3f4fe8812aaf5f09be6c05573173d88079`.
+The primary separately gates these methods on Kitty capability. Native inline
+ASCII deliberately does not implement that graphics protocol or its layout.
+
+One decoder runs per browser with a one-entry latest-page queue, at most32
+distinct descriptors and16 admitted manual requests. Additional descriptors
+remain explicitly downloadable and the limit is logged. Failures are reported,
+do not disable other images/partials and are retried only by explicit reload.
+Observer exceptions are isolated; loading also runs without an observer.
+Navigation/disposal cancels and joins queued/in-flight work; repeated
+disposal waits for the same cleanup. Form/descriptor indices and hidden folds
+are unchanged. Existing explicit ANSI preview remains opt-in; inline output
+is bounded ASCII without terminal control characters.
+
+The separate native `storage/cache/remote-images` cache stores validated WebP,
+keyed by canonical destination/path SHA-256; it is not the source-conversion
+cache. It has a256-file/192-MiB quota,16-MiB response and4096-entry scan bounds,
+atomic replacement, header-corruption regeneration and linked-path rejection.
+Cached bytes still require FFmpeg for local decoding. `images reload` bypasses
+the image caches while preserving current form state; unlike the primary's
+force-image operation it does not reload the whole page. This is a declared
+native interaction difference, not pixel-identical frontend parity.
+
+Core INI import now includes `[textui] image_loading`. The constructor generator
+selects actual `client.user_interface=text` before `--daemon` suppresses screen
+startup; otherwise the primary does not parse TextUI options. It explicitly
+sets `colormode=256`: the pinned missing-colormode branch errors on nonexistent
+`nomadnet.ui.COLORMODE_16`. These are disclosed real configuration prerequisites,
+not changes to the reference handler or source. Four actual-constructor cases
+observe manual/never/default-auto/always.
+
+Final-source inline acceptance includes the Trace fallback below and uses the
+same primary/RNS/LXMF pins above:
+
+| Gate | Windows | Linux |
+|---|---|---|
+| Scoped Release tests with selected FFmpeg |130passed,5explicit Linux-only skips |135passed,0skips |
+| NativeAOT publish with both ILLink/ILC warnings as errors and `-warnaserror` |passed, zero warnings/errors |passed, zero warnings/errors |
+| Selected native `--help` and Native Pester |4/4 |4/4 |
+| Expanded actual primary application image/profile/paper workflows |1/1,149.39seconds |1/1,110.21seconds |
+| Actual primary RRC presentation through Python transport hub |1/1,8.40seconds |1/1,3.80seconds |
+| Existing RRC/forms/partials/replay across Python transport |not rerun in this inline gate |1/1,19.41seconds |
+| Complete mixed propagation/restart/scheduling/impairment case with strengthened readiness |not exercised on Windows |1/1,246.62seconds |
+
+The expanded image case exercises never refusing manual load, persisted manual
+and always, initial and partial images, missing-image failure with subsequent
+valid media, explicit refetch, one canonical remote cache entry for duplicate
+URLs, and a complete browser restart loading cached page/image while the Python
+application is stopped. FFmpeg remains present for that offline decode;
+earlier independent native/primary hosted conversion-cache checks separately
+use a missing converter. Native control/form/descriptor state remains usable.
+The source's positive/negative auto thresholds are executed vectors, not
+inferred live RTT/rate coverage. These are direct image application checks;
+RRC/form transport-hop evidence is separate.
+
+Frozen assertions:
+`artifacts\tests\nomadnet-inline-final.Tests.ps1`,
+SHA-256 `5610ab46ae269662a73a72045bc13bfb4d28cab0fa9cf16e0513e925b7966694`.
+Exact selected NativeAOT binaries:
+
+- Windows `artifacts\builds\nomadnet-inline-final-win\publish\NomadNet\release_win-x64\nomadnet.exe`,
+  SHA-256 `534925914e97fc4781f48640a3378f051e23119b90d401acce67bf72857d6004`.
+- Linux `artifacts/builds/nomadnet-inline-final-linux/publish/NomadNet/release_linux-x64/nomadnet`,
+  SHA-256 `2d852e3db9ea972dda54801d8501a3e3a488405fd873f66a6def53ca5475c4e2`.
+
+The final Linux mixed case separately records one actual dropped Resource part,
+5 ms per forwarded frame,296 frames and2,241,628 encoded forwarded bytes, with a
+SHA-256-checked2,200,000-byte attachment. It retains both implementations'
+propagation-node restarts, persisted identities, retrieval/deletion, scheduled
+sync, cancellation recovery, reverse delivery and direct-failure propagation
+fallback. These counters belong to the final binary, not the pre-logging runs
+described below. The final harness uses Pester6.2.0 on Windows and5.7.1 on Linux.
+
+The environment-specific frozen recipes select those exact binaries, reject
+changed suite/managed/native hashes and preserve the transitive QR notice:
+
+```powershell
+pwsh -NoLogo -NoProfile -File artifacts\tests\nomadnet-inline-final-win-acceptance.ps1
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-inline-final-linux-acceptance.ps1
+```
+
+The coordinator independently executes both final hash-guarded recipes with the
+same final Trace-fix binaries and assertions. Windows passes130managed tests/
+5Linux-only skips, Native4, Images1 (124seconds) and RRC presentation1
+(10.28seconds). Linux passes135managed tests/0skips, Native4, Images1
+(109.22seconds), RRC presentation1 (3.64seconds), RRC/forms1 (18.74seconds) and
+the complete mixed propagation case1 (237.01seconds). These independent final
+runs supersede, without relabelling, the pre-logging-fix acceptance below.
+
+`artifacts\tests\nomadnet-inline-acceptance.json` records the17 owned source/test
+paths and separate per-suite TRX counters. An earlier concurrent full-solution
+invocation was **not green**:2155passed,95explicit skips,1failure in a separate
+Sideband call-concurrency assertion (also reproduced unchanged in isolation).
+The command is `dotnet test DotReticulum.Ecosystem.slnx -c Release
+--artifacts-path artifacts\builds\nomadnet-inline-integrated-final
+--logger 'trx;LogFilePrefix=integrated'
+--results-directory artifacts\tests\nomadnet-inline-integrated-final --nologo -v:q`.
+No Sideband code was changed by this slice. Its subsequently corrected call
+concurrency and current status remain in [sideband.md](sideband.md).
+The final isolated full-solution Release build passes with zero warnings/errors;
+its matching non-opt-in test gate passes **2183 tests,99 explicit skips,
+zero failures**, including final NomadNet Trace tests:
+
+```powershell
+dotnet build DotReticulum.Ecosystem.slnx -c Release --artifacts-path artifacts\builds\fleet-agc-integrated-final -v quiet
+dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build --artifacts-path artifacts\builds\fleet-agc-integrated-final --logger trx --results-directory artifacts\tests\fleet-agc-integrated-final -v quiet
+```
+
+The final per-case totals were independently read from distinct TRX files in
+`artifacts\tests\fleet-agc-integrated-final` and exported to
+`artifacts\tests\nomadnet-inline-final-parent-trx-observations.json`.
+An earlier coordinator coverage/tooling gate reported2159passed/95skips,
+62Pester tooling cases and all eight production assemblies covered; its exported
+per-case observations remain in `nomadnet-inline-parent-trx-observations.json`.
+That older TRX output root was subsequently reused; its newer contents are not
+immutable evidence for that older aggregate. The earlier failed local artifacts
+are separate and retained. The final full-solution gate does not replace opt-in primary-peer
+acceptance. Scoped NomadNet gates above pass independently. No new stack API
+was required.
+
+Earlier pre-logging-fix binaries were independently accepted by the coordinator:
+Windows128passed/
+5Linux-only skips, Native4, actual primary1 (~114seconds), RRC presentation1;
+Linux133/133, Native4, actual primary1 (~113seconds), RRC presentation1 and
+RRC/forms1. That independent acceptance does not erase the separate full-suite
+or mixed-propagation failures below.
+
+The pre-logging-fix inline binary's separate mixed propagation regression failed twice after
+the native PN restart: primary reported state241 (`PR_LINK_FAILED`) despite a
+new observed announce count and active client-to-transport route. No delivered callback occurred;
+later impaired-transfer assertions were not reached (148.78/148.98seconds).
+Both failed invocations remain retained rather than counted as passing. Earlier accepted propagation
+evidence is not silently relabelled as evidence for this binary.
+The previously accepted presentation binary, selected by its existing frozen
+recipe, passes the same complete mixed case in245.65seconds as a diagnostic
+control. The old/new mixed `Describe` blocks are identical after LF
+normalization (18,677characters,
+SHA-256 `2df7e28d28950e0697758374801b09685226132334fabe58216b2ea0900cda0f`);
+no timeout, retry, route-expiry or expected-result assertion was changed.
+Both launcher-only hybrids pass the complete unchanged case: old PN/new client
+in243.49seconds, new PN/old client in245.02seconds. Actual per-process binary
+hashes are retained. The failed runs' existing `path-stats` reveal the distinction:
+the Python **transport's** route to the restarted native PN still references
+its stopped TCP interface (`online=false`, `active=false`), while the Python
+client's next-hop interface is healthy. Both successful hybrids instead observe
+the transport route replaced with the new connected interface. An increased
+client announce count alone therefore does not prove a fresh end-to-end route.
+
+Retained portable-PDB source checksums are identical across the old/new Core,
+Crypto, Interfaces, Transport, LXMF and Applications dependencies. Their NuGet
+package/version inventories also match; only seven ordinary compiled documents
+differ, all in this NomadNet slice. Method-body comparisons find no Core/Crypto/
+Interfaces/Transport changes; remaining shared differences are generated version
+or generated-regex path identities. Configuration manifests record identical
+Python PN configuration and native PN RNS configuration after replacing only
+ephemeral test ports. The native PN's static relevant settings match except the
+new default image-loading metadata.
+
+The readiness gate now additionally requires the observed **transport** route
+to be online and active within the original30-second deadline. It retains the
+increased-announce assertion, existing poll interval, topology, binaries,
+subsequent delivery assertions and sole retrieval attempt. No path expiry,
+extra sender/retrieval retry or unconditional delay is introduced. Acceptance
+with this stronger precondition passes **1/1 in240.91seconds**, selecting the
+same Linux binary `338f7027…4236323` for both native roles. The full case observes
+one dropped Resource part,295 delayed frames,2,241,830 forwarded encoded bytes
+and the SHA-256-checked2,200,000-byte attachment, and covers reverse text,
+scheduled retrieval, cancellation recovery and direct-failure propagation
+fallback. Neither earlier failure is reclassified as a pass.
+
+The strengthened frozen suite has SHA-256
+`5610ab46ae269662a73a72045bc13bfb4d28cab0fa9cf16e0513e925b7966694`;
+the earlier frozen suite and failed outputs remain untouched. Reproduction:
+
+```powershell
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-inline-route-ready-acceptance.ps1
+```
+
+The coordinator independently executes this same hash-guarded recipe:
+**1/1 passed in236.87seconds (237.38total)**, with unchanged binaries,
+topology, deadline and all retained assertions. The earlier failed runs remain
+failure evidence, not successful runs retroactively relabelled.
+
+A subsequent logging-only correction reports through `Trace.TraceError` when
+the inline-image logger is absent or throws, retaining the original error and
+logger-failure context. The isolated Release regression below passes **9/9**,
+including two new Trace-capture cases asserting failed observers do not stop
+subsequent observers or successful image rendering:
+
+```powershell
+dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --artifacts-path artifacts\builds\nomadnet-inline-log-fix --filter "FullyQualifiedName~NomadNetInlineMediaTests" --logger "trx;LogFileName=inline-log-fix-final.trx" --results-directory artifacts\tests\nomadnet-inline-log-fix --nologo -v:q
+```
+
+The final selected binaries above were strictly republished after this correction,
+not relabelled from pre-fix acceptance. Their portable-PDB document checksums both
+match final `NomadNetInlineMedia.cs`
+(`173f417e570470bf22aa7ed09e970ce9ea3a8d822022e5a17faf41194eef7be6`).
+The isolated Windows/Linux build scripts are
+`artifacts\tests\nomadnet-inline-final-win-build.ps1` and
+`artifacts\tests\nomadnet-inline-final-linux-build.ps1`; each runs the same
+strict publish flags above and complete scoped Release tests. The distinct TRX
+records are `artifacts\tests\nomadnet-inline-final\windows.trx` and `linux.trx`.
+Pre-logging binaries/results and earlier failed runs remain retained separately.
+The initial new test used a manually built page
+without image-layout rows; its two rendering-assertion failures remain in
+`inline-log-fix-initial-fixture.trx`. Corrected tests use parsed Micron rows;
+the separate final TRX records9 passes and no skips or failures.
 
 Set `mediaConverter` to an available FFmpeg executable. No FFmpeg binary,
 library, Python, Pillow or image assets are bundled with the application.
@@ -823,7 +1052,7 @@ errors. `dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build
 --results-directory artifacts\tests\nomadnet-file-picker-integrated -v:q`
 passes **1,799 tests, 87 explicit skips, zero failures**. Converter-dependent
 checks skipped there are separately exercised by the selected scoped runs.
-Required inline media, configuration, migration, editor/notification/clipboard,
+Required conversation-image/Kitty presentation, configuration, migration, editor/notification/clipboard,
 printing and remaining presentation workflows are not declared complete; the
 bounded QR export/display slice is described separately above.
 
@@ -1012,8 +1241,8 @@ wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.
 
 The image case writes the selected binary hash and explicit `navigation` flag
 to its `acceptance.json`; an older frozen binary must not enable the new mode.
-This does not implement the remaining file-browser, inline-image or complete
-terminal UI workflows.
+The current local file picker and inline ASCII loader are documented separately
+above; complete terminal UI, conversation-image and Kitty workflows remain missing.
 
 The integrated `dotnet build DotReticulum.Ecosystem.slnx -c Release
 --artifacts-path artifacts\builds\nomadnet-navigation-solution -v:q` passes
@@ -1492,6 +1721,6 @@ test prerequisites; the committed Pester cases and variables define acceptance.
 
 RF, physical audio/printers, macOS and other operating systems remain
 **unverified**. No new DotReticulum API gap was needed for this slice.
-Remaining RRC behaviors, automatic inline image integration,
+Remaining RRC behaviors, conversation-image/Kitty presentation,
 configuration/import parity and propagation-node peering acceptance remain
 required work rather than a claim of completed NomadNet parity.

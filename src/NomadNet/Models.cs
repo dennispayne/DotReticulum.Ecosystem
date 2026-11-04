@@ -36,6 +36,7 @@ public sealed record NomadNetSettings
     public bool TryPropagationOnSendFail { get; set; } = true;
     public int DeliveryTransferLimitBytes { get; set; } = 1_000_000;
     public string MediaConverter { get; set; } = "ffmpeg";
+    public NomadNetImageLoading ImageLoading { get; set; } = NomadNetImageLoading.Auto;
     public int? InboundStampCost { get; set; }
     public bool AcceptInvalidStamps { get; set; }
     public bool ComposeInMarkdown { get; set; } = true;
@@ -109,6 +110,7 @@ public sealed record NomadNetSettings
             LxmfSyncLimit is < 0 or > 100000 ||
             TrustedNodes is null || TrustedNodes.Count > 128 ||
             DeliveryTransferLimitBytes is < 1024 or > 64 * 1024 * 1024 ||
+            !Enum.IsDefined(ImageLoading) ||
             string.IsNullOrWhiteSpace(MediaConverter) || MediaConverter.Length > 1024 || MediaConverter.Any(char.IsControl) ||
             new[] { PagesPath, FilesPath, DownloadsPath }.Any(path => path is not null &&
                 (string.IsNullOrWhiteSpace(path) || path.Length > 2048 || path.Any(char.IsControl))) ||

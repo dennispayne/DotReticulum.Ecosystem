@@ -36,5 +36,6 @@
     <EmbeddedResource Include="NomadNetConversationImageVectors.json" />
     <EmbeddedResource Include="NomadNetProfileImportVectors.json" />
     <EmbeddedResource Include="NomadNetRrcImportVectors.json" />
+    <EmbeddedResource Include="NomadNetClientRuntimeVectors.json" />
   </ItemGroup>
 </Project>

@@ -107,6 +107,7 @@ internal static class Program
         var initialize = false;
         var showStatus = false;
         var daemon = false;
+        var textUi = false;
         string? importConfig = null;
         string? importDirectory = null;
         string? importProfile = null;
@@ -136,10 +137,15 @@ internal static class Program
                     showStatus = true;
                     break;
                 case "--daemon":
+                case "-d":
                     daemon = true;
                     break;
                 case "--console":
+                case "-c":
+                    break;
                 case "--textui":
+                case "-t":
+                    textUi = true;
                     break;
                 default:
                     throw new ArgumentException($"Unknown argument: {args[index]} (use --help).");
@@ -154,7 +160,7 @@ internal static class Program
         if (importProfile is not null && (initialize || showStatus || daemon || importConfig is not null ||
             importDirectory is not null || rnsConfig is null))
             throw new ArgumentException("--import-profile requires explicit --rnsconfig and cannot be combined with other modes.");
-        return new Options(dataDirectory, rnsConfig, initialize, showStatus, daemon, importConfig, importDirectory, importProfile);
+        return new Options(dataDirectory, rnsConfig, initialize, showStatus, daemon, textUi, importConfig, importDirectory, importProfile);
     }
 
     private static string ValueAfter(string[] args, ref int index)
@@ -187,6 +193,7 @@ internal static class Program
     {
         using var lease = NomadNetProfileLease.Acquire(options.DataDirectory);
         var settings = await NomadNetSettings.OpenAsync(options.DataDirectory, cancellationToken).ConfigureAwait(false);
+        var headless = NomadNetClientRuntime.IsHeadless(settings, options.Daemon, options.TextUi);
         var state = await NomadNetStore.OpenAsync(options.DataDirectory, cancellationToken).ConfigureAwait(false);
         await using var node = ReticulumNode.Open(options.RnsConfig ?? settings.RnsConfigDirectory,
             (level, message) => Console.Error.WriteLine($"RNS[{level}]: {message}"));
@@ -251,7 +258,8 @@ internal static class Program
         { Log = message => Console.Error.WriteLine(message) };
         clientAnnounces.Start();
         await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host, clientAnnounces);
-        var receiver = PersistIncomingAsync(inbox.Reader, state, options.DataDirectory, session.ObserveConversationImageAsync, cancellationToken);
+        var receiver = PersistIncomingAsync(inbox.Reader, state, options.DataDirectory, session.ObserveConversationImageAsync,
+            () => propagationPolicy.Settings, headless, cancellationToken);
 
         Console.WriteLine("NomadNet .NET client (scoped native implementation; type help for commands)");
         Console.WriteLine($"LXMF delivery address: {router.DeliveryHashHex}");
@@ -259,7 +267,7 @@ internal static class Program
         if (propagation is not null) Console.WriteLine($"Propagation node address: {Convert.ToHexStringLower(propagation.DestinationHash)}");
         try
         {
-            if (options.Daemon)
+            if (headless)
             {
                 Console.WriteLine("Daemon ready.");
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
@@ -275,7 +283,8 @@ internal static class Program
     }
 
     private static async Task PersistIncomingAsync(ChannelReader<ReceivedMessage> reader, NomadNetStore store, string directory,
-        Func<NomadNetMessage, CancellationToken, Task> observeImage, CancellationToken cancellationToken)
+        Func<NomadNetMessage, CancellationToken, Task> observeImage, Func<NomadNetSettings> settings, bool headless,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -305,6 +314,8 @@ internal static class Program
                         DateTimeOffset.FromUnixTimeMilliseconds((long)(message.Timestamp * 1000)), message.Title, content, "received")
                         { Renderer = NomadNetPresentation.Renderer(message.Fields), ImageAttachmentIndex = imageIndex };
                     await store.SaveMessageAsync(stored, cancellationToken).ConfigureAwait(false);
+                    NomadNetClientRuntime.NotifyReceived(settings(), headless, id,
+                        () => { Console.Out.Write('\a'); Console.Out.Flush(); }, Console.Error.WriteLine);
                     if (await store.ActiveConversationAsync(cancellationToken).ConfigureAwait(false) == Convert.ToHexStringLower(message.SourceHash))
                         try
                         {
@@ -336,7 +347,7 @@ internal static class Program
                    nomadnet --import-config <upstream-INI> --config <new-directory>
                    nomadnet --import-directory <upstream-profile> --config <native-directory>
                    nomadnet --import-profile <offline-primary-profile> --config <absent-directory> --rnsconfig <selected-RNS-directory>
-                   nomadnet [--console] [--textui]
+                   nomadnet [--console|-c] [--textui|-t] [--daemon|-d]
                    nomadnet --help | --version
 
             Interactive commands:
@@ -432,7 +443,7 @@ internal static class Program
         Console.WriteLine("Only directory and ignored policy imported; identity, conversations, peer settings and configuration are unchanged.");
     }
 
-    private sealed record Options(string DataDirectory, string? RnsConfig, bool Initialize, bool ShowStatus, bool Daemon,
+    private sealed record Options(string DataDirectory, string? RnsConfig, bool Initialize, bool ShowStatus, bool Daemon, bool TextUi,
         string? ImportConfig, string? ImportDirectory, string? ImportProfile);
 
     private static IEnumerable<NomadNetPropagationCandidate> FindPropagationCandidates(TransportRouter transport)

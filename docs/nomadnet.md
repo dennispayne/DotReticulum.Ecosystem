@@ -51,7 +51,7 @@ Underlying-library acceptance is not automatically application acceptance.
 
 | Contract and upstream sources | Current status and boundary |
 |---|---|
-| Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`, `--console`, `--textui` accepted. Daemon ignores terminal input and serves until cancellation; controlled SIGTERM/Ctrl+C cancellation exits successfully after disposal. Native terminal/daemon/init/offline directory import hold an exclusive profile lease. `--console` selects the existing console logging; `--textui` selects the original command loop, not Urwid. Extensions: `--help`, `--init`, `--status`, explicit non-overwriting core `--import-config`, additive conflict-refusing `--import-directory`, offline non-overwriting `--import-profile` retaining the primary identity with an explicit selected RNS configuration. |
+| Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`/`-d`, `--console`/`-c`, `--textui`/`-t` accepted. Imported `client.user_interface=none` selects headless operation; `text` selects the original console, not Urwid. As in the primary, `--textui` cancels `--daemon` regardless of argument order but does not override configured `none`. Daemon ignores terminal input and serves until cancellation; controlled SIGTERM/Ctrl+C cancellation exits successfully after disposal. Native terminal/daemon/init/offline directory import hold an exclusive profile lease. `--console` retains existing console logging, not missing configurable file logging. Extensions: `--help`, `--init`, `--status`, explicit non-overwriting core `--import-config`, additive conflict-refusing `--import-directory`, offline non-overwriting `--import-profile` retaining the primary identity with an explicit selected RNS configuration. |
 | Client announcements; `NomadNetworkApp.START_ANNOUNCE_DELAY`, `__jobs`, `announce_now`, `apply_config`, `set_display_name` | **implemented bounded subset**: configurable three-second startup, strict periodic interval after90seconds with five-second checks, manual delivery-only or combined announces, durable successful timestamp, runtime display-name and stamp-cost edits through existing LXMF APIs. Display-name changes save without announcing or replacing the identity/destination. Retains unused `enable_client` metadata rather than inventing delivery-disable semantics. Native safety differences for names, fresh null timestamps, failed background work, serialization and interval bounds are explicit below. |
 | Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, per-peer direct/propagated/opportunistic preference, unread/failure counters, explicit viewed/read state, latest-activity listing, deletion/failed purge and plain-text export. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. Native opportunistic text is received by the actual primary; direct reply/viewed state and both applications' read counters are exercised. Primary conversation/container/attachment import and inert `.index` preservation with honest historical authentication are implemented below; full conversation UI remains missing. |
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Typed image references support explicit/automatic original ASCII conversation previews, using the existing converter/cache and never/manual/auto/always controls; this is not primary UI parity. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
@@ -79,6 +79,7 @@ contracts and reports unsupported keys; it is not complete configuration parity.
 |---|---|
 | `displayName` | `NomadNet user`; 1–80 non-control UTF-16 code units; runtime editing also requires strict UTF-8 |
 | `enableClient` | true for legacy native profiles; false when absent from imported primary configuration; metadata only, matching the primary's unused runtime flag; does not disable delivery |
+| `userInterface`, `notifyOnNewMessage` | text2 /true; explicit ConfigObj `client.user_interface` supports none0/text2, case-insensitively. Missing UI retains the native text default; it does not reproduce an invalid primary configuration's unset UI. `--daemon` forces headless unless `--textui` is also present; configured none stays headless even with `--textui`. Enabled notifications write/flush BEL only after successful inbound persistence in text mode; daemon and muted profiles emit none. Notification failure is contextual and isolated from persistence/subsequent service. Changes to interface selection require restart; this is not Urwid or audible/hardware acceptance. |
 | `clientAnnounceAtStart`, `clientAnnounceIntervalMinutes` | true /360; three-second startup announce, periodic checks after90seconds and then every5seconds; interval30–10080minutes |
 | `lastClientAnnounce` | absent initially; saved only after successful delivery announce; null suppresses periodic announcements until first manual/startup success |
 | `composeInMarkdown`, `rrcRenderMarkdown`, `rrcRenderMicron` | true /true /true, matching actual primary constructor defaults; outgoing ordinary LXMF gets renderer2 only when enabled; paper does not get this field; RRC live/history display uses its independently persisted switches |
@@ -102,6 +103,89 @@ contracts and reports unsupported keys; it is not complete configuration parity.
 | `lastLxmfSync` | absent until first attempt; persisted UTC timestamp before retrieval; failure/cancellation do not erase it |
 | `tryPropagationOnSendFail` | true; one propagation attempt after failed direct delivery if a node is selected |
 | `deliveryTransferLimitBytes` | 1,000,000; validated 1 KiB–64 MiB. Independent attachment extraction limit is 16 MiB. |
+
+### Client runtime selection and notification acceptance
+
+`GenerateNomadNetClientRuntimeVectors.py` executes the unchanged primary
+constructor with `daemon=True`, then reloads the same ConfigObj and executes
+unchanged `applyConfig` and `notify_message_recieved`. Captured text/none,
+default/enabled/disabled notification observations cover six configurations.
+Its separate execution of unchanged `nomadnet.nomadnet.main` observes seven
+argument combinations by replacing only the final `program_setup` boundary
+with an argument recorder. This proves CLI selection, not primary TextUI startup.
+No Urwid screen, microphone, printer or private traffic is opened. The primary
+source is not modified; actual module paths are recorded separately so the
+fixture is canonical LF and independently identical on Windows/Linux.
+
+The fixture records Git-blob SHA-256s at the pin above:
+`NomadNetworkApp.py` `c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2`,
+`nomadnet.py` `b35bb029b83fc879111466a183607fa62224fce8f7dd5307412c4ef35d47b902`,
+`ui/__init__.py` `c75b4642104362f1d5f4a338a08241cdf6740954009d4ab8093c24542f9692f9`,
+`ui/NoneUI.py` `019588a54c41b3fba999733eef3834ba423f5e60731cf0a245130a486ea62ba8`
+and `ui/MenuUI.py` `2debeae357ef063735b91f25ccc1dec5de98d2a115af9c0d75f2139a5da0695d`.
+`NomadNetClientRuntimeVectors.json` SHA-256:
+`92d439b75ef3967f0ba4fe907ed7bca8defb72896bcf9db04931dddd24789075`.
+
+The `ClientRuntime` Pester case passes separately on Windows/Linux against fresh
+strict NativeAOT candidates (SDK10.0.403/runtime and ILC10.0.14). It regenerates
+the fixture, imports each immutable source config, then tests four profiles
+twice: text/notify with `-d -t`, text/muted with `--textui --daemon`,
+configured none with `--textui`, and text forced headless with `-d -c`.
+All eight starts receive and persist actual primary-application LXMF messages;
+four text starts also send back to the actual primary. Text notifications emit
+BEL exactly when enabled; no headless start emits it or consumes a queued
+`quit`. Settings and the delivery identity survive restart. Text exits cleanly;
+Linux headless exits cleanly on SIGTERM, while Windows headless is explicitly
+abrupt termination. A menu-placeholder import fails without creating a target.
+These are direct TCP application flows, **not** transport-hop, packet-loss,
+physical-audio or newer-dependency-minimum acceptance.
+
+Managed full NomadNet regression with the selected verified
+`DOTRETICULUM_NOMADNET_IMAGE_CONVERTER` passes **218/7 skipped** on Windows and
+**225/0 skipped** on Linux. The ten added cases cover executed vectors, malformed
+and placeholder settings, observer absence/failure/recovery, config-only and
+identity-bearing profile import, source immutability, atomic refusal and legacy
+settings defaults. Focused selector:
+`--filter "FullyQualifiedName~NomadNetClientRuntime"`.
+The seven Windows skips are pre-existing Linux-only OS-resource cases.
+
+Native candidate SHA-256s:
+
+| RID | SHA-256 |
+|---|---|
+| win-x64 | `331ca8da3fbab82a63376fb6b4660d1414de24afe9eccc3f1b043e5759857221` |
+| linux-x64 | `3612c8cc53587ec6c0e085d9550d81e4385058b8290fd40ce8b05729863d42dc` |
+
+Both binaries embed build version `1.4.4.91+aa2e3ed9ab`; this identifies their
+build HEAD, **not a commit containing these uncommitted changes**. Frozen
+source/PDB checks and manifests identify the actual compiled candidate; the
+native stack remains `3cdf5bee5adbd1da903a163882a31e53c3057aec`.
+Build outputs use distinct `artifacts\builds\fleet-nomad-config-*` roots (Linux
+under `/home/dennis/dotreticulum-ecosystem-acfd3d43`), not shared Windows/Linux
+intermediates.
+
+Reproducible operators and manifests are ignored local evidence:
+`artifacts\tests\fleet-nomad-config\frozen-win-final-v3` in the repository and
+`/home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/tests/fleet-nomad-config/frozen-linux-final-v3`.
+Each includes the frozen native binary, application/transitive source, fixtures,
+operators, compiler-package/toolchain receipts, portable PDBs, extracted generated
+sources and source-check records (277 production-source plus61 generated-source
+PDB hash checks per host). Runtime-download receipts and the actual ILC response
+file both identify NativeAOT runtime10.0.14. Run the operator with explicit PowerShell:
+
+```powershell
+& <manifest-PowerShell> -NoProfile -File <frozen>\Invoke-FrozenClientRuntimeAcceptance.ps1 -Manifest <frozen>\manifest.json
+```
+
+Select the serviced `DOTNET_ROOT`/PATH on Linux. The operator validates every
+frozen file/PDB/compiler/converter hash, uses an explicit native working directory
+and a bounded ten-minute child process, and requires exact selected totals
+(Windows9 passed/1 explicit Linux-only skip; Linux10 passed/0 skips). Selected
+tags are `ClientRuntime`, `Native`, `DirectoryImport`, `ProfileImport`,
+`RrcImport`, `RrcPresentation`, `Rrc`. Every `ClientRuntime` logical case is
+recorded in its retained `acceptance.json`; complete replay output is
+`last-replay.log`. Existing separate RRC/form/profile/native-hosting regressions
+do not expand this configuration slice's direct-network claims.
 
 ### Offline primary profile import
 
@@ -625,7 +709,7 @@ reimplementing offers, peering work, resources or storage.
 
 Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
 
-- `[logging]`: `loglevel`, `destination` — **missing** configurable destinations;
+- `[logging]`: `loglevel`, `destination`, `logfile` — **missing** configurable levels/destinations;
   native errors currently go to stderr.
 - `[client]`: `enable_client`, `downloads_path`, `attachment_save_path`,
   `announce_at_start`, `announce_interval`, `try_propagation_on_send_fail`,
@@ -635,8 +719,10 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   `user_interface` — **partial** only where the explicit native settings or
   implemented workflows above apply. Downloads path, required cost, invalid-stamp
   acceptance, transfer limit and client startup/periodic announcements are operational/imported;
-  `enable_client` is retained unused metadata as in the actual primary; `compose_in_markdown` is operational/imported; other application
-  options are **missing**.
+  `enable_client` is retained unused metadata as in the actual primary; `compose_in_markdown`,
+  `notify_on_new_message` and `user_interface=none|text` are operational/imported.
+  `attachment_save_path` and `compact_announce_stream` remain **missing**.
+  Menu UI is an **upstream-placeholder**, not an invented third native UI.
 - `[node]`: `enable_node`, `node_name`, `disable_propagation`, `announce_at_start`,
   `announce_interval`, `pages_path`, `files_path`, `page_refresh_interval`,
   `file_refresh_interval`, `propagation_cost`, `max_transfer_size`, `max_sync_size`,
@@ -648,8 +734,8 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   for an existing peer using LXMF, with a joined three-minute cancellation deadline.
   Configured static peering now has separate actual application acceptance on
   Windows/Linux, described below; generic underlying LXMF tests are not substituted.
-- `[textui]`: `intro_time`, `theme`, `colormode`, `glyphs`, `image_loading`,
-  `mouse_enabled`, `editor`, `hide_guide`, `sanitize_names`, `clipboard_copy`
+- `[textui]`: `intro_time`, `intro_text`, `theme`, `colormode`, `glyphs`, `image_loading`,
+  `mouse_enabled`, `editor`, `hide_guide`, `sanitize_names`, `clipboard_copy`, `animation_interval`
   — **partial**: `image_loading` is imported and operational for original inline ASCII, not Kitty; other listed UI options remain missing. Native terminal output sanitises control characters.
 - `[rrc]`: `history_per_room_cap`, `filter_loaded_history`,
   `max_accepted_resource_size`, `ephemeral_notices`, `justify_msgs`, `space_msgs`,
@@ -660,7 +746,27 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   upstream 256 KiB resource default, a local 1,000-item/2 MiB aggregate history
   bound and terminal-safe plain display; these are not configuration parity.
 - `[utilities] enable_utilities`; `[printing] print_messages`, `print_command`,
-  `print_from` — **missing**.
+  `print_from`, `message_template` — **missing** software configuration/command
+  workflows; physical printer acceptance is a separate boundary, not the reason
+  the software is missing.
+
+The remaining required configuration surface is not silently deferred:
+logging level/file routing (including daemon default file/`--console` override);
+the two client keys above; every listed TextUI key except `image_loading`;
+every listed global RRC key except the two render switches (history cap/filter
+currently affect offline migration only, not global runtime policy);
+utilities and printing/template software; primary config-directory discovery
+(`/etc/nomadnetwork`, `~/.config/nomadnetwork`, `~/.nomadnetwork`) versus the native
+ApplicationData default; complete ConfigObj grammar and configuration-editor/
+hot-reload workflows; safe external-root activation during full profile import;
+and remaining router/cache/peer-counter/announce-state migration. The existing
+named `[node]` application keys are imported and wired, but complete peer UI,
+storage-pressure order and exhaustive failure/restart acceptance remain separate
+gaps. Primary `ui/textui/Config.py` also edits the separately selected Reticulum
+configuration (`enable_transport`, shared-instance/name/type/ports, interface
+discovery, remote-management allowlist, probes, implicit proofs and panic policy);
+the native app has no equivalent editor, and migration deliberately does not
+silently replace network configuration. Unknown keys continue to be reported.
 
 Safety differences are intentional and not upstream defaults: content/queue
 bounds, no symlink/hidden/alternate-stream traversal, executable-page opt-in,
@@ -1049,14 +1155,17 @@ removes the staged profile; source configuration is never changed. This imports
 configuration only: no upstream identity, conversations, contacts or private
 peer-settings files are silently selected/copied.
 
-The twenty-three translated keys are `[client] enable_client`, `announce_at_start`,
+The translated keys are `[client] enable_client`, `user_interface`,
+`notify_on_new_message`, `announce_at_start`,
 `announce_interval`, `periodic_lxmf_sync`,
 `lxmf_sync_interval`, `lxmf_sync_limit`, `try_propagation_on_send_fail`,
 `required_stamp_cost`, `accept_invalid_stamps`, `max_accepted_size`,
 `downloads_path`, `compose_in_markdown`; `[node] enable_node`, `disable_propagation`, `node_name`,
 `announce_interval`, `pages_path`, `files_path`, `announce_at_start`,
-`page_refresh_interval`, `file_refresh_interval`; `[rrc] render_markdown`,
-`render_micron`. Every other supplied key is
+`page_refresh_interval`, `file_refresh_interval`, `max_transfer_size`, `max_sync_size`,
+`message_storage_limit`, `propagation_cost`, `max_peers`, `static_peers`,
+`prioritise_destinations`; `[rrc] render_markdown`, `render_micron`;
+`[textui] image_loading`. Every other supplied key is
 reported on stderr as unsupported, without printing its value. This does not
 reclassify unimplemented options as optional.
 

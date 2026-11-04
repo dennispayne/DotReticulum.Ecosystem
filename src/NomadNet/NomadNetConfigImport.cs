@@ -46,6 +46,7 @@ public static class NomadNetConfigImport
                 "client.periodic_lxmf_sync" or "client.lxmf_sync_interval" or "client.lxmf_sync_limit" or
                 "client.try_propagation_on_send_fail" or "client.required_stamp_cost" or "client.accept_invalid_stamps" or
                 "client.max_accepted_size" or "client.downloads_path" or "node.enable_node" or "node.disable_propagation" or
+                "client.user_interface" or "client.notify_on_new_message" or
                 "node.node_name" or "node.announce_interval" or "node.pages_path" or "node.files_path" or
                 "node.announce_at_start" or "node.page_refresh_interval" or "node.file_refresh_interval" or
                 "node.max_transfer_size" or "node.max_sync_size" or "node.propagation_cost" or
@@ -62,6 +63,8 @@ public static class NomadNetConfigImport
                 case "rrc.render_markdown": settings.RrcRenderMarkdown = Boolean(value); break;
                 case "rrc.render_micron": settings.RrcRenderMicron = Boolean(value); break;
                 case "client.enable_client": settings.EnableClient = Boolean(value); break;
+                case "client.user_interface": settings.UserInterface = NomadNetClientRuntime.ParseInterface(value); break;
+                case "client.notify_on_new_message": settings.NotifyOnNewMessage = Boolean(value); break;
                 case "client.announce_at_start": settings.ClientAnnounceAtStart = Boolean(value); break;
                 case "client.announce_interval": settings.ClientAnnounceIntervalMinutes = Math.Max(30, Integer(value)); break;
                 case "client.periodic_lxmf_sync": settings.PeriodicLxmfSync = Boolean(value); break;

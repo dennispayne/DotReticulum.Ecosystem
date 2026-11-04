@@ -1,3 +1,229 @@
+Describe 'NomadNet client runtime configuration' -Tag 'ClientRuntime' {
+    It 'executes primary vectors and native configured text/headless notifications and precedence across restart' {
+        if ($env:DOTRETICULUM_NOMADNET_CLIENT_RUNTIME -ne '1') {
+            Set-ItResult -Skipped -Because 'Enable DOTRETICULUM_NOMADNET_CLIENT_RUNTIME=1 with selected native binary and pinned primary/Python environment.'
+            return
+        }
+        foreach ($variable in 'DOTRETICULUM_NOMADNET_BINARY', 'DOTRETICULUM_PYTHON',
+            'DOTRETICULUM_UPSTREAM', 'DOTRETICULUM_NOMADNET_SOURCE') {
+            if (-not [Environment]::GetEnvironmentVariable($variable)) { throw "$variable is required." }
+        }
+        $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        if ($env:DOTRETICULUM_TEST_REPOSITORY) { $root = $env:DOTRETICULUM_TEST_REPOSITORY }
+        $work = Join-Path (Get-Location) "artifacts\tests\fleet-nomad-config-acceptance-$([Guid]::NewGuid().ToString('N'))"
+        $null = New-Item $work -ItemType Directory -Force
+        $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
+        $pending = @{}
+        $errors = @{}
+        $names = @{}
+        $logs = @{}
+        $backlogs = @{}
+        $outcomes = [Collections.Generic.List[object]]::new()
+        $start = {
+            param([string] $name, [string] $binary, [string[]] $arguments)
+            $info = [Diagnostics.ProcessStartInfo]::new($binary)
+            $info.WorkingDirectory = $work
+            $info.UseShellExecute = $false
+            $info.RedirectStandardInput = $true
+            $info.RedirectStandardOutput = $true
+            $info.RedirectStandardError = $true
+            $info.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
+            $info.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
+            foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
+            $info.Environment['PYTHONPATH'] = @($env:DOTRETICULUM_UPSTREAM, $env:DOTRETICULUM_NOMADNET_SOURCE,
+                (Join-Path $root 'tests\Interop'), $env:DOTRETICULUM_LXMF_UPSTREAM | Where-Object { $_ }) -join [IO.Path]::PathSeparator
+            $info.Environment['PYTHON_CPU_COUNT'] = '2'
+            foreach ($variable in 'TMP', 'TEMP', 'TMPDIR') { $info.Environment[$variable] = $work }
+            $process = [Diagnostics.Process]::new()
+            $process.StartInfo = $info
+            $null = $process.Start()
+            $processes.Add($process)
+            $names[$process.Id] = $name
+            $errors[$process.Id] = $process.StandardError.ReadToEndAsync()
+            $logs[$process.Id] = [Text.StringBuilder]::new()
+            return $process
+        }.GetNewClosure()
+        $send = {
+            param($process, [string] $text)
+            $process.StandardInput.WriteLine($text)
+            $process.StandardInput.Flush()
+        }
+        $read = {
+            param($process, [string] $pattern, [int] $seconds = 60)
+            $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+            while ([DateTime]::UtcNow -lt $deadline) {
+                if (-not $pending.ContainsKey($process.Id)) { $pending[$process.Id] = $process.StandardOutput.ReadLineAsync() }
+                try { $line = $pending[$process.Id].WaitAsync([TimeSpan]::FromMilliseconds(250)).GetAwaiter().GetResult() }
+                catch [TimeoutException] { continue }
+                $pending.Remove($process.Id)
+                if ($null -eq $line) { throw "$($names[$process.Id]) closed stdout before '$pattern'; diagnostics $work" }
+                $null = $logs[$process.Id].AppendLine($line)
+                if ($line -match '(^|nomadnet> )Error:') { throw "$line; diagnostics $work" }
+                if ($line -match $pattern) { return $line }
+            }
+            throw "$($names[$process.Id]) timed out before '$pattern'; diagnostics $work"
+        }.GetNewClosure()
+        $event = {
+            param($process, [string] $expected)
+            if (-not $backlogs.ContainsKey($process.Id)) { $backlogs[$process.Id] = [Collections.Generic.List[object]]::new() }
+            $backlog = $backlogs[$process.Id]
+            for ($i = 0; $i -lt $backlog.Count; $i++) {
+                if ($backlog[$i].event -eq $expected) { $result = $backlog[$i]; $backlog.RemoveAt($i); return $result }
+            }
+            $deadline = [DateTime]::UtcNow.AddSeconds(90)
+            while ([DateTime]::UtcNow -lt $deadline) {
+                $line = & $read $process '.' ([Math]::Max(1, [Math]::Ceiling(($deadline - [DateTime]::UtcNow).TotalSeconds)))
+                $marker = $line.IndexOf('@@', [StringComparison]::Ordinal)
+                if ($marker -lt 0) { continue }
+                try { $value = ConvertFrom-Json -InputObject $line.Substring($marker + 2) -NoEnumerate -ErrorAction Stop }
+                catch { throw "Invalid framed JSON: $line; diagnostics $work" }
+                if ($null -eq $value -or $value.GetType() -ne [System.Management.Automation.PSCustomObject] -or
+                    $value.event -isnot [string] -or [string]::IsNullOrWhiteSpace($value.event)) { throw "Invalid event schema: $line" }
+                if ($value.event -in 'error', 'failed') { throw "$line; diagnostics $work" }
+                if ($value.event -eq $expected) { return $value }
+                if ($backlog.Count -ge 32) { throw "Exceeded event backlog; diagnostics $work" }
+                $backlog.Add($value)
+            }
+            throw "Timed out awaiting $expected; diagnostics $work"
+        }.GetNewClosure()
+        $offline = {
+            param([string] $name, [string[]] $arguments, [int] $exitCode = 0)
+            $process = & $start $name $env:DOTRETICULUM_NOMADNET_BINARY $arguments
+            $output = $process.StandardOutput.ReadToEndAsync()
+            $process.WaitForExit(30000) | Should -BeTrue
+            $text = $output.GetAwaiter().GetResult()
+            $null = $logs[$process.Id].Append($text)
+            $process.ExitCode | Should -Be $exitCode -Because $errors[$process.Id].GetAwaiter().GetResult()
+            return $text
+        }.GetNewClosure()
+        $stop = {
+            param($process, [bool] $headless)
+            if ($headless -and $IsWindows) { $process.Kill($true) }
+            elseif ($headless) { & /bin/kill -TERM $process.Id }
+            else { & $send $process 'quit' }
+            $process.WaitForExit(30000) | Should -BeTrue
+            if (-not ($headless -and $IsWindows)) { $process.ExitCode | Should -Be 0 }
+            if ($pending.ContainsKey($process.Id)) {
+                $line = $pending[$process.Id].GetAwaiter().GetResult()
+                if ($null -ne $line) { $null = $logs[$process.Id].AppendLine($line) }
+                $pending.Remove($process.Id)
+            }
+            $null = $logs[$process.Id].Append($process.StandardOutput.ReadToEnd())
+        }.GetNewClosure()
+        try {
+            (& $offline 'help' @('--help')) | Should -Match '--textui\|-t'
+            $vectors = Join-Path $work 'vectors.json'
+            $generator = & $start 'vectors' $env:DOTRETICULUM_PYTHON @('-u',
+                (Join-Path $root 'tests\Interop\GenerateNomadNetClientRuntimeVectors.py'), '--output', $vectors,
+                '--work', (Join-Path $work 'reference-vectors'))
+            $generator.WaitForExit(120000) | Should -BeTrue
+            $generator.ExitCode | Should -Be 0 -Because $errors[$generator.Id].GetAwaiter().GetResult()
+            (Get-FileHash $vectors).Hash | Should -Be (Get-FileHash (Join-Path $root 'tests\NomadNet.Tests\NomadNetClientRuntimeVectors.json')).Hash
+            [IO.File]::ReadAllBytes($vectors) | Should -Not -Contain 13
+            $outcomes.Add(@{ Case='actual-primary-vectors'; Status='passed'; Vectors=6; CliCasesPerVector=7 })
+            $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+            $listener.Start()
+            $port = $listener.LocalEndpoint.Port
+            $listener.Stop()
+            foreach ($name in 'peer', 'native') {
+                $directory = Join-Path $work "$name-rns"
+                $null = New-Item $directory -ItemType Directory
+                $configuration = @('[reticulum]', 'share_instance=No', 'enable_transport=No', '[logging]', 'loglevel=0', '[interfaces]')
+                if ($name -eq 'peer') {
+                    $configuration += @('[[Server]]', 'type=TCPServerInterface', 'enabled=Yes', 'listen_ip=127.0.0.1', "listen_port=$port")
+                }
+                else {
+                    $configuration += @('[[Client]]', 'type=TCPClientInterface', 'enabled=Yes', 'target_host=127.0.0.1', "target_port=$port")
+                }
+                $configuration | Set-Content (Join-Path $directory 'config')
+            }
+            $peerProfile = Join-Path $work 'peer'
+            $null = New-Item $peerProfile -ItemType Directory
+            "[client]`nuser_interface=none`nannounce_at_start=No`nperiodic_lxmf_sync=No`n[node]`nenable_node=Yes`ndisable_propagation=Yes`n[logging]`nloglevel=0`n" |
+                Set-Content (Join-Path $peerProfile 'config')
+            $peer = & $start 'peer' $env:DOTRETICULUM_PYTHON @('-u', (Join-Path $root 'tests\Interop\nomadnet_live_node.py'),
+                '--config', $peerProfile, '--rnsconfig', (Join-Path $work 'peer-rns'))
+            $ready = & $event $peer 'ready'
+            $ready.revision | Should -BeExactly 'f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2'
+            & $send $peer 'announce'
+            $null = & $event $peer 'announced'
+            foreach ($case in @(
+                @{ Name='text-notify'; Ui='text'; Notify='yes'; Bell=$true; Headless=$false; Flags=@('-d','-t') },
+                @{ Name='text-muted'; Ui='text'; Notify='no'; Bell=$false; Headless=$false; Flags=@('--textui','--daemon') },
+                @{ Name='configured-none'; Ui='none'; Notify='yes'; Bell=$false; Headless=$true; Flags=@('--textui') },
+                @{ Name='cli-daemon'; Ui='text'; Notify='yes'; Bell=$false; Headless=$true; Flags=@('-d','-c') }
+            )) {
+                $config = Join-Path $work "$($case.Name).config"
+                "[client]`nuser_interface=$($case.Ui)`nnotify_on_new_message=$($case.Notify)`nannounce_at_start=Yes`nperiodic_lxmf_sync=No`n" |
+                    Set-Content $config
+                $sourceHash = (Get-FileHash $config).Hash
+                $profile = Join-Path $work $case.Name
+                $null = & $offline "$($case.Name)-import" @('--import-config', $config, '--config', $profile)
+                $settings = Get-Content (Join-Path $profile 'settings.json') -Raw | ConvertFrom-Json
+                $settings.notifyOnNewMessage | Should -Be ($case.Notify -eq 'yes')
+                $settings.userInterface | Should -Be $(if ($case.Ui -eq 'text') { 2 } else { 0 })
+                $address = $null
+                for ($restart = 0; $restart -lt 2; $restart++) {
+                    $arguments = @('--config', $profile, '--rnsconfig', (Join-Path $work 'native-rns')) + $case.Flags
+                    $native = & $start "$($case.Name)-$restart" $env:DOTRETICULUM_NOMADNET_BINARY $arguments
+                    $deliveryLine = & $read $native 'LXMF delivery address: ([0-9a-f]{32})'
+                    $delivery = [regex]::Match($deliveryLine, 'LXMF delivery address: ([0-9a-f]{32})').Groups[1].Value
+                    if ($restart -eq 0) { $address = $delivery } else { $delivery | Should -BeExactly $address }
+                    if ($case.Headless) {
+                        $null = & $read $native 'Daemon ready\.'
+                        & $send $native 'quit'
+                        Start-Sleep -Milliseconds 300
+                        $native.HasExited | Should -BeFalse
+                    }
+                    $content = "$($case.Name)-inbound-$restart"
+                    & $send $peer "send $delivery $content"
+                    $null = & $event $peer 'queued'
+                    $null = & $event $peer 'delivered'
+                    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+                    do {
+                        $state = Get-Content (Join-Path $profile 'state.json') -Raw | ConvertFrom-Json
+                        if (@($state.messages | Where-Object content -EQ $content).Count -eq 1) { break }
+                        Start-Sleep -Milliseconds 100
+                    } while ([DateTime]::UtcNow -lt $deadline)
+                    @($state.messages | Where-Object content -EQ $content).Count | Should -Be 1
+                    if (-not $case.Headless) {
+                        & $send $native "send $($ready.delivery) $($case.Name)-outbound-$restart"
+                        $null = & $read $native 'Message queued:'
+                        $received = & $event $peer 'received'
+                        $received.content | Should -BeExactly "$($case.Name)-outbound-$restart"
+                    }
+                    & $stop $native $case.Headless
+                    $logs[$native.Id].ToString().Contains([char]7) | Should -Be $case.Bell
+                    (Get-FileHash $config).Hash | Should -BeExactly $sourceHash
+                    $outcomes.Add(@{ Case="$($case.Name)-restart-$restart"; Status='passed'; Bell=$case.Bell;
+                        Headless=$case.Headless; InboundPersisted=$true; OutboundExercised=(-not $case.Headless);
+                        Exit=$(if ($case.Headless -and $IsWindows) { 'abrupt-termination' } else { 'clean' }) })
+                }
+            }
+            $badConfig = Join-Path $work 'bad.config'
+            "[client]`nuser_interface=menu`n" | Set-Content $badConfig
+            $badTarget = Join-Path $work 'bad-target'
+            $null = & $offline 'reject-placeholder' @('--import-config', $badConfig, '--config', $badTarget) 1
+            Test-Path $badTarget | Should -BeFalse
+            $outcomes.Add(@{ Case='placeholder-refusal'; Status='passed'; TargetAbsent=$true })
+        }
+        finally {
+            foreach ($process in $processes) {
+                if (-not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+                [IO.File]::WriteAllText((Join-Path $work "$($names[$process.Id]).stderr"), $errors[$process.Id].GetAwaiter().GetResult())
+                [IO.File]::WriteAllText((Join-Path $work "$($names[$process.Id]).stdout"), $logs[$process.Id].ToString())
+                $process.Dispose()
+            }
+            @{ Platform=[Runtime.InteropServices.RuntimeInformation]::RuntimeIdentifier;
+                NativeSha256=(Get-FileHash $env:DOTRETICULUM_NOMADNET_BINARY).Hash.ToLowerInvariant();
+                FixtureSha256=(Get-FileHash (Join-Path $root 'tests\NomadNet.Tests\NomadNetClientRuntimeVectors.json')).Hash.ToLowerInvariant();
+                Cases=$outcomes.ToArray(); Topology='Direct TCP actual primary daemon-core and native application; no transport hop or impairment';
+                Boundaries='Original native console, not Urwid; no physical hardware; Windows headless exit is abrupt; CLI logging remains console-only' } |
+                ConvertTo-Json -Depth 6 | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
+        }
+    }
+}
+
 Describe 'NomadNet primary RRC profile migration' -Tag 'RrcImport' {
     It 'imports actual persisted hubs and retained history, repeats primary startup five times, and messages through rrcd after clean and abrupt native restart' {
         if ($env:DOTRETICULUM_NOMADNET_RRC_IMPORT -ne '1') {

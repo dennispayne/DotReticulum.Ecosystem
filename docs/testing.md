@@ -8,6 +8,29 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Parent independently replays Nomad client-runtime `final-v3` with
+`Invoke-FrozenClientRuntimeAcceptance.ps1 -Manifest <absolute-manifest>`:
+Windows9 passes/1 explicit Linux-only RRC skip; Linux10 passes/no skips.
+All ten owned current hashes and277 compiled production inputs match the
+accepted manifests; each frozen candidate also verifies61 generated-source PDB
+checks. Fresh current-source managed runs with the manifest-checksummed image
+converter pass218/7 explicit Linux-only skips on Windows and225/0 on Linux.
+C65/T181–182 records all10 new managed cases (8 Unit/2 Integration) and1
+published actual-primary runtime case per host, all passing. Receipts are
+`artifacts\tests\fleet-nomad-config\parent-windows\c65.json` and
+`/home/dennis/fleet-nomad-config-parent-results/c65.json`.
+The original native text/headless runtime, notification policy and direct-TCP
+application restart flow do not establish Urwid equivalence, new hop/loss
+coverage or complete configuration/logging/router/editor compatibility.
+Exact frozen manifests, native hashes, source revisions and remaining
+software contracts are in [NomadNet's reference](nomadnet.md).
+The final integrated `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-client-config-unified -OutputDirectory
+artifacts\tests\fleet-client-config-unified` passes2,461 managed cases/128 explicit
+skips,62 Pester tooling cases, strict C65 catalog aggregation and merged
+production coverage. Sideband voice-peer reference generation is separate
+in-progress work, not an accepted implementation in that run.
+
 The call-history integration gate
 `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
 artifacts\builds\fleet-voice-profile-unified -OutputDirectory

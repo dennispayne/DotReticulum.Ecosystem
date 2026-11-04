@@ -1,0 +1,403 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sourceBlobSha256": {
+    "nomadnet/NomadNetworkApp.py": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2",
+    "nomadnet/nomadnet.py": "b35bb029b83fc879111466a183607fa62224fce8f7dd5307412c4ef35d47b902",
+    "nomadnet/ui/__init__.py": "c75b4642104362f1d5f4a338a08241cdf6740954009d4ab8093c24542f9692f9",
+    "nomadnet/ui/NoneUI.py": "019588a54c41b3fba999733eef3834ba423f5e60731cf0a245130a486ea62ba8",
+    "nomadnet/ui/MenuUI.py": "2debeae357ef063735b91f25ccc1dec5de98d2a115af9c0d75f2139a5da0695d"
+  },
+  "method": "Actual unchanged NomadNetworkApp constructor reaches NoneUI with daemon=True; then unchanged applyConfig and notify_message_recieved run. Captured stdout observes the BEL, not an Urwid screen or hardware. Actual unchanged CLI main executes with program_setup replaced only by an argument observer, not a network/UI startup. No application source changes.",
+  "vectors": [
+    {
+      "name": "text-default-notify",
+      "input": "[client]\nuser_interface = text\n",
+      "executionConfig": "[client]\nuser_interface = text\nannounce_at_start = no\nperiodic_lxmf_sync = no\n[textui]\ncolormode = 256\n[node]\nenable_node = no\n[logging]\nloglevel = 7\ndestination = console\n",
+      "observed": {
+        "constructor_daemon_ui": 0,
+        "configured_ui": 2,
+        "notify_on_new_message": true,
+        "notification": "\u0007",
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "--daemon"
+            ],
+            "daemon": true,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "--textui",
+              "--daemon"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "force_console": true
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "force_console": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "text-muted",
+      "input": "[client]\nuser_interface = text\nnotify_on_new_message = no\n",
+      "executionConfig": "[client]\nuser_interface = text\nnotify_on_new_message = no\nannounce_at_start = no\nperiodic_lxmf_sync = no\n[textui]\ncolormode = 256\n[node]\nenable_node = no\n[logging]\nloglevel = 7\ndestination = console\n",
+      "observed": {
+        "constructor_daemon_ui": 0,
+        "configured_ui": 2,
+        "notify_on_new_message": false,
+        "notification": "",
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "--daemon"
+            ],
+            "daemon": true,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "--textui",
+              "--daemon"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "force_console": true
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "force_console": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "text-notify",
+      "input": "[client]\nuser_interface = TeXt\nnotify_on_new_message = yes\n",
+      "executionConfig": "[client]\nuser_interface = TeXt\nnotify_on_new_message = yes\nannounce_at_start = no\nperiodic_lxmf_sync = no\n[textui]\ncolormode = 256\n[node]\nenable_node = no\n[logging]\nloglevel = 7\ndestination = console\n",
+      "observed": {
+        "constructor_daemon_ui": 0,
+        "configured_ui": 2,
+        "notify_on_new_message": true,
+        "notification": "\u0007",
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "--daemon"
+            ],
+            "daemon": true,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "--textui",
+              "--daemon"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "force_console": true
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "force_console": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "none-default-notify",
+      "input": "[client]\nuser_interface = none\n",
+      "executionConfig": "[client]\nuser_interface = none\nannounce_at_start = no\nperiodic_lxmf_sync = no\n[textui]\ncolormode = 256\n[node]\nenable_node = no\n[logging]\nloglevel = 7\ndestination = console\n",
+      "observed": {
+        "constructor_daemon_ui": 0,
+        "configured_ui": 0,
+        "notify_on_new_message": true,
+        "notification": "",
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "--daemon"
+            ],
+            "daemon": true,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "--textui",
+              "--daemon"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "force_console": true
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "force_console": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "none-muted",
+      "input": "[client]\nuser_interface = none\nnotify_on_new_message = off\n",
+      "executionConfig": "[client]\nuser_interface = none\nnotify_on_new_message = off\nannounce_at_start = no\nperiodic_lxmf_sync = no\n[textui]\ncolormode = 256\n[node]\nenable_node = no\n[logging]\nloglevel = 7\ndestination = console\n",
+      "observed": {
+        "constructor_daemon_ui": 0,
+        "configured_ui": 0,
+        "notify_on_new_message": false,
+        "notification": "",
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "--daemon"
+            ],
+            "daemon": true,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "--textui",
+              "--daemon"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "force_console": true
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "force_console": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "none-notify",
+      "input": "[client]\nuser_interface = NoNe\nnotify_on_new_message = on\n",
+      "executionConfig": "[client]\nuser_interface = NoNe\nnotify_on_new_message = on\nannounce_at_start = no\nperiodic_lxmf_sync = no\n[textui]\ncolormode = 256\n[node]\nenable_node = no\n[logging]\nloglevel = 7\ndestination = console\n",
+      "observed": {
+        "constructor_daemon_ui": 0,
+        "configured_ui": 0,
+        "notify_on_new_message": true,
+        "notification": "",
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "--daemon"
+            ],
+            "daemon": true,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "--textui",
+              "--daemon"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "force_console": true
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "force_console": false
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "force_console": true
+          }
+        ]
+      }
+    }
+  ]
+}

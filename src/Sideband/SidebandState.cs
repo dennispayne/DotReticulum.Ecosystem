@@ -33,8 +33,11 @@ public sealed record SidebandState(
     bool VoiceEnabled = false,
     SidebandVoiceConfiguration? Voice = null,
     IReadOnlyList<SidebandVoicePeer>? VoicePeers = null,
-    IReadOnlyList<SidebandVoiceCallEvent>? Calls = null)
+    IReadOnlyList<SidebandVoiceCallEvent>? Calls = null,
+    IReadOnlyList<SidebandTelemetryPeerState>? TelemetryPeers = null)
 {
+    private readonly SidebandTelemetryConfiguration? _telemetry;
+    public SidebandTelemetryConfiguration Telemetry { get => _telemetry ?? new(); init => _telemetry = value; }
     public const int CurrentSchemaVersion = 1;
 
     public static SidebandState Empty(string configDirectory) =>

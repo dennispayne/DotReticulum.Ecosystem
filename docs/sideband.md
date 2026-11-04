@@ -18,10 +18,13 @@ Original desktop controls compose/preview images and explicitly record/play audi
 Device ownership/cancellation are verified with fakes, not physical capture or acoustics.
 Default-off LXST calling, trust-aware direct PTT, bounded call history and an original
 desktop voice screen reuse the same Reticulum identity/router as messaging.
-Application telemetry/maps, plugins, mobile operation, broad upstream configuration, and upstream database
-migration of all profile semantics remain absent. A bounded offline importer
+Manual telemetry, privacy-aware collector/report exchange, supported telemetry
+migration and an original bounded raster/offline MBTiles map are implemented.
+Actual primary application telemetry passes on Windows/Linux; automatic sensor
+collection, advanced map overlays, plugins, mobile operation, broad upstream configuration, and upstream database
+migration of all profile semantics remain incomplete. A bounded offline importer
 activates identity, supported settings, LXMF conversations, text/file/image/audio history,
-delivery methods, known client-router files and synchronization state from upstream profiles. Conversation trust/unread flags
+delivery methods, known client-router files, synchronization state and supported telemetry from upstream profiles. Conversation trust/unread flags
 are active native state, including imported values; trusted sends request LXMF
 reply tickets. Foreground conversation viewing marks messages read.
 
@@ -81,25 +84,26 @@ scope and rights require review before implementation ships.
 ## Contract inventory
 
 Status definitions: `missing` = no Sideband application contract in this
-repository; `partial` = a lower-level DotReticulum library exists, but the
-Sideband application behavior/integration does not. Source inspection is not
+repository; `partial` = only the explicitly named subset is implemented.
+Underlying-library support does not establish application integration. Source inspection is not
 runtime evidence.
 
 | Contract | Status | Upstream contract and source |
 |---|---|---|
-| App shell and interaction | partial | Original Avalonia UI uses an upstream-inspired dark/teal top bar, collapsible navigation, and Conversations, Contacts, Connectivity, Backup & Keys, Preferences, Utilities, Guide and Voice screens. Supported screens expose real local contacts/history, runtime connection state, effective config path, public identity hashes, persisted display/theme and voice settings. The announce stream, objects, map, telemetry, hardware management, plugins, and other upstream screens are visibly unavailable rather than simulated; upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
-| Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. Peer appearance/settings, groups, broadcasts and voice conversations remain absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
+| App shell and interaction | partial | Original Avalonia UI provides Conversations, Contacts, Connectivity, Backup & Keys, Preferences, Utilities, Guide, Voice, Telemetry and Map screens. Supported screens expose real local state and explicit errors; announce-stream, object and hardware/plugin management remain unavailable rather than simulated. Upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
+| Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. Appearance values and telemetry permissions persist; voice uses the shared client below. Complete peer settings, groups, broadcasts and announce-stream presentation remain absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
 | LXMF messaging and propagation UI | partial | Text send/receive, automatic/manual node selection, persisted periodic fetches, cancellation, one-shot failed-delivery propagation retry, trusted-conversation reply tickets and restart retrieval reuse `LxmRouter`. Actual primary Sideband daemon-core direct/propagated round trips pass separately from Python LXMF endpoint tests, with trust enabled and disabled in both directions. Full message presentation/settings remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,4811–4828,5156–5227,5634–5644`, `docs/lxmf.md`. |
 | Text, image/file and audio messages | implemented bounded subset | Text/files, WebP image preparation/preview, Ogg Opus and Codec2 composition/decoding, explicit 10-second recording/playback/cancellation, content-addressed persistence and explicit exports. Actual Python Sideband core sends/receives images and both audio families directly/through a Python propagation transport; actual Pillow/audioproc decode native output. Published binaries decode imported media and render images. Device tests use fakes; physical capture/acoustics remain unverified. Unknown audio is retained/exportable but playback fails explicitly; no autoplay. See media limits below; `src/Sideband/SidebandMedia*.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py:message_send_dispatch`, `sbapp/sideband/audioproc.py`, `sbapp/sideband/core.py:5189–5196`. |
 | Paper messages and `lxm://` imports | missing | No paper-message/QR creation or import flow, camera/QR, export or URI handling. Offline profile migration imports its identity separately; `README.md`, `sbapp/main.py`, `sbapp/ui/keys.py`. |
 | LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI, call-history migration and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
-| Telemetry, location and situational awareness | partial foundations only | All 27 sensor wire formats, immutable exact values, bounded atomic telemetry storage and source-verified geo calculations exist. Application collection/privacy, LXMF send/receive/streams, tracking and live/offline maps remain required work; these foundations do not establish application telemetry compatibility. See telemetry foundations below; `SidebandTelemetry*.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/sideband/geo.py`, `sbapp/ui/telemetry.py`. |
-| Remote commands, queries and plugins | missing | Command, service and telemetry plugin base types; built-in ping/echo/signal/telemetry request behavior; custom telemetry sensors; configurable plugin loading and example plugins. This is an application extension contract, not part of the existing .NET `Telemetry` tool; `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`, `README.md`. |
+| Telemetry, location and situational awareness | partial | All 27 sensor wire formats, exact values, bounded atomic storage and reference-executed geometry exist. Original desktop controls configure manual information/location/sensors, privacy/collector/tracking policies, inspect trusted reports, explicitly delete and show reported locations on the map. Actual primary reports/collector streams, requests, restart, supported profile import, schedules and propagation recovery pass separately on Windows/Linux. Automatic sensor collection, hardware and advanced presentation remain absent/unverified; see sections below; `SidebandTelemetry*.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/ui/telemetry.py`. |
+| Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, persisted view/provider and reported-location markers. Clustering, connection/interface overlays, following peers, primary provider presets and map-setting migration remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
+| Remote commands, queries and plugins | partial | Authorized telemetry requests are implemented and live-tested below. Built-in ping/echo/signal, general command/service/telemetry plugin execution, Python custom sensor plugins and configurable plugin loading remain missing. Manual wire readings are not a Python-plugin ABI. This is an application extension contract, not part of the existing .NET `Telemetry` tool; `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`, `README.md`. |
 | Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. Interface editing/discovery and Android interface loading are absent; `src/Sideband/SidebandClient.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
 | Long-lived service and OS integration | partial | The desktop window and headless daemon own the same cancellable client. Linux published daemon/interactive processes stop on SIGTERM with closed/blocked stdin; native console quit and restart pass on both hosts. Days-long Sideband service operation remains unverified. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are deferred mobile contracts; `SidebandDaemon.cs`, `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
-| Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/text/files/images/audio/methods, known client-router tickets/own ratchets/caches and `lxmf.lastsync`/`lxmf.syncretrying`. Unimplemented semantics remain archived; source files never change. Voice objects, other fields, telemetry and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `sbapp/main.py:209–273`. |
+| Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/text/files/images/audio/methods, known client-router tickets/own ratchets/caches, synchronization anchors and bounded supported telemetry/settings/permissions/appearance/cursors. Unimplemented semantics remain archived; source files never change. Voice objects, other fields and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `SidebandTelemetryProfile.cs`, `sbapp/main.py:209–273`. |
 | CLI and headless operation | partial | Help/version, init/check, data/config selection, JSON settings exchange, daemon/interactive operation and native extensions `--import-profile`, `--check-media`, `--synthetic-audio` exist. Daemon ignores closed stdin and stops on cancellation; original interactive console bounds input and supports functional voice commands. All twelve pinned upstream voice command handlers execute `Not yet implemented`; native functionality is an extension, not evidence that these primary placeholders work. Native `--interactive`, `--verbose` and synthetic audio require daemon mode; conflicting modes fail before state/UI. Broader upstream console commands remain missing; `Program.cs`, `SidebandDaemon.cs`, `sbapp/main.py`, `sbapp/sideband/cli/cmd_voice.py`. |
-| Repository server | missing | Upstream's optional "repository server" is a local-network HTTPS mirror for static Sideband/RNode software and guide downloads plus a package list (default port 4444); it is not an RNS/rngit Git hosting server. The native Sideband app does not host this service. The ecosystem's `rngit` service is separate and is not exposed here; the Utilities page labels the mirror unavailable; `sbapp/sideband/core.py`, `sbapp/ui/layouts.py`, `src/Sideband.Desktop/MainWindow.axaml`. |
+| Repository server | implemented bounded subset | Utilities explicitly starts/stops a public unauthenticated HTTPS static mirror with a package list, persistent private certificate, visible fingerprint and joined window shutdown. Default loopback/4444; reachable LAN exposure requires explicit bind and consent. No bundled upstream assets, automatic content downloads or update execution. Original bounded GET-only service, not RNS/rngit Git hosting; safety differences and acceptance are below; `SidebandRepository*.cs`, `MainWindow.Repository.cs`, `sbapp/sideband/core.py`, `sbapp/ui/layouts.py`. |
 | Native packaging and upgrades | partial | Windows and Linux NativeAOT publishes succeed with trimming/linker warnings treated as errors. Package the full publish directory, including Windows `sideband.exe`, `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, `libSkiaSharp.dll` and the three included third-party notice files; Linux `sideband`, `libHarfBuzzSharp.so`, `libSkiaSharp.so`, `libSystem.IO.Ports.Native.so` and the same notices. The notices include Avalonia/Skia/HarfBuzz MIT texts, ANGLE's BSD license, and .NET serial runtime notices. Installer/signing, self-upgrade and other upstream package formats remain absent; `src/Sideband.Desktop/Sideband.Desktop.csproj`, `src/Sideband.Desktop/THIRD-PARTY-NOTICES*.txt`, `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
 
 ## Upstream architecture and platform facts
@@ -275,7 +279,7 @@ with trust enabled/disabled. Native conversation flags survive restart; renames
 and incoming announcements never grant or revoke trust. The original desktop
 shows unread/trusted labels, saves explicit trust, marks the active foreground
 conversation read and offers an explicit mark-unread action. These controls do
-not implement voice authorization, telemetry permissions or Python plugins.
+do not themselves grant voice authorization, telemetry permissions or Python-plugin access.
 
 ### Offline upstream profile migration
 
@@ -301,8 +305,11 @@ directory before connecting. Windows needs system `winsqlite3.dll`, Linux
 Unimplemented data stays in `imported-profile`: original binary config and SQLite
 snapshot, but no redundant private-identity copy. Unknown binary configuration
 uses hexadecimal JSON projections; the original MessagePack remains authoritative.
-Voice, unsupported message fields, telemetry and unknown persistent properties
-are not activated. Known client-router files and synchronization state are activated
+Voice, unsupported message fields and unknown persistent properties
+are not activated. Supported telemetry settings, conversation permissions/appearance,
+up to 4,096 report rows and 4,000 known cursor rows activate through the bounded
+telemetry importer. Invalid/future or mismatched report/cursor timestamps reject
+the staged import; this is not silent data repair. Known client-router files and synchronization state are activated
 as described below; other app-storage files, propagation-node state and interfaces
 are not migrated. Upstream queues are memory-only, not omitted persisted files.
 Remote historical signatures cannot be verified
@@ -547,10 +554,42 @@ rejects conflicting options before state creation. The two Linux signal cases
 stop an interactive process with blocked stdin and a daemon with closed stdin
 within three seconds; both now pass against the published binary.
 
+### One-hour native call endurance
+
+The explicit `VoiceSoak` Pester case requires
+`DOTRETICULUM_SIDEBAND_SOAK=1`, a selected frozen executable, its expected
+`DOTRETICULUM_SIDEBAND_SOAK_SHA256` and a retained
+`DOTRETICULUM_SIDEBAND_SOAK_EVIDENCE` JSON path. It cannot silently shorten
+the 3,600-second in-call hold. Both peers must remain in-call, with increasing
+RX/TX at every 30-second sample and no observed teardown; the case switches from
+Opus to Codec2 halfway, kills one owned peer, establishes a reverse-origin
+recovery call, exits gracefully and reloads both identities/history.
+The sampled bounds are 512 MiB working set and 128 MiB growth after warmup,
+not proof that no transient allocation spike occurs.
+
+Frozen voice executables in the table below passed concurrent one-hour runs:
+
+| Host | Actual hold | Samples | Final server RX/TX; client RX/TX | Maximum sampled working set |
+|---|---:|---:|---|---:|
+| Windows | 3,614.396 seconds | 121 | 37,603/37,559; 37,559/37,604 | 48.738 MiB |
+| Linux/WSL | 3,609.872 seconds | 121 | 38,782/38,783; 38,783/38,782 | 69.402 MiB |
+
+Each result is 1 passed, zero skips. Raw samples, monotonic progress, UTC versus
+stopwatch durations, XML results and unchanged binary hashes were independently
+checked after execution. Local operator recipes are
+`pwsh -NoProfile -File artifacts\tests\sideband-voice-soak\Run-Windows.ps1`
+and `Run-Linux.ps1`; retained JSON/XML/logs are in that ignored directory.
+The reproducible test is committed in `tests\Pester\SidebandVoice.Tests.ps1`:
+select `-Tag VoiceSoak` with the explicit variables and native codec libraries.
+Private temporary profiles were removed. This is direct-loopback native-pair
+synthetic capture/discard output, not prolonged Python-peer, transport-hop,
+WAN, physical microphone/speaker or days-long service evidence.
+
 ## Telemetry foundations
 
-These are platform-independent building blocks, **not an integrated telemetry
-application** and not the unrelated .NET-only `telemetry` executable.
+These platform-independent building blocks now support the separate original
+desktop controls below. Their vector/storage acceptance alone does **not** prove
+live application telemetry and is unrelated to the .NET-only `telemetry` executable.
 `SidebandTelemetryCodec` represents all 27 primary sensor IDs, including
 self-describing transport/propagation/interface data. Wire bytes remain
 authoritative: unknown IDs survive, malformed known readings are explicitly
@@ -569,8 +608,9 @@ Reported source hashes alone are not authenticated origin/provenance.
 Actual primary SQLite observations expose two defects: an unfiltered query
 ignores order/limit, and cleanup retains a maximum of **now minus 240 seconds**,
 deleting valid recent reports. Native queries enforce their global bound;
-`FromPrimary` records the cleanup defect explicitly and no automatic pruning
-invokes it. Application retention still requires an explicit documented policy.
+`FromPrimary` records the cleanup defect explicitly. The application does not
+invoke that defective policy: while connected and enabled, hourly cleanup retains
+the primary seven-day window with a corrected **now plus 240 seconds** upper bound.
 `SidebandGeo` covers source-observed distances, azimuth/elevation and radio
 horizon; a nonconvergent primary inverse calculation returns no result instead
 of an invented fallback. No geoid/maps/assets or location collection are bundled.
@@ -589,6 +629,301 @@ decoded **63 C#-encoded reports** and matched the reference readings.
 exact primary sensor/geo methods and extracted SQLite methods with disclosed
 synthetic clocks/dependencies. This is vector/storage evidence, not live
 application telemetry, maps or physical sensor acceptance.
+
+## Telemetry application exchange, privacy and migration
+
+The client uses existing LXMF fields and delivery machinery for ordinary-message
+telemetry/appearance, empty-content report messages, collector streams and
+authorized telemetry commands. Its bounded 64-item worker owns cancellation and
+deduplicates in-flight work per peer/type. Queued means admission, not delivery;
+propagation-node storage does not advance recipient-delivery success cursors.
+One failed peer or observer does not disable subsequent service. Telemetry-only
+messages do not become empty chat-history entries.
+
+Collection is explicitly manual: information, fixed location and bounded supplied
+wire readings. No option opens GPS, microphone, physical sensors or external
+location services. Ordinary sends respect per-conversation permission/trust;
+requests have separate authorization. Collector forwarding excludes the recipient
+and configured source exclusions. The signed LXMF outer sender is authenticated;
+an inner collector source is only that sender's assertion. Received/forwarded
+provenance and available packet statistics are enriched separately, preserving
+reported original receiver/distance where required. TCP synthetic locations are
+not physical location or RF evidence.
+
+Native safety differences are deliberate: unverified sensitive metadata is ignored
+even where primary ordinary ingestion accepts it; future/mismatched stream and
+request cursors cannot poison persisted progress; safe unknown readings survive;
+and retention corrects the primary cleanup defect above. Display-trust filtering
+precedes the requested result limit, so newer untrusted reports cannot hide older
+trusted reports. Application queries return at most 256 records from the bounded
+4,096-record/16-MiB store. Explicit local refresh updates the timebase rather than
+the primary's change-only cached report behavior.
+
+Collector schedules preserve the primary strict boundaries, two send attempts
+and blocked slot; native attempt/block/tracking progress also survives restart
+where primary counters are RAM-only. A one-second worker, rather than primary's
+60-second polling, supports explicit positive whole-second intervals. Unknown
+hardware/plugin settings remain reported/preserved, never activated by import.
+Supported JSON settings and actual primary binary/SQLite profile migration
+activate manual collection/privacy settings, contact flags/appearance, reports
+and the four named telemetry cursor suffixes. Broader sensor/provider, MQTT,
+Python-plugin and complete upstream presentation/configuration parity is absent.
+
+`GenerateSidebandTelemetryPolicyVectors.py`,
+`GenerateSidebandTelemetryObservationsVectors.py` and
+`GenerateSidebandTelemetryScheduleVectors.py` execute the actual pinned core,
+sensor/geo and persistence methods with disclosed synthetic clocks/dependencies.
+Their fixtures record the exact revision and source SHA-256 values. The thin
+application adapter executes the real daemon core; collector retrieval explicitly
+passes primary's `is_collector_request=True`, because configuring a collector
+alone does not change that method's default. No production transport workaround
+was needed for the earlier restart failure.
+
+Independent parent acceptance ran:
+
+```powershell
+& tests\Interop\Invoke-SidebandTelemetryAcceptance.ps1 -Python "$PWD\artifacts\builds\lxst-win-reference\Scripts\python.exe" -ReticulumSource 'C:\Users\dennis\.copilot\session-state\acfd3d43-fbd3-41f2-b4d5-f670c527895d\files\reference\rns' -SidebandSource "$PWD\artifacts\builds\fleet-sideband-reference" -LxstSource "$PWD\artifacts\builds\lxst-primary-win-054" -ArtifactsDirectory artifacts\builds\sbp
+# Linux pwsh, from /home/dennis/dotreticulum-ecosystem-acfd3d43 with DOTNET_ROOT/PATH configured:
+& '/mnt/c/Git/dennispayne/DotReticulum.Ecosystem/tests/Interop/Invoke-SidebandTelemetryAcceptance.ps1' -Python '/home/dennis/dotreticulum-ecosystem-acfd3d43/reference-venv/bin/python' -ReticulumSource '/home/dennis/dotreticulum-ecosystem-acfd3d43/rns' -SidebandSource '/mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/builds/fleet-sideband-reference' -LxstSource '/mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/builds/lxst-primary-054' -ArtifactsDirectory artifacts/builds/sblp -NativeRuntimeDirectory artifacts/tests/sbp
+```
+
+Result: **1,175 passed, zero skipped per host**; Windows 3m12s and Linux 3m18s.
+Four actual-primary cases independently exercise reports/requests/collector streams
+both ways, direct and through a Python transport, application restart, exclusions,
+privacy/signature/cursor rejection, schedules/tracking, actual primary profile
+import, propagation fallback enabled/disabled, propagation-only requests and
+direct-service recovery. Failure injection explicitly disables the reference
+public destination's packet callback/proofs and refuses delivery links; primary
+source remains unmodified. It is not arbitrary packet-loss impairment.
+Reports, profiles and locations are synthetic. Neither this run nor the offline
+preview establishes published-native network telemetry, physical sensors,
+upstream GUI, .NET-hop telemetry or prolonged telemetry-service endurance.
+Linux builds are copied unchanged to a native Linux filesystem to enforce Unix
+private-file permissions; mounted Windows filesystem checks are not substituted.
+The frozen pre-appearance-correction manifest is retained under
+`artifacts\builds\sideband-telemetry-contracts\frozen-production-source.json`.
+
+`GenerateSidebandTelemetryAppearanceVectors.py` separately executes actual
+`get_message_fields` with validated synthetic RGBA values. Native settings import
+now uses the observed truncating division by `1.0/255`, not nearest rounding or
+an assumed equivalent multiplication. All 261 reference cases pass independently
+on Windows/Linux; this corrects the earlier `0.1` import discrepancy. The change
+is confined to `SidebandTelemetrySettings.cs`; other frozen production hashes
+remain unchanged. A focused rerun combines those cases with both actual-primary
+direct/hop profile-import cases using the operator's
+`-Filter 'FullyQualifiedName~SidebandTelemetryAppearanceTests|FullyQualifiedName~ActualPrimaryTelemetryRequestsCollectorProvenancePrivacyAndRestart'`.
+Independent parent reruns passed **263 cases, zero skips on each host** after the
+correction (Windows 1m04s, Linux 1m03s), including both actual-primary migration
+cases, not only the arithmetic vectors. Results are retained under
+`artifacts\builds\sba\results` and native Linux
+`/home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/tests/sba/results`.
+
+## Raster maps and manual telemetry desktop
+
+The original Map screen supports drag panning, discrete zoom, explicit coordinate
+entry, a configurable HTTPS raster provider, attribution, session-only online
+consent, cache removal and offline raster MBTiles import. Launching the application
+or viewing stored telemetry never authorizes online tile downloads. The primary
+default is online-enabled; native default-off consent is an intentional privacy
+difference. No map tiles, fonts, icons or geographic datasets are bundled.
+The checked-in four-tile MBTiles fixture is original synthetic colored raster data.
+
+`GenerateSidebandMapVectors.py` executes AST-selected methods from the pinned
+primary, including real SQLite tile lookup and original core defaults. Its
+105 projection, ten URL, four metadata and five tile observations record exact
+source SHA-256 values in `Fixtures/sideband-maps.json`. A recorded raw-image seam
+observes the primary SQL lookup without pretending to execute Kivy rendering;
+HTTP uses a controlled response, not a public provider. Reference geometry uses
+bottom-origin world Y and TMS rows; XYZ/quadkey requests invert the row.
+The primary north-pole projection fails and its south pole is out of world;
+the original viewport explicitly clips to Mercator's display limit instead.
+
+The owned `maps` directory holds a private exclusive lease, atomic `view.json`,
+downloaded content-addressed tiles and an imported `offline.mbtiles` snapshot.
+Defaults are 1,024 downloaded tiles/64 MiB, 2 MiB per encoded tile and 1 GiB per
+MBTiles source. Raster decoding permits PNG/JPEG/WebP up to 2,048 pixels per side.
+Admission is fixed at 64 operations; disposal cancels and drains accepted work.
+Online requests use an original User-Agent, a ten-second deadline and no redirects.
+Custom `{s}` templates deterministically select the first configured subdomain,
+rather than the primary's randomized server selection; no automatic server
+failover or provider load-balancing claim is made.
+Cache/source errors are visible; missing offline tiles are legitimate empty areas.
+Import rejects a live nonempty WAL, checks copied/source hashes and database
+integrity, and preserves the last good snapshot on failure. Imported files are
+never edited. Dataset attribution is retained rather than the primary's generic
+label. The viewport draws at most 64 tiles and 256 validated markers.
+
+The Telemetry screen offers explicit manual preview, persisted privacy/collector
+policies, per-conversation permission controls, bounded tracking schedules and
+send/request admission results. Admission is not delivery confirmation. Viewing
+reports starts neither collection nor Reticulum; no hardware is opened.
+Details label the authenticated LXMF outer sender separately from a collector's
+asserted inner source. Trust filtering applies before display; explicit deletion
+requires confirmation. The map shows the latest viewable location per source
+within seven days from the newest-256 report query after source-trust filtering, using validated contact/own
+colors and original labels, not licensed symbols. No reported location is proof
+of an authenticated physical position.
+
+Map clustering, interface/connection overlays, peer following, primary provider
+presets, map-setting migration and full primary map presentation remain required
+software work. Arbitrary primary Python plugins are not supported by these APIs.
+Manual preview and synthetic maps are not physical sensor or live telemetry evidence.
+
+Focused acceptance:
+
+```powershell
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path artifacts\builds\sideband-maps-parent --filter "FullyQualifiedName~SidebandMap|FullyQualifiedName~SidebandTelemetryUi"
+dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\sideband-telemetry-maps-native-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true
+# Select DOTRETICULUM_SIDEBAND_BINARY from the complete publish directory:
+& .\tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1 -Tag Native,GUI
+```
+
+The focused Windows/Linux corpus exercises reference vectors, actual loopback
+HTTP/XYZ/User-Agent/no-redirect behavior, failed-peer recovery, quotas, cancellation,
+admission/disposal, real SQLite import/TMS/WAL/restart, failing view observers and
+original headless map/report workflows. Separate strict NativeAOT publishes and
+Pester runs exercise actual window rendering of raster tiles and configured manual
+report preview on Windows and Linux/WSLg. Online provider access, upstream Kivy UI,
+physical location/audio and advanced overlays are not exercised.
+
+Focused result: **17/17 on Windows and Linux, zero skips**. Strict `win-x64`
+and `linux-x64` NativeAOT publishing passed with both linker/compiler warning
+flags above. The selected native/GUI Pester suite passed **7 cases per host**;
+one unrelated generated-media-profile rendering case explicitly skipped.
+It did not convert that absent profile into a pass.
+
+| Accepted map/manual-preview executable | SHA-256 |
+|---|---|
+| `artifacts\builds\sideband-telemetry-maps-native-win\publish\Sideband.Desktop\release_win-x64\sideband.exe` | `31b425cc1be2eab01934d54be74a44c859b213d3259a5974cf3e0d5a0789d368` |
+| `/home/dennis/fleet-sideband-telemetry-maps-native/publish/Sideband.Desktop/release_linux-x64/sideband` | `a8260ec653f6019d55ee39718a15dda1b368489ae40a0dbdd4e5df88ad6e750a` |
+
+`sideband --import-map FILE --data-dir PROFILE` validates/imports an offline
+snapshot without Reticulum or audio. `--smoke-ui --smoke-map` and
+`--smoke-ui --smoke-telemetry` are explicit acceptance modes, not normal startup
+behavior; the latter needs enabled manual telemetry settings.
+
+## Python-plugin and remote-command boundary
+
+The pinned primary loads arbitrary Python command, service and telemetry plugin
+modules and passes its actual `SidebandCore` owner to them. That exposes far more
+than a language-neutral callback ABI: plugins may import Python modules, access
+core state/methods, create threads and perform unrestricted OS/network actions.
+Executed loader observations also show command loading depends on the service
+plugin enablement setting and a disabled command instance's `start` is still
+called. Those observations are not an endorsement of executing untrusted code.
+
+`Fixtures/sideband-extensions.json` records actual send/authorization/reply/loader
+execution with the pinned core hash. It includes command fields, trusted-setting
+precedence, signature gating and replies; it is reference evidence only.
+Built-in ping/echo/signal handling and arbitrary Python-plugin execution are not
+implemented in the native application. Telemetry requests have their separate
+application contract and cannot establish general remote control.
+
+There is no production Python interpreter, Python-to-Core bridge or compatible
+Python plugin ABI here. A different .NET extension interface would not supply
+that compatibility. Full arbitrary Python-plugin support requires a consequential
+runtime/architecture decision beyond the current native-only, Python-as-reference
+boundary; it remains a required unresolved contract, not a passing native API
+substitution or a hardware deferral. No example plugin source is copied.
+
+## Public HTTPS software mirror
+
+The original Utilities controls start/stop an optional local HTTPS file mirror,
+not an RNS/rngit service. Select a dedicated administrator-controlled public
+directory, a listen address and port, then explicitly authorize unauthenticated
+access for that session. Default bind is loopback, port 4444. Root, address, port
+and consent are not persisted or automatically restarted. Certificates persist
+separately under the private profile's `repository-certificate` directory;
+the public root cannot contain that private storage or the profile itself.
+Never permit untrusted concurrent filesystem writers: portable managed path
+checks are not OS-level `openat`/no-follow filesystem isolation.
+
+The service provides the observed root/index, package-list and static-file routes
+using original code and files supplied by the operator. GET-only requests,
+headers, target length, file/list sizes, clients and deadlines are bounded.
+Uploads, request bodies, pipelining, keepalive, directory listing and inherited
+HEAD behavior are not supported. Traversal/reparse paths are rejected; missing
+files return 404 rather than the primary handler's generic 500. The package list
+contains sorted regular filenames, not symlinks/subdirectories. Responses carry
+explicit lengths/MIME types, `Connection: close` and `nosniff`.
+
+The self-signed P-256 certificate is not a public trust anchor; independently
+verify the displayed SHA-256 fingerprint. The native service intentionally
+persists its certificate rather than regenerating it on every start. Linux uses
+ephemeral imported keys and mode-600 private storage. Windows Schannel rejects
+the tested ephemeral-key mode, so the verified provider uses temporary UserKeySet
+ownership and inherited directory ACLs; restrict the directory to its owner.
+Cancellation/stop/window shutdown joins owned clients and disposes the certificate.
+One failing peer or error observer does not disable later service.
+
+`GenerateSidebandExtensionObservations.py` executes the pinned primary handler
+and certificate methods with disclosed synthetic owners/files; it records exact
+source hashes and five routes in `Fixtures/sideband-extensions.json`.
+No upstream pages, packages, sounds or other restricted assets are copied.
+Automatic upstream-content downloading, self-updating, trust-store installation,
+physical LAN/firewall acceptance and live primary HTTPS/GUI peers are unverified
+or absent; neither the reference observations nor loopback TLS prove them.
+These APIs do not load arbitrary Python plugins or provide their ABI.
+
+Independent backend acceptance passed 39 Windows cases with one explicit Unix-mode
+skip, and 40/40 Linux cases. Frozen strict NativeAOT probes on both hosts executed
+fingerprint-pinned HTTPS index/package/file/404 requests, certificate restart and
+joined disposal. The actual desktop integration additionally verifies consent,
+invalid input, root/profile separation, TLS routes, restart, peer errors and
+start/stop/close races through original headless UI controls.
+
+```powershell
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path artifacts\builds\sideband-repository-parent --filter "FullyQualifiedName~SidebandRepository|FullyQualifiedName~SidebandMap|FullyQualifiedName~SidebandTelemetryUi"
+dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\sideband-repository-app-native-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true
+```
+
+The combined focused corpus passed **69 cases/one Unix-mode skip on Windows,
+70/70 on Linux**. Published acceptance uses the ordinary Utilities start handler
+only in explicit `--smoke-ui --smoke-repository PUBLIC_ROOT --data-dir PROFILE`
+mode: real fingerprint-pinned TLS fetches succeed before rendering is accepted,
+and two native process runs retain the same certificate. This mode never opens
+Reticulum or audio devices and does not affect normal startup.
+
+Strict complete-application NativeAOT publishing passed with zero warnings/errors
+on both hosts. The selected combined `Sideband.Tests.ps1` and
+`SidebandVoice.Tests.ps1` published suite passed **11 cases/four explicit skips on
+Windows and 13 cases/two skips on Linux**, including the TLS/render/restart flow,
+map/manual preview, both synthetic codec-call origins and Linux SIGTERM.
+The one-hour frozen call is separate, not replayed by this short suite.
+
+| Accepted repository-integrated executable | SHA-256 |
+|---|---|
+| `artifacts\builds\sideband-repository-app-native-win\publish\Sideband.Desktop\release_win-x64\sideband.exe` | `8c37cf3d24fe34d3a874315b44d6afd25a5415418b6752587e3354516ea4ed8f` |
+| `/home/dennis/fleet-sideband-repository-app-native/publish/Sideband.Desktop/release_linux-x64/sideband` | `e7550581a36680cb90537bb2508f8772711920ff0e2015cb07af005c546cec2d` |
+
+## Integrated source and native acceptance
+
+The final integrated source, including the appearance arithmetic correction and
+shared LXMF paper-envelope helper, passes the unified coverage/Pester gate:
+
+```powershell
+& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-sideband-integrated-unified -OutputDirectory artifacts\tests\fleet-sideband-integrated-unified
+dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\sideband-integrated-native-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v quiet
+# Same publish options with linux-x64 and /home/dennis/fleet-sideband-integrated-native:
+& .\tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1,tests\Pester\SidebandVoice.Tests.ps1 -Tag Native,GUI
+& .\tests\run-compatibility.ps1 -SkipManaged -Pester -Gui -OutputDirectory artifacts\tests\fleet-sideband-integrated-native-catalog
+```
+
+The unified gate passed **2,082 managed cases, 87 explicit skips**, Pester tooling
+**61 cases**, and merged coverage of all eight production assemblies. Strict
+Windows/Linux publishing passed with zero warnings/errors. Selecting each complete
+publish directory through `DOTRETICULUM_SIDEBAND_BINARY` independently passed
+**11/four skips on Windows and 13/two skips on Linux** for real HTTPS/render/restart,
+maps/manual preview, synthetic codec calls/recovery and Linux SIGTERM. Windows
+codec DLLs were explicitly present on `PATH`. The selected Windows native/GUI
+catalog also passed; missing other binaries/live references and the deliberately
+unselected hour-long mode remain skips/availability records. This is not hosted
+evidence or a new one-hour/physical/Python-peer native voice claim.
+
+| Final integrated executable | SHA-256 |
+|---|---|
+| `artifacts\builds\sideband-integrated-native-win\publish\Sideband.Desktop\release_win-x64\sideband.exe` | `2f92080d4039ae7f63fb7aa02dc60f4be9582b2b77f9c91515b19dc9af7191bd` |
+| `/home/dennis/fleet-sideband-integrated-native/publish/Sideband.Desktop/release_linux-x64/sideband` | `b218409dfe4d921a1efb26fe68c94632c398f5993cdc0643d2ae96881a1e2797` |
 
 ## Current implementation evidence
 
@@ -649,7 +984,8 @@ the expected content digest. Separate propagation and file-field cases are
 described above. Deliberate direct-refusal/retry is covered separately;
 random packet loss and arbitrary transport-hop
 topologies are not covered. Voice acceptance has the separate boundaries above.
-No Android, macOS, physical-audio, application telemetry or plugin behavior is claimed.
+No Android, macOS, physical-audio or Python-plugin behavior is claimed.
+Telemetry network application acceptance remains distinct from the manual UI and map cases above.
 
 The native state store persists contacts, chat messages, display name, theme,
 and the local configuration/delivery address in `state.json`; it is not wire-

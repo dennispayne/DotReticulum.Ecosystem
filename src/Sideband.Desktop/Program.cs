@@ -9,6 +9,9 @@ internal static class Program
     internal static string DataDirectory { get; private set; } = SidebandStateStore.DefaultDataDirectory();
     internal static string? ReticulumConfigDirectory { get; private set; }
     internal static bool SmokeUiMode { get; private set; }
+    internal static bool SmokeMapMode { get; private set; }
+    internal static bool SmokeTelemetryMode { get; private set; }
+    internal static string? SmokeRepositoryRoot { get; private set; }
 
     [STAThread]
     private static int Main(string[] args)
@@ -31,6 +34,9 @@ internal static class Program
             DataDirectory = options.DataDirectory ?? DataDirectory;
             ReticulumConfigDirectory = options.ReticulumConfigDirectory;
             SmokeUiMode = options.SmokeUi;
+            SmokeMapMode = options.SmokeMap;
+            SmokeTelemetryMode = options.SmokeTelemetry;
+            SmokeRepositoryRoot = options.SmokeRepositoryRoot;
             if (options.ImportProfile is { } profile)
             {
                 using var cancellation = new CancellationTokenSource();
@@ -39,12 +45,16 @@ internal static class Program
                 try { return ProfileImportCommand.RunAsync(profile, DataDirectory, Console.Out, cancellation.Token).GetAwaiter().GetResult(); }
                 finally { Console.CancelKeyPress -= cancel; }
             }
-            if (options.CheckMedia)
+            if (options.CheckMedia || options.ImportMap is not null)
             {
                 using var cancellation = new CancellationTokenSource();
                 ConsoleCancelEventHandler cancel = (_, e) => { e.Cancel = true; cancellation.Cancel(); };
                 Console.CancelKeyPress += cancel;
-                try { return CheckMediaAsync(cancellation.Token).GetAwaiter().GetResult(); }
+                try
+                {
+                    return (options.ImportMap is { } map ? ImportMapAsync(map, cancellation.Token) :
+                        CheckMediaAsync(cancellation.Token)).GetAwaiter().GetResult();
+                }
                 finally { Console.CancelKeyPress -= cancel; }
             }
             if (options.Initialize || options.Check || options.ImportSettings is not null || options.ExportSettings is not null)
@@ -78,6 +88,21 @@ internal static class Program
             Console.Error.WriteLine("sideband: " + ex.Message);
             return 1;
         }
+    }
+
+    private static async Task<int> ImportMapAsync(string source, CancellationToken cancellationToken)
+    {
+        await using var maps = await SidebandMapStore.OpenAsync(Path.Combine(DataDirectory, "maps"),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+        var metadata = await maps.ImportMbTilesAsync(source, cancellationToken).ConfigureAwait(false);
+        await maps.SaveViewAsync(new()
+        {
+            UseOffline = true, IsCartesian = metadata.IsCartesian,
+            Latitude = metadata.Latitude, Longitude = metadata.Longitude, Zoom = metadata.Zoom
+        }, cancellationToken).ConfigureAwait(false);
+        Console.WriteLine($"Imported raster MBTiles, stored zooms {metadata.MinimumZoom}-{metadata.StoredMaximumZoom}; {metadata.Attribution}");
+        Console.WriteLine("Owned snapshot and view saved without opening Reticulum, audio devices or online tiles.");
+        return 0;
     }
 
     private static async Task<int> CheckMediaAsync(CancellationToken cancellationToken)
@@ -146,6 +171,8 @@ internal static class Program
         var help = false;
         var version = false;
         var smokeUi = false;
+        var smokeMap = false;
+        var smokeTelemetry = false;
         var daemon = false;
         var interactive = false;
         var syntheticAudio = false;
@@ -153,6 +180,8 @@ internal static class Program
         string? importSettings = null;
         string? exportSettings = null;
         string? importProfile = null;
+        string? importMap = null;
+        string? smokeRepositoryRoot = null;
         for (var index = 0; index < args.Length; index++)
         {
             switch (args[index])
@@ -160,6 +189,9 @@ internal static class Program
                 case "-h" or "--help": help = true; break;
                 case "--version": version = true; break;
                 case "--smoke-ui": smokeUi = true; break;
+                case "--smoke-map": smokeMap = true; break;
+                case "--smoke-telemetry": smokeTelemetry = true; break;
+                case "--smoke-repository": smokeRepositoryRoot = NextValue(args, ref index); break;
                 case "--init": initialize = true; break;
                 case "--check": check = true; break;
                 case "--check-media": checkMedia = true; break;
@@ -171,20 +203,31 @@ internal static class Program
                 case "--import-settings": importSettings = NextValue(args, ref index); break;
                 case "--export-settings": exportSettings = NextValue(args, ref index); break;
                 case "--import-profile": importProfile = NextValue(args, ref index); break;
+                case "--import-map": importMap = NextValue(args, ref index); break;
                 case "-r" or "--rnsconfig": rnsConfig = NextValue(args, ref index); break;
                 case "--": break;
                 default: throw new ArgumentException($"Unknown option '{args[index]}'. Use --help for usage.");
             }
         }
 
-        if ((initialize ? 1 : 0) + (check ? 1 : 0) + (checkMedia ? 1 : 0) + (importSettings is null ? 0 : 1) + (exportSettings is null ? 0 : 1) + (importProfile is null ? 0 : 1) > 1)
-            throw new ArgumentException("--init, --check, --check-media, --import-settings, --export-settings and --import-profile cannot be combined.");
-        if (daemon && (initialize || check || checkMedia || importSettings is not null || exportSettings is not null || importProfile is not null || smokeUi))
+        if ((initialize ? 1 : 0) + (check ? 1 : 0) + (checkMedia ? 1 : 0) + (importSettings is null ? 0 : 1) + (exportSettings is null ? 0 : 1) + (importProfile is null ? 0 : 1) + (importMap is null ? 0 : 1) > 1)
+            throw new ArgumentException("--init, --check, --check-media, --import-settings, --export-settings, --import-profile and --import-map cannot be combined.");
+        if (daemon && (initialize || check || checkMedia || importSettings is not null || exportSettings is not null || importProfile is not null || importMap is not null || smokeUi))
             throw new ArgumentException("--daemon cannot be combined with maintenance or UI smoke modes.");
         if ((interactive || syntheticAudio || verbose) && !daemon)
             throw new ArgumentException("--interactive, --synthetic-audio and --verbose require --daemon.");
         if (checkMedia && (rnsConfig is not null || smokeUi))
             throw new ArgumentException("--check-media is offline and cannot be combined with --rnsconfig or --smoke-ui.");
+        if (importMap is not null && (string.IsNullOrWhiteSpace(dataDirectory) || rnsConfig is not null || smokeUi))
+            throw new ArgumentException("--import-map requires an explicit --data-dir and cannot be combined with --rnsconfig or --smoke-ui.");
+        if (smokeMap && (!smokeUi || initialize || check || checkMedia || importSettings is not null || exportSettings is not null || importProfile is not null || importMap is not null))
+            throw new ArgumentException("--smoke-map requires --smoke-ui and an imported offline map.");
+        if (smokeTelemetry && (!smokeUi || smokeMap || initialize || check || checkMedia || importSettings is not null || exportSettings is not null || importProfile is not null || importMap is not null))
+            throw new ArgumentException("--smoke-telemetry requires --smoke-ui with enabled manual telemetry and cannot be combined with map or maintenance modes.");
+        if (smokeRepositoryRoot is not null && (!smokeUi || string.IsNullOrWhiteSpace(dataDirectory) ||
+            smokeMap || smokeTelemetry || initialize || check || checkMedia || importSettings is not null ||
+            exportSettings is not null || importProfile is not null || importMap is not null || rnsConfig is not null))
+            throw new ArgumentException("--smoke-repository requires --smoke-ui and an explicit --data-dir, without other smoke, maintenance or Reticulum modes.");
         if (importProfile is not null && (string.IsNullOrWhiteSpace(dataDirectory) || rnsConfig is not null || smokeUi))
             throw new ArgumentException("--import-profile requires an explicit new --data-dir and cannot be combined with --rnsconfig or --smoke-ui.");
         if (initialize || check)
@@ -198,7 +241,7 @@ internal static class Program
         }
 
         return new Options(dataDirectory, rnsConfig, initialize, check, help, version, smokeUi, importSettings, exportSettings, importProfile, checkMedia,
-            daemon, interactive, syntheticAudio, verbose);
+            daemon, interactive, syntheticAudio, verbose, importMap, smokeMap, smokeTelemetry, smokeRepositoryRoot);
     }
 
     private static string NextValue(string[] args, ref int index)
@@ -219,16 +262,19 @@ internal static class Program
           sideband --init [--data-dir <path>] [--rnsconfig <path>]
           sideband --check [--data-dir <path>] [--rnsconfig <path>]
           sideband --check-media [--data-dir <path>]
+          sideband --import-map <raster-mbtiles> --data-dir <path>
           sideband --import-settings <json-path> [--config <path>]
           sideband --export-settings <json-path> [--config <path>]
           sideband --import-profile <upstream-profile> --data-dir <new-directory>
-          sideband --smoke-ui [--data-dir <path>] [--rnsconfig <path>]
+          sideband --smoke-ui [--smoke-map | --smoke-telemetry] [--data-dir <path>] [--rnsconfig <path>]
+          sideband --smoke-ui --smoke-repository <public-directory> --data-dir <path>
           sideband --daemon [--interactive] [--verbose] [--synthetic-audio] [--config <path>] [--rnsconfig <path>]
           sideband --help | --version
 
         --init       Initialize durable application state and the local identity.
         --check      Validate local state and report the existing identity.
         --check-media  Validate/decode stored media offline; requires native codecs, never opens devices.
+        --import-map  Import a stopped raster MBTiles snapshot offline; requires explicit --data-dir.
         --data-dir   Select the Sideband data directory.
         --config     Alias for --data-dir (also -c).
         --import-settings  Import supported upstream JSON settings; retain and report unsupported keys.
@@ -236,6 +282,9 @@ internal static class Program
         --import-profile   Import an offline upstream desktop profile into an absent directory; never merge or overwrite.
         --rnsconfig  Select a Reticulum configuration directory or file.
         --smoke-ui   Open the normal desktop window and report actual render events for GUI acceptance.
+        --smoke-map  With --smoke-ui, require rendering an already imported offline map.
+        --smoke-telemetry  With --smoke-ui, prepare a configured manual report and render its desktop preview.
+        --smoke-repository  Explicit loopback HTTPS/window acceptance with synthetic public files; requires --smoke-ui and --data-dir.
         --daemon     Serve without opening the desktop; runs until cancellation, even when stdin closes.
         --interactive  Enable a bounded original console in daemon mode; EOF or quit stops it.
         --verbose    Print public voice-state events in daemon mode (also -v).
@@ -244,5 +293,6 @@ internal static class Program
 
     private sealed record Options(string? DataDirectory, string? ReticulumConfigDirectory, bool Initialize, bool Check, bool Help, bool Version, bool SmokeUi,
         string? ImportSettings, string? ExportSettings, string? ImportProfile, bool CheckMedia,
-        bool Daemon, bool Interactive, bool SyntheticAudio, bool Verbose);
+        bool Daemon, bool Interactive, bool SyntheticAudio, bool Verbose, string? ImportMap, bool SmokeMap, bool SmokeTelemetry,
+        string? SmokeRepositoryRoot);
 }

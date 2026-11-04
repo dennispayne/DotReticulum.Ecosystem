@@ -1,7 +1,8 @@
 namespace Sideband;
 
 public sealed record SidebandContact(string DeliveryHash, string DisplayName, bool Trusted = false, bool Unread = false,
-    bool DirectPushToTalk = false)
+    bool DirectPushToTalk = false, bool SendTelemetry = false, bool AllowTelemetryRequests = false,
+    SidebandTelemetryAppearance? Appearance = null)
 {
     public static bool TryNormalizeDeliveryHash(string? value, out string normalized)
     {

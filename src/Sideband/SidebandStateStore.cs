@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace Sideband;
 
-public sealed class SidebandStateStore
+public sealed partial class SidebandStateStore
 {
     private const int MaximumStateBytes = 8 * 1024 * 1024;
     private const int MaximumMessages = 10_000;
@@ -51,13 +51,15 @@ public sealed class SidebandStateStore
     public async Task AddContactAsync(SidebandContact contact, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(contact);
-        var validated = SidebandContact.Create(contact.DisplayName, contact.DeliveryHash, contact.Trusted, contact.Unread, contact.DirectPushToTalk);
+        var validated = SidebandContact.Create(contact.DisplayName, contact.DeliveryHash, contact.Trusted, contact.Unread, contact.DirectPushToTalk)
+            with { SendTelemetry = contact.SendTelemetry, AllowTelemetryRequests = contact.AllowTelemetryRequests, Appearance = contact.Appearance };
         await MutateAsync(state =>
         {
             var existing = state.Contacts.FirstOrDefault(item => item.DeliveryHash == validated.DeliveryHash);
             var updated = existing is null ? validated : validated with
             {
                 Trusted = existing.Trusted, Unread = existing.Unread, DirectPushToTalk = existing.DirectPushToTalk,
+                SendTelemetry = existing.SendTelemetry, AllowTelemetryRequests = existing.AllowTelemetryRequests, Appearance = existing.Appearance,
             };
             var contacts = state.Contacts.Where(item => item.DeliveryHash != validated.DeliveryHash).Append(updated).ToArray();
             if (contacts.Length > 1_000) throw new InvalidOperationException("The contact list is full.");
@@ -279,9 +281,10 @@ public sealed class SidebandStateStore
                 ImportedSettings = settings,
                 VoiceEnabled = voiceEnabled,
                 Voice = voice,
+                Telemetry = SidebandTelemetrySettings.Import(settings, state.Telemetry),
             };
         }, cancellationToken).ConfigureAwait(false);
-        return settings.Keys.Where(key => key is not ("display_name" or "dark_ui" or "lxmf_propagation_node" or
+        return settings.Keys.Where(key => !SidebandTelemetrySettings.IsSupported(key) && key is not ("display_name" or "dark_ui" or "lxmf_propagation_node" or
             "last_lxmf_propagation_node" or "propagation_by_default" or "lxmf_periodic_sync" or "lxmf_sync_interval" or
             "lxmf_try_propagation_on_fail" or "voice_enabled" or "voice_trusted_only" or "voice_hdx_direct_ptt" or
             "voice_hdx_loudspeaker" or "voice_input" or "voice_speaker" or "voice_loudspeaker" or "voice_ringer")).Order(StringComparer.Ordinal).ToArray();
@@ -310,6 +313,7 @@ public sealed class SidebandStateStore
         settings["voice_speaker"] = JsonSerializer.SerializeToElement(voice.Speaker, SidebandStateJsonContext.Default.String);
         settings["voice_loudspeaker"] = JsonSerializer.SerializeToElement(voice.Loudspeaker, SidebandStateJsonContext.Default.String);
         settings["voice_ringer"] = JsonSerializer.SerializeToElement(voice.Ringer, SidebandStateJsonContext.Default.String);
+        SidebandTelemetrySettings.Export(settings, state.Telemetry);
         var target = Path.GetFullPath(path);
         if (string.Equals(target, StatePath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             throw new ArgumentException("Export cannot overwrite the application's state file.", nameof(path));
@@ -452,6 +456,18 @@ public sealed class SidebandStateStore
             throw new InvalidDataException("Sideband state is missing its contact or message collections.");
         if (state.Contacts.Count > 1_000 || state.Messages.Count > MaximumMessages)
             throw new InvalidDataException("Sideband state exceeds its contact or message count limit.");
+        _ = state.Telemetry.Validate();
+        if (state.TelemetryPeers is { Count: > 1_000 }) throw new InvalidDataException("Too many telemetry peers.");
+        foreach (var peer in state.TelemetryPeers ?? [])
+            if (peer is null || !SidebandContact.TryNormalizeDeliveryHash(peer.DeliveryHash, out _) ||
+                !double.IsFinite(peer.LastSendSuccessTimebase) || !double.IsFinite(peer.LastReceivedTimebase) ||
+                !double.IsFinite(peer.LastSendAttemptUtcSeconds) || !double.IsFinite(peer.LastRequestAttemptUtcSeconds) ||
+                !double.IsFinite(peer.LastRequestSuccessTimebase) || !double.IsFinite(peer.ScheduledSendBlockedUntil) ||
+                peer.ScheduledSendAttempts is < 0 or > 2)
+                throw new InvalidDataException("Invalid saved telemetry peer state.");
+        if (state.TelemetryPeers is { } telemetryPeers &&
+            telemetryPeers.Select(p => p.DeliveryHash).Distinct(StringComparer.Ordinal).Count() != telemetryPeers.Count)
+            throw new InvalidDataException("Duplicate saved telemetry peers.");
         if (string.IsNullOrWhiteSpace(state.DisplayName) || state.DisplayName.Length > 64 || state.DisplayName.Any(char.IsControl))
             throw new InvalidDataException("Sideband display name is missing or invalid.");
         if (state.Theme is not ("Dark" or "Light"))
@@ -472,6 +488,7 @@ public sealed class SidebandStateStore
             if (contact is null) throw new InvalidDataException("Sideband state contains a null contact.");
             try { _ = SidebandContact.Create(contact.DisplayName, contact.DeliveryHash); }
             catch (ArgumentException ex) { throw new InvalidDataException("Sideband state contains an invalid contact.", ex); }
+            if (contact.Appearance is not null) SidebandTelemetryConfiguration.ValidateAppearance(contact.Appearance);
         }
         foreach (var message in state.Messages) ValidateMessage(message);
         if (state.Voice is { } voice)

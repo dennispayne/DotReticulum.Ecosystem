@@ -33,8 +33,12 @@ NomadNet browser/directory and the synchronized LXST 0.5.4 reference/catalog and
 expectation. It passed: 722 managed cases and 61 Pester cases, with 81 managed
 and 23 discovered Pester cases explicitly skipped for absent prerequisites.
 Fourteen additional catalog availability records identify unavailable native suites.
-The working-tree corpus includes isolated telemetry/extension reference foundations;
-those tests are not application telemetry/maps or Python-plugin compatibility.
+That frozen voice-era corpus included isolated telemetry/extension reference
+foundations; it did not cover the later bounded raster maps and manual telemetry
+desktop controls. Their separate Windows/Linux focused and published-rendering
+acceptance, and the explicit one-hour frozen native voice evidence, are recorded
+in [Sideband's reference](sideband.md). None establishes arbitrary Python-plugin
+compatibility or full telemetry application acceptance.
 It retains TRX, per-case
 compatibility evidence and merged coverage for all eight production assemblies.
 Its absent live/native prerequisites remain explicit skips; the separately
@@ -50,6 +54,54 @@ Excluded data-driven GUI cases retain their parameter values and remain explicit
 skips, rather than producing a false unmatched-selector failure. Its two POSIX
 signal skips are independently exercised on Linux; the Sideband reference doc
 records the full published voice, import and rendered-GUI results.
+
+The map/manual-telemetry gate
+`& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-maptelemetry-unified -OutputDirectory
+artifacts\tests\fleet-maptelemetry-unified-v2` passed all five managed projects:
+1,799 passed and 87 explicit skips, with coverage merged across all eight
+production assemblies. Pester tooling passed 61 cases; absent selected
+reference/native prerequisites remained explicit skips/availability records.
+An earlier mutable-tree attempt failed while a new NomadNet test attribute was
+temporarily nested incorrectly; the corrected source passed without removing
+tests or relaxing assertions.
+
+The separate selected Windows native/GUI catalog command
+`& .\tests\run-compatibility.ps1 -SkipManaged -Pester -Gui -OutputDirectory
+artifacts\tests\fleet-maptelemetry-native-catalog-v2` passed, using the accepted
+map/manual-preview binary and separately installed codec DLLs on `PATH`.
+Its initial run omitted those DLLs and failed both codec-call cases; supplying
+the documented runtime prerequisites restored both directions without changing
+the tests. The one-hour endurance mode remains an explicit skip in this short
+catalog invocation; independently checked retained hour-long samples are
+separate evidence, not silently replayed passes. These local runs predate the
+subsequent repository-mirror desktop integration and are not hosted acceptance.
+
+The integrated telemetry/map/repository source gate
+`& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-sideband-integrated-unified -OutputDirectory
+artifacts\tests\fleet-sideband-integrated-unified` passed **2,082 managed cases,
+87 explicit skips and 61 Pester tooling cases**, with unioned coverage for all
+eight production assemblies. This includes the independently source-generated
+appearance arithmetic correction and the shared bounded LXMF paper-envelope
+helper; it does not include the subsequently staged Sideband paper backend.
+The separate actual-primary telemetry operator passed 1,175 cases without skips
+on each host, including direct/Python-hop reports, collector/restart/migration
+and disclosed propagation-rejection recovery, as recorded in
+[Sideband's reference](sideband.md#telemetry-application-exchange-privacy-and-migration).
+Neither the managed aggregate nor those synthetic peer cases establishes
+automatic/physical sensors, arbitrary impairment or complete upstream parity.
+
+Strict final integrated Sideband NativeAOT publishes and actual selected
+`Sideband.Tests.ps1,SidebandVoice.Tests.ps1 -Tag Native,GUI` flows passed on Windows
+(11 cases/four skips) and Linux (13 cases/two skips). The Windows command
+`& .\tests\run-compatibility.ps1 -SkipManaged -Pester -Gui -OutputDirectory
+artifacts\tests\fleet-sideband-integrated-native-catalog` also passed with the
+final binary selected and installed codec DLLs on `PATH`. The retained
+one-hour frozen voice case is independently verified evidence, not a replayed
+short-suite pass. Hosted Build/Test metadata was inspected again and remains at
+the exact earlier runs/producing source boundaries above; no workflow was
+dispatched and no local commit was pushed.
 
 ## Entry points
 

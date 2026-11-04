@@ -69,6 +69,234 @@ Describe 'sideband native acceptance' -Tag 'Native' {
     }
 }
 
+Describe 'sideband native raster map acceptance' -Tag 'Native' {
+    BeforeAll {
+        $mapBinary = $env:DOTRETICULUM_SIDEBAND_BINARY
+        if ([string]::IsNullOrWhiteSpace($mapBinary) -or -not (Test-Path -LiteralPath $mapBinary -PathType Leaf)) {
+            throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
+        }
+        $mapRoot = Join-Path (Join-Path (Get-Location) 'artifacts\tests') "sideband-map-pester-$PID"
+        $mapFixture = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\Sideband.Tests\Fixtures\sideband-map.mbtiles'))
+        New-Item -ItemType Directory -Force -Path $mapRoot | Out-Null
+    }
+
+    It 'imports validated raster snapshots and persists an offline view across native process restarts' {
+        $mapData = Join-Path $mapRoot 'data'
+        $original = (Get-FileHash -LiteralPath $mapFixture).Hash
+        $output = & $mapBinary --import-map $mapFixture --data-dir $mapData 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 0
+        $output | Should -Match 'Imported raster MBTiles, stored zooms 0-1'
+        $output | Should -Match 'without opening Reticulum, audio devices or online tiles'
+        (Get-FileHash -LiteralPath (Join-Path $mapData 'maps\offline.mbtiles')).Hash | Should -Be $original
+        $view = Get-Content -LiteralPath (Join-Path $mapData 'maps\view.json') -Raw | ConvertFrom-Json
+        $view.useOffline | Should -BeTrue
+        $view.zoom | Should -Be 1
+        Test-Path -LiteralPath (Join-Path $mapData 'state.json') | Should -BeFalse
+        & $mapBinary --import-map $mapFixture --data-dir $mapData 2>&1 | Out-Null
+        $LASTEXITCODE | Should -Be 0
+        (Get-FileHash -LiteralPath $mapFixture).Hash | Should -Be $original
+        $invalid = Join-Path $mapRoot 'invalid.mbtiles'
+        [IO.File]::WriteAllBytes($invalid, [byte[]]::new(4096))
+        & $mapBinary --import-map $invalid --data-dir $mapData 2>&1 | Out-Null
+        $LASTEXITCODE | Should -Be 1
+        (Get-FileHash -LiteralPath (Join-Path $mapData 'maps\offline.mbtiles')).Hash | Should -Be $original
+    }
+
+    It 'rejects conflicting map modes and a live WAL without silently importing stale tiles' {
+        $mapData = Join-Path $mapRoot 'rejected-data'
+        & $mapBinary --import-map $mapFixture --data-dir $mapData --check 2>&1 | Out-Null
+        $LASTEXITCODE | Should -Be 1
+        Test-Path -LiteralPath $mapData | Should -BeFalse
+        & $mapBinary --smoke-map --data-dir $mapData 2>&1 | Out-Null
+        $LASTEXITCODE | Should -Be 1
+        Test-Path -LiteralPath $mapData | Should -BeFalse
+        $liveSource = Join-Path $mapRoot 'live.mbtiles'
+        Copy-Item -LiteralPath $mapFixture -Destination $liveSource
+        [IO.File]::WriteAllBytes("$liveSource-wal", [byte[]]@(1))
+        $output = & $mapBinary --import-map $liveSource --data-dir $mapData 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 1
+        $output | Should -Match 'Checkpoint and close'
+        Test-Path -LiteralPath (Join-Path $mapData 'maps\offline.mbtiles') | Should -BeFalse
+    }
+
+    AfterAll {
+        if ($mapRoot -and (Test-Path -LiteralPath $mapRoot)) { Remove-Item -LiteralPath $mapRoot -Recurse -Force }
+    }
+}
+
+Describe 'sideband native raster map rendering' -Tag 'GUI' {
+    It 'renders imported raster tiles in the original published viewport with online access disabled' {
+        $mapBinary = $env:DOTRETICULUM_SIDEBAND_BINARY
+        if ([string]::IsNullOrWhiteSpace($mapBinary) -or -not (Test-Path -LiteralPath $mapBinary -PathType Leaf)) {
+            throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
+        }
+        $mapRoot = Join-Path (Join-Path (Get-Location) 'artifacts\tests') "sideband-map-gui-$PID"
+        $fixture = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\Sideband.Tests\Fixtures\sideband-map.mbtiles'))
+        $process = [Diagnostics.Process]::new()
+        $started = $false
+        try {
+            & $mapBinary --import-map $fixture --data-dir $mapRoot 2>&1 | Out-Null
+            $LASTEXITCODE | Should -Be 0
+            $process.StartInfo.FileName = $mapBinary
+            $process.StartInfo.UseShellExecute = $false
+            $process.StartInfo.RedirectStandardOutput = $true
+            $process.StartInfo.RedirectStandardError = $true
+            foreach ($argument in @('--smoke-ui', '--smoke-map', '--data-dir', $mapRoot)) {
+                $process.StartInfo.ArgumentList.Add($argument)
+            }
+            $process.Start() | Should -BeTrue
+            $started = $true
+            $stdout = $process.StandardOutput.ReadToEndAsync()
+            $stderr = $process.StandardError.ReadToEndAsync()
+            if (-not $process.WaitForExit(20000)) {
+                $process.Kill($true)
+                $process.WaitForExit()
+                throw "The published map did not finish its raster-render flow: $($stdout.GetAwaiter().GetResult()) $($stderr.GetAwaiter().GetResult())"
+            }
+            $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+            $process.ExitCode | Should -Be 0 -Because $output
+            $output | Should -Match 'SMOKE_UI_RENDERED_INITIAL=1'
+            $output | Should -Match 'SMOKE_UI_RENDERED_MAP=[1-9][0-9]*'
+            $output | Should -Match 'SMOKE_UI_RENDERED_STATUS='
+            $view = Get-Content -LiteralPath (Join-Path $mapRoot 'maps\view.json') -Raw | ConvertFrom-Json
+            $view.useOffline | Should -BeTrue
+            $view.PSObject.Properties.Name | Should -Not -Contain 'allowOnline'
+        }
+        finally {
+            if ($started -and -not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+            $process.Dispose()
+            if (Test-Path -LiteralPath $mapRoot) { Remove-Item -LiteralPath $mapRoot -Recurse -Force }
+        }
+    }
+}
+
+Describe 'sideband native manual telemetry preview' -Tag 'GUI' {
+    It 'renders an explicitly configured local report without opening the network or audio devices' {
+        $telemetryBinary = $env:DOTRETICULUM_SIDEBAND_BINARY
+        if ([string]::IsNullOrWhiteSpace($telemetryBinary) -or
+            -not (Test-Path -LiteralPath $telemetryBinary -PathType Leaf)) {
+            throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
+        }
+        $telemetryRoot = Join-Path (Join-Path (Get-Location) 'artifacts\tests') "sideband-telemetry-gui-$PID"
+        $telemetryData = Join-Path $telemetryRoot 'data'
+        $process = [Diagnostics.Process]::new()
+        $started = $false
+        try {
+            New-Item -ItemType Directory -Force -Path $telemetryRoot | Out-Null
+            $settingsPath = Join-Path $telemetryRoot 'settings.json'
+            @{
+                telemetry_enabled = $true
+                telemetry_s_information = $true
+                telemetry_s_information_text = 'Synthetic manual preview, not a sensor measurement'
+                telemetry_s_fixed_location = $true
+                telemetry_s_fixed_latlon = @(51.5, -0.125)
+                telemetry_s_fixed_altitude = 120
+            } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $settingsPath
+            & $telemetryBinary --import-settings $settingsPath --data-dir $telemetryData 2>&1 | Out-Null
+            $LASTEXITCODE | Should -Be 0
+            $process.StartInfo.FileName = $telemetryBinary
+            $process.StartInfo.UseShellExecute = $false
+            $process.StartInfo.RedirectStandardOutput = $true
+            $process.StartInfo.RedirectStandardError = $true
+            foreach ($argument in @('--smoke-ui', '--smoke-telemetry', '--data-dir', $telemetryData)) {
+                $process.StartInfo.ArgumentList.Add($argument)
+            }
+            $process.Start() | Should -BeTrue
+            $started = $true
+            $stdout = $process.StandardOutput.ReadToEndAsync()
+            $stderr = $process.StandardError.ReadToEndAsync()
+            if (-not $process.WaitForExit(20000)) {
+                $process.Kill($true)
+                $process.WaitForExit()
+                throw "The published telemetry window did not finish its manual preview: $($stdout.GetAwaiter().GetResult()) $($stderr.GetAwaiter().GetResult())"
+            }
+            $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+            $process.ExitCode | Should -Be 0 -Because $output
+            $output | Should -Match 'SMOKE_UI_RENDERED_INITIAL=1'
+            $output | Should -Match 'SMOKE_UI_PREPARED_TELEMETRY_SENSORS=.*02'
+            $output | Should -Match 'SMOKE_UI_RENDERED_TELEMETRY=manual-preview'
+            $output | Should -Not -Match 'Synthetic manual preview'
+            $state = Get-Content -LiteralPath (Join-Path $telemetryData 'state.json') -Raw | ConvertFrom-Json
+            $state.telemetry.enabled | Should -BeTrue
+            $state.ownDeliveryHash | Should -BeNullOrEmpty
+            @($state.messages).Count | Should -Be 0
+            Test-Path -LiteralPath (Join-Path $telemetryData 'rns') | Should -BeFalse
+        }
+        finally {
+            if ($started -and -not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+            $process.Dispose()
+            if (Test-Path -LiteralPath $telemetryRoot) { Remove-Item -LiteralPath $telemetryRoot -Recurse -Force }
+        }
+    }
+}
+
+Describe 'sideband native repository window acceptance' -Tag 'GUI' {
+    It 'serves synthetic HTTPS index and package routes from the real window and retains its certificate across restart' {
+        $repositoryBinary = $env:DOTRETICULUM_SIDEBAND_BINARY
+        if ([string]::IsNullOrWhiteSpace($repositoryBinary) -or
+            -not (Test-Path -LiteralPath $repositoryBinary -PathType Leaf)) {
+            throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
+        }
+        $repositoryRoot = Join-Path (Join-Path (Get-Location) 'artifacts\tests') "sideband-repository-gui-$PID"
+        $public = Join-Path $repositoryRoot 'public'
+        $data = Join-Path $repositoryRoot 'private'
+        $process = $null
+        $started = $false
+        try {
+            New-Item -ItemType Directory -Force -Path (Join-Path $public 'pkg') | Out-Null
+            'Original synthetic native HTTPS acceptance page' | Set-Content -LiteralPath (Join-Path $public 'index.html')
+            [IO.File]::WriteAllBytes((Join-Path $public 'pkg\synthetic.bin'), [byte[]]@(1, 2, 3, 4))
+            $invalidData = Join-Path $repositoryRoot 'invalid'
+            & $repositoryBinary --smoke-repository $public --data-dir $invalidData 2>&1 | Out-Null
+            $LASTEXITCODE | Should -Be 1
+            Test-Path -LiteralPath $invalidData | Should -BeFalse
+            $certificateHash = $null
+            foreach ($iteration in 1, 2) {
+                $started = $false
+                $process = [Diagnostics.Process]::new()
+                $process.StartInfo.FileName = $repositoryBinary
+                $process.StartInfo.UseShellExecute = $false
+                $process.StartInfo.RedirectStandardOutput = $true
+                $process.StartInfo.RedirectStandardError = $true
+                foreach ($argument in @('--smoke-ui', '--smoke-repository', $public, '--data-dir', $data)) {
+                    $process.StartInfo.ArgumentList.Add($argument)
+                }
+                $process.Start() | Should -BeTrue
+                $started = $true
+                $stdout = $process.StandardOutput.ReadToEndAsync()
+                $stderr = $process.StandardError.ReadToEndAsync()
+                if (-not $process.WaitForExit(20000)) {
+                    $process.Kill($true)
+                    $process.WaitForExit()
+                    throw "The published mirror window did not finish its TLS flow: $($stdout.GetAwaiter().GetResult()) $($stderr.GetAwaiter().GetResult())"
+                }
+                $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+                $process.ExitCode | Should -Be 0 -Because $output
+                $output | Should -Match 'SMOKE_UI_RENDERED_INITIAL=1'
+                $output | Should -Match 'SMOKE_UI_REPOSITORY_HTTPS=1'
+                $output | Should -Match 'SMOKE_UI_RENDERED_REPOSITORY=1'
+                $process.Dispose()
+                $process = $null
+                $certificates = @(Get-ChildItem -LiteralPath (Join-Path $data 'repository-certificate') -Filter '*.pfx' -File)
+                $certificates.Count | Should -Be 1
+                $currentHash = (Get-FileHash -LiteralPath $certificates[0].FullName).Hash
+                if ($iteration -eq 1) { $certificateHash = $currentHash }
+                else { $currentHash | Should -Be $certificateHash }
+            }
+            $state = Get-Content -LiteralPath (Join-Path $data 'state.json') -Raw | ConvertFrom-Json
+            $state.ownDeliveryHash | Should -BeNullOrEmpty
+            @($state.messages).Count | Should -Be 0
+        }
+        finally {
+            if ($null -ne $process) {
+                if ($started -and -not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+                $process.Dispose()
+            }
+            if (Test-Path -LiteralPath $repositoryRoot) { Remove-Item -LiteralPath $repositoryRoot -Recurse -Force }
+        }
+    }
+}
+
 Describe 'sideband desktop GUI acceptance' -Tag 'GUI' {
     BeforeAll {
         $guiBinary = $env:DOTRETICULUM_SIDEBAND_BINARY

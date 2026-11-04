@@ -43,7 +43,7 @@ public static class SidebandProfileImporter
             CreatePrivateDirectory(archive);
             // A stable copy includes committed frames still in WAL. Two complete fingerprints detect
             // concurrent writes on platforms where FileShare.Read does not exclude other writers.
-            var files = new[] { "primary_identity", "sideband_config", "sideband.db", "sideband.db-wal", "sideband.db-shm" };
+            var files = new[] { "primary_identity", "sideband_config", "sideband.db", "sideband.db-wal", "sideband.db-shm", "collector_response_excluded" };
             var before = await FingerprintAsync(source, files, cancellationToken).ConfigureAwait(false);
             foreach (var pair in before)
             {
@@ -86,7 +86,7 @@ public static class SidebandProfileImporter
                 finally { File.Delete(settingsPath); }
                 var notices = new List<string>
                 {
-                    "LXMF conversation names, addresses, trust and unread flags, text, file/image/audio attachments and delivery states are activated. Conversation activity timestamps/data, transport/stamp extras, other LXMF fields, voice objects, announces, telemetry and unsupported persistent properties remain archive-only.",
+                    "LXMF conversation names, addresses, trust and unread flags, telemetry permissions/appearance, text/media and delivery states are activated. Supported telemetry configuration, reports and cursor state are activated without collecting hardware. Other conversation data, transport/stamp extras, voice objects, announces and unsupported persistent properties remain archive-only.",
                     "The original binary configuration and SQLite snapshot are retained privately in imported-profile. Unknown binary configuration values use hexadecimal JSON projections; the original MessagePack remains authoritative.",
                     "Reticulum interfaces, plugins and unknown app_storage files are not imported. Configure interfaces in the new private reticulum directory before connecting.",
                     "Historical signatures are verified only when the source is the imported identity; remote sender identities are not available in this profile snapshot. Import is not live interoperability evidence.",
@@ -94,11 +94,12 @@ public static class SidebandProfileImporter
                 if (unsupported.Count > 0) notices.Add("Configuration keys retained without native behavior: " + string.Join(", ", unsupported));
                 var contacts = new List<SidebandContact>();
                 var messages = new List<SidebandChatMessage>();
+                IReadOnlyList<SidebandTelemetryPeerState> telemetryPeers;
                 using (var database = new ProfileSqlite(Path.Combine(archive, "sideband.db"), cancellationToken))
                 {
                     ValidateSchema(database, "conv", ["dest_context", "last_tx", "last_rx", "unread", "type", "trust", "name", "data"]);
                     ValidateSchema(database, "lxm", ["lxm_hash", "dest", "source", "title", "tx_ts", "rx_ts", "state", "method", "t_encrypted", "t_encryption", "data", "extra"]);
-                    foreach (var row in database.Rows("SELECT dest_context, type, name, trust, unread FROM conv LIMIT 1001", 1_000))
+                    foreach (var row in database.Rows("SELECT dest_context, type, name, trust, unread, data FROM conv LIMIT 1001", 1_000))
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         var hash = Bytes(row[0], 16, "conversation address");
@@ -115,8 +116,8 @@ public static class SidebandProfileImporter
                             string text => text,
                             _ => throw new InvalidDataException("Invalid conversation name."),
                         };
-                        contacts.Add(SidebandContact.Create(string.IsNullOrWhiteSpace(name) ? address : name, address,
-                            ReadFlag(row[3], "conversation trust"), ReadFlag(row[4], "conversation unread")));
+                        contacts.Add(SidebandTelemetryProfile.Conversation(SidebandContact.Create(string.IsNullOrWhiteSpace(name) ? address : name, address,
+                            ReadFlag(row[3], "conversation trust"), ReadFlag(row[4], "conversation unread")), row[5]));
                     }
                     var attachments = new SidebandAttachmentStore(staging);
                     foreach (var row in database.Rows("SELECT lxm_hash, dest, source, state, method, data FROM lxm LIMIT 10001", 10_000))
@@ -183,13 +184,24 @@ public static class SidebandProfileImporter
                             DeliveryMethod: ((LxmMethod)method).ToString(), Image: image, Audio: audio));
                     }
                     var tables = database.Rows("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name", 64);
+                    await SidebandTelemetryProfile.ImportReportsAsync(database, staging, cancellationToken).ConfigureAwait(false);
+                    telemetryPeers = SidebandTelemetryProfile.ReadPeers(database);
                     foreach (var table in tables)
-                        if (table[0] is string name && name is not ("conv" or "lxm" or "persistent"))
+                        if (table[0] is string name && name is not ("conv" or "lxm" or "persistent" or "telemetry"))
                             notices.Add("Database table retained without native behavior: " + name);
                 }
                 var persistent = await SidebandPersistentProfile.ReadAsync(Path.Combine(archive, "sideband.db"), cancellationToken).ConfigureAwait(false);
                 notices.AddRange(persistent.Notices);
                 var settings = await store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                var exclusionPath = Path.Combine(archive, "collector_response_excluded");
+                if (File.Exists(exclusionPath))
+                {
+                    var exclusions = (await File.ReadAllLinesAsync(exclusionPath, cancellationToken).ConfigureAwait(false))
+                        .Where(line => !line.StartsWith('#') && line.Length >= 32)
+                        .Select(line => SidebandContact.TryNormalizeDeliveryHash(line[..32], out var hash) ? hash : null)
+                        .Where(hash => hash is not null).Select(hash => hash!).ToArray();
+                    settings = settings with { Telemetry = (settings.Telemetry with { ExcludedSources = exclusions }).Validate() };
+                }
                 await store.SaveImportedStateAsync(settings with
                 {
                     ReticulumConfigDirectory = finalConfig,
@@ -198,6 +210,7 @@ public static class SidebandProfileImporter
                     Messages = messages.OrderBy(message => message.Timestamp).ThenBy(message => message.Id).ToArray(),
                     LastSynchronization = persistent.LastSynchronization,
                     SynchronizationRetrying = persistent.SynchronizationRetrying,
+                    TelemetryPeers = telemetryPeers,
                 }, cancellationToken).ConfigureAwait(false);
                 var storage = Path.Combine(staging, "reticulum", "storage");
                 CreatePrivateDirectory(Path.GetDirectoryName(storage)!);
@@ -285,6 +298,7 @@ public static class SidebandProfileImporter
         "primary_identity" => 64,
         "sideband_config" => MaximumConfigBytes,
         "sideband.db-shm" => 8 * 1024 * 1024,
+        "collector_response_excluded" => 65_536,
         _ => (int)MaximumDatabaseBytes,
     };
 
@@ -294,7 +308,7 @@ public static class SidebandProfileImporter
         foreach (var name in files)
         {
             var path = Path.Combine(source, name);
-            if (!File.Exists(path) && name is "sideband.db-wal" or "sideband.db-shm") continue;
+            if (!File.Exists(path) && name is "sideband.db-wal" or "sideband.db-shm" or "collector_response_excluded") continue;
             result[name] = await HashFileAsync(path, LimitFor(name), token).ConfigureAwait(false);
         }
         return result;

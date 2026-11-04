@@ -9,7 +9,7 @@ using LXST.Devices;
 
 namespace Sideband;
 
-public sealed class SidebandClient : IAsyncDisposable
+public sealed partial class SidebandClient : IAsyncDisposable
 {
     private readonly SidebandStateStore _store;
     private readonly SidebandAttachmentStore _attachments;
@@ -103,6 +103,7 @@ public sealed class SidebandClient : IAsyncDisposable
                 _identity = identity;
                 _router = router;
                 lock (_cancellationGate) _runCancellation = runCancellation;
+                StartTelemetry(router, node, identity, runCancellation.Token);
                 _inboundTask = Task.Run(() => ProcessIncomingAsync(inbound.Reader), CancellationToken.None);
                 await ApplyVoiceConfigurationAsync(state, cancellationToken).ConfigureAwait(false);
                 var runToken = runCancellation.Token;
@@ -122,6 +123,7 @@ public sealed class SidebandClient : IAsyncDisposable
             {
                 lock (_cancellationGate) _runCancellation = null;
                 if (runCancellation is not null) await runCancellation.CancelAsync().ConfigureAwait(false);
+                await StopTelemetryAsync().ConfigureAwait(false);
                 if (_announceHandler is not null) node.Router.Engine.DeregisterHandler(_announceHandler);
                 if (_propagationHandler is not null) node.Router.Engine.DeregisterHandler(_propagationHandler);
                 _announceHandler = null;
@@ -458,11 +460,11 @@ public sealed class SidebandClient : IAsyncDisposable
             IReadOnlyList<SidebandAttachment>? attachments = null;
             SidebandImage? storedImage = null;
             SidebandAudio? storedAudio = null;
-            Dictionary<object, object?>? fields = null;
+            Dictionary<object, object?>? fields = await OrdinaryTelemetryFieldsAsync(state, normalized, owned.Token).ConfigureAwait(false);
             if (attachmentData is not null && attachmentName is not null)
             {
                 attachments = [await _attachments.StoreAsync(attachmentName, attachmentData, owned.Token).ConfigureAwait(false)];
-                fields = new Dictionary<object, object?> { [LxmField.FileAttachments] = new object?[] { new object?[] { attachmentName, attachmentData } } };
+                fields[LxmField.FileAttachments] = new object?[] { new object?[] { attachmentName, attachmentData } };
             }
             if (image is not null)
             {
@@ -476,6 +478,8 @@ public sealed class SidebandClient : IAsyncDisposable
                 (fields ??= [])[LxmField.Audio] = new object?[] { audio.Mode, audio.EncodedBytes };
             }
             var message = LxMessage.Create(destination, identity, content, fields: fields, method: method);
+            if (fields.TryGetValue(LxmField.Telemetry, out var telemetryBytes) && telemetryBytes is byte[] reportBytes)
+                RegisterTelemetryOutcome(message, new(normalized, false, OwnsPending: false), SidebandTelemetryCodec.Decode(reportBytes).TimestampUtcSeconds ?? 0, false);
             message.IncludeTicket = state.Contacts.Any(contact => contact.DeliveryHash == normalized && contact.Trusted);
             var local = new SidebandChatMessage(Guid.NewGuid(), normalized, false, string.Empty, content, DateTimeOffset.UtcNow, "Queued",
                 attachments, method.ToString(), storedImage, storedAudio);
@@ -579,7 +583,13 @@ public sealed class SidebandClient : IAsyncDisposable
         try { await DisconnectCoreAsync().ConfigureAwait(false); }
         finally
         {
-            _lifecycle.Release();
+            await _telemetryStoreGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (_telemetryStore is { } storage) await storage.DisposeAsync().ConfigureAwait(false);
+                _telemetryStore = null;
+            }
+            finally { _telemetryStoreGate.Release(); _lifecycle.Release(); }
         }
     }
 
@@ -614,6 +624,8 @@ public sealed class SidebandClient : IAsyncDisposable
             ConnectionInfo = null;
         }
         finally { _propagationGate.Release(); }
+        if (cancellation is not null) await cancellation.CancelAsync().ConfigureAwait(false);
+        await StopTelemetryAsync().ConfigureAwait(false);
         var voice = _voice;
         _voice = null;
         if (voice is not null) await voice.DisposeAsync().ConfigureAwait(false);
@@ -725,6 +737,8 @@ public sealed class SidebandClient : IAsyncDisposable
         {
             try
             {
+                if (update.TelemetryDelivery is { } telemetryDelivery)
+                    await CompleteTelemetryAsync(telemetryDelivery).ConfigureAwait(false);
                 if (update.ClearCalls is not null)
                     await _store.ClearCallHistoryAsync().ConfigureAwait(false);
                 else if (update.Propagation is { } candidate)
@@ -748,6 +762,17 @@ public sealed class SidebandClient : IAsyncDisposable
                 }
                 else if (update.Received is { } received)
                 {
+                    try { await ReceiveTelemetryAsync(received.Message, CancellationToken.None).ConfigureAwait(false); }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    { Report("Received telemetry metadata was rejected; text/media are retained: " + ex.Message); }
+                    if (string.IsNullOrWhiteSpace(received.Message.Content) &&
+                        string.IsNullOrWhiteSpace(received.Message.Title) &&
+                        !received.Message.TryGetField(LxmField.FileAttachments, out _) &&
+                        !received.Message.TryGetField(LxmField.Image, out _) && !received.Message.TryGetField(LxmField.Audio, out _))
+                    {
+                        PublishState(await _store.LoadAsync().ConfigureAwait(false));
+                        continue;
+                    }
                     IReadOnlyList<SidebandAttachment>? attachments = null;
                     if (received.Message.TryGetField(LxmField.FileAttachments, out var field))
                     {
@@ -891,7 +916,8 @@ public sealed class SidebandClient : IAsyncDisposable
     private sealed record PropagationCandidate(string Hash, int Hops, long Emitted);
     private sealed record ClientUpdate(ReceivedMessage? Received = null, SidebandContact? Contact = null,
         Guid MessageId = default, string? DeliveryState = null, PropagationCandidate? Propagation = null,
-        LxMessage? FailedMessage = null, SidebandVoiceCallEvent? Call = null, TaskCompletionSource? ClearCalls = null);
+        LxMessage? FailedMessage = null, SidebandVoiceCallEvent? Call = null, TaskCompletionSource? ClearCalls = null,
+        TelemetryDelivery? TelemetryDelivery = null);
 
     private static Channel<ClientUpdate> CreateInboundChannel() =>
         System.Threading.Channels.Channel.CreateBounded<ClientUpdate>(new BoundedChannelOptions(128)

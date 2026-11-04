@@ -100,7 +100,7 @@ public static class SidebandPersistentProfile
         }
         token.ThrowIfCancellationRequested();
         IReadOnlyList<string> notices = total == rows.Count ? [] :
-            [$"{total - rows.Count} unsupported upstream persistent properties remain archive-only; only lxmf.lastsync and lxmf.syncretrying are activated."];
+            [$"{total - rows.Count} unsupported-by-synchronization-reader properties are retained; telemetry activation is handled separately by the profile importer."];
         return new(last, retrying, notices);
     }
 

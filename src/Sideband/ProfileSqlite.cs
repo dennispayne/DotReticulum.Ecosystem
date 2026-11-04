@@ -12,11 +12,12 @@ internal sealed class ProfileSqlite : IDisposable
     private readonly Native.Progress _progress;
     private int _remainingSteps = 500_000;
 
-    internal ProfileSqlite(string path, CancellationToken token)
+    internal ProfileSqlite(string path, CancellationToken token, bool verifyIntegrity = true, bool immutable = false)
     {
         _token = token;
         _progress = _ => token.IsCancellationRequested || --_remainingSteps <= 0 ? 1 : 0;
-        var result = Native.sqlite3_open_v2(path, out _database, 1, IntPtr.Zero);
+        var filename = immutable ? new Uri(Path.GetFullPath(path)).AbsoluteUri + "?immutable=1" : path;
+        var result = Native.sqlite3_open_v2(filename, out _database, immutable ? 1 | 0x40 : 1, IntPtr.Zero);
         if (result != 0)
         {
             Dispose();
@@ -31,9 +32,12 @@ internal sealed class ProfileSqlite : IDisposable
             Execute("PRAGMA query_only=ON");
             Execute("PRAGMA cache_size=-2048");
             Execute("BEGIN");
-            var check = Rows("PRAGMA quick_check", 1).Single();
-            if (check[0] is not string text || text != "ok")
-                throw new InvalidDataException("The profile SQLite snapshot failed its integrity check.");
+            if (verifyIntegrity)
+            {
+                var check = Rows("PRAGMA quick_check", 1).Single();
+                if (check[0] is not string text || text != "ok")
+                    throw new InvalidDataException("The profile SQLite snapshot failed its integrity check.");
+            }
         }
         catch
         {

@@ -68,6 +68,7 @@ public sealed partial class MainWindow : Window
         VoiceProfileSelector.SelectedItem = TelephoneProfile.MediumQuality;
         VoiceModeSelector.ItemsSource = Enum.GetValues<TelephoneMode>();
         VoiceModeSelector.SelectedItem = TelephoneMode.FullDuplex;
+        InitializeMap();
         PushToTalkButton.AddHandler(Avalonia.Input.InputElement.PointerPressedEvent, PushToTalkPressed, RoutingStrategies.Tunnel);
         PushToTalkButton.AddHandler(Avalonia.Input.InputElement.PointerReleasedEvent, PushToTalkReleased, RoutingStrategies.Tunnel);
         PushToTalkButton.PointerCaptureLost += (_, _) => ReleasePushToTalk();
@@ -97,6 +98,26 @@ public sealed partial class MainWindow : Window
         else if (Volatile.Read(ref _smokeStatusChanged) != 0 && !SmokeUiSucceeded)
         {
             if (_state is null || !_initializationTask.IsCompleted || Volatile.Read(ref _smokeActionInvoked) == 0) return;
+            if (Program.SmokeMapMode)
+            {
+                if (!MapPage.IsVisible || MapViewport.LoadedTileCount == 0) return;
+                if (MapViewport.RenderedTileCount == 0)
+                {
+                    Dispatcher.UIThread.Post(InvalidateVisual);
+                    return;
+                }
+                Console.WriteLine("SMOKE_UI_RENDERED_MAP=" + MapViewport.RenderedTileCount);
+            }
+            if (Program.SmokeTelemetryMode)
+            {
+                if (!TelemetryPage.IsVisible || TelemetryDetailsText.Text?.StartsWith("LOCAL MANUAL PREVIEW", StringComparison.Ordinal) != true) return;
+                Console.WriteLine("SMOKE_UI_RENDERED_TELEMETRY=manual-preview");
+            }
+            if (Program.SmokeRepositoryRoot is not null)
+            {
+                if (!UtilitiesPage.IsVisible || !RepositorySmokeVerified) return;
+                Console.WriteLine("SMOKE_UI_RENDERED_REPOSITORY=1");
+            }
             var hasImage = _state.Messages.Any(message => message.Image is not null);
             if (hasImage && MediaPreview.Source is null) return;
             SmokeUiSucceeded = true;
@@ -116,6 +137,9 @@ public sealed partial class MainWindow : Window
         UtilitiesPage.IsVisible = page == "Utilities";
         GuidePage.IsVisible = page == "Guide";
         VoicePage.IsVisible = page == "Voice";
+        MapPage.IsVisible = page == "Map";
+        TelemetryPage.IsVisible = page == "Telemetry";
+        if (page != "Map") _mapCancellation?.Cancel();
         if (page != "Voice") ReleasePushToTalk();
         PageTitle.Text = page switch
         {
@@ -126,6 +150,8 @@ public sealed partial class MainWindow : Window
         if (page == "Contacts") RefreshExpandedContacts();
         if (page == "Conversations") MarkVisibleConversationRead();
         if (page == "Voice") { LoadVoiceSettings(); UpdateVoiceView(); }
+        if (page == "Map") { RequestMapRefresh(); RequestTelemetryRefresh(); }
+        if (page == "Telemetry") { LoadTelemetrySettings(); RequestTelemetryRefresh(); }
     }
 
     private async void OnOpened(object? sender, EventArgs e)
@@ -159,11 +185,13 @@ public sealed partial class MainWindow : Window
             ApplyTheme(_state.Theme);
             LoadVoiceSettings();
             _voiceTimer.Start();
+            LoadTelemetrySettings();
             RefreshContacts();
             RefreshExpandedContacts();
             SetStatus($"Offline · local data: {_store.DataDirectory}");
             UpdateConnectivityView();
             UpdateVoiceView();
+            if (TelemetryPage.IsVisible || MapPage.IsVisible) RequestTelemetryRefresh();
             if (_smokeUi)
             {
                 Console.WriteLine("SMOKE_UI_OPENED=Sideband");
@@ -171,6 +199,21 @@ public sealed partial class MainWindow : Window
                 {
                     if (_closing) return;
                     SendButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    if (Program.SmokeMapMode) NavigateTo("Map");
+                    if (Program.SmokeTelemetryMode)
+                    {
+                        NavigateTo("Telemetry");
+                        RefreshLocalTelemetryButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    }
+                    if (Program.SmokeRepositoryRoot is { } publicRoot)
+                    {
+                        NavigateTo("Utilities");
+                        RepositoryRootBox.Text = publicRoot;
+                        RepositoryBindBox.Text = "127.0.0.1";
+                        RepositoryPortBox.Text = "0";
+                        RepositoryConsentBox.IsChecked = true;
+                        StartRepositoryButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    }
                     Volatile.Write(ref _smokeActionInvoked, 1);
                     InvalidateVisual();
                 });
@@ -606,6 +649,8 @@ public sealed partial class MainWindow : Window
                 SetStatus($"Connected · LXMF address {state.OwnDeliveryHash}");
             UpdateConnectivityView();
             UpdateVoiceView();
+            UpdateTelemetryTrackingView();
+            if (TelemetryPage.IsVisible || MapPage.IsVisible) RequestTelemetryRefresh();
         });
     }
 
@@ -956,7 +1001,19 @@ public sealed partial class MainWindow : Window
             _client.StateChanged -= OnStateChanged;
             _client.ErrorReported -= OnErrorReported;
             _client.VoiceStateChanged -= OnVoiceStateChanged;
-            await _client.DisposeAsync().ConfigureAwait(false);
+            try { await DisposeRepositoryAsync().ConfigureAwait(false); }
+            finally
+            {
+                try { await _client.DisposeAsync().ConfigureAwait(false); }
+                finally
+                {
+                    if (_mapStoreTask is not null)
+                    {
+                        var maps = await _mapStoreTask.ConfigureAwait(false);
+                        await maps.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -1004,6 +1061,7 @@ public sealed partial class MainWindow : Window
         MediaPreview.Source = null;
         _previewBitmap?.Dispose();
         _previewBitmap = null;
+        MapViewport.ReplaceTiles(new Dictionary<SidebandMapTile, Avalonia.Media.Imaging.Bitmap>());
         ClearRecording();
         _closedCompletion.TrySetResult();
     }

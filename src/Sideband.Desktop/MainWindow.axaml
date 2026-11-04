@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:Sideband.Desktop"
         x:Class="Sideband.Desktop.MainWindow"
         x:CompileBindings="True"
         Title="Sideband"
@@ -52,10 +53,10 @@
                     Content="Preferences" Tag="Preferences" Click="NavigateClicked" />
             <Button x:Name="GuideNavButton" HorizontalContentAlignment="Left"
                     Content="Guide" Tag="Guide" Click="NavigateClicked" />
-            <Button HorizontalContentAlignment="Left" Content="Situation Map · unavailable"
-                    IsEnabled="False" ToolTip.Tip="Maps and telemetry are not implemented in this build." />
-            <Button HorizontalContentAlignment="Left" Content="Telemetry · unavailable"
-                    IsEnabled="False" ToolTip.Tip="Telemetry is not implemented in this build." />
+            <Button x:Name="MapNavButton" HorizontalContentAlignment="Left" Content="Situation Map"
+                    Tag="Map" Click="NavigateClicked" />
+            <Button x:Name="TelemetryNavButton" HorizontalContentAlignment="Left" Content="Telemetry"
+                    Tag="Telemetry" Click="NavigateClicked" />
             <Button x:Name="VoiceNavButton" HorizontalContentAlignment="Left" Content="Voice"
                     Tag="Voice" Click="NavigateClicked" />
             <Button HorizontalContentAlignment="Left" Content="Hardware · unavailable"
@@ -127,6 +128,107 @@
                        Text="Contacts added here are stored locally. Discovered LXMF delivery announces are added to this list." TextWrapping="Wrap" />
             <ListBox x:Name="ExpandedContactList" MinHeight="320" />
             <TextBlock Text="Add a contact from the Conversations screen using its 32-character delivery address." TextWrapping="Wrap" />
+          </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="TelemetryPage" IsVisible="False" Margin="24">
+          <StackPanel Spacing="10">
+            <TextBlock FontSize="26" FontWeight="SemiBold" Text="Telemetry" />
+            <TextBlock Text="Collection is manual and off by default. Fixed locations and sensor values are operator assertions, not measured positions. Sending or authorizing requests may disclose this data. No setting opens GPS, microphone or other hardware."
+                       TextWrapping="Wrap" />
+            <CheckBox x:Name="TelemetryEnabledBox" Content="Enable manual telemetry" />
+            <CheckBox x:Name="TelemetryInformationEnabledBox" Content="Include information text" />
+            <TextBox x:Name="TelemetryInformationBox" MaxLength="16384" PlaceholderText="Information to disclose" />
+            <CheckBox x:Name="TelemetryFixedLocationBox" Content="Include an explicitly supplied fixed location" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBox x:Name="TelemetryLatitudeBox" Width="140" Text="0" PlaceholderText="Latitude" />
+              <TextBox x:Name="TelemetryLongitudeBox" Width="140" Text="0" PlaceholderText="Longitude" />
+              <TextBox x:Name="TelemetryAltitudeBox" Width="140" Text="0" PlaceholderText="Transmitted altitude (m)" />
+            </StackPanel>
+            <CheckBox x:Name="TelemetrySendTrustedBox" Content="Include local telemetry in messages to trusted contacts" />
+            <CheckBox x:Name="TelemetryReceiveTrustedBox" Content="Accept telemetry only through trusted senders" />
+            <CheckBox x:Name="TelemetryDisplayTrustedBox" Content="Display only trusted reported sources (plus this identity)" />
+            <CheckBox x:Name="TelemetryRequestsAnyoneBox" Content="Authorize telemetry requests from anyone" />
+            <CheckBox x:Name="TelemetryRequestsTrustedBox" Content="Authorize telemetry requests from trusted contacts" />
+            <CheckBox x:Name="TelemetryLatestOnlyBox" Content="Requests return only the latest local report" />
+            <CheckBox x:Name="TelemetryPropagatedBox" Content="Use propagation for telemetry-only sends and requests" />
+            <CheckBox x:Name="TelemetryFallbackBox" Content="Retry failed direct telemetry through propagation" />
+            <TextBlock FontSize="18" FontWeight="SemiBold" Text="Collector and automatic schedules" />
+            <TextBox x:Name="TelemetryCollectorBox" MaxLength="32" PlaceholderText="Collector LXMF delivery hash (optional)" />
+            <CheckBox x:Name="TelemetryCollectorEnabledBox" Content="Serve stored reports as a collector" />
+            <CheckBox x:Name="TelemetrySendCollectorBox" Content="Automatically send to the configured collector" />
+            <CheckBox x:Name="TelemetrySendAllCollectorBox" Content="Include eligible stored reports when sending to collector" />
+            <CheckBox x:Name="TelemetryRequestCollectorBox" Content="Automatically request reports from collector" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBox x:Name="TelemetrySendIntervalBox" Width="170" Text="43200" PlaceholderText="Send interval (seconds)" />
+              <TextBox x:Name="TelemetryRequestIntervalBox" Width="170" Text="43200" PlaceholderText="Request interval (seconds)" />
+            </StackPanel>
+            <TextBlock Text="Excluded reported source hashes (one per line)" />
+            <TextBox x:Name="TelemetryExcludedBox" AcceptsReturn="True" MaxLength="33000" MinHeight="64" />
+            <TextBlock Text="Optional manual sensors: one hexadecimal sensor-id=MessagePack-wire-hex entry per line; time and received provenance cannot be supplied." TextWrapping="Wrap" />
+            <TextBox x:Name="TelemetryManualSensorsBox" AcceptsReturn="True" MaxLength="16384" MinHeight="64" />
+            <CheckBox x:Name="TelemetryAppearanceBox" Content="Send peer appearance" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBox x:Name="TelemetryIconBox" Width="150" MaxLength="64" Text="account" PlaceholderText="Icon name (not a font asset)" />
+              <TextBox x:Name="TelemetryForegroundBox" Width="100" MaxLength="6" Text="000000" PlaceholderText="Text RGB" />
+              <TextBox x:Name="TelemetryBackgroundBox" Width="100" MaxLength="6" Text="ffffff" PlaceholderText="Background RGB" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="SaveTelemetryButton" Content="Save telemetry settings" Click="SaveTelemetryClicked" />
+              <Button x:Name="RefreshLocalTelemetryButton" Content="Prepare local report" Click="RefreshLocalTelemetryClicked" />
+              <Button x:Name="RefreshTelemetryButton" Content="Refresh stored reports" Click="RefreshTelemetryClicked" />
+            </StackPanel>
+            <TextBlock FontSize="18" FontWeight="SemiBold" Text="Peer permissions, requests and tracking" />
+            <TextBox x:Name="TelemetryPeerBox" MaxLength="32" PlaceholderText="Peer LXMF delivery hash" TextChanged="TelemetryPeerChanged" />
+            <CheckBox x:Name="ConversationSendTelemetryBox" Content="Include telemetry in ordinary messages to this saved conversation" />
+            <CheckBox x:Name="ConversationAllowTelemetryRequestsBox" Content="Authorize requests from this saved conversation" />
+            <Button x:Name="SaveConversationTelemetryButton" Content="Save conversation permissions" Click="SaveConversationTelemetryClicked" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="SendTelemetryButton" Content="Send latest" Click="SendTelemetryClicked" />
+              <Button x:Name="RequestTelemetryButton" Content="Request reports" Click="RequestTelemetryClicked" />
+              <Button x:Name="ShowTelemetryOnMapButton" Content="Show selected location on map" Click="ShowTelemetryOnMapClicked" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBox x:Name="TelemetryTrackIntervalBox" Width="160" Text="300" PlaceholderText="Track interval (seconds)" />
+              <TextBox x:Name="TelemetryTrackDurationBox" Width="160" Text="3600" PlaceholderText="Track duration (seconds)" />
+              <Button x:Name="TrackTelemetryButton" Content="Track peer" Click="TrackTelemetryClicked" />
+              <Button x:Name="StopTrackingTelemetryButton" Content="Stop tracking peer" Click="StopTrackingTelemetryClicked" />
+            </StackPanel>
+            <TextBlock x:Name="TelemetryStatusText" Text="Telemetry off by default." TextWrapping="Wrap" />
+            <TextBlock x:Name="TelemetryTrackingText" TextWrapping="Wrap" />
+            <TextBlock x:Name="TelemetryReportsSummaryText" TextWrapping="Wrap" />
+            <ListBox x:Name="TelemetryReportsList" MinHeight="180" SelectionChanged="TelemetrySelectionChanged" />
+            <TextBox x:Name="TelemetryDetailsText" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="160" MaxHeight="420" />
+            <CheckBox x:Name="ConfirmClearTelemetryBox" Content="Confirm deletion of the selected source's stored reports" />
+            <Button x:Name="ClearTelemetryButton" Content="Clear selected source" Click="ClearTelemetryClicked" />
+          </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="MapPage" IsVisible="False" Margin="24">
+          <StackPanel Spacing="10">
+            <TextBlock FontSize="26" FontWeight="SemiBold" Text="Situation Map" />
+            <TextBlock Text="Drag to pan; use the mouse wheel or zoom buttons. Locations are peer-reported, not independently verified. Online tile requests disclose the viewed area and your IP address to the provider."
+                       TextWrapping="Wrap" />
+            <ComboBox x:Name="MapSourceSelector" MinWidth="240" />
+            <CheckBox x:Name="MapOnlineConsentBox" Content="Allow online tiles for this session (off by default)" />
+            <TextBox x:Name="MapProviderBox" MaxLength="4096" Text="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                     PlaceholderText="HTTPS tile URL template: {z}/{x}/{y} or {q}" />
+            <TextBox x:Name="MapAttributionBox" MaxLength="4096" Text="© OpenStreetMap contributors"
+                     PlaceholderText="Required provider attribution" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBox x:Name="MapLatitudeBox" Width="110" Text="0" PlaceholderText="Latitude / Y" />
+              <TextBox x:Name="MapLongitudeBox" Width="110" Text="0" PlaceholderText="Longitude / X" />
+              <TextBox x:Name="MapZoomBox" Width="70" Text="1" PlaceholderText="Zoom" />
+              <Button x:Name="MapGoButton" Content="Go / refresh" Click="MapGoClicked" />
+              <Button Content="+" Click="MapZoomInClicked" />
+              <Button Content="-" Click="MapZoomOutClicked" />
+            </StackPanel>
+            <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" ClipToBounds="True">
+              <local:SituationMap x:Name="MapViewport" Height="420" MaxWidth="1536" HorizontalAlignment="Stretch" />
+            </Border>
+            <TextBlock x:Name="MapAttributionText" TextWrapping="Wrap" />
+            <TextBlock x:Name="MapStatusText" Text="Offline: no online requests without explicit consent." TextWrapping="Wrap" />
+            <TextBox x:Name="MbTilesPathBox" PlaceholderText="Stopped/checkpointed raster MBTiles file to import" />
+            <Button x:Name="ImportMbTilesButton" Content="Import offline raster map" Click="ImportMbTilesClicked" />
+            <Button Content="Clear downloaded tiles (keep imported offline map)" Click="ClearMapCacheClicked" />
           </StackPanel>
         </ScrollViewer>
         <ScrollViewer x:Name="VoicePage" IsVisible="False" Margin="24">
@@ -251,7 +353,7 @@
             <TextBlock x:Name="PreferencesStatusText" Foreground="{DynamicResource SecondaryTextBrush}"
                        TextWrapping="Wrap" />
             <TextBlock FontSize="17" FontWeight="SemiBold" Text="Upstream settings exchange" />
-            <TextBlock Text="JSON settings only: display name, appearance and propagation are applied. Other keys are retained and reported, not activated. Identity and SQLite conversation import are not included. Disconnect before importing."
+            <TextBlock Text="JSON settings exchange applies the documented display, propagation, voice and telemetry subset. Other keys are retained and reported, not activated. Identity and SQLite migration use the separate offline --import-profile command. Disconnect before importing settings."
                        TextWrapping="Wrap" />
             <TextBox x:Name="SettingsExchangePathBox" PlaceholderText="Settings JSON file path" />
             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -265,7 +367,23 @@
             <TextBlock FontSize="26" FontWeight="SemiBold" Text="Utilities" />
             <TextBlock Text="Use the Connectivity screen for the effective Reticulum config path and rnstatus guidance."
                        TextWrapping="Wrap" />
-            <TextBlock Text="The upstream local HTTPS software repository server is not implemented. The ecosystem's Reticulum-hosted rngit tools are separate and are not started or configured by Sideband."
+            <TextBlock Text="The local HTTPS mirror shares files without authentication, not over Reticulum. Use a dedicated public directory containing only files you are authorized to distribute. Never select your profile, private keys or a directory writable by untrusted users. No software or upstream assets are bundled or automatically downloaded."
+                       TextWrapping="Wrap" />
+            <TextBox x:Name="RepositoryRootBox" PlaceholderText="Dedicated public mirror directory" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBox x:Name="RepositoryBindBox" Width="200" Text="127.0.0.1" PlaceholderText="Listen IP address" />
+              <TextBox x:Name="RepositoryPortBox" Width="100" Text="4444" PlaceholderText="TLS port" />
+            </StackPanel>
+            <TextBlock Text="Loopback is the safe default. A LAN address or 0.0.0.0 exposes the mirror to reachable peers and may require firewall changes. The self-signed certificate is not automatically trusted; verify its SHA-256 fingerprint independently."
+                       TextWrapping="Wrap" />
+            <CheckBox x:Name="RepositoryConsentBox" Content="I authorize unauthenticated access to this public directory for this session" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="StartRepositoryButton" Content="Start HTTPS mirror" Click="StartRepositoryClicked" />
+              <Button x:Name="StopRepositoryButton" Content="Stop mirror" Click="StopRepositoryClicked" IsEnabled="False" />
+            </StackPanel>
+            <TextBlock x:Name="RepositoryStatusText" Text="Stopped. Nothing is shared until explicitly started." TextWrapping="Wrap" />
+            <TextBox x:Name="RepositoryFingerprintText" IsReadOnly="True" PlaceholderText="Running certificate SHA-256" />
+            <TextBlock Text="The ecosystem's Reticulum-hosted rngit tools are separate and are not started or configured here."
                        TextWrapping="Wrap" />
             <Button Content="Open Connectivity" HorizontalAlignment="Left" Click="OpenConnectivityClicked" />
           </StackPanel>
@@ -277,7 +395,7 @@
                        TextWrapping="Wrap" />
             <TextBlock Text="Before connecting, check the selected config path on the Connectivity screen. The default may point to an existing user Reticulum configuration; Sideband never repairs or resets it automatically."
                        TextWrapping="Wrap" />
-            <TextBlock Text="This desktop build supports text, files, bounded images and audio messages, explicit recording/playback, optional LXST calls, contacts, propagation, settings exchange and local history. Audio needs separately installed native codecs and operating-system devices. Received media never plays or opens automatically. Maps, telemetry, plugins and the upstream LAN repository mirror are not available."
+            <TextBlock Text="This desktop build supports bounded messaging/media, optional LXST calls, manual telemetry/report controls, raster/offline MBTiles maps and an explicitly started local HTTPS mirror. Audio needs separately installed native codecs and operating-system devices. Received media never plays or opens automatically. Python plugins, advanced map overlays and remaining inventory contracts are not available."
                        TextWrapping="Wrap" />
             <Button Content="Open Connectivity" HorizontalAlignment="Left" Click="OpenConnectivityClicked" />
           </StackPanel>

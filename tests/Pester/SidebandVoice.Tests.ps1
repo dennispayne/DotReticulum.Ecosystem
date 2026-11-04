@@ -24,9 +24,9 @@ BeforeAll {
     }
 
     function Wait-SidebandVoiceLine {
-        param($Peer, [string] $Pattern, [int] $Occurrence = 1)
+        param($Peer, [string] $Pattern, [int] $Occurrence = 1, [int] $TimeoutSeconds = 30)
         $watch = [Diagnostics.Stopwatch]::StartNew()
-        while ($watch.Elapsed.TotalSeconds -lt 30) {
+        while ($watch.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
             while ($Peer.Read -and $Peer.Read.IsCompleted) {
                 $line = $Peer.Read.GetAwaiter().GetResult()
                 if ($null -eq $line) { $Peer.Read = $null; break }
@@ -34,6 +34,7 @@ BeforeAll {
                 $Peer.Lines.Add($line)
                 $Peer.Read = $Peer.Process.StandardOutput.ReadLineAsync()
             }
+
             $matching = @($Peer.Lines | Where-Object { $_ -match $Pattern })
             if ($matching.Count -ge $Occurrence) { return $matching[$Occurrence - 1] }
             if ($Peer.Process.HasExited -and !$Peer.Read) { break }
@@ -62,6 +63,213 @@ BeforeAll {
     }
 }
 
+Describe 'sideband frozen native voice endurance' -Tag 'Native', 'VoiceSoak' {
+    It 'holds one bidirectional call for an actual hour, then recovers from peer loss and reloads identity/history' {
+        if ($env:DOTRETICULUM_SIDEBAND_SOAK -ne '1') {
+            Set-ItResult -Skipped -Because 'Set DOTRETICULUM_SIDEBAND_SOAK=1 and select VoiceSoak for the explicit one-hour frozen-binary acceptance.'
+            return
+        }
+        $binary = $env:DOTRETICULUM_SIDEBAND_BINARY
+        $expectedHash = $env:DOTRETICULUM_SIDEBAND_SOAK_SHA256
+        if (!$binary -or !(Test-Path -LiteralPath $binary -PathType Leaf) -or $expectedHash -notmatch '^[0-9a-fA-F]{64}$') {
+            throw 'Supply the frozen executable and its expected DOTRETICULUM_SIDEBAND_SOAK_SHA256.'
+        }
+        $hash = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvariant()
+        $hash | Should -Be $expectedHash.ToLowerInvariant()
+        $root = Join-Path (Join-Path (Get-Location) 'artifacts\tests') ('sideband-soak-' + [Guid]::NewGuid().ToString('N'))
+        $evidencePath = $env:DOTRETICULUM_SIDEBAND_SOAK_EVIDENCE
+        if (!$evidencePath) { throw 'Set DOTRETICULUM_SIDEBAND_SOAK_EVIDENCE to a retained JSON evidence path.' }
+        New-Item -ItemType Directory -Force (Split-Path -Parent $evidencePath) | Out-Null
+        $evidence = [ordered]@{
+            Binary = $binary; Sha256 = $hash; Platform = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+            Audio = 'Explicit synthetic capture/discard output; no Python or physical audio'
+            RequiredHoldSeconds = 3600; SampleIntervalSeconds = 30
+            MaximumWorkingSetBytes = 512MB; MaximumGrowthAfterWarmupBytes = 128MB
+            StartedUtc = [DateTimeOffset]::UtcNow.ToString('O'); Stage = 'setup'; Passed = $false
+            Samples = [Collections.Generic.List[object]]::new()
+            Restart = [Collections.Generic.List[object]]::new()
+        }
+        $server = $null
+        $client = $null
+        function Save-SoakEvidence {
+            $evidence | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $evidencePath
+        }
+        function Read-SoakStatus($Peer) {
+            if ($Peer.Process.HasExited) { throw "Owned peer $($Peer.Process.Id) exited unexpectedly." }
+            $occurrence = @($Peer.Lines | Where-Object { $_ -match '^STATUS ' }).Count + 1
+            Send-SidebandVoiceLine $Peer 'voice status'
+            $line = Wait-SidebandVoiceLine $Peer '^STATUS ' $occurrence
+            $match = [regex]::Match($line, '^STATUS voice=(\w+) .*profile=(\d*) mode=(\d*) rx=(\d+) tx=(\d+)')
+            if (!$match.Success) { throw "Unrecognised native status: $line" }
+            $Peer.Process.Refresh()
+            [pscustomobject]@{
+                Pid = $Peer.Process.Id; State = $match.Groups[1].Value; Profile = $match.Groups[2].Value
+                Rx = [long]$match.Groups[4].Value; Tx = [long]$match.Groups[5].Value
+                WorkingSetBytes = $Peer.Process.WorkingSet64; PeakWorkingSetBytes = $Peer.Process.PeakWorkingSet64
+            }
+        }
+        function Wait-SoakTraffic($First, $Second, [int]$CodecProfile = 64) {
+            $watch = [Diagnostics.Stopwatch]::StartNew()
+            do {
+                $firstStatus = Read-SoakStatus $First
+                $secondStatus = Read-SoakStatus $Second
+                if ($firstStatus.State -eq 'InCall' -and $secondStatus.State -eq 'InCall' -and
+                    $firstStatus.Profile -eq "$CodecProfile" -and $secondStatus.Profile -eq "$CodecProfile" -and
+                    $firstStatus.Rx -ge 5 -and $firstStatus.Tx -ge 5 -and
+                    $secondStatus.Rx -ge 5 -and $secondStatus.Tx -ge 5) {
+                    return @($firstStatus, $secondStatus)
+                }
+                Start-Sleep -Milliseconds 100
+            } while ($watch.Elapsed.TotalSeconds -lt 30)
+            throw 'The frozen pair did not establish actual bidirectional codec progress.'
+        }
+        try {
+            $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+            try { $listener.Start(); $port = ([Net.IPEndPoint]$listener.LocalEndpoint).Port }
+            finally { $listener.Stop() }
+            New-Item -ItemType Directory -Force -Path (Join-Path $root 'server-rns'), (Join-Path $root 'client-rns') | Out-Null
+            $common = "[reticulum]`n  enable_transport = no`n  share_instance = no`n`n[logging]`n  loglevel = 0`n`n[interfaces]`n"
+            Set-Content -LiteralPath (Join-Path $root 'server-rns\config') -Value ($common +
+                "  [[Calls]]`n    type = TCPServerInterface`n    enabled = yes`n    listen_ip = 127.0.0.1`n    listen_port = $port`n")
+            Set-Content -LiteralPath (Join-Path $root 'client-rns\config') -Value ($common +
+                "  [[Calls]]`n    type = TCPClientInterface`n    enabled = yes`n    target_host = 127.0.0.1`n    target_port = $port`n")
+            $settings = Join-Path $root 'voice.json'
+            '{"voice_enabled":true}' | Set-Content -LiteralPath $settings
+            foreach ($name in 'server', 'client') {
+                & $binary --config (Join-Path $root $name) --import-settings $settings 2>&1 | Out-Null
+                $LASTEXITCODE | Should -Be 0
+            }
+            $serverArguments = @('--daemon', '--interactive', '--verbose', '--synthetic-audio', '--config', (Join-Path $root 'server'),
+                '--rnsconfig', (Join-Path $root 'server-rns'))
+            $clientArguments = @('--daemon', '--interactive', '--verbose', '--synthetic-audio', '--config', (Join-Path $root 'client'),
+                '--rnsconfig', (Join-Path $root 'client-rns'))
+            $server = Start-SidebandVoiceProcess $binary $serverArguments
+            $serverReady = Wait-SidebandVoiceLine $server '^READY identity=([0-9a-f]{32})'
+            $client = Start-SidebandVoiceProcess $binary $clientArguments
+            $clientReady = Wait-SidebandVoiceLine $client '^READY identity=([0-9a-f]{32})'
+            $serverIdentity = [regex]::Match($serverReady, 'identity=([0-9a-f]{32})').Groups[1].Value
+            $clientIdentity = [regex]::Match($clientReady, 'identity=([0-9a-f]{32})').Groups[1].Value
+            $evidence.ServerIdentity = $serverIdentity
+            $evidence.ClientIdentity = $clientIdentity
+            Send-SidebandVoiceLine $server 'voice announce'
+            Send-SidebandVoiceLine $client 'voice announce'
+            Send-SidebandVoiceLine $client "voice dial $serverIdentity"
+            Wait-SidebandVoiceLine $server '^VOICE state=Ringing' | Out-Null
+            Send-SidebandVoiceLine $server 'voice answer'
+            $previous = Wait-SoakTraffic $server $client
+            $availableBefore = @(
+                @($server.Lines | Where-Object { $_ -match '^VOICE state=Available' }).Count
+                @($client.Lines | Where-Object { $_ -match '^VOICE state=Available' }).Count
+            )
+            $evidence.Stage = 'holding'
+            $evidence.HoldStartedUtc = [DateTimeOffset]::UtcNow.ToString('O')
+            $evidence.Samples.Add([ordered]@{ ElapsedSeconds = 0; Utc = $evidence.HoldStartedUtc; Peers = $previous })
+            $watch = [Diagnostics.Stopwatch]::StartNew()
+            $warm = @{}
+            $codecProfile = 64
+            Save-SoakEvidence
+            do {
+                Start-Sleep -Seconds 30
+                $current = @(Read-SoakStatus $server; Read-SoakStatus $client)
+                for ($index = 0; $index -lt 2; $index++) {
+                    $now = $current[$index]
+                    $now.State | Should -Be 'InCall'
+                    $now.Profile | Should -Be "$codecProfile"
+                    $now.Rx | Should -BeGreaterThan $previous[$index].Rx
+                    $now.Tx | Should -BeGreaterThan $previous[$index].Tx
+                    $now.WorkingSetBytes | Should -BeLessOrEqual 512MB
+                    if ($watch.Elapsed.TotalSeconds -ge 120 -and !$warm.ContainsKey($now.Pid)) {
+                        $warm[$now.Pid] = $now.WorkingSetBytes
+                    }
+                    if ($warm.ContainsKey($now.Pid)) {
+                        ($now.WorkingSetBytes - $warm[$now.Pid]) | Should -BeLessOrEqual 128MB
+                    }
+                    $peer = @($server, $client)[$index]
+                    @($peer.Lines | Where-Object { $_ -match '^VOICE state=Available' }).Count |
+                        Should -Be $availableBefore[$index] -Because 'The hour must contain no observed call teardown.'
+                }
+                $evidence.Samples.Add([ordered]@{
+                        ElapsedSeconds = $watch.Elapsed.TotalSeconds; Utc = [DateTimeOffset]::UtcNow.ToString('O'); Peers = $current
+                    })
+                Save-SoakEvidence
+                Write-Host ("SOAK {0} elapsed={1:F1}s profile={2} server_rx={3} client_rx={4}" -f
+                    $evidence.Platform, $watch.Elapsed.TotalSeconds, $codecProfile, $current[0].Rx, $current[1].Rx)
+                $previous = $current
+                if ($codecProfile -eq 64 -and $watch.Elapsed.TotalSeconds -ge 1800) {
+                    Send-SidebandVoiceLine $client 'voice profile 48'
+                    Wait-SidebandVoiceLine $client '^OK voice profile' | Out-Null
+                    $codecProfile = 48
+                    $evidence.Codec2RequestedAtSeconds = $watch.Elapsed.TotalSeconds
+                }
+            } while ($watch.Elapsed.TotalSeconds -lt 3600)
+            $evidence.ActualHoldSeconds = $watch.Elapsed.TotalSeconds
+            $evidence.HoldEndedUtc = [DateTimeOffset]::UtcNow.ToString('O')
+            $evidence.Stage = 'peer-failure'
+            $evidence.KilledOwnedPid = $client.Process.Id
+            $client.Process.Kill($true)
+            $client.Process.WaitForExit()
+            $client.Process.Dispose()
+            $client = $null
+            $recovery = [Diagnostics.Stopwatch]::StartNew()
+            Wait-SidebandVoiceLine $server '^VOICE state=Available' -Occurrence ($availableBefore[0] + 1) -TimeoutSeconds 120 | Out-Null
+            $evidence.PeerLossDetectedSeconds = $recovery.Elapsed.TotalSeconds
+            $client = Start-SidebandVoiceProcess $binary $clientArguments
+            Wait-SidebandVoiceLine $client '^READY identity=' | Should -Match "identity=$clientIdentity"
+            Send-SidebandVoiceLine $client 'voice announce'
+            Send-SidebandVoiceLine $server 'voice announce'
+            Send-SidebandVoiceLine $server "voice dial $clientIdentity"
+            Wait-SidebandVoiceLine $client '^VOICE state=Ringing' | Out-Null
+            Send-SidebandVoiceLine $client 'voice answer'
+            $evidence.RecoveredTraffic = Wait-SoakTraffic $server $client
+            $clientAvailableBeforeHangup = @($client.Lines | Where-Object { $_ -match '^VOICE state=Available' }).Count
+            Send-SidebandVoiceLine $server 'voice hangup'
+            Wait-SidebandVoiceLine $server '^OK voice hangup' | Out-Null
+            Wait-SidebandVoiceLine $server '^VOICE state=Available' -Occurrence ($availableBefore[0] + 2) | Out-Null
+            Wait-SidebandVoiceLine $client '^VOICE state=Available' -Occurrence ($clientAvailableBeforeHangup + 1) | Out-Null
+            Stop-SidebandVoiceProcess $client
+            $client = $null
+            Stop-SidebandVoiceProcess $server
+            $server = $null
+            $evidence.Stage = 'graceful-restart'
+            foreach ($name in 'server', 'client') {
+                $state = Get-Content -LiteralPath (Join-Path $root "$name\state.json") -Raw | ConvertFrom-Json
+                @($state.Calls | Where-Object Event -In @('incoming-success', 'outgoing-success')).Count | Should -BeGreaterOrEqual 2
+                @($state.Calls | Where-Object Event -EQ 'ongoing-ended').Count | Should -BeGreaterOrEqual 1
+                $arguments = if ($name -eq 'server') { $serverArguments } else { $clientArguments }
+                $identity = if ($name -eq 'server') { $serverIdentity } else { $clientIdentity }
+                $peer = Start-SidebandVoiceProcess $binary $arguments
+                try {
+                    Wait-SidebandVoiceLine $peer '^READY identity=' | Should -Match "identity=$identity"
+                    Send-SidebandVoiceLine $peer 'voice log'
+                    Wait-SidebandVoiceLine $peer '^CALL .* ongoing-ended ' | Out-Null
+                    $evidence.Restart.Add([ordered]@{
+                            Peer = $name; Identity = $identity; Events = @($state.Calls | ForEach-Object Event)
+                            HistoryReloaded = $true; Pid = $peer.Process.Id
+                        })
+                }
+                finally { Stop-SidebandVoiceProcess $peer }
+            }
+            (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvariant() | Should -Be $hash
+            $evidence.Stage = 'complete'
+            $evidence.Passed = $true
+        }
+        catch {
+            $evidence.Failure = $_.ToString()
+            throw
+        }
+        finally {
+            try { Stop-SidebandVoiceProcess $client }
+            finally {
+                try { Stop-SidebandVoiceProcess $server }
+                finally {
+                    $evidence.FinishedUtc = [DateTimeOffset]::UtcNow.ToString('O')
+                    Save-SoakEvidence
+                    if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+                }
+            }
+        }
+    }
+}
 Describe 'sideband native daemon cancellation acceptance' -Tag 'Native' {
     It 'cancels on SIGTERM with stdin blocked or closed (interactive=<Interactive>)' -TestCases @(
         @{ Interactive = $true }, @{ Interactive = $false }

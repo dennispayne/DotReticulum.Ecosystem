@@ -1,0 +1,714 @@
+{
+  "sideband_sha": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "source_sha256": {
+    "sbapp/sideband/core.py": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+    "sbapp/sideband/plugins.py": "47a051a26a21d53aa8d6232cfc438dfac5e9396814e4bbc6c0149fb74643b6ac",
+    "sbapp/sideband/sense.py": "80418b1aa4de638f2c65f1bd64e5ea0466378a6f0bc682781672ef89b93a7dab",
+    "sbapp/main.py": "5b962d9ed2ccbc066bb19865d78c77da9ecf4008900f6f0e7e9dd1eb1c4767aa",
+    "sbapp/sideband/certgen.py": "37507b75c40a854e0556d1ab2763f9084b335c5a2fe078b7bef90c4bcddff6db",
+    "LICENSE": "1349a4b6148492b44f629e64eed676612e234fe9a839e4f3b277c1482c8849f1",
+    "setup.py": "9905d709976990b1a0b4478c4d5ab51ce2b5f08da9ea4693eb6398dda479069e"
+  },
+  "reference_pins": {
+    "rns": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+    "lxmf": "e8ba02483217af43be284a72f1c059c730b7d047",
+    "lxst": "eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f"
+  },
+  "method": "Exact pinned AST methods; imported unmodified plugin bases; actual LXMF messages and MessagePack; dependency-controlled owners.",
+  "disclosures": [
+    "No full SidebandCore startup, sockets, live LXMF peers, TLS handshake, hardware, GUI or remote downloads.",
+    "Clock fixed at 1700000000; Identity.recall/current_ratchet_id temporarily injected for outbound messages.",
+    "RNS logs captured; observer methods record arguments. Only original synthetic plugins executed.",
+    "Repository handler executed with memory-backed response methods and original generated local files.",
+    "Shipped plugin imports/APIs inventoried by AST, never executed.",
+    "Reference verifier imports LXST; this Windows environment warns and falls back to Python filters. No filter/audio methods are exercised here."
+  ],
+  "commands": {
+    "PLUGIN_COMMAND": 0,
+    "TELEMETRY_REQUEST": 1,
+    "PING": 2,
+    "ECHO": 3,
+    "SIGNAL_REPORT": 4
+  },
+  "field_ids": {
+    "commands": 9,
+    "telemetry": 2,
+    "telemetry_stream": 3
+  },
+  "incoming": [
+    {
+      "name": "ping",
+      "fields_hex": "8109918102c3",
+      "effects": [
+        {
+          "kind": "message",
+          "args": [
+            "Ping reply",
+            {
+              "bytes_hex": "000102030405060708090a0b0c0d0e0f"
+            },
+            false
+          ],
+          "kwargs": {
+            "skip_fields": true,
+            "no_display": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "echo_unicode",
+      "fields_hex": "8109918103c40968656c6c6f20e29883",
+      "effects": [
+        {
+          "kind": "message",
+          "args": [
+            "Echo reply: hello ☃",
+            {
+              "bytes_hex": "000102030405060708090a0b0c0d0e0f"
+            },
+            false
+          ],
+          "kwargs": {
+            "skip_fields": true,
+            "no_display": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "signal",
+      "fields_hex": "8109918104c3",
+      "effects": [
+        {
+          "kind": "message",
+          "args": [
+            "Link Quality: 91%\nRSSI: -87.5 dBm\nSNR: 7.25 dB",
+            {
+              "bytes_hex": "000102030405060708090a0b0c0d0e0f"
+            },
+            false
+          ],
+          "kwargs": {
+            "skip_fields": true,
+            "no_display": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "plugin_quotes",
+      "fields_hex": "8109918100b973616d706c65206f6e65202274776f20776f72647322202222",
+      "effects": [
+        {
+          "kind": "plugin",
+          "arguments": [
+            "one",
+            "two words",
+            ""
+          ]
+        }
+      ]
+    },
+    {
+      "name": "telemetry_own",
+      "fields_hex": "810991810192ce6553f09cc2",
+      "effects": [
+        {
+          "kind": "telemetry",
+          "kwargs": {
+            "to_addr": {
+              "bytes_hex": "000102030405060708090a0b0c0d0e0f"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "telemetry_collector",
+      "fields_hex": "810991810192ce6553f09cc3",
+      "effects": [
+        {
+          "kind": "collector",
+          "kwargs": {
+            "to_addr": {
+              "bytes_hex": "000102030405060708090a0b0c0d0e0f"
+            },
+            "timebase": 1699999900,
+            "is_authorized_telemetry_request": true,
+            "is_collector_response": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "telemetry_legacy",
+      "fields_hex": "8109918101ce6553f09c",
+      "effects": [
+        {
+          "kind": "collector",
+          "kwargs": {
+            "to_addr": {
+              "bytes_hex": "000102030405060708090a0b0c0d0e0f"
+            },
+            "timebase": 1699999900,
+            "is_authorized_telemetry_request": true,
+            "is_collector_response": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "first_key_priority",
+      "fields_hex": "8109918202c303c40769676e6f726564",
+      "effects": [
+        {
+          "kind": "message",
+          "args": [
+            "Ping reply",
+            {
+              "bytes_hex": "000102030405060708090a0b0c0d0e0f"
+            },
+            false
+          ],
+          "kwargs": {
+            "skip_fields": true,
+            "no_display": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "bad_echo_stops_batch",
+      "fields_hex": "8109928103c401ff8102c3",
+      "effects": []
+    },
+    {
+      "name": "bad_telemetry_stops_batch",
+      "fields_hex": "8109928101908102c3",
+      "effects": []
+    },
+    {
+      "name": "signal_absent",
+      "effects": [
+        {
+          "kind": "message",
+          "args": [
+            "No reception info available",
+            {
+              "bytes_hex": "000102030405060708090a0b0c0d0e0f"
+            },
+            false
+          ],
+          "kwargs": {
+            "skip_fields": true,
+            "no_display": true
+          }
+        }
+      ]
+    }
+  ],
+  "outgoing": [
+    {
+      "input": "ping",
+      "result": true,
+      "fields_hex": "8109918102c3"
+    },
+    {
+      "input": "ping anything",
+      "result": true,
+      "fields_hex": "8109918102c3"
+    },
+    {
+      "input": "signal",
+      "result": true,
+      "fields_hex": "8109918104c3"
+    },
+    {
+      "input": "signature",
+      "result": true,
+      "fields_hex": "8109918104c3"
+    },
+    {
+      "input": "echo hello echo world",
+      "result": true,
+      "fields_hex": "8109918103c40b68656c6c6f20776f726c64"
+    },
+    {
+      "input": "sample \"two words\"",
+      "result": true,
+      "fields_hex": "8109918100b273616d706c65202274776f20776f72647322"
+    },
+    {
+      "input": "echo ",
+      "result": false,
+      "fields_hex": null
+    },
+    {
+      "input": "",
+      "result": false,
+      "fields_hex": null
+    },
+    {
+      "input": "telemetry collector=False",
+      "result": "sent",
+      "fields_hex": "810991810192ce6553f09cc2",
+      "include_ticket": true
+    },
+    {
+      "input": "telemetry collector=True",
+      "result": "sent",
+      "fields_hex": "810991810192ce6553f09cc3",
+      "include_ticket": true
+    }
+  ],
+  "permissions": [
+    {
+      "anyone": false,
+      "trusted_setting": false,
+      "conversation": null,
+      "allowed": false
+    },
+    {
+      "anyone": true,
+      "trusted_setting": false,
+      "conversation": null,
+      "allowed": true
+    },
+    {
+      "anyone": false,
+      "trusted_setting": true,
+      "conversation": {
+        "trust": 1,
+        "data": {}
+      },
+      "allowed": true
+    },
+    {
+      "anyone": false,
+      "trusted_setting": true,
+      "conversation": {
+        "trust": 0,
+        "data": {
+          "allow_requests": true
+        }
+      },
+      "allowed": false
+    },
+    {
+      "anyone": false,
+      "trusted_setting": false,
+      "conversation": {
+        "trust": 0,
+        "data": {
+          "allow_requests": true
+        }
+      },
+      "allowed": true
+    }
+  ],
+  "telemetry_response": {
+    "own_fields_hex": "820493a76163636f756e74c403ff007fc403003fff02c4078101ce6553f100",
+    "collector_fields_hex": "81039194c410101112131415161718191a1b1c1d1e1fce6553f100c4078101ce6553f10093a76163636f756e74c403010203c403040506",
+    "collector_effect": {
+      "to_addr": {
+        "bytes_hex": "000102030405060708090a0b0c0d0e0f"
+      },
+      "stream": [
+        [
+          {
+            "bytes_hex": "101112131415161718191a1b1c1d1e1f"
+          },
+          1700000000,
+          {
+            "bytes_hex": "8101ce6553f100"
+          },
+          [
+            "account",
+            {
+              "bytes_hex": "010203"
+            },
+            {
+              "bytes_hex": "040506"
+            }
+          ]
+        ]
+      ],
+      "is_authorized_telemetry_request": true,
+      "is_collector_response": true
+    }
+  },
+  "delivery_gate": [
+    {
+      "valid_signature": true,
+      "allowed": true,
+      "ignore_unknown": false,
+      "effects": [
+        "commands"
+      ]
+    },
+    {
+      "valid_signature": true,
+      "allowed": false,
+      "ignore_unknown": false,
+      "effects": []
+    },
+    {
+      "valid_signature": false,
+      "allowed": true,
+      "ignore_unknown": false,
+      "effects": [
+        "ingest"
+      ]
+    },
+    {
+      "valid_signature": true,
+      "allowed": true,
+      "ignore_unknown": true,
+      "effects": []
+    }
+  ],
+  "plugin_loader": [
+    {
+      "service_enabled": false,
+      "command_enabled": true,
+      "observations": [],
+      "registered": [],
+      "services": [],
+      "telemetry": [],
+      "same_owner": null,
+      "reload_stopped_previous": true
+    },
+    {
+      "service_enabled": true,
+      "command_enabled": false,
+      "observations": [
+        {
+          "imported": true
+        }
+      ],
+      "registered": [],
+      "services": [
+        "synthetic_service"
+      ],
+      "telemetry": [
+        "synthetic_telemetry"
+      ],
+      "same_owner": null,
+      "reload_stopped_previous": true
+    },
+    {
+      "service_enabled": true,
+      "command_enabled": true,
+      "observations": [
+        {
+          "imported": true
+        }
+      ],
+      "registered": [
+        "sample"
+      ],
+      "services": [
+        "synthetic_service"
+      ],
+      "telemetry": [
+        "synthetic_telemetry"
+      ],
+      "same_owner": true,
+      "reload_stopped_previous": true
+    }
+  ],
+  "plugin_missing_class": "KeyError",
+  "repository_routes": [
+    {
+      "path": "/",
+      "statuses": [
+        200
+      ],
+      "headers": [],
+      "body_utf8": "synthetic-index"
+    },
+    {
+      "path": "/pkglist",
+      "statuses": [
+        200
+      ],
+      "headers": [
+        [
+          "Content-type",
+          "text/json"
+        ]
+      ],
+      "body_utf8": "[\"a.txt\", \"z.apk\"]"
+    },
+    {
+      "path": "/pkg/z.apk?download=1",
+      "statuses": [
+        200
+      ],
+      "headers": [
+        [
+          "Content-type",
+          "application/vnd.android.package-archive"
+        ]
+      ],
+      "body_utf8": "synthetic-apk"
+    },
+    {
+      "path": "/missing",
+      "statuses": [
+        500
+      ],
+      "headers": [],
+      "body_utf8": "Error"
+    },
+    {
+      "path": "/pkg/a.txt",
+      "statuses": [
+        200
+      ],
+      "headers": [],
+      "body_utf8": "synthetic-text"
+    }
+  ],
+  "certificate": {
+    "common_name": "Sideband Repository",
+    "self_issued": true,
+    "san_dns": [
+      "localhost"
+    ],
+    "key_curve": "secp256r1",
+    "signature_hash": "sha256",
+    "validity_days": 3666,
+    "restart_reuses_public_key": true,
+    "restart_regenerates_certificate": true,
+    "private_material_recorded": false
+  },
+  "examples": [
+    {
+      "file": "basic.py",
+      "sha256": "02810cee5a85c0d5cd235b132891951fe40f70b009312ad3ae37d9c31ad11013",
+      "imports": [
+        "import RNS"
+      ],
+      "core_api_names": [
+        "send_message"
+      ],
+      "executed": false
+    },
+    {
+      "file": "bme280_telemetry.py",
+      "sha256": "985214b6bb288c885a0aa0cf54b12d044501fe0231f9e40f4e1bc950f0827466",
+      "imports": [
+        "from importlib.util import find_spec",
+        "import RNS",
+        "import bme280",
+        "import os",
+        "import smbus2"
+      ],
+      "core_api_names": [],
+      "executed": false
+    },
+    {
+      "file": "comic.py",
+      "sha256": "f13617cc883866ab4012b5b8884827e428ee61f3e012015c79b4736fc90e6c17",
+      "imports": [
+        "from PIL import Image as PilImage",
+        "import RNS",
+        "import io",
+        "import requests"
+      ],
+      "core_api_names": [
+        "send_message"
+      ],
+      "executed": false
+    },
+    {
+      "file": "connection_map.py",
+      "sha256": "46d6fd5add14926603b500e44cbecfaa05ca5acb329a9e55e8d617ac3c499e34",
+      "imports": [
+        "import IP2Location",
+        "import RNS",
+        "import os"
+      ],
+      "core_api_names": [],
+      "executed": false
+    },
+    {
+      "file": "gpsd_location.py",
+      "sha256": "118451ba395d96784a2f4343b532ebfc59e66b7fc53d5aa3b9f0660c34ce5c2a",
+      "imports": [
+        "from gpsdclient import GPSDClient",
+        "import RNS",
+        "import threading",
+        "import time"
+      ],
+      "core_api_names": [],
+      "executed": false
+    },
+    {
+      "file": "interface_telemetry.py",
+      "sha256": "3250e9ccef38cb0b3920e09f29cbc8abadfde863e61210cfa0d642263531c086",
+      "imports": [
+        "import RNS"
+      ],
+      "core_api_names": [],
+      "executed": false
+    },
+    {
+      "file": "lxmd_telemetry.py",
+      "sha256": "c79515d650e3ccd09d511c92e5f0010fd417f95d86e534bdad62845fd0123277",
+      "imports": [
+        "import RNS"
+      ],
+      "core_api_names": [],
+      "executed": false
+    },
+    {
+      "file": "raspi_telemetry.py",
+      "sha256": "dcc41089157689232ab9bb4bacb7d720c34b94c6a4e29b9f1efb4f72e56dbc13",
+      "imports": [
+        "from threading import Thread",
+        "import RNS",
+        "import os",
+        "import psutil",
+        "import shutil",
+        "import time",
+        "import urllib.request, json"
+      ],
+      "core_api_names": [],
+      "executed": false
+    },
+    {
+      "file": "server_telemetry.py",
+      "sha256": "f07eab48595854383641b8629c681adf7f9c07005f2ea3378ca8159596ba6b8b",
+      "imports": [
+        "from threading import Thread",
+        "import RNS",
+        "import psutil",
+        "import shutil",
+        "import time",
+        "import urllib.request, json"
+      ],
+      "core_api_names": [],
+      "executed": false
+    },
+    {
+      "file": "service.py",
+      "sha256": "3da2de1c58d2fecc807be6e1adde6b96f1d8113b34017c2b1408346b73a027ad",
+      "imports": [
+        "import RNS",
+        "import threading",
+        "import time"
+      ],
+      "core_api_names": [],
+      "executed": false
+    },
+    {
+      "file": "telemetry.py",
+      "sha256": "940d1bc10aec3e6293a75c40a69508ce09525aff7b1157c2561d405a13851274",
+      "imports": [
+        "import RNS"
+      ],
+      "core_api_names": [],
+      "executed": false
+    },
+    {
+      "file": "view.py",
+      "sha256": "d0bddc32b6e94da90fd935dedee962120deb1f7b7575ccae021f075186ddd966",
+      "imports": [
+        "from PIL import Image as PilImage",
+        "import RNS",
+        "import cv2",
+        "import importlib",
+        "import io",
+        "import os",
+        "import queue",
+        "import requests",
+        "import threading",
+        "import time"
+      ],
+      "core_api_names": [
+        "send_message"
+      ],
+      "executed": false
+    },
+    {
+      "file": "windows_location.py",
+      "sha256": "cc82a43e2981c0c35c901a4e0503b473c1e3a99195adf407fdcba388e9ce578c",
+      "imports": [
+        "from winsdk.windows.devices import geolocation",
+        "import RNS",
+        "import asyncio",
+        "import threading",
+        "import time"
+      ],
+      "core_api_names": [],
+      "executed": false
+    }
+  ],
+  "inventory": {
+    "plugin_boundary": [
+      "plugins.py: SidebandPlugin is an empty marker; three bases own core reference and running flag.",
+      "Constructors require class command_name, service_name or plugin_name. start/stop/is_running/get_sideband are synchronous.",
+      "Command base handle_command declares arguments only, while core dispatch and examples pass arguments and LXMessage.",
+      "Command examples call core.send_message(content,destination_hash,propagation,skip_fields=False,no_display=False,attachment=None,image=None,audio=None); LXMessage supplies source_hash and content.",
+      "core.py:983-1056 loads only with service_plugins_enabled; command_plugins_enabled alone does not load anything.",
+      "Loader scans top-level .py case-insensitively with unsorted os.listdir, execs fresh globals with injected base types and normal builtins.",
+      "Each module exports plugin_class, constructed with full SidebandCore, then start/is_running checked before registration.",
+      "Disabled command plugin can still execute module/start when service loading is enabled; it is stopped as unknown type.",
+      "Module exec failures are logged and skipped; missing plugin_class, constructor and start errors escape this method.",
+      "Duplicate service/telemetry registrations stop newcomer; duplicate command registration logs but does not stop newcomer.",
+      "reload_plugins stops all registered telemetry/command/service plugins, clears registries and loads again.",
+      "core.py:3674-3681 invokes update_telemetry(telemeter) on a copied registry with per-plugin exception isolation.",
+      "No sandbox, dependency manifest, permissions broker, restricted core facade, package resolver or RPC protocol exists here.",
+      "Arbitrary Python plugins require Python language/import/runtime and actual SidebandCore/RNS/LXMF/Telemeter object APIs.",
+      "Native C#/NativeAOT extensions or a new RPC bridge are explicit alternate extension contracts, not arbitrary Python plugin compatibility."
+    ],
+    "authorization": [
+      "core.py:5665-5691 ignores unknown senders first when configured; valid-signature FIELD_COMMANDS requires allow_request_from.",
+      "Invalid/unverified-signature command messages go to normal lxm_ingest, never command dispatch; valid unauthorized commands are dropped.",
+      "allow_request_from permits anyone if configured, otherwise trusted setting returns only conversation trust==1, otherwise per-conversation data.allow_requests.",
+      "When trusted-only setting is enabled an untrusted conversation's explicit allow_requests does not override it.",
+      "Default anyone/trusted/plugin enable flags are false; same request permission gate protects built-ins and plugin commands.",
+      "No special echo/ping privilege tier, command nonce, expiry or per-command authentication field is present in these handlers.",
+      "Malformed command raises into one outer handler catch, aborting remaining commands in that message."
+    ],
+    "command_shapes": [
+      "FIELD_COMMANDS=9 maps to array of command maps; ids 0 plugin string, 1 telemetry request, 2 ping, 3 echo bytes, 4 signal.",
+      "Telemetry request value is [timebase, collector_boolean]; legacy scalar timebase means collector enabled.",
+      "Ping/signal request values are True; responses are ordinary text messages, not structured command-result maps.",
+      "Echo bytes decode UTF-8 strictly; response prefix is Echo reply: . Plugin string uses Python shlex.split.",
+      "send_command uses startswith sig/ping, removes every occurrence of echo-space from echo input, and falls back to plugin string.",
+      "Telemetry own response is FIELD_TELEMETRY=2 packed sensor bytes. FIELD_TELEMETRY_STREAM=3 is [[source_hash,timestamp,packed_sensor_bytes,appearance],...].",
+      "Collector excludes requester and excluded sources, honors latest-only, and delegates to send_latest_telemetry; no request ID correlation field.",
+      "Telemetry own-request handler calls send_latest_telemetry without authorized override; collector branch passes authorized and collector flags.",
+      "Ordinary commands choose propagated/direct/opportunistic from caller/ratchet/link policy; include_ticket follows trust.",
+      "Telemetry requests include_ticket=True regardless of trust; fallback obeys telemetry_try_propagation_on_fail and livetrack exclusion."
+    ],
+    "repository": [
+      "core.py:5540-5632 is optional manually started threaded HTTPS static mirror, not RNS/rngit hosting.",
+      "Fixed bind all interfaces and port 4444, no configuration keys or authentication/access-control/mTLS in inspected server.",
+      "Root maps to index.html; /pkglist returns sorted os.listdir(pkg) as text/json; /pkg/<name> and other static paths read local files.",
+      "Query strings stripped; only %20 decoded; APK/JS MIME headers special; missing file returns 500 rather than 404.",
+      "SimpleHTTPRequestHandler inheritance also supplies HEAD independently of custom GET; native implementation should explicitly constrain methods/root.",
+      "certgen.py generates EC P-256 unencrypted PKCS8 key if absent; self-signed SHA256 cert CN Sideband Repository, SAN localhost.",
+      "Certificate valid from now minus 14 days to now plus 3652 days; regenerated each ensure_certificate using existing private key.",
+      "main.py:4467-4556 Update Content queries first GitHub release for RNode firmware and Sideband, downloads matching firmware assets and last APK asset.",
+      "Downloader streams 32KiB chunks to cwd dl_tmp then os.rename into share/pkg, with no explicit timeout/status/hash/signature checks or old-package pruning.",
+      "No remote update was executed; original upstream static pages/assets were neither copied nor served in observations.",
+      "share contains index, software list, guides and RNode flasher plus CSS/gfx; these are separate distribution/licensing assets.",
+      "Parent native scope choice: bounded user-selected static mirror with original UI/content and explicit TLS/root policy, or documented deferral; do not silently copy assets or reproduce unsafe defaults."
+    ],
+    "dependencies_and_licenses": [
+      "Sideband root is CC BY-NC-SA 4.0, unlike repository Reticulum License. certgen.py separately carries MIT notice.",
+      "Plugin examples depend on ordinary Python ecosystem modules: requests/Pillow/OpenCV, psutil, IP2Location, gpsdclient, winsdk, smbus2/bme280.",
+      "Examples may start threads, read local files/identities/OS telemetry, open cameras/streams/GPS/I2C and contact HTTP services; none executed here.",
+      "Telemetry plugins directly mutate Telemeter sensors or call synthesis/update_entry/update_consumer/update_producer/add_point/add_interface/set_identity/set_update_time APIs.",
+      "GPS plugins set location latitude/longitude/altitude/speed/bearing/accuracy/stale_time and set_update_time; connection-map reads rns_transport and adds named points; interface telemetry adds typed connectable interface dictionaries.",
+      "Interface telemetry reaches RNS.Transport.identity; LXMd telemetry points to a local lxmd private identity path.",
+      "Python sensor/device/native dependencies and upstream assets must not become production dependencies or be redistributed under root license by assumption.",
+      "Full arbitrary Python compatibility conflicts with production no-Python constraint; decide explicit deferral versus separately specified original native extensions."
+    ]
+  }
+}

@@ -13,6 +13,15 @@ public static class NomadNetConfigImport
 {
     public const int MaximumConfigBytes = 64 * 1024;
 
+    internal static (int Cap, bool Filter) RrcImportHistoryPolicy(string text)
+    {
+        var values = Read(text);
+        var cap = values.TryGetValue("rrc.history_per_room_cap", out var raw) ? Integer(Scalar(raw)) : 500;
+        if (cap is < 0 or > RrcSessionState.MaximumHistory)
+            throw new InvalidDataException("Imported RRC history cap exceeds the native 0–1000 safety range.");
+        return (cap, !values.TryGetValue("rrc.filter_loaded_history", out raw) || Boolean(Scalar(raw)));
+    }
+
     public static NomadNetConfigImportResult Parse(string text)
     {
         ArgumentNullException.ThrowIfNull(text);

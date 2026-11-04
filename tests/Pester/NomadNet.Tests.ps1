@@ -1,3 +1,242 @@
+Describe 'NomadNet primary RRC profile migration' -Tag 'RrcImport' {
+    It 'imports actual persisted hubs and retained history, repeats primary startup five times, and messages through rrcd after clean and abrupt native restart' {
+        if ($env:DOTRETICULUM_NOMADNET_RRC_IMPORT -ne '1') {
+            Set-ItResult -Skipped -Because 'Enable DOTRETICULUM_NOMADNET_RRC_IMPORT=1 with selected native binary and pinned primary/rrcd/Python environment.'
+            return
+        }
+        foreach ($variable in 'DOTRETICULUM_NOMADNET_BINARY', 'DOTRETICULUM_PYTHON',
+            'DOTRETICULUM_UPSTREAM', 'DOTRETICULUM_NOMADNET_SOURCE', 'DOTRETICULUM_NOMADNET_RRCD_SOURCE') {
+            if (-not [Environment]::GetEnvironmentVariable($variable)) { throw "$variable is required." }
+        }
+        $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        if ($env:DOTRETICULUM_TEST_REPOSITORY) { $root = $env:DOTRETICULUM_TEST_REPOSITORY }
+        $work = Join-Path (Get-Location) "artifacts\tests\nomad-rrc-migration\acceptance-$([Guid]::NewGuid().ToString('N'))"
+        $null = New-Item $work -ItemType Directory -Force
+        $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
+        $pending = @{}
+        $errors = @{}
+        $names = @{}
+        $backlogs = @{}
+        $start = {
+            param([string] $name, [string] $binary, [string[]] $arguments)
+            $info = [Diagnostics.ProcessStartInfo]::new($binary)
+            $info.UseShellExecute = $false
+            $info.RedirectStandardInput = $true
+            $info.RedirectStandardOutput = $true
+            $info.RedirectStandardError = $true
+            $info.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
+            $info.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
+            foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
+            $info.Environment['PYTHONPATH'] = @($env:DOTRETICULUM_UPSTREAM,
+                $env:DOTRETICULUM_NOMADNET_SOURCE, (Join-Path $root 'tests\Interop'),
+                $env:DOTRETICULUM_LXMF_UPSTREAM | Where-Object { $_ }) -join [IO.Path]::PathSeparator
+            $info.Environment['PYTHON_CPU_COUNT'] = '2'
+            foreach ($variable in 'TMP', 'TEMP', 'TMPDIR') { $info.Environment[$variable] = $work }
+            $process = [Diagnostics.Process]::new()
+            $process.StartInfo = $info
+            $null = $process.Start()
+            $processes.Add($process)
+            $names[$process.Id] = $name
+            $errors[$process.Id] = $process.StandardError.ReadToEndAsync()
+            return $process
+        }.GetNewClosure()
+        $send = {
+            param($process, [string] $text)
+            $process.StandardInput.WriteLine($text)
+            $process.StandardInput.Flush()
+        }
+        $read = {
+            param($process, [string] $pattern, [int] $seconds = 60)
+            $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+            while ([DateTime]::UtcNow -lt $deadline) {
+                if (-not $pending.ContainsKey($process.Id)) { $pending[$process.Id] = $process.StandardOutput.ReadLineAsync() }
+                try { $line = $pending[$process.Id].WaitAsync([TimeSpan]::FromMilliseconds(250)).GetAwaiter().GetResult() }
+                catch [TimeoutException] { continue }
+                $pending.Remove($process.Id)
+                if ($null -eq $line) { throw "$($names[$process.Id]) closed stdout before '$pattern'; diagnostics $work" }
+                Add-Content (Join-Path $work "$($names[$process.Id]).stdout") $line
+                if ($line -match '(^|nomadnet> )Error:') { throw "$line; diagnostics $work" }
+                if ($line -match $pattern) { return $line }
+            }
+            throw "$($names[$process.Id]) timed out before '$pattern'; diagnostics $work"
+        }.GetNewClosure()
+        $event = {
+            param($process, [string] $expected)
+            if (-not $backlogs.ContainsKey($process.Id)) { $backlogs[$process.Id] = [Collections.Generic.List[object]]::new() }
+            $backlog = $backlogs[$process.Id]
+            for ($i = 0; $i -lt $backlog.Count; $i++) {
+                if ($backlog[$i].event -eq $expected) { $result = $backlog[$i]; $backlog.RemoveAt($i); return $result }
+            }
+            $deadline = [DateTime]::UtcNow.AddSeconds(90)
+            while ([DateTime]::UtcNow -lt $deadline) {
+                $line = & $read $process '.' ([Math]::Max(1, [Math]::Ceiling(($deadline - [DateTime]::UtcNow).TotalSeconds)))
+                $marker = $line.IndexOf('@@', [StringComparison]::Ordinal)
+                if ($marker -lt 0) { continue }
+                try { $value = ConvertFrom-Json -InputObject $line.Substring($marker + 2) -NoEnumerate -ErrorAction Stop }
+                catch { throw "Invalid framed JSON from $($names[$process.Id]): $line; diagnostics $work" }
+                if ($null -eq $value -or $value.GetType() -ne [System.Management.Automation.PSCustomObject] -or
+                    $value.event -isnot [string] -or [string]::IsNullOrWhiteSpace($value.event)) {
+                    throw "Invalid framed event schema: $line; diagnostics $work"
+                }
+                if ($value.event -in 'error', 'failed') { throw "$line; diagnostics $work" }
+                if ($value.event -eq $expected) { return $value }
+                if ($backlog.Count -ge 32) { throw "Exceeded event backlog; diagnostics $work" }
+                $backlog.Add($value)
+            }
+            throw "Timed out awaiting $expected; diagnostics $work"
+        }.GetNewClosure()
+        $offline = {
+            param([string] $name, [string] $binary, [string[]] $arguments)
+            $process = & $start $name $binary $arguments
+            $output = $process.StandardOutput.ReadToEndAsync()
+            $process.WaitForExit(90000) | Should -BeTrue
+            $text = $output.GetAwaiter().GetResult()
+            $text | Set-Content (Join-Path $work "$name.stdout") -Encoding utf8
+            $process.ExitCode | Should -Be 0 -Because $errors[$process.Id].GetAwaiter().GetResult()
+            return $text
+        }.GetNewClosure()
+        $snapshot = {
+            param([string] $directory)
+            @(Get-ChildItem $directory -File -Recurse | Sort-Object FullName | ForEach-Object {
+                "$([IO.Path]::GetRelativePath($directory, $_.FullName)) $((Get-FileHash $_.FullName).Hash)"
+            }) -join "`n"
+        }
+        try {
+            (& $offline 'help' $env:DOTRETICULUM_NOMADNET_BINARY @('--help')) | Should -Match '--import-profile'
+            for ($iteration = 1; $iteration -le 5; $iteration++) {
+                $fixture = Join-Path $work "vectors-$iteration.json"
+                $null = & $offline "primary-start-$iteration" $env:DOTRETICULUM_PYTHON @(
+                    (Join-Path $root 'tests\Interop\GenerateNomadNetRrcImportVectors.py'),
+                    '--profile', (Join-Path $work "source-$iteration"), '--rnsconfig', (Join-Path $work "source-rns-$iteration"),
+                    '--output', $fixture)
+                (Get-FileHash $fixture).Hash | Should -Be (Get-FileHash (Join-Path $root 'tests\NomadNet.Tests\NomadNetRrcImportVectors.json')).Hash
+                [IO.File]::ReadAllBytes($fixture) | Should -Not -Contain 13
+            }
+            $selectedRns = Join-Path $work 'offline-rns'
+            $null = New-Item $selectedRns -ItemType Directory
+            "[reticulum]`nshare_instance=No`n[interfaces]`n" | Set-Content (Join-Path $selectedRns 'config')
+            $source = Join-Path $work 'source-1'
+            $before = & $snapshot $source
+            $target = Join-Path $work 'offline-native'
+            $null = & $offline 'offline-import' $env:DOTRETICULUM_NOMADNET_BINARY @(
+                '--import-profile', $source, '--config', $target, '--rnsconfig', $selectedRns)
+            (& $snapshot $source) | Should -BeExactly $before
+            $native = & $start 'offline-terminal' $env:DOTRETICULUM_NOMADNET_BINARY @('--config', $target)
+            $null = & $read $native 'LXMF delivery address:'
+            & $send $native 'rrc hubs'
+            $null = & $read $native 'RRC saved hub: 11111111111111111111111111111111'
+            $null = & $read $native 'RRC command complete'
+            & $send $native 'rrc open 11111111111111111111111111111111'
+            $null = & $read $native 'RRC command complete'
+            & $send $native 'rrc status'
+            $null = & $read $native 'nick: Migrated nick; rooms: lobby;.*parted: empty-parted,old/room'
+            $null = & $read $native 'RRC command complete'
+            & $send $native 'rrc history old/room'
+            $null = & $read $native 'imported; unauthenticated.*Retained parted history'
+            $null = & $read $native 'RRC command complete'
+            & $send $native 'quit'
+            $native.WaitForExit(20000) | Should -BeTrue
+            $native.ExitCode | Should -Be 0
+
+            $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+            $listener.Start()
+            $port = $listener.LocalEndpoint.Port
+            $listener.Stop()
+            foreach ($name in 'hub', 'source-live', 'peer', 'native') {
+                $null = New-Item (Join-Path $work "$name-rns") -ItemType Directory
+                $configuration = @('[reticulum]', 'share_instance=No', "enable_transport=$($name -eq 'hub')", '[logging]', 'loglevel=0', '[interfaces]')
+                if ($name -eq 'hub') {
+                    $configuration += @('[[Server]]', 'type=TCPServerInterface', 'enabled=Yes', 'listen_ip=127.0.0.1', "listen_port=$port")
+                }
+                else {
+                    $configuration += @('[[Client]]', 'type=TCPClientInterface', 'enabled=Yes', 'target_host=127.0.0.1', "target_port=$port")
+                }
+                $configuration | Set-Content (Join-Path $work "$name-rns\config")
+                if ($name -in 'source-live', 'peer') {
+                    $null = New-Item (Join-Path $work $name) -ItemType Directory
+                    "[client]`nenable_client=Yes`nannounce_at_start=No`nperiodic_lxmf_sync=No`n[node]`nenable_node=Yes`ndisable_propagation=Yes`n[logging]`nloglevel=0`n" |
+                        Set-Content (Join-Path $work "$name\config")
+                }
+            }
+            $hub = & $start 'hub' $env:DOTRETICULUM_PYTHON @('-u', (Join-Path $root 'tests\Interop\nomadnet_rrc_hub.py'),
+                '--config', (Join-Path $work 'hub'), '--rnsconfig', (Join-Path $work 'hub-rns'))
+            $hubReady = & $event $hub 'hub-ready'
+            $hubReady.revision | Should -BeExactly 'f6d7e9d72bf83c70d7a9373ae8c5edaa052a7bf2'
+            $primary = & $start 'source-live' $env:DOTRETICULUM_PYTHON @('-u', (Join-Path $root 'tests\Interop\nomadnet_live_node.py'),
+                '--config', (Join-Path $work 'source-live'), '--rnsconfig', (Join-Path $work 'source-live-rns'))
+            $primaryReady = & $event $primary 'ready'
+            $primaryReady.revision | Should -BeExactly 'f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2'
+            & $send $primary "rrc-connect $($hubReady.hash) MigratedNick"
+            $null = & $event $primary 'rrc-connected'
+            & $send $primary 'rrc-join lobby'
+            $null = & $event $primary 'rrc-joined'
+            & $send $primary 'rrc-send lobby BeforeMigration'
+            $null = & $event $primary 'rrc-sent'
+            & $send $primary 'quit'
+            $primary.WaitForExit(20000) | Should -BeTrue
+            $primary.ExitCode | Should -Be 0
+            $liveSource = Join-Path $work 'source-live'
+            $liveBefore = & $snapshot $liveSource
+            $liveTarget = Join-Path $work 'native'
+            $null = & $offline 'live-import' $env:DOTRETICULUM_NOMADNET_BINARY @(
+                '--import-profile', $liveSource, '--config', $liveTarget, '--rnsconfig', (Join-Path $work 'native-rns'))
+            (& $snapshot $liveSource) | Should -BeExactly $liveBefore
+            $peer = & $start 'peer' $env:DOTRETICULUM_PYTHON @('-u', (Join-Path $root 'tests\Interop\nomadnet_live_node.py'),
+                '--config', (Join-Path $work 'peer'), '--rnsconfig', (Join-Path $work 'peer-rns'))
+            $null = & $event $peer 'ready'
+            & $send $peer "rrc-connect $($hubReady.hash) ReferencePeer"
+            $null = & $event $peer 'rrc-connected'
+            & $send $peer 'rrc-join lobby'
+            $null = & $event $peer 'rrc-joined'
+            for ($restart = 0; $restart -lt 3; $restart++) {
+                $native = & $start "native-$restart" $env:DOTRETICULUM_NOMADNET_BINARY @('--config', $liveTarget)
+                (& $read $native 'LXMF delivery address:') | Should -Match $primaryReady.delivery
+                & $send $native "rrc connect $($hubReady.hash)"
+                $null = & $read $native 'RRC command complete'
+                & $send $native 'rrc status'
+                $null = & $read $native 'connected: True; nick: MigratedNick; rooms: lobby;'
+                $null = & $read $native 'RRC command complete'
+                & $send $native 'rrc history lobby'
+                $null = & $read $native 'imported; unauthenticated.*BeforeMigration'
+                $null = & $read $native 'RRC command complete'
+                & $send $native "rrc send lobby FromMigrated$restart"
+                $null = & $read $native 'RRC command complete'
+                $messageDeadline = [DateTime]::UtcNow.AddSeconds(90)
+                do {
+                    if ([DateTime]::UtcNow -ge $messageDeadline) { throw "Missing migrated message; diagnostics $work" }
+                    $received = & $event $peer 'rrc-message'
+                } while ($received.text -ne "FromMigrated$restart")
+                $received.nick | Should -BeExactly 'MigratedNick'
+                $received.source | Should -BeExactly $primaryReady.identity
+                & $send $peer "rrc-send lobby FromReference$restart"
+                $null = & $event $peer 'rrc-sent'
+                $null = & $read $native "ReferencePeer: FromReference$restart"
+                if ($restart -eq 1) { $native.Kill($true); $native.WaitForExit() }
+                else {
+                    & $send $native 'quit'
+                    $native.WaitForExit(20000) | Should -BeTrue
+                    $native.ExitCode | Should -Be 0
+                }
+            }
+            (& $snapshot $liveSource) | Should -BeExactly $liveBefore
+            @{ Platform=[Runtime.InteropServices.RuntimeInformation]::RuntimeIdentifier; PrimaryStarts=5;
+                NativeSha256=(Get-FileHash $env:DOTRETICULUM_NOMADNET_BINARY).Hash.ToLowerInvariant();
+                FixtureSha256=(Get-FileHash (Join-Path $root 'tests\NomadNet.Tests\NomadNetRrcImportVectors.json')).Hash.ToLowerInvariant();
+                Topology='One unchanged Python rrcd hub with transport enabled; primary source/peer and migrated native client are TCP leaves; no separate transport hop/loss test';
+                Restart='Original, clean native restart, abrupt native restart; three bidirectional message exchanges';
+                Exclusions='Complete ConfigObj/router-state/UI and newer primary dependency minimum parity remain gaps' } |
+                ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
+        }
+        finally {
+            foreach ($process in $processes) {
+                if (-not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+                [IO.File]::WriteAllText((Join-Path $work "$($names[$process.Id]).stderr"), $errors[$process.Id].GetAwaiter().GetResult())
+                $process.Dispose()
+            }
+        }
+    }
+}
+
 Describe 'NomadNet offline primary profile import' -Tag 'ProfileImport' {
     It 'imports an actual primary profile and messages both ways with the unchanged full primary application after imported-identity restart' {
         if ($env:DOTRETICULUM_NOMADNET_PROFILE_IMPORT -ne '1') {
@@ -28,7 +267,8 @@ Describe 'NomadNet offline primary profile import' -Tag 'ProfileImport' {
             $info.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
             foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
             $info.Environment['PYTHONPATH'] = @($env:DOTRETICULUM_UPSTREAM,
-                $env:DOTRETICULUM_NOMADNET_SOURCE, (Join-Path $root 'tests\Interop')) -join [IO.Path]::PathSeparator
+                $env:DOTRETICULUM_NOMADNET_SOURCE, (Join-Path $root 'tests\Interop'),
+                $env:DOTRETICULUM_LXMF_UPSTREAM | Where-Object { $_ }) -join [IO.Path]::PathSeparator
             $info.Environment['PYTHON_CPU_COUNT'] = '2'
             $info.Environment['PATH'] = (Split-Path $env:DOTRETICULUM_NOMADNET_PROFILE_CONVERTER -Parent) +
                 [IO.Path]::PathSeparator + $env:PATH
@@ -2782,12 +3022,16 @@ Describe 'NomadNet native hosted workflows' -Tag 'Native' {
         $server = $null
         $client = $null
         $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
+        $stderr = @{}
+        $completed = $false
         $readUntil = {
             param($process, [string] $pattern, [int] $seconds = 60)
             $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
             while ([DateTime]::UtcNow -lt $deadline) {
                 $line = $process.StandardOutput.ReadLineAsync().WaitAsync([TimeSpan]::FromSeconds($seconds)).GetAwaiter().GetResult()
                 if ($null -eq $line) { throw "Process ended before '$pattern'." }
+                Add-Content (Join-Path $work "$($process.Id).stdout") $line
+                if ($line -match '(^|nomadnet> )Error:') { throw "$line; diagnostics $work" }
                 if ($line -match $pattern) { return $line }
             }
             throw "Expected output was not observed: $pattern"
@@ -2805,7 +3049,7 @@ Describe 'NomadNet native hosted workflows' -Tag 'Native' {
             $process = [Diagnostics.Process]::new()
             $process.StartInfo = $info
             $null = $process.Start()
-            $process.BeginErrorReadLine()
+            $stderr[$process.Id] = $process.StandardError.ReadToEndAsync()
             $processes.Add($process)
             return $process
         }.GetNewClosure()
@@ -2858,6 +3102,20 @@ Describe 'NomadNet native hosted workflows' -Tag 'Native' {
             $propagationNode = [regex]::Match((& $readUntil $server 'Propagation node address:\s*([0-9a-f]{32})'), '[0-9a-f]{32}').Value
             $client = & $start 'client'
             $clientDelivery = [regex]::Match((& $readUntil $client 'LXMF delivery address:\s*([0-9a-f]{32})'), '[0-9a-f]{32}').Value
+            $networkReady = $false
+            $networkDeadline = [DateTime]::UtcNow.AddSeconds(30)
+            while (-not $networkReady -and [DateTime]::UtcNow -lt $networkDeadline) {
+                & $send $server 'announce'
+                $null = & $readUntil $server 'Destinations announced.'
+                & $send $client 'peers'
+                & $send $client 'status'
+                do {
+                    $line = & $readUntil $client "$serverNode|Using local Reticulum instance."
+                    if ($line -match $serverNode) { $networkReady = $true }
+                } while ($line -notmatch 'Using local Reticulum instance.')
+                if (-not $networkReady) { Start-Sleep -Milliseconds 100 }
+            }
+            $networkReady | Should -BeTrue -Because "The TCP leaf must receive the host announce before browser assertions; diagnostics $work"
             & $send $client "browse $serverNode"
             $null = & $readUntil $client 'FIRST_PAGE'
             [IO.File]::WriteAllText((Join-Path $work 'server\storage\pages\index.mu'), "#!c=60`nSECOND_PAGE", [Text.UTF8Encoding]::new($false))
@@ -2932,13 +3190,18 @@ Describe 'NomadNet native hosted workflows' -Tag 'Native' {
             $client.WaitForExit(30000) | Should -BeTrue
             $server.ExitCode | Should -Be 0
             $client.ExitCode | Should -Be 0
+            $completed = $true
         }
         finally {
             foreach ($process in $processes) {
                 if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+                $process.WaitForExit()
+                [IO.File]::WriteAllText((Join-Path $work "$($process.Id).stderr"), $stderr[$process.Id].GetAwaiter().GetResult())
                 $process.Dispose()
             }
-            if (Test-Path $work) { Remove-Item $work -Recurse -Force }
+            if ($completed -and $env:DOTRETICULUM_NOMADNET_KEEP_WORK -ne '1' -and (Test-Path $work)) {
+                Remove-Item $work -Recurse -Force
+            }
         }
     }
 }

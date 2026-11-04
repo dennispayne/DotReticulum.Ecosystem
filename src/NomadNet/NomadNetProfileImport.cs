@@ -83,8 +83,9 @@ public static class NomadNetProfileImport
                     }
                     finally { CryptographicOperations.ZeroMemory(encoded); }
                 }
-                var config = NomadNetConfigImport.Parse(StrictUtf8.GetString(
-                    await ReadAsync(source, "config", NomadNetConfigImport.MaximumConfigBytes, cancellationToken).ConfigureAwait(false)));
+                var configText = StrictUtf8.GetString(
+                    await ReadAsync(source, "config", NomadNetConfigImport.MaximumConfigBytes, cancellationToken).ConfigureAwait(false));
+                var config = NomadNetConfigImport.Parse(configText);
                 warnings.AddRange(config.UnsupportedKeys.Select(key => "Unsupported setting: " + key));
                 warnings.AddRange(config.Warnings);
                 var settings = config.Settings with { RnsConfigDirectory = rns, PagesPath = null, FilesPath = null,
@@ -215,12 +216,15 @@ public static class NomadNetProfileImport
                 if (stateBytes.Length > NomadNetStore.MaximumStateBytes)
                     throw new InvalidDataException("Imported history exceeds native state bounds; no records were evicted.");
                 await File.WriteAllBytesAsync(Path.Combine(staging, "state.json"), stateBytes, cancellationToken).ConfigureAwait(false);
+                await NomadNetRrcImport.ImportAsync(source, staging, snapshot, settings.DisplayName, configText,
+                    activated, warnings, cancellationToken).ConfigureAwait(false);
                 foreach (var relative in snapshot.Keys)
                 {
                     if (relative == "config" || relative == "ignored" ||
                         relative is "storage/directory" or "storage/peersettings" or "storage/peersettings.bak" ||
                         relative.StartsWith("storage/attachments/", StringComparison.Ordinal) ||
-                        relative.StartsWith("storage/conversations/", StringComparison.Ordinal))
+                        relative.StartsWith("storage/conversations/", StringComparison.Ordinal) ||
+                        activated.Contains(relative) && relative.StartsWith("storage/rrc", StringComparison.Ordinal))
                     {
                         if (!archived.Add(relative)) continue;
                         var archive = Path.Combine(staging, "import-archive", relative.Replace('/', Path.DirectorySeparatorChar) + ".bin");
@@ -229,8 +233,6 @@ public static class NomadNetProfileImport
                             await ReadAsync(source, relative, MaximumFileBytes, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
                     }
                 }
-                if (snapshot.Keys.Any(path => path.StartsWith("storage/rrc", StringComparison.Ordinal)))
-                    warnings.Add("REQUIRED GAP: primary CBOR RRC hub/history migration is not implemented; listed as not imported. The imported profile identity is shared by new native RRC sessions.");
                 warnings.Add("Historical .index claims, attachment manifests and original containers are inert archives, not authentication. Pending historical sends are failed, never resumed; paper remains a saved offline document, never resent. Stripped media loses original field typing; recovered image previews are detected from encoded bytes, not authenticated FIELD_IMAGE provenance.");
                 var notImported = snapshot.Keys.Where(path => !activated.Contains(path) && !archived.Contains(path)).Order(StringComparer.Ordinal).ToArray();
                 var report = new NomadNetProfileImportReport(state.Messages.Count, attachments, state.Contacts.Count,
@@ -356,7 +358,7 @@ public static class NomadNetProfileImport
                 throw new InvalidDataException("Profile import refuses links/reparse points.");
     }
 
-    private static async Task<byte[]> ReadAsync(string root, string relative, int maximum, CancellationToken token)
+    internal static async Task<byte[]> ReadAsync(string root, string relative, int maximum, CancellationToken token)
     {
         var path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
         EnsureNoLinks(path);

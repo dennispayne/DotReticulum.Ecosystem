@@ -408,6 +408,7 @@ internal static class Program
               node-peers                     Inspect actual hosted propagation peers
               node-peer-sync <hash>          Request peer transfer through LXMF (three-minute deadline)
               rrc connect <hub> [nick]        Connect to an identified rrc.hub
+              rrc hubs | rrc open <hub>       List or inspect saved hubs/history without connecting
               rrc join <room> [key] | rrc part <room>
               rrc send|action <room> <text>  Send group message/action
               rrc list | rrc who <room>       Request hub rooms/membership
@@ -1197,7 +1198,16 @@ internal static class Program
             }
             var parts = Split(command, 3);
             if (parts.Length == 0) throw new ArgumentException("Use rrc connect <hub> [nick].");
-            if (parts[0].Equals("connect", StringComparison.OrdinalIgnoreCase))
+            if (parts[0].Equals("hubs", StringComparison.OrdinalIgnoreCase))
+            {
+                var saved = Path.Combine(dataDirectory, "rrc");
+                if (Directory.Exists(saved))
+                    foreach (var path in Directory.EnumerateFiles(saved, "*.cbor").Order(StringComparer.Ordinal))
+                        Console.WriteLine("RRC saved hub: " + NomadNetTerminalText.Safe(Path.GetFileNameWithoutExtension(path)));
+                Console.WriteLine("RRC command complete.");
+                return;
+            }
+            if (parts[0].Equals("connect", StringComparison.OrdinalIgnoreCase) || parts[0].Equals("open", StringComparison.OrdinalIgnoreCase))
             {
                 if (parts.Length < 2) throw new ArgumentException("Use rrc connect <hub> [nick].");
                 if (_rrc is not null) await _rrc.DisposeAsync().ConfigureAwait(false);
@@ -1207,7 +1217,8 @@ internal static class Program
                     $"{NomadNetTerminalText.Safe(message.Nick ?? message.Source)}: " + NomadNetPresentation.Rrc(message.Text,
                         propagation.Settings.RrcRenderMarkdown, propagation.Settings.RrcRenderMicron, message.Kind));
                 if (parts.Length == 3) await _rrc.SetNickAsync(parts[2], cancellationToken).ConfigureAwait(false);
-                await _rrc.ConnectAsync(cancellationToken).ConfigureAwait(false);
+                if (parts[0].Equals("connect", StringComparison.OrdinalIgnoreCase))
+                    await _rrc.ConnectAsync(cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -1265,6 +1276,7 @@ internal static class Program
                     case "history":
                         foreach (var message in await client.HistoryAsync(parts.Length >= 2 ? parts[1] : null, cancellationToken).ConfigureAwait(false))
                             Console.WriteLine($"RRC history [{NomadNetTerminalText.Safe(message.Room ?? "hub")}] " +
+                                (message.ImportedHistory ? "(imported; unauthenticated) " : "") +
                                 $"{NomadNetTerminalText.Safe(message.Nick ?? message.Source)}: " + NomadNetPresentation.Rrc(message.Text,
                                     propagation.Settings.RrcRenderMarkdown, propagation.Settings.RrcRenderMicron, message.Kind));
                         break;

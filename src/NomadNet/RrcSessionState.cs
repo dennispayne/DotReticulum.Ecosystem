@@ -3,7 +3,10 @@ using System.Text;
 
 namespace NomadNet;
 
-public sealed record RrcChatMessage(string Kind, string? Room, string Source, string? Nick, string Text, long Timestamp, bool Mention);
+public sealed record RrcChatMessage(string Kind, string? Room, string Source, string? Nick, string Text, long Timestamp, bool Mention)
+{
+    public bool ImportedHistory { get; init; }
+}
 
 /// <summary>Hardware- and transport-independent RRC room, limit, history and resource processing.</summary>
 public sealed class RrcSessionState(byte[] identityHash)

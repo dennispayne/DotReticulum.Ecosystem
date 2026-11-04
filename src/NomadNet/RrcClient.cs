@@ -28,6 +28,9 @@ public sealed class RrcClient : IAsyncDisposable
     private int _disposed;
     private readonly Queue<long> _sentTimes = new();
     private readonly Dictionary<string, long> _pings = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _partedRooms = new(StringComparer.Ordinal);
+    private string _destinationName = "rrc.hub";
+    private string _savedName = "";
 
     private RrcClient(ReticulumNode node, Identity identity, byte[] hash, string path)
     {
@@ -48,13 +51,17 @@ public sealed class RrcClient : IAsyncDisposable
         hubHash = NomadNetAddress.NormalizeHash(hubHash);
         var path = Path.Combine(directory, "rrc", hubHash + ".cbor");
         var client = new RrcClient(node, identity, Convert.FromHexString(hubHash), path);
-        if (File.Exists(path))
+        try
         {
-            if (new FileInfo(path).Length > RrcCbor.MaximumBytes) throw new InvalidDataException("RRC saved profile is too large.");
-            var data = await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
-            client.Restore(data);
+            if (File.Exists(path))
+            {
+                if (new FileInfo(path).Length > RrcCbor.MaximumBytes) throw new InvalidDataException("RRC saved profile is too large.");
+                var data = await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+                client.Restore(data);
+            }
+            return client;
         }
-        return client;
+        catch { await client.DisposeAsync().ConfigureAwait(false); throw; }
     }
 
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
@@ -77,11 +84,12 @@ public sealed class RrcClient : IAsyncDisposable
     {
         var result = await ClientLinks.ConnectAsync(_node, _hash, TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
         if (result.Link is not { } link) throw new IOException(result.Error);
+        var destination = _destinationName.Split('.');
         if (link.RemoteIdentity is not { } remote ||
-            !CryptographicOperations.FixedTimeEquals(Destination.Create(DestinationType.Single, "rrc", ["hub"], remote).Hash, _hash))
+            !CryptographicOperations.FixedTimeEquals(Destination.Create(DestinationType.Single, destination[0], destination[1..], remote).Hash, _hash))
         {
             link.Teardown();
-            throw new InvalidDataException("Destination is not rrc.hub for its announced identity.");
+            throw new InvalidDataException("Destination does not match the saved RRC aspect and announced identity.");
         }
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -340,7 +348,9 @@ public sealed class RrcClient : IAsyncDisposable
             $"message limit: {_state.MaximumMessageBytes} bytes; history: {_state.History.Count}; auto-reconnect: {_autoReconnect}; " +
             $"active: {_state.ActiveRoom ?? "none"}; unread: {string.Join(",", _state.UnreadRooms.Order())}; " +
             $"mentions: {string.Join(",", _state.MentionRooms.Order())}; per-room history: {_state.HistoryPerRoomCap}; " +
-            $"auto-list: {_state.AutoList}; auto-who: {_state.AutoWho}"; }
+            $"auto-list: {_state.AutoList}; auto-who: {_state.AutoWho}; " +
+            $"saved name: {NomadNetTerminalText.Safe(_savedName)}; aspect: {_destinationName}; " +
+            $"parted: {string.Join(",", _partedRooms.Order())}"; }
         finally { _gate.Release(); }
     }
 
@@ -371,14 +381,17 @@ public sealed class RrcClient : IAsyncDisposable
 
     private async Task PersistAsync(CancellationToken cancellationToken)
     {
+        _partedRooms.UnionWith(_state.History.Select(item => item.Room).OfType<string>());
+        _partedRooms.ExceptWith(_state.Rooms);
         var map = new Dictionary<long, object?>
         {
             [0] = 1L, [1] = _state.Nick, [2] = _state.Rooms.Cast<object?>().ToArray(),
             [3] = _state.History.Select(item => (object?)new object?[] { item.Kind, item.Room, item.Source,
-                item.Nick, item.Text, item.Timestamp, item.Mention }).ToArray(),
+                item.Nick, item.Text, item.Timestamp, item.Mention, item.ImportedHistory }).ToArray(),
             [4] = _autoReconnect,
             [7] = (long)_state.HistoryPerRoomCap,
             [5] = _state.AutoList, [6] = _state.AutoWho,
+            [8] = _savedName, [9] = _destinationName, [10] = _partedRooms.Cast<object?>().ToArray(),
         };
         var bytes = RrcCbor.Encode(map);
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
@@ -401,6 +414,21 @@ public sealed class RrcClient : IAsyncDisposable
         if (map.GetValueOrDefault(4) is { } reconnectValue && reconnectValue is not bool)
             throw new InvalidDataException("Malformed RRC reconnect policy.");
         _state.Nick = nick;
+        if (map.GetValueOrDefault(8) is { } nameValue)
+            _savedName = nameValue is string name && name.Length <= 4096 ? name :
+                throw new InvalidDataException("Malformed RRC hub display name.");
+        if (map.GetValueOrDefault(9) is { } aspectValue)
+        {
+            _destinationName = aspectValue as string ?? throw new InvalidDataException("Malformed RRC destination aspect.");
+            NomadNetRrcImport.ValidateAspect(_destinationName);
+        }
+        if (map.GetValueOrDefault(10) is { } partedValue)
+        {
+            if (partedValue is not List<object?> parted || parted.Count > 256)
+                throw new InvalidDataException("Malformed RRC parted rooms.");
+            foreach (var room in parted)
+                _partedRooms.Add(RrcEnvelope.NormalizeRoom(room as string ?? throw new InvalidDataException("Invalid parted room.")));
+        }
         if (map.GetValueOrDefault(4) is bool reconnect) _autoReconnect = reconnect;
         if ((map.GetValueOrDefault(5) is { } listValue && listValue is not bool) ||
             (map.GetValueOrDefault(6) is { } whoValue && whoValue is not bool))
@@ -417,11 +445,13 @@ public sealed class RrcClient : IAsyncDisposable
             _state.Rooms.Add(RrcEnvelope.NormalizeRoom(room as string ?? throw new InvalidDataException("Invalid saved room."), 4096));
         foreach (var item in history)
         {
-            if (item is not List<object?> { Count: 7 } record || record[0] is not string kind || record[2] is not string source ||
+            if (item is not List<object?> record || record.Count is not (7 or 8) || record[0] is not string kind || record[2] is not string source ||
                 record[4] is not string text || record[5] is not long timestamp || record[6] is not bool mention ||
-                (record[1] is not null && record[1] is not string) || (record[3] is not null && record[3] is not string))
+                (record[1] is not null && record[1] is not string) || (record[3] is not null && record[3] is not string) ||
+                (record.Count == 8 && record[7] is not bool))
                 throw new InvalidDataException("Malformed RRC saved history.");
-            _state.Record(new(kind, record[1] as string, source, record[3] as string, text, timestamp, mention));
+            _state.Record(new(kind, record[1] as string, source, record[3] as string, text, timestamp, mention)
+            { ImportedHistory = record.Count == 8 && record[7] is true });
         }
     }
 

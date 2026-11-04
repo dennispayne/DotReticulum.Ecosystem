@@ -1,0 +1,61 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sourceSha256": "195e3dd62ab6678f5192b8b9c5a3c3e399e519018f3fb2216a16315c32895925",
+  "sourceBlob": "f5cde894532f05708f129cae980327e9a0d27504",
+  "actualImport": "nomadnet/RRC.py",
+  "method": "Complete unchanged NomadNetworkApp; RRCManager.add_hub/save/load, RRCHub.add_room/set_nick_override/set_auto_list/set_auto_who/set_auto_reconnect/_record_message; retained PART state observed via save/load. No keys exported, no network.",
+  "hubsHex": "a1646875627382a96468617368501111111111111111111111111111111169646573745f6e616d65677272632e687562646e616d65715361766564207072696d6172792068756265726f6f6d7381656c6f6262796c7061727465645f726f6f6d73826c656d7074792d706172746564686f6c642f726f6f6d6e6175746f5f7265636f6e6e656374f5696175746f5f6c697374f5686175746f5f77686ff5646e69636b6d4d69677261746564206e69636ba86468617368503333333333333333333333333333333369646573745f6e616d656b637573746f6d2e63686174646e616d6570416c7465726e6174652061737065637465726f6f6d73816a756e69636f64652dc3a66c7061727465645f726f6f6d73806e6175746f5f7265636f6e6e656374f4696175746f5f6c697374f4686175746f5f77686ff4",
+  "historyHex": {
+    "storage/rrc_history/11111111111111111111111111111111/lobby_4b5dc076.log": "a6616b636d736761735022222222222222222222222222222222616e70486973746f726963616c20636c61696d6174781852657461696e6564207072696d617279206d6573736167656274731b0000018bcfe5687b616df5a6616b66616374696f6e61735022222222222222222222222222222222616e70486973746f726963616c20636c61696d6174782352657461696e6564207072696d61727920616374696f6e0a7365636f6e64206c696e656274731b0000018bcfe569c8616df4a6616b666e6f7469636561735022222222222222222222222222222222616e70486973746f726963616c20636c61696d61747746696c7465726564207072696d617279206e6f746963656274731b0000018bcfe56b15616df4",
+    "storage/rrc_history/11111111111111111111111111111111/old_room_67d38f19.log": "a6616b636d736761735022222222222222222222222222222222616e70486973746f726963616c20636c61696d61747752657461696e65642070617274656420686973746f72796274731b0000018bcfe56be7616df4"
+  },
+  "loaded": [
+    {
+      "name": "Saved primary hub",
+      "aspect": "rrc.hub",
+      "nick": "Migrated nick",
+      "rooms": [
+        "lobby"
+      ],
+      "parted": [
+        "empty-parted",
+        "old/room"
+      ],
+      "history": [
+        {
+          "room": "lobby",
+          "kind": "msg",
+          "text": "Retained primary message",
+          "ts": 1700000000123,
+          "mention": true
+        },
+        {
+          "room": "lobby",
+          "kind": "action",
+          "text": "Retained primary action\nsecond line",
+          "ts": 1700000000456,
+          "mention": false
+        },
+        {
+          "room": "old/room",
+          "kind": "msg",
+          "text": "Retained parted history",
+          "ts": 1700000000999,
+          "mention": false
+        }
+      ]
+    },
+    {
+      "name": "Alternate aspect",
+      "aspect": "custom.chat",
+      "nick": "Primary RRC fallback",
+      "rooms": [
+        "unicode-æ"
+      ],
+      "parted": [],
+      "history": []
+    }
+  ],
+  "cap": 500,
+  "filter": true
+}

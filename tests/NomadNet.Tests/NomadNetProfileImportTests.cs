@@ -270,10 +270,7 @@ public sealed class NomadNetProfileImportTests
         await using var profile = await Profile.CreateAsync();
         await File.WriteAllTextAsync(Path.Combine(profile.Source, "config"),
             "[client]\nenable_client=Yes\n[node]\npages_path=../../outside\nfiles_path=../../outside\n[unknown]\nkey=value\n");
-        await File.WriteAllBytesAsync(Path.Combine(profile.Source, "storage", "rrc_hubs"), [0xa0]);
         var report = await profile.ImportAsync();
-        Assert.Contains("storage/rrc_hubs", report.NotImportedFiles);
-        Assert.Contains(report.Warnings, warning => warning.Contains("REQUIRED GAP", StringComparison.Ordinal));
         Assert.Contains(report.Warnings, warning => warning.Contains("unknown.key", StringComparison.Ordinal));
         var settings = await NomadNetSettings.OpenAsync(profile.Target);
         Assert.Null(settings.PagesPath);

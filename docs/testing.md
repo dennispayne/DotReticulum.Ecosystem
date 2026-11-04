@@ -8,6 +8,30 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Parent independently replays frozen Nomad RRC v5 on Windows/Linux with
+`Invoke-FrozenRrcAcceptance.ps1 -Manifest <absolute-frozen-v5-manifest>`:
+Windows7 passes/1 explicit Linux-only skip; Linux8 passes/no skips.
+Each new migration case requires five complete unchanged primary startups,
+then actual primary messages both ways through one unchanged transport-enabled
+rrcd hub across initial, clean-restarted and abruptly terminated native
+lifetimes, without overriding imported nick or manually rejoining rooms.
+All362 frozen current-source inputs and276 compiled production PDB checks
+match; exact manifests/native hashes, reference revisions and retained failures
+are in [NomadNet's reference](nomadnet.md). Fresh parent current-source Windows
+regression passes204/11 explicit skips without optional converters/live modes;
+separate parent current-source runs with the manifest's checksum-verified
+`DOTRETICULUM_NOMADNET_IMAGE_CONVERTER` pass208/7 on Windows and215/0 on Linux.
+C63/T173–175 independently records23 migration,1 observer-isolation and1
+published actual-primary case, all passing on both hosts, under
+`artifacts\tests\nomad-rrc-migration\parent-record\c63.json` and
+`/home/dennis/fleet-parent-rrc-record/c63.json`.
+The final integrated `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-rrc-unified -OutputDirectory
+artifacts\tests\fleet-rrc-unified` passes2,433 managed/127 explicit skips,
+62 Pester tooling cases, merged coverage and strict catalog aggregation.
+Imported history is unauthenticated; full ConfigObj/router/UI and newer
+dependency-minimum gaps remain required work, not passes.
+
 The runtime-telemetry integration gate
 `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
 artifacts\builds\fleet-runtime-unified -OutputDirectory
@@ -53,7 +77,7 @@ The 29-byte direct-TCP application exchange is distinct from v2's 25-byte
 pre-restart Python LXMF endpoint flow. Current-source Nomad regression passes
 180/11 explicit skips on Windows and 187/4 on Linux with isolated outputs;
 all ten frozen owned hashes match and 36 native PDB source checks per host are
-retained. Exact binary hashes/commands, profile bounds and remaining RRC/config/
+retained. Exact binary hashes/commands, profile bounds and remaining config/
 router gaps are in [NomadNet's reference](nomadnet.md). The preserved v3 failure
 exposed timestamped primary diagnostics before JSON events; v4 retains those
 diagnostics with bounded event waits while malformed JSON/schema errors still

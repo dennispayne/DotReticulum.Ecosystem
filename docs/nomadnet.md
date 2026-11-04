@@ -66,7 +66,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron switches render live/history bodies against executed primary widget vectors; JSON string composition preserves multiline/raw content. Complete Channels layout, mention-span styling, colours/gutters and remaining configuration remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop and local attachment picker. Complete menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
-| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Saved-directory/ignored-policy import preserves existing native history/settings/identity, rejects conflicting contacts atomically and persists through terminal/daemon restarts. Offline profile import retains identity/signed ratchets, supported peer settings with backup fallback, contacts/conversations/attachments/paper and historical metadata without silently authenticating cached claims. Complete ConfigObj compatibility, RRC hub/history migration, additional router-state migration and full restart policy remain required gaps. |
+| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Saved-directory/ignored-policy import preserves existing native history/settings/identity, rejects conflicting contacts atomically and persists through terminal/daemon restarts. Offline profile import retains identity/signed ratchets, supported peer settings with backup fallback, contacts/conversations/attachments/paper and bounded primary RRC hubs/nicks/joined/parted rooms/retained history without silently authenticating cached claims. Complete ConfigObj compatibility, additional router-state migration and full restart policy remain required gaps. |
 
 ### Configuration audit
 
@@ -109,7 +109,7 @@ contracts and reports unsupported keys; it is not complete configuration parity.
 nomadnet --import-profile <stopped-primary-profile> --config <absent-native-profile> --rnsconfig <explicitly-selected-RNS-directory>
 ```
 
-This is a usable bounded identity/conversation migration, **not complete primary
+This is a usable bounded identity/conversation/RRC migration, **not complete primary
 profile parity**. Stop the primary process before importing. Import itself never
 opens Reticulum or contacts peers. The target must not exist; an existing native
 profile is never merged or replaced. `--import-config` and `--import-directory`
@@ -136,7 +136,127 @@ The RNS1.5.7/LXMF1.2.1-versus-declared-minimum discrepancy remains applicable.
 | Conversation `.index`; `ConversationMessage.read_index/write_index/to_index_entry/restore_from_index` | **implemented archival plus explicit historical claims**: exact bytes preserved; container content is authoritative for displayed history. Cached `signature_validated` is recorded separately as `historicalSignatureValidated`, never treated as fresh verification. All additional cached state, transport descriptions, sort timestamp, renderer, attachment names and RF observations remain in the inert archive. Corrupt caches are reported and bypassed; stale entries without a container are reported, not invented as messages from cached text. |
 | `storage/attachments/<original-message-hash>/manifest`, `file_<n>`; `extract_attachments_from_lxm`, `strip_attachments_from_file` | **implemented bounded subset**: validate names, stored-file grammar, byte counts and aggregate limits; migrate payloads through existing `NomadNetAttachments` bounded storage/checksums/extractors. Original files/manifests remain byte-identical inert archives. Primary `load()` can remove fields0x05/0x06/0x07 from the signed container without resigning or renaming its file: the import retains that original ID and explicitly labels the rewritten container unauthenticated. File/image/audio bytes remain available; stripped media has no reliable field typing, so recovered preview selection detects encoded image headers rather than asserting authenticated `FIELD_IMAGE` provenance. |
 | Paper; `Conversation.paper_output`, container method/state5 | **implemented historical document**: retained text, fields/container and paper state are offline saved documents, not sends. The container does not preserve the original encrypted URI/QR output; external downloads/printer outputs are not searched or regenerated/resubmitted. Existing native paper composition is separate. |
-| RRC; `RRCManager.identity`, `_store_path/load/save`, `RRCHub._append_history/_load_history` | **required gap**: identity is already shared with the imported profile, but `storage/rrc_hubs` (string-key CBOR hub entries including aspect, rooms/parted rooms, nick and reconnect/list/who flags) and `storage/rrc_history` (concatenated CBOR records, hashed/sanitised hub-room paths) are **not migrated**. They are individually listed as not imported with a REQUIRED GAP warning. Their schema is not the native numeric-key per-hub profile schema; no automatic reconnect or hub authorization is inferred. This remains required software work, not an optional or hardware deferral. |
+| RRC; `RRCManager.identity`, `_store_path/load/save`, `RRCHub._append_history/_load_history` | **implemented bounded subset**: string-key CBOR hub profiles and concatenated CBOR room histories convert into the existing separate native hub store. Retain destination hash/aspect/display name, effective nickname, joined and parted rooms (including empty parted rooms), reconnect/list/who policies, and the primary load-visible history window. Original activated files are inert archives; unreferenced logs remain individually not imported. Imported source/nick/mention values are explicitly unauthenticated historical claims, never live roster/membership, unread/active state or authorization. Native startup does not contact imported hubs; connection is explicit. |
+
+#### Bounded primary RRC contracts
+
+The independent `GenerateNomadNetRrcImportVectors.py` executes the complete primary
+application, then actual `RRCManager.add_hub/save/load` and
+`RRCHub.add_room/set_nick_override/set_auto_reconnect/set_auto_list/set_auto_who/
+_record_message`. It observes retained PART state through save/load without
+inventing a network acknowledgement. `NomadNetRrcImportVectors.json` records
+commit `f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`, Git blob
+`f5cde894532f05708f129cae980327e9a0d27504` and canonical blob SHA-256
+`195e3dd62ab6678f5192b8b9c5a3c3e399e519018f3fb2216a16315c32895925`.
+The imported module's exact path and LF-normalised bytes are verified against
+that blob; Windows CRLF checkout bytes are not mislabelled as the LF blob hash.
+Generated JSON is UTF-8/LF and independently regenerated byte-identically on
+Windows and Linux, five successive complete primary startups per acceptance.
+
+| Primary source contract | Native behavior / boundary |
+|---|---|
+| `RRCManager.save/load`, lines1534–1638: `{"hubs":[...]}`; `hash`, `dest_name`, `name`, `rooms`, `parted_rooms`, `auto_reconnect`, `auto_list`, `auto_who`, optional `nick` | Validate types; preserve names/aspects and policies. Missing booleans use actual constructor default false; absent/empty nick snapshots primary peer display-name fallback. No persisted negotiated limits, members/nicks, MOTD, active room or unread/mention-room sets exist upstream, so none are fabricated. Unknown hub keys are reported and archived. |
+| `_history_dir/_history_path`, lines1513–1532 | Default `rrc.hub` uses lowercase destination hex; alternate aspects append `__` plus first8 SHA-256 hex of UTF-8 aspect. Room filename replaces each run outside `[a-z0-9._-]` with `_`, takes64 ASCII characters, then `_` plus first8 room SHA-256 hex and `.log`. Resolve only joined/retained-parted room paths; reject collisions, traversal/links and unsupported names. |
+| `_entry_for/_append_history/_msg_from_entry/_load_history`, lines708–796 | Concatenated CBOR maps use `k,s,n,t,ts,m`. Actual ordinary kind is `msg` (mapped to native `message`); actions/notices/system/errors retain their kinds. Preserve existing millisecond timestamps, optional16-byte source and nickname, mention claim and body. Missing/invalid fields fail rather than adopting Python's permissive defaults or inventing a current timestamp. |
+| `NomadNetworkApp.apply_config`, `[rrc] history_per_room_cap`, `filter_loaded_history`; `_per_room_cap/_filter_history/_load_history` | Apply actual defaults500/true and explicitly supplied bounded values to migration: filter notice/system records, then keep the last configured count per room (0 means no per-room cap). Persist the cap per imported hub. These config keys are still reported as unsupported global runtime settings; this is migration-specific handling, not complete ConfigObj compatibility. |
+| Corrupt/incomplete CBOR log tail | Deliberate strict-import difference: reject and atomically roll back the entire absent target, preserving all source bytes. Upstream loader keeps its decoded prefix; the importer never silently promotes an incomplete file to a successful migration. Fix/recover the stopped source separately before retrying. |
+
+Additional bounds:128 hubs,4MiB per RRC source file,256 joined+parted rooms per
+hub,64 UTF-8 bytes per room,32 UTF-8 bytes per effective local nickname,
+256-byte ASCII dotted destination aspect,1,000 retained records and2MiB retained
+body bytes per hub,256KiB per historical body. Histories that exceed aggregate
+native limits fail instead of evicting records beyond primary's configured
+window. The non-persistable `*` room, unusual aspect/name forms, duplicate
+destination profiles and incompatible schemas fail explicitly. This bounded
+profile work found no RRC persistence placeholders to implement; remaining
+Channels presentation and configuration surfaces remain gaps.
+
+Use `rrc hubs`, `rrc open <hash>`, `rrc status` and `rrc history [room]` to inspect
+migrated hubs and parted-room history without networking. Imported rows display
+`(imported; unauthenticated)`; this flag survives subsequent live writes and
+clean/abrupt restart. `rrc connect <hash>` retains the saved nickname and joined
+rooms unless explicitly overridden, validates the saved aspect against the
+announced identity and rejoins only joined rooms. Imported peer claims never
+populate authenticated live membership. Existing schema1 native seven-field
+history records remain readable; extended records add only local provenance.
+
+#### RRC migration acceptance and reproduction
+
+Current-source `dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release`
+with isolated `--artifacts-path` and the selected actual image converter passes
+**208/215,7 Linux-only skips on Windows;215/215 on Linux**. Tests include executed
+primary profiles, malformed schemas/types/limits, corrupt/truncated tails,
+absent-target rollback, immutable source, retention/filtering, provenance across
+native-store rewrites, no-subscriber processing and failed-observer isolation.
+The existing profile suite covers cancellation, concurrent admission,
+symlink/ancestor rejection and profile ownership.
+
+Both platforms strictly publish `src\NomadNet\NomadNet.csproj -c Release -r
+<win-x64|linux-x64> -p:ILLinkTreatWarningsAsErrors=true
+-p:IlcTreatWarningsAsErrors=true` with SDK10.0.403/runtime and compiler10.0.14.
+The selected Pester tags `Native,RrcImport,ProfileImport,RrcPresentation,Rrc`
+pass **7 cases/1 explicit Linux-only skip on Windows;8/8 on Linux**.
+`RrcImport` itself runs five successive complete primary startups on each host,
+byte-identical canonical vectors, immutable offline import and offline terminal
+inspection, then an actual primary application's saved connected hub/nick/room/
+history migration. The published client retains the original identity and
+messages both ways with another unchanged complete primary application through
+one unchanged supplemental rrcd hub (transport enabled), before/after clean and
+abrupt native restart. Both applications are TCP leaves of that hub; this is not
+a separate transport-hop/loss/topology claim. Existing Linux RRC/form acceptance
+separately remains green. No reference protocol handler is replaced.
+
+Frozen manifests and non-republishing recipes are
+`artifacts\tests\nomad-rrc-migration\frozen-win-final-v5\manifest.json` and
+`/home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/tests/nomad-rrc-migration/
+frozen-linux-final-v5/manifest.json`, each with `Invoke-FrozenRrcAcceptance.ps1`.
+They verify frozen file/native hashes, portable-PDB source checksums and compiler
+package versions; they operate on fresh private runtime profiles and never
+rebuild or overwrite the v4 receipts. Windows invocation:
+
+```powershell
+pwsh -NoProfile -File artifacts\tests\nomad-rrc-migration\frozen-win-final-v5\Invoke-FrozenRrcAcceptance.ps1 `
+    -Manifest artifacts\tests\nomad-rrc-migration\frozen-win-final-v5\manifest.json
+```
+
+Linux uses serviced `DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet`, that
+directory first on `PATH`, and `/home/dennis/.dotreticulum-powershell/pwsh
+-NoProfile -File <frozen-linux-final-v5>/Invoke-FrozenRrcAcceptance.ps1 -Manifest
+<frozen-linux-final-v5>/manifest.json`. Linux binaries are built from the current
+`/mnt/c/Git/dennispayne/DotReticulum.Ecosystem` source, not the old native-filesystem
+checkout; all Linux build outputs/state are native-filesystem paths.
+
+Failure logs are retained under the same dedicated evidence roots: the first
+live import exposed actual primary kind `msg`, which is now covered by canonical
+vectors; the first Linux vector comparison exposed raw CRLF-vs-LF source hashes,
+fixed by comparing imported canonical bytes to the Git blob. Explicit LXMF source
+selection initially failed import-path/hash/index checks rather than silently
+accepting another module; the isolated Windows pinned checkout now has canonical
+LF bytes and a clean Git index. A Linux regression initially used mounted
+executable-page state; selecting the existing native-filesystem work option fixes
+that gate without weakening its form assertions. Final current-source logs are
+`managed-win-final.log`, `acceptance-win-final-v6.log`,
+`managed-linux-final.log`, `acceptance-linux-final-v4.log`.
+The original direct Pester6 frozen runner stalled on the existing Windows
+Linux-only skip; its log is retained. The recipe uses the repository's
+`tests\run-pester.ps1` environment-handling wrapper in a bounded child process
+and requires the exact passed/failed/skipped summary, with unchanged test
+assertions and skip condition. The Linux v2 launcher initially selected the
+dotnet-tool host instead of pwsh; the recipe now explicitly records/selects the
+operator PowerShell executable. Preserved native-host diagnostics then identified
+the child inheriting the process's mounted working directory despite the parent's
+PowerShell `Set-Location`: mounted page permissions caused “Executable page
+disabled”, not a wire failure. The child now explicitly sets
+`ProcessStartInfo.WorkingDirectory` to the native-filesystem scope. The native
+harness also asserts host-announce reception before browsing and preserves
+stdout/stderr and failed runtime roots. All feature assertions remain intact.
+Frozen replay logs are `frozen-acceptance-win-final-v5.log` and
+`frozen-acceptance-linux-final-v5.log`.
+
+These are implementation receipts awaiting independent parent acceptance.
+The newer primary NomadNet dependency-minimum gap, full ConfigObj/runtime
+configuration, remaining router state and remaining terminal/Channels UI remain
+explicitly outside this bounded slice. No release, push or tag was performed.
 
 #### Import integrity, ownership and usage
 
@@ -295,7 +415,7 @@ the post-restart bidirectional application flow on every run. Production,
 native binaries and the unchanged primary adapter are not modified.
 This is implementation evidence, **not parent acceptance** until those frozen
 recipes are independently replayed. Full ConfigObj/remaining settings, additional
-LXMF router-state migration, primary RRC hub/history migration and remaining
+LXMF router-state migration and remaining
 terminal workflows are still required software gaps.
 
 ### Primary saved-directory and ignored-list import
@@ -451,8 +571,8 @@ wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.
 These are environment-specific replay recipes; committed tests define the
 portable contract. Source snapshots and binary hashes, not a test-count-only
 report, identify the accepted candidate. The separate offline-profile importer
-above adds identity/peer-settings/conversation migration; RRC hub/history migration,
-remaining configuration and terminal workflows remain required work.
+above adds identity/peer-settings/conversation and bounded RRC hub/history
+migration; remaining configuration and terminal workflows remain required work.
 
 ### Node limits and peer policy
 

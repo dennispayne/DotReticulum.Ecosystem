@@ -1,0 +1,660 @@
+{
+  "lxmf_sha": "e8ba02483217af43be284a72f1c059c730b7d047",
+  "rns_sha": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "source_sha256": "56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9",
+  "method": "LXMRouter.process_outbound; actual schedule_attempt/attempt_limit/fail_message",
+  "fixed_now": 1700000300.0,
+  "cases": [
+    {
+      "method": 2,
+      "scenario": "refused-known-path",
+      "rows": [
+        {
+          "time": 0.0,
+          "attempts": 1,
+          "state": 1,
+          "next_attempt": 1700000310.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": false
+        },
+        {
+          "time": 20.0,
+          "attempts": 1,
+          "state": 1,
+          "next_attempt": 1700000330.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": true
+        },
+        {
+          "time": 40.0,
+          "attempts": 2,
+          "state": 1,
+          "next_attempt": 1700000350.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": true
+        },
+        {
+          "time": 60.0,
+          "attempts": 2,
+          "state": 1,
+          "next_attempt": 1700000370.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": true
+        },
+        {
+          "time": 80.0,
+          "attempts": 3,
+          "state": 1,
+          "next_attempt": 1700000390.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": true
+        },
+        {
+          "time": 100.0,
+          "attempts": 3,
+          "state": 1,
+          "next_attempt": 1700000410.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": true
+        },
+        {
+          "time": 120.0,
+          "attempts": 4,
+          "state": 1,
+          "next_attempt": 1700000430.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": true
+        },
+        {
+          "time": 140.0,
+          "attempts": 4,
+          "state": 1,
+          "next_attempt": 1700000430.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": true
+        },
+        {
+          "time": 160.0,
+          "attempts": 5,
+          "state": 255,
+          "next_attempt": 1700000470.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": true
+        }
+      ]
+    },
+    {
+      "method": 2,
+      "scenario": "closed-before-deadline",
+      "rows": [
+        {
+          "time": 0.0,
+          "attempts": 1,
+          "state": 1,
+          "next_attempt": 1700000310.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": false
+        },
+        {
+          "time": 1.0,
+          "attempts": 1,
+          "state": 1,
+          "next_attempt": 1700000311.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": true
+        },
+        {
+          "time": 21.0,
+          "attempts": 2,
+          "state": 1,
+          "next_attempt": 1700000331.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": true
+        },
+        {
+          "time": 41.0,
+          "attempts": 2,
+          "state": 1,
+          "next_attempt": 1700000351.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": true
+        },
+        {
+          "time": 61.0,
+          "attempts": 3,
+          "state": 1,
+          "next_attempt": 1700000371.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": true
+        },
+        {
+          "time": 81.0,
+          "attempts": 3,
+          "state": 1,
+          "next_attempt": 1700000391.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": true
+        },
+        {
+          "time": 101.0,
+          "attempts": 4,
+          "state": 1,
+          "next_attempt": 1700000411.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": true
+        },
+        {
+          "time": 121.0,
+          "attempts": 4,
+          "state": 1,
+          "next_attempt": 1700000411.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": true
+        },
+        {
+          "time": 141.0,
+          "attempts": 5,
+          "state": 255,
+          "next_attempt": 1700000451.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": true
+        }
+      ]
+    },
+    {
+      "method": 2,
+      "scenario": "path-arrives",
+      "rows": [
+        {
+          "time": 0.0,
+          "attempts": 1,
+          "state": 1,
+          "next_attempt": 1700000307.0,
+          "awaiting_path": true,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 1.0,
+          "attempts": 2,
+          "state": 1,
+          "next_attempt": 1700000311.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": false
+        },
+        {
+          "time": 21.0,
+          "attempts": 2,
+          "state": 1,
+          "next_attempt": 1700000331.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": true
+        },
+        {
+          "time": 41.0,
+          "attempts": 3,
+          "state": 1,
+          "next_attempt": 1700000351.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": true
+        },
+        {
+          "time": 61.0,
+          "attempts": 3,
+          "state": 1,
+          "next_attempt": 1700000371.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": true
+        },
+        {
+          "time": 81.0,
+          "attempts": 4,
+          "state": 1,
+          "next_attempt": 1700000391.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": true
+        },
+        {
+          "time": 101.0,
+          "attempts": 4,
+          "state": 1,
+          "next_attempt": 1700000391.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": true
+        },
+        {
+          "time": 121.0,
+          "attempts": 5,
+          "state": 255,
+          "next_attempt": 1700000431.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": true
+        }
+      ]
+    },
+    {
+      "method": 2,
+      "scenario": "no-path",
+      "rows": [
+        {
+          "time": 0.0,
+          "attempts": 1,
+          "state": 1,
+          "next_attempt": 1700000307.0,
+          "awaiting_path": true,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 11.0,
+          "attempts": 2,
+          "state": 1,
+          "next_attempt": 1700000318.0,
+          "awaiting_path": true,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 22.0,
+          "attempts": 3,
+          "state": 1,
+          "next_attempt": 1700000329.0,
+          "awaiting_path": true,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 33.0,
+          "attempts": 4,
+          "state": 1,
+          "next_attempt": 1700000340.0,
+          "awaiting_path": true,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 44.0,
+          "attempts": 5,
+          "state": 255,
+          "next_attempt": 1700000354.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        }
+      ]
+    },
+    {
+      "method": 2,
+      "scenario": "active",
+      "rows": [
+        {
+          "time": 0.0,
+          "attempts": 4,
+          "state": 2,
+          "next_attempt": 1700000400.0,
+          "awaiting_path": false,
+          "link_status": 2,
+          "path_retried": false
+        }
+      ]
+    },
+    {
+      "method": 2,
+      "scenario": "backchannel",
+      "rows": [
+        {
+          "time": 0.0,
+          "attempts": 4,
+          "state": 2,
+          "next_attempt": 1700000400.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        }
+      ]
+    },
+    {
+      "method": 3,
+      "scenario": "refused-known-path",
+      "rows": [
+        {
+          "time": 0.0,
+          "attempts": 1,
+          "state": 1,
+          "next_attempt": 1700000310.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": false
+        },
+        {
+          "time": 20.0,
+          "attempts": 1,
+          "state": 1,
+          "next_attempt": 1700000330.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 40.0,
+          "attempts": 2,
+          "state": 1,
+          "next_attempt": 1700000350.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": false
+        },
+        {
+          "time": 60.0,
+          "attempts": 2,
+          "state": 1,
+          "next_attempt": 1700000370.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 80.0,
+          "attempts": 3,
+          "state": 1,
+          "next_attempt": 1700000390.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": false
+        },
+        {
+          "time": 100.0,
+          "attempts": 3,
+          "state": 1,
+          "next_attempt": 1700000410.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 120.0,
+          "attempts": 4,
+          "state": 1,
+          "next_attempt": 1700000430.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": false
+        },
+        {
+          "time": 140.0,
+          "attempts": 4,
+          "state": 1,
+          "next_attempt": 1700000430.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 160.0,
+          "attempts": 5,
+          "state": 255,
+          "next_attempt": 1700000470.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        }
+      ]
+    },
+    {
+      "method": 3,
+      "scenario": "closed-before-deadline",
+      "rows": [
+        {
+          "time": 0.0,
+          "attempts": 1,
+          "state": 1,
+          "next_attempt": 1700000310.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": false
+        },
+        {
+          "time": 1.0,
+          "attempts": 1,
+          "state": 1,
+          "next_attempt": 1700000311.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 21.0,
+          "attempts": 2,
+          "state": 1,
+          "next_attempt": 1700000331.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": false
+        },
+        {
+          "time": 41.0,
+          "attempts": 2,
+          "state": 1,
+          "next_attempt": 1700000351.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 61.0,
+          "attempts": 3,
+          "state": 1,
+          "next_attempt": 1700000371.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": false
+        },
+        {
+          "time": 81.0,
+          "attempts": 3,
+          "state": 1,
+          "next_attempt": 1700000391.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 101.0,
+          "attempts": 4,
+          "state": 1,
+          "next_attempt": 1700000411.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": false
+        },
+        {
+          "time": 121.0,
+          "attempts": 4,
+          "state": 1,
+          "next_attempt": 1700000411.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 141.0,
+          "attempts": 5,
+          "state": 255,
+          "next_attempt": 1700000451.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        }
+      ]
+    },
+    {
+      "method": 3,
+      "scenario": "path-arrives",
+      "rows": [
+        {
+          "time": 0.0,
+          "attempts": 1,
+          "state": 1,
+          "next_attempt": 1700000307.0,
+          "awaiting_path": true,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 1.0,
+          "attempts": 2,
+          "state": 1,
+          "next_attempt": 1700000311.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": false
+        },
+        {
+          "time": 21.0,
+          "attempts": 2,
+          "state": 1,
+          "next_attempt": 1700000331.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 41.0,
+          "attempts": 3,
+          "state": 1,
+          "next_attempt": 1700000351.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": false
+        },
+        {
+          "time": 61.0,
+          "attempts": 3,
+          "state": 1,
+          "next_attempt": 1700000371.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 81.0,
+          "attempts": 4,
+          "state": 1,
+          "next_attempt": 1700000391.0,
+          "awaiting_path": false,
+          "link_status": 0,
+          "path_retried": false
+        },
+        {
+          "time": 101.0,
+          "attempts": 4,
+          "state": 1,
+          "next_attempt": 1700000391.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 121.0,
+          "attempts": 5,
+          "state": 255,
+          "next_attempt": 1700000431.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        }
+      ]
+    },
+    {
+      "method": 3,
+      "scenario": "no-path",
+      "rows": [
+        {
+          "time": 0.0,
+          "attempts": 1,
+          "state": 1,
+          "next_attempt": 1700000307.0,
+          "awaiting_path": true,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 11.0,
+          "attempts": 2,
+          "state": 1,
+          "next_attempt": 1700000318.0,
+          "awaiting_path": true,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 22.0,
+          "attempts": 3,
+          "state": 1,
+          "next_attempt": 1700000329.0,
+          "awaiting_path": true,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 33.0,
+          "attempts": 4,
+          "state": 1,
+          "next_attempt": 1700000340.0,
+          "awaiting_path": true,
+          "link_status": null,
+          "path_retried": false
+        },
+        {
+          "time": 44.0,
+          "attempts": 5,
+          "state": 255,
+          "next_attempt": 1700000354.0,
+          "awaiting_path": false,
+          "link_status": null,
+          "path_retried": false
+        }
+      ]
+    },
+    {
+      "method": 3,
+      "scenario": "active",
+      "rows": [
+        {
+          "time": 0.0,
+          "attempts": 4,
+          "state": 2,
+          "next_attempt": 1700000400.0,
+          "awaiting_path": false,
+          "link_status": 2,
+          "path_retried": false
+        }
+      ]
+    }
+  ]
+}

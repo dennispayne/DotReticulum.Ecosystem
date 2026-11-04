@@ -294,14 +294,25 @@ public class LxmRouterTests
             clock.Advance(TimeSpan.FromMilliseconds(1));
             Assert.Equal(1, nodeExpiresFirst ? node.CleanLinks() : pair.Client.CleanLinks());
             await Task.WhenAll(clientClosed.Task, serverClosed.Task).WaitAsync(TimeSpan.FromSeconds(10));
-            // A received teardown updates LastData. It must release the other cache,
-            // not force a second local idle expiry or retain the closed link for 180s.
+            // A received teardown updates LastData. The surviving CLOSED entry
+            // is consumed by outbound processing, not another local idle expiry.
             Assert.Equal(0, nodeExpiresFirst ? pair.Client.CleanLinks() : node.CleanLinks());
             clock.Advance(TimeSpan.FromSeconds(180) + TimeSpan.FromMilliseconds(1));
             Assert.Equal(0, node.CleanLinks());
             Assert.Equal(0, pair.Client.CleanLinks());
             var next = LxMessage.Create(pair.Client.DeliveryHash, pair.ClientIdentity, "after propagation idle", method: LxmMethod.Propagated);
             await pair.Client.SendAsync(next);
+            if (nodeExpiresFirst)
+            {
+                await pair.WaitAsync(() => next.NextAttempt > 0);
+                Assert.Equal(0, next.DeliveryAttempts);
+                Assert.False(next.Completion.IsCompleted);
+                clock.Advance(TimeSpan.FromSeconds(10));
+                await pair.Client.SendDirectAsync(next, CancellationToken.None);
+                Assert.Equal(0, next.DeliveryAttempts);
+                clock.Advance(TimeSpan.FromMilliseconds(1));
+                await pair.Client.SendDirectAsync(next, CancellationToken.None);
+            }
             Assert.Equal(LxmState.Sent, await next.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
             Assert.NotEqual(link.LinkId, Assert.Single(pair.ClientRouter.Links.Links, value => value.Status == LinkStatus.Active).LinkId);
             Assert.Equal(2, node.MessageCount);

@@ -213,6 +213,7 @@ public sealed partial class LxMessage
     public int? StampCost { get; internal set; }
     public int? MaxDeliveryAttempts { get; internal set; }
     public bool AwaitingPath { get; internal set; }
+    internal bool PathRequestRetried { get; set; }
     public bool SentOnPath { get; internal set; }
     public bool SentOnSlowPath { get; internal set; }
     public TimeSpan? ReceiptTimeout { get; internal set; }

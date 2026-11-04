@@ -357,23 +357,14 @@ public sealed partial class LxmRouter : IAsyncDisposable
 
             if (message.State == LxmState.Sending) continue;
             var target = message.Method == LxmMethod.Propagated ? message.PropagationNodeHash : message.DestinationHash;
-            var activeLink = false;
-            if (message.Method != LxmMethod.Opportunistic && message.State == LxmState.Outbound && target is not null)
-            {
-                lock (_gate) activeLink = _links.TryGetValue(Convert.ToHexStringLower(target), out var available) &&
-                    available.Status == LinkStatus.Active;
-                if (!activeLink && message.Method == LxmMethod.Direct) activeLink = FindBackchannel(target) is not null;
-            }
             if (target is not null && message.State == LxmState.Outbound && SlowPath(target) &&
                 LxmDeliveryTiming.Held(message, target, pending, OutboundTarget)) continue;
-            if (!activeLink && target is not null && !LxmDeliveryTiming.AttemptDue(Now, message.NextAttempt,
+            if (message.Method == LxmMethod.Opportunistic && target is not null && !LxmDeliveryTiming.AttemptDue(Now, message.NextAttempt,
                 message.AwaitingPath, _router.HasPath(target))) continue;
             if (message.State == LxmState.Sent && message.Method != LxmMethod.Opportunistic) continue;
-            if (message.State != LxmState.Sending && message.DeliveryAttempts > (message.MaxDeliveryAttempts ?? _options.MaxDeliveryAttempts))
+            if (message.Method == LxmMethod.Opportunistic && message.DeliveryAttempts > (message.MaxDeliveryAttempts ?? _options.MaxDeliveryAttempts))
             {
-                Report($"{message} failed after {message.DeliveryAttempts} attempts");
-                message.State = LxmState.Failed;
-                lock (_gate) _outbound.Remove(message);
+                FailOutbound(message);
                 continue;
             }
 
@@ -388,6 +379,13 @@ public sealed partial class LxmRouter : IAsyncDisposable
                 ScheduleAttempt(message, OutboundTarget(message));
             }
         }
+    }
+
+    private void FailOutbound(LxMessage message)
+    {
+        lock (_gate) _outbound.Remove(message);
+        Report($"{message} failed after {message.DeliveryAttempts} attempts");
+        message.State = LxmState.Failed;
     }
 
     private async Task<bool> EnsurePathAsync(LxMessage message, CancellationToken ct, bool allowPathless, byte[]? routeHash = null)
@@ -458,38 +456,68 @@ public sealed partial class LxmRouter : IAsyncDisposable
         if (receipt.Status == PacketReceiptStatus.Delivered) message.State = LxmState.Delivered;
     }
 
-    private async Task SendDirectAsync(LxMessage message, CancellationToken ct)
+    internal async Task SendDirectAsync(LxMessage message, CancellationToken ct)
     {
         var propagated = message.Method == LxmMethod.Propagated;
         var destination = propagated ? message.PropagationNodeHash ?? throw new InvalidOperationException("No propagation route selected.") : message.DestinationHash;
         var packed = propagated ? message.PropagationPacked! : message.Packed!;
         var key = Convert.ToHexStringLower(destination);
-        Link? link;
-        lock (_gate)
+        var limit = message.MaxDeliveryAttempts ?? _options.MaxDeliveryAttempts;
+        if (message.DeliveryAttempts > limit)
         {
-            _links.TryGetValue(key, out link);
-            if (link is { Status: LinkStatus.Closed })
+            if (LxmDeliveryTiming.AttemptDue(Now, message.NextAttempt, message.AwaitingPath, _router.HasPath(destination)))
+                FailOutbound(message);
+            return;
+        }
+        Link? link;
+        lock (_gate) _links.TryGetValue(key, out link);
+        if (link is null && !propagated) link = FindBackchannel(destination);
+        if (link is { Status: LinkStatus.Closed })
+        {
+            if (!propagated && (link.ActivatedAt > 0 || !message.PathRequestRetried))
             {
-                _links.Remove(key);
-                _identified.Remove(key);
-                _propagationLinks.Remove(link);
-                link = null;
+                await RequestPathAsync(destination, ct).ConfigureAwait(false);
+                if (link.ActivatedAt == 0) message.PathRequestRetried = true;
             }
+            lock (_gate)
+            {
+                if (_links.TryGetValue(key, out var current) && ReferenceEquals(current, link))
+                {
+                    _links.Remove(key);
+                    _identified.Remove(key);
+                }
+                _propagationLinks.Remove(link);
+                _propagationMessages.Remove(link);
+            }
+            if (message.DeliveryAttempts + 1 < limit) ScheduleAttempt(message, destination);
+            return;
         }
 
-        if (link is null && !propagated) link = FindBackchannel(destination);
         if (link is null)
         {
-            if (!await EnsurePathAsync(message, ct, allowPathless: false, destination).ConfigureAwait(false)) return;
-            var identity = _router.Engine.Known.Recall(destination)!;
+            if (!LxmDeliveryTiming.AttemptDue(Now, message.NextAttempt, message.AwaitingPath, _router.HasPath(destination))) return;
             message.DeliveryAttempts++;
+            message.AwaitingPath = false;
             ScheduleAttempt(message, destination);
-            var created = _router.Links.Connect(identity, destination, _ => _wake.Release(), _ => _wake.Release());
+            if (message.DeliveryAttempts >= (message.MaxDeliveryAttempts ?? _options.MaxDeliveryAttempts))
+            {
+                FailOutbound(message);
+                return;
+            }
+            if (!_router.HasPath(destination))
+            {
+                await RequestPathAsync(destination, ct).ConfigureAwait(false);
+                ScheduleAttempt(message, destination, pathRequest: true);
+                return;
+            }
+            var identity = _router.Engine.Known.Recall(destination)
+                ?? throw new InvalidOperationException("The delivery destination identity is unknown.");
+            var created = _router.Links.Connect(identity, destination, _ => _wake.Release());
             if (!propagated) OnLinkEstablished(created);
             else ConfigurePropagationSignals(created);
             lock (_gate)
             {
-                if (_disposed == 0 && created.Status != LinkStatus.Closed)
+                if (_disposed == 0)
                 {
                     _links[key] = created;
                     if (propagated) _propagationLinks.Add(created);
@@ -571,9 +599,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         if (message.State is LxmState.Delivered or LxmState.Cancelled or LxmState.Rejected or LxmState.Failed) return;
         try { link.Teardown(); }
         catch (Exception) { /* already closed */ }
-        ScheduleAttempt(message, OutboundTarget(message));
         message.State = LxmState.Outbound;
-        _wake.Release();
     }
 
     private ValueTask OnOpportunisticPacket(ReceivedPacket received)
@@ -591,7 +617,16 @@ public sealed partial class LxmRouter : IAsyncDisposable
         link.TrackPhysicalLayer(true);
         link.Closed += closed =>
         {
-            lock (_gate) _incomingLinks.Remove(closed);
+            lock (_gate)
+            {
+                _incomingLinks.Remove(closed);
+                if (_disposed == 0 && !closed.IsInitiator && closed.RemoteIdentity is { } identity)
+                {
+                    var destination = Destination.Create(DestinationType.Single, AppName, [DeliveryAspect], identity).Hash;
+                    var key = Convert.ToHexStringLower(destination);
+                    if (!_links.ContainsKey(key) && _links.Count < 65_536) _links[key] = closed;
+                }
+            }
             ForgetOutboundLink(closed);
         };
         lock (_gate)

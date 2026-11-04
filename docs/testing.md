@@ -8,6 +8,18 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Parent independently replays `artifacts\tests\lxmf-retry-fidelity\ParentAccept.ps1`
+on Windows/Linux: byte-identical regenerated reference vectors, all 183
+live-enabled LXMF cases, all six published `lxmd` cases and the published
+default-refusal/recovery probes pass per host. The direct and Python-hop native
+probes assert five charged attempts, four closed links and zero pending links
+before fresh healthy delivery in both directions. The managed live matrix also
+includes a .NET transport hop. Exact source/native hashes and boundaries are in
+[LXMF's reference](lxmf.md#outbound-link-retry-accounting); the accepted native
+binaries embed `63c3710`, not a later integration HEAD. Propagated refusal has
+branch-vector coverage only. The separate pinned-primary Sideband callback-lock
+failure remains unresolved; no stack change or patched reference masks it.
+
 Parent independently accepts frozen Nomad profile v4 on Windows/Linux with
 `Invoke-FrozenAcceptance.ps1 -Manifest <frozen-win/linux-191-v4>\manifest.json`:
 five successive mandatory native runs and a separate recorded-case run pass per
@@ -79,8 +91,10 @@ row pass. Independent lock/restart probes reproduce the pinned LXMF/Sideband
 callback-lock cycle; the tests retain their failure assertions and deadlines.
 Disabled live cases in the default gate are not accepted retry interoperability.
 Exact topology, reference digests, native-origin versus published-native limits
-and the separate finite attempt-accounting discrepancy are in
+are in
 [Sideband's reference](sideband.md#initially-propagated-retry-and-pinned-callback-lock-defect).
+The separate native attempt-accounting discrepancy is corrected and independently
+accepted in the LXMF gate above.
 
 The serviced baseline selects SDK **10.0.403**, runtime and NativeAOT compiler
 **10.0.14**. A fresh Linux retry restore exposed `NU1903` on compiler10.0.13

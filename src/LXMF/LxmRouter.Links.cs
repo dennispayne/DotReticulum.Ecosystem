@@ -37,11 +37,8 @@ public sealed partial class LxmRouter
     {
         lock (_gate)
         {
-            foreach (var key in _links.Where(entry => ReferenceEquals(entry.Value, closed)).Select(entry => entry.Key).ToArray())
-            {
-                _links.Remove(key);
-                _identified.Remove(key);
-            }
+            // Outbound processing must observe CLOSED before another connection
+            // can be charged. Removing it here skips the reference retry branch.
             _propagationLinks.Remove(closed);
             _propagationMessages.Remove(closed);
         }

@@ -1,6 +1,6 @@
 # LXMF
 
-`LXMF` implements the inventoried LXMF 1.2.1 software surface through native APIs on [DotReticulum](https://github.com/dennispayne/DotReticulum). Message signing/validation, delivery proofs, proof-of-work, persistent tickets and ratchets, paper-message ingestion, message containers, opportunistic/direct delivery, propagation delivery, authenticated retrieval and propagation storage exist. Explicit and autonomous peer synchronization are Python-live-verified in both directions, including native daemon restart and failed-peer recovery. A NativeAOT `lxmd` executable exists. A finite runtime attempt-accounting discrepancy remains: a separate default-timing two-hop refusal probe records six native versus four primary link attempts (terminal failure102.516s/121.991s, individual outgoing deadline18.0004s). These samples neither establish a universal elapsed limit nor demonstrate an unbounded stack defect; exact retry/CLOSED rescheduling still needs reconciliation. Optional client rendering, intentional differences, upstream defects and verification boundaries remain explicit; this is not an exhaustive-parity claim.
+`LXMF` implements the inventoried LXMF 1.2.1 software surface through native APIs on [DotReticulum](https://github.com/dennispayne/DotReticulum). Message signing/validation, delivery proofs, proof-of-work, persistent tickets and ratchets, paper-message ingestion, message containers, opportunistic/direct delivery, propagation delivery, authenticated retrieval and propagation storage exist. Explicit and autonomous peer synchronization are Python-live-verified in both directions, including native daemon restart and failed-peer recovery. A NativeAOT `lxmd` executable exists. Outbound link retry accounting follows the pinned router's separate pending/CLOSED/absent-link branches, including the terminal charged attempt that does not open a link; see the retry evidence below. Optional client rendering, intentional differences, upstream defects and verification boundaries remain explicit; this is not an exhaustive-parity claim.
 
 Actual Sideband initially-propagated retry additionally exposes a **pinned-primary
 callback-lock defect**, not native queue exhaustion. Unmodified
@@ -130,7 +130,79 @@ and malformed/boundary tests cover this helper; no paper wire behavior changes.
 
 Messages expose source-blackhole status, ratchet/link ID and RSSI/SNR/quality. Router delivery applies the stack's identity-block policy to the signed message source before ticket/history mutation or application observation. `Unpack()` accepts an optional identity-blackhole predicate instead of a process-global Reticulum singleton; failed predicates are reported and leave status false, matching the source. Ratchet IDs are taken from per-operation decryption metadata or the actual direct link; caller mutations cannot change the stored ID. Physical telemetry is copied from packet/link observations, not synthesized; TCP loopback does not establish radio RSSI accuracy. Upstream 1.2.1 supports exactly one delivery identity per router; this is not a missing native multiple-identity contract. PLAIN reference reception and GROUP opportunistic packing have the defects described above. Signed ratchet-file cross-import and delayed old-key delivery after native/Python restart are Windows-live-verified. An `lxmd` configured with its default 1 KB `delivery_transfer_max_accepted_size` may reject larger Resources; this is peer policy, not a wire-format limit. Successful delivery to an `lxmd` destination does not establish propagation synchronization.
 
-Stack `b8a1cc5` exposes source-verified `TransportRouter.FirstHopTimeout(ReadOnlySpan<byte>)`, `GetMediumPathTimeout()` and `GetLowestInterfaceBitrate()`. Runtime scheduling consumes these APIs: medium-aware path waits and round trips, 60-second slow-interface request debounce, slow-target ordering and global in-flight serialization, reduced attempt limits, airtime jitter and extended packet receipt deadlines. Path arrival releases a waiting attempt immediately; failed opportunistic delivery rediscoveries drop stale paths before re-requesting. `GenerateLxmSchedulingVectors.py` executes pinned `LXMRouter.py:1756–1824` and actual outbound processing with controlled medium inputs, path I/O, clock and jitter. Runtime debounce tests use in-process 1000/10000-bit/s interfaces; they are not physical slow-radio evidence. Custom native retry/processing options remain supported; configured maximum attempts remain an upper bound. Source direct attempts count connection attempts, not each packet sent on an already active link. There is no guessed medium fallback or reflection workaround. Existing public `Link.NoDataFor`, physical-layer tracking, `LocalDestination.DecryptWithMetadata` and identity-block checks are sufficient for their respective remaining work.
+Stack `b8a1cc5` exposes source-verified `TransportRouter.FirstHopTimeout(ReadOnlySpan<byte>)`, `GetMediumPathTimeout()` and `GetLowestInterfaceBitrate()`. Runtime scheduling consumes these APIs: medium-aware path waits and round trips, 60-second slow-interface request debounce, slow-target ordering and global in-flight serialization, reduced attempt limits, airtime jitter and extended packet receipt deadlines. Path arrival releases a waiting attempt immediately; failed opportunistic delivery rediscoveries drop stale paths before re-requesting. `GenerateLxmSchedulingVectors.py` executes pinned `LXMRouter.py:1756–1824` and actual outbound processing with controlled medium inputs, path I/O, clock and jitter. Runtime debounce tests use in-process 1000/10000-bit/s interfaces; they are not physical slow-radio evidence. Custom native retry/processing options remain supported; configured maximum attempts remain an upper bound. Source direct attempts charge absent-link passes (including path discovery and the terminal limit check), not each packet sent on an already active link. There is no guessed medium fallback or reflection workaround. Existing public `Link.NoDataFor`, physical-layer tracking, `LocalDestination.DecryptWithMetadata` and identity-block checks are sufficient for their respective remaining work.
+
+### Outbound link retry accounting
+
+Pinned `LXMRouter.py:2902–2985,2999–3053` distinguishes an existing link
+from an absent link before checking whether a new attempt is due. Pending links
+consume no extra attempts. Active direct links and identified backchannels send
+without charging another attempt or waiting for the connection retry deadline.
+CLOSED links are retained until outbound processing consumes the closure; that
+pass does not open a replacement. Direct closure requests a path after any
+previously active link, or once per message after a never-active link.
+Closure schedules another retry only when `delivery_attempts + 1 < attempt_limit`.
+An absent-link pass charges an attempt, schedules it, and opens a link only when
+the updated count is **strictly below** the updated limit. The terminal charged
+attempt instead removes the message from the queue before invoking its failure
+observers. Consequently, a default-limit-five message with an initially known
+path and four refused links terminates at count five, not after five or six
+connections. An initial missing-path attempt consumes one of those charges;
+path arrival can release that wait before its deadline. These rules also apply
+to propagated link establishment, except that its CLOSED branch does not request
+the direct destination's path.
+
+`tests/Interop/lxmf_retry_vectors.py` executes the actual pinned
+`process_outbound`, `schedule_attempt`, `attempt_limit` and `fail_message`
+with controlled environmental link/path/clock inputs. The canonical-LF fixture
+records LXMF `e8ba02483217af43be284a72f1c059c730b7d047`, RNS
+`a29bfb51c468945c96a1ee22cae0114e993e2391`, and router SHA-256
+`56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9`.
+Native regressions compare each direct/propagated refused-path, early-closure,
+initial-path-arrival and no-path transition, not just final counts. Additional
+tests cover pending-link non-charging, custom limits, active/pathless and closed
+backchannels, cancellation, disposal and healthy fresh-peer recovery. Controlled
+vectors are not live transport evidence.
+
+`LiveLxmRetryTests` uses unchanged default retry/processing/link timeouts and an
+actual fingerprint-verified Python router. It checks four unique outgoing link
+requests, four closures before logical failure, charged count five, no remaining
+pending link at failure, the primary's independently observed four-link/count-five
+outcome, and subsequent signed delivery in both directions to fresh healthy
+destinations. It exercises direct TCP and two-hop paths through Python and native
+transport nodes; no count-only proxy substitutes for these lifecycle assertions.
+The thin `lxmf_retry_node.py` adapter uses RNS's public receiver-refusal policy
+and observational callbacks, without changing source, scheduling or timeout
+constants. The earlier six-native/four-primary sample identified an LXMF-owned
+accounting error, not an unbounded `LinkManager` deadline. Elapsed times remain
+phase-dependent observations, never a universal terminal deadline. The separate
+Sideband propagation-callback lock defect described above is unchanged.
+This default-refusal live matrix is direct delivery; propagated refused-node
+retry has controlled branch-vector coverage, not a separate live default-refusal
+matrix.
+The full live-enabled LXMF suite passes 183/183 without skips on both Windows
+and Linux, including all three refusal topologies and lifecycle regressions.
+
+Independent execution of the unchanged `4320e47` library reproduces six links,
+charged count six and one pending link at logical failure (104.182 seconds),
+while the simultaneous primary uses four links and count five (118.703 seconds).
+The corrected Windows NativeAOT two-hop probe records 119.331/119.781 seconds
+native/primary; Linux records 116.255/121.309 seconds. Both have four closures
+before failure, count five, no pending native link, actual 18.0004-second
+individual link deadlines and signed healthy recovery in both directions.
+Separate direct NativeAOT probes pass on both hosts. These are observations,
+not an imposed common terminal timeout.
+
+Strict SDK 10.0.403 / ILCompiler 10.0.14 `lxmd` publication and `--help` pass
+without warnings on Windows and Linux; the separate published-daemon Pester
+suite passes 6/6 on each. The accepted `lxmd` SHA-256 values are
+`a9af93e7383a8fee4e1d4e5380ca7ac9db17cf7dfe4951822fa5cc1d37f88f93`
+(Windows) and
+`c69dbba609a519e98c9d36d516dd186dd2622a9ff737f4075050c1501e56c300`
+(Linux). The local frozen handoff under
+`artifacts/tests/lxmf-retry-fidelity` contains replay operators, original and
+accepted binary/source hashes, machine-readable lifecycle output and an
+exact-source snapshot; it is not a release artifact.
 
 Stack `3cdf5be` initializes outbound activity after accepting an initiator LINKREQUEST, matching RNS `Link.py:318–321`. Its deterministic pending-link regression closes the idle-reconnection race caused by `LastData=0`; independent Linux full acceptance passed 114/114 with the corrected pin. LXMF does not reorder cleanup to conceal the stack lifecycle issue.
 
@@ -179,7 +251,7 @@ Policy vectors execute actual upstream `LXMPeer.sync`, `offer_response` and `res
 
 The additional ratchet-file case passed in four seconds: .NET writes the signed ring, an actual Python destination with the same test identity loads it and decrypts a packet encrypted before handoff, then .NET reloads Python's rotated ring and decrypts another previously encrypted packet. Both replacement receivers enforce ratchets. The thin adapter uses unmodified upstream `LXMessage.pack`, `RNS.Packet.pack` and later `send`; holding the already encrypted packet is explicit test orchestration, not a change to ratchet selection, cryptography or upstream code. Temporary generated test identity buffers are zeroed and the identity/storage files are deleted. The enlarged PN peer case separately passed in 29 seconds.
 
-The selected serviced Linux `lxmd` is
+The pre-retry-fix serviced Linux `lxmd` is
 `/home/dennis/fleet-servicing-native/publish/lxmd/release_linux-x64/lxmd`,
 SHA-256 `c994576cea883b928327c1c2b0f35c828eb13fa614293bd9599f18978b00f264`.
 Fresh SDK10.0.403 publication with both trim/compiler warning-as-error
@@ -189,9 +261,9 @@ packages. Parent independently hash-checks and replays
 native Linux working directory with pinned live references: **6/6, no skips**,
 518.60seconds. CLI/config errors, Python delivery/restart, propagated
 storage/retrieval, bidirectional Python/native control queries and autonomous
-mixed-daemon failed-peer/restart synchronization pass. This does not resolve
-the separately documented retry-attempt fidelity discrepancy or primary
-Sideband callback-lock defect.
+mixed-daemon failed-peer/restart synchronization pass. This binary predates
+the outbound retry accounting correction and is not acceptance of that later
+source. It does not resolve the primary Sideband callback-lock defect.
 
 Earlier final-library published `lxmd` NativeAOT acceptance passed **6/6 on Windows x64** (506.21 seconds) and **6/6 on WSL Ubuntu/Linux x64** (488.54 seconds), zero skips, with both trim/compiler warning-as-error properties on stack `3cdf5be` and the library changes committed in `0e49caa`. Binary SHA-256: Windows `2bda6d24d5db712d0bd65ca863acb0630e6703a9bd88db60be0b49c5f2c16055`; Linux `0ba7e5618107f9c56d617a521d36c0b2c50c29e3f81773c0e261f1ee4358da35`. Build commands were `dotnet publish src\lxmd\lxmd.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\lxmd-closeout-final -o artifacts\builds\lxmd-closeout-final\publish -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet` and the equivalent `linux-x64` command in the isolated Linux checkout, both passing without warnings/errors. Windows added Visual Studio's Installer directory to `PATH`; Linux selected the provisioned SDK through `PATH`/`DOTNET_ROOT`. These older hashes are not relabelled as rebuilt with the serviced compiler.
 

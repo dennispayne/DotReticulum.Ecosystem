@@ -1493,12 +1493,16 @@ does; native-origin second-group failure and recovery are now exercised below. S
 blackholing is not the accepted controlled-teardown case. A separate investigative
 two-hop default-timing probe observes native/primary terminal failure at
 102.516s/121.991s, six/four link attempts and an 18.0004s outgoing link deadline.
-These are samples, not universal elapsed limits or final-source suite acceptance.
+These are preserved pre-correction samples, not universal elapsed limits or
+final-source suite acceptance.
 The earlier alleged five-minute exhaustion was suite elapsed time: the original
 case actually reached failure in 107.277s before failing its history-method
-assertion. No unbounded stack bug was demonstrated. Exact attempt/CLOSED
-rescheduling differs and remains a scheduling-fidelity boundary, not a proven
-upstream defect.
+assertion. No unbounded stack bug was demonstrated. The native attempt/CLOSED
+rescheduling error is now corrected and independently accepted on Windows/Linux
+with executed vectors, the full LXMF live suite and native refusal/recovery
+probes; see [LXMF retry accounting](lxmf.md#outbound-link-retry-accounting).
+That library acceptance does not relabel the earlier application observations or
+resolve the separate primary callback-lock defect.
 
 Arbitrary random loss, RF measurements, arbitrary Python plugins and
 prolonged command-service operation remain
@@ -1619,8 +1623,8 @@ reproduced on each host with `sideband_retry_diagnostic.py`:
 
 An upstream correction must avoid synchronous re-submission under that lock;
 the reference is not patched here. Native bounded-worker retry already avoids
-this cycle. This defect is distinct from the finite six/four link-attempt
-scheduling discrepancy above and does not justify a DotReticulum stack change.
+this cycle. This defect is distinct from the corrected native six/four
+link-attempt scheduling error above and does not justify a DotReticulum stack change.
 Failed primary rows retain their assertions and deadlines; no skip or
 success-shaped fallback hides them. Direct-failure fallback evidence is not
 relabeled as this initially-propagated retry case.

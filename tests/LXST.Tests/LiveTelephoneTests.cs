@@ -90,6 +90,10 @@ public sealed class LiveTelephoneTests
             var recorded = pulse.RecordOutputAsync(48000 * 2 * 2, stop.Token);
             for (var i = 0; i < 80; i++)
             {
+                if (i == 0) telephone.PauseAutomaticGainControl();
+                if (i == 40) telephone.ResumeAutomaticGainControl();
+                Assert.Equal(i < 40, telephone.AutomaticGainControlPaused);
+                Assert.False(telephone.TransmitSquelched);
                 var samples = Enumerable.Range(i * 480, 480).Select(sample => (float)(.2 * Math.Sin(2 * Math.PI * 440 * sample / 24000))).ToArray();
                 await telephone.SendAudioAsync(new(samples, 24000, 1), stop.Token);
                 await Task.Delay(20, stop.Token);
@@ -157,6 +161,26 @@ public sealed class LiveTelephoneTests
         await python.CommandAsync("ptt on", "ptt");
         await python.CommandAsync("profile 64", "profile");
         await LiveStreamTests.WaitForAsync(() => telephone.ActiveProfile == TelephoneProfile.MediumQuality);
+        telephone.PauseAutomaticGainControl();
+        var paused = await python.CommandAsync("agc pause on", "agc");
+        Assert.True(telephone.AutomaticGainControlPaused);
+        Assert.True(paused.GetProperty("paused").GetBoolean());
+        Assert.False(telephone.TransmitSquelched);
+        Assert.False(paused.GetProperty("squelched").GetBoolean());
+        telephone.ResumeAutomaticGainControl(false);
+        var inverseResume = await python.CommandAsync("agc resume off", "agc");
+        Assert.True(telephone.AutomaticGainControlPaused);
+        Assert.True(inverseResume.GetProperty("paused").GetBoolean());
+        telephone.SetTransmitSquelched(true);
+        await python.CommandAsync("ptt off", "ptt");
+        telephone.ResumeAutomaticGainControl();
+        var resumed = await python.CommandAsync("agc resume on", "agc");
+        Assert.False(telephone.AutomaticGainControlPaused);
+        Assert.False(resumed.GetProperty("paused").GetBoolean());
+        Assert.True(telephone.TransmitSquelched);
+        Assert.True(resumed.GetProperty("squelched").GetBoolean());
+        telephone.SetTransmitSquelched(false);
+        await python.CommandAsync("ptt on", "ptt");
     }
 
     private static async Task VerifyProfileSwitchesAsync(TelephoneEndpoint telephone, LxstPythonNode python,

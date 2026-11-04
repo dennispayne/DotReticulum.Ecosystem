@@ -6,7 +6,7 @@ using DotReticulum.Transport;
 namespace LXST.Tests;
 
 [Trait("Category", "Integration")]
-public sealed class TelephoneLifecycleTests
+public sealed partial class TelephoneLifecycleTests
 {
     private sealed class RawFactory : IAudioCodecFactory
     {

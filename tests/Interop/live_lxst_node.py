@@ -189,6 +189,13 @@ def main():
                 phone.unsquelch_transmit(parts[1] == "on")
                 emit("ptt", squelched=phone.active_call.packetizer.squelched,
                      paused=getattr(phone.active_call, "filter_agc", SimpleNamespace(paused=False)).paused)
+            elif parts[0] == "agc":
+                if parts[1] not in ["pause", "resume"]:
+                    raise ValueError("AGC control must be pause or resume")
+                operation = phone.pause_agc if parts[1] == "pause" else phone.resume_agc
+                operation(len(parts) < 3 or parts[2] == "on")
+                emit("agc", squelched=phone.active_call.packetizer.squelched,
+                     paused=getattr(phone.active_call, "filter_agc", SimpleNamespace(paused=False)).paused)
             elif parts[0] == "mode-follow-off":
                 emit("mode-follow", disabled=phone.disable_remote_mode_follow())
             elif parts[0] == "low-latency-observation":

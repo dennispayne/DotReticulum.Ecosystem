@@ -105,7 +105,7 @@ surface. A grouped implemented row does not override an explicit limitation.
 | Ringing/established/ended/busy/rejected callbacks | implemented with original API shape | Isolated `StateChanged` notifications plus typed `CallEnded` after tone completion and cleanup; executed primary outcome timing, observer failures and continued service tested |
 | Profile negotiation (`255 + profile`), selection and mid-call switch | implemented | All eight initial profiles live-verified with either side originating direct calls; all eight mid-call profiles in both negotiation directions; medium-quality calls in both transport-hop topologies |
 | Combined signalling and explicit empty signalling lists | implemented | Actual 0.5.4 packets in `lxst-telephone-modes.json`; `SendSignalsAsync` preserves empty lists rather than emitting an empty map |
-| Full/half-duplex modes, `240 + mode`, PTT packet squelch, AGC pause, remote-mode-follow disable | implemented | Executed mode/PTT vectors; initial half-duplex in both call directions; mode/PTT changes across direct and both transport hops; squelch drops packets, not silent audio |
+| Full/half-duplex modes, `240 + mode`, PTT packet squelch, independent AGC pause/resume, remote-mode-follow disable | implemented | Executed mode/PTT/AGC vectors; initial half-duplex in both call directions; mode/PTT/AGC controls across direct and both transport hops; squelch drops packets, not silent audio; independent AGC resume preserves existing squelch |
 | Receive/transmit gain, mute, AGC, low-latency output, ringer/device selection | partial | Endpoint gains/mute and transmit band-pass/optional AGC reuse executed-reference DSP; CLI supplied-ringtone and active-call device switching are verified; actual Linux player has no runtime low-latency operation; Android path remains unverified |
 | Mirror-only legacy `CallEndpoint` placeholder | not-applicable | `Call.py` is absent from the authoritative target release |
 | Pre-establishment outgoing-close callback | upstream-placeholder | `Primitives/Telephony.py`, `__outgoing_link_closed` is empty |
@@ -230,7 +230,7 @@ not implicitly covered by the network interfaces. This is not full API parity:
 | `Sinks.py`: `get_backend`, backend device listing/player ownership; Sink/RemoteSink/LocalSink; LineSink low latency; OpusFileSink queue/finalization | Linux/Windows I/O software, Ogg Opus recording and executed-reference `BufferedAudioSink` playback queue implemented; explicit async file backpressure; both Linux/Windows Backends ignore constructor low_latency and their players lack runtime enablement; physical I/O and other OS providers are not inferred |
 | `Primitives/Players.py`: FilePlayer state, completion callback, source, loop/start/stop/play | Implemented device-independent `FilePlayer`; untimed file admission and bounded queue-aware completion, including an owned in-flight write; 200 ms minimum notification interval, asynchronous rather than Python's 100 ms polling quantization; source replacement requires stopped playback |
 | `Primitives/Recorders.py`: FileRecorder state, source/output path, start/stop/record | Implemented device-independent `FileRecorder` with a caller-owned source and per-run finalization; effective output-path replacement is an explicit extension over the executed upstream shadow-attribute placeholder |
-| `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Typed backend queries, reusable `TelephoneAudioOutput`, routing/reset, endpoint DSP/gains/mute and timed outcomes implemented; utility composes platform devices and ringtone/tones; independent AGC pause/resume remains missing; no invented low-latency effect for the unsupported Linux/Windows branch or inert upstream ringtone gain setting |
+| `Primitives/Telephony.py`: device/default queries; receive/transmit mute/gain; busy tone, AGC, low-latency output and ringtone/ringer setters | Typed backend queries, reusable `TelephoneAudioOutput`, routing/reset, endpoint DSP/gains/mute, independent call-local AGC pause/resume and timed outcomes implemented; utility composes platform devices and ringtone/tones; no invented low-latency effect for the unsupported Linux/Windows branch or inert upstream ringtone gain setting |
 | `Primitives/Telephony.py`: external busy override | Implemented; real incoming rejection followed by clearing busy and accepting the next call is integration-tested |
 | `Primitives/Telephony.py`: Profiles labels/abbreviations/index/next helpers | Implemented `TelephoneProfiles`; executed primary labels, abbreviations, frame durations and ordering; CLI profile cycle follows low latency then ultra-low latency |
 | `Utilities/rnphone.py`: ReticulumTelephone reload/apply config, keypad/hook/display enablement and hardware state; complete terminal menu/redial/status/signal behavior | Software controls, persisted identity, 248 terminal observations and source-observed duration formatting/refresh cadence implemented; literal ANSI/prompt bytes and physical runtime hardware operation unverified |
@@ -273,7 +273,7 @@ features to reproduce.
 | `Telephone`: `teardown/announce/set_allowed/set_blocked/set_connect_timeout/set_announce_interval`, `set_ringing_callback/set_established_callback/set_ended_callback/set_busy_callback/set_rejected_callback` | Endpoint lifecycle, authorization, mutable outgoing `ConnectTimeout` and isolated state events implemented; announce-interval setter is ineffective upstream |
 | `Telephone`: `set_busy_tone_time/enable_agc/disable_agc/set_busy/busy/active_profile/receive_muted/transmit_muted` | Mutable bounded `BusyToneDuration`, AGC, busy override, profile/mute state; 5 ms busy controls and final 500 ms gain hold execute primary timing vectors; typed completion follows cleanup |
 | `Telephone`: `enable_bandpass/disable_bandpass/enable_echo_cancellation/disable_echo_cancellation`, `set_loudspeaker/enable_loudspeaker/disable_loudspeaker/loudspeaker_on` | Call-local `UseBandPass`/`UseEchoSuppression` options and explicit output routing/state implement the behaviors without Python setter aliases |
-| `Telephone.pause_agc/resume_agc` | **Missing independent software control**: PTT currently sets both AGC pause and packetizer squelch, but callers cannot independently pause/resume AGC while retaining packet transmission or existing squelch. This is a feasible API behavior gap, not an unavailable-device limitation |
+| `Telephone.pause_agc/resume_agc` | Implemented `PauseAutomaticGainControl(bool pause = true)` / `ResumeAutomaticGainControl(bool resume = true)` without modifying packetizer squelch; absent/inactive AGC is a no-op, current-call filter presence is retained across future-call option changes, and teardown resets state. Reference vectors, lifecycle/race cases, native packet assertions and actual-Python live control/audio flows execute |
 | `Telephone`: `signal/answer/hangup/mute_receive/unmute_receive/mute_transmit/unmute_transmit/set_receive_gain/set_transmit_gain/switch_profile/call/signalling_received` | Endpoint/session behavior implemented, including actual profile negotiation, gains/mute and both-direction calls |
 | Hardware `LCD.print/clear/is_sleeping/sleep/wake/close`; `Event`; `Keypad.enable_hook/set_key_map/is_down/is_up/start/stop` | Fakeable software protocols, Linux OS providers and utility wiring implemented; physical operation unverified |
 | `Utilities/rnphone.py`: `create_default_config/reload_config/load_phonebook/apply_config`, `enable_keypad/enable_hook/enable_display`, `is_available/is_in_call/is_ringing/call_is_connecting/hw_is_idle/hw_is_dialing` | Configuration/call status and software hardware state implemented; actual utility keypad editing/dial/answer/reject/hook outputs executed as reference vectors; physical state delivery unverified |
@@ -798,7 +798,7 @@ has no implementation. Their exact disposition is:
 |---|---|
 | Ring/wait/connect timeouts, path requests, periodic announcements | Implemented; exhaustive relative timing/periodic-announcement matrix unverified. Mutable connect deadlines and timeout recovery execute; this is evidence scope, not an absent timer. |
 | Ringing/established/ended/busy/rejected callbacks | Original state event plus typed post-cleanup completion instead of five Python setters; eight actual-reference outcome timing cases; busy/rejected reason is observable before final completion. |
-| Receive/transmit gain, mute, AGC, low-latency output, ringer/device selection | Gain/mute/AGC processing, Linux/Windows device selection, WASAPI modes/loopback/maps and ringtone implemented. **Independent `pause_agc/resume_agc` remains a required software omission**, separate from implemented PTT-coupled pause. Executed Linux/Windows backend calls ignore the low-latency argument and neither platform player defines runtime enablement. Actual `set_ringtone(path, gain)` stores `ringtone_gain`, but no other source expression reads it; applied ringtone gain is an upstream inert setting, not invented here. Android backend/OS unavailable. |
+| Receive/transmit gain, mute, AGC, low-latency output, ringer/device selection | Gain/mute/AGC processing, independent AGC pause/resume, Linux/Windows device selection, WASAPI modes/loopback/maps and ringtone implemented. Executed Linux/Windows backend calls ignore the low-latency argument and neither platform player defines runtime enablement. Actual `set_ringtone(path, gain)` stores `ringtone_gain`, but no other source expression reads it; applied ringtone gain is an upstream inert setting, not invented here. Android backend/OS unavailable. |
 | Resample functions, normalize option and supported channel handling | Executed mono/stereo rate conversion and normalization implemented. Arbitrary host-native float128 formats unverified outside the pinned Linux x86 representation; no replacement format is invented. |
 | Line capture/playback, preferred devices, buffers, gain, filters and low latency | Generic and Linux/Windows software exists; successful physical capture/quality/latency and unavailable platform branches unverified. Fake/virtual tests are not physical evidence. |
 | `rnphone`, CLI flags and interactive controls | Installed entry point, listed flags/aliases and controls implemented. Terminal tokens/state/menu actions, elapsed rounding/duration strings and refresh cadence execute source vectors. Help/systemd text, ANSI styling and prompts remain original; exhaustive physical scheduling/terminal byte matrices are not claimed. |
@@ -822,12 +822,13 @@ has no implementation. Their exact disposition is:
 - **Not redistributed:** literal upstream example programs, assets and Python
   source/API/menu formatting. Device-independent equivalent primitives are
   present; the examples are not extra installed executables.
-- **Required software still missing:** independent telephone AGC pause/resume,
-  distinct from PTT squelch. `Telephony.py:561–569` changes the active AGC
-  filter without changing the packetizer; the endpoint currently exposes only
-  the coupled `SetTransmitSquelched` control. This is feasible Windows/Linux
-  software, not an architecture or hardware blocker, and is not included in the
-  bounded file/sink completion slice.
+- **Required software disposition after independent AGC controls:** this
+  public-callable audit identifies no further missing required Windows/Linux
+  software behavior. That is an inventory disposition, not an overall parity
+  or exhaustive-validation claim. macOS/Android audio providers remain genuinely
+  absent; unavailable target environments are a verification blocker, not a
+  substitute implementation. Unredistributed assets, intentional semantic/API
+  differences and unexercised hardware/timing boundaries remain explicit.
 - **Intentional differences:** atomic configuration replacement, stricter
   unknown-setting/allow-list validation, an early observed-reason state event
   distinct from delayed final completion, bounded asynchronous queues and explicit
@@ -837,6 +838,126 @@ has no implementation. Their exact disposition is:
   quality, device latency or support claim follows from virtual/fake tests.
   Exhaustive timing matrices, days-long operation and prolonged Python-peer
   operation remain unverified; the one-hour native scope is recorded below.
+
+### Executed independent telephone AGC controls
+
+`TelephoneEndpoint.PauseAutomaticGainControl(bool pause = true)` and
+`ResumeAutomaticGainControl(bool resume = true)` independently control the
+active filter, without changing transmit squelch. The inverse boolean arguments
+match primary `Telephony.py:561–569`. A missing filter or call is a no-op;
+changing `UseAutomaticGainControl` affects subsequent filter construction, not
+the current call's filter presence. A paused filter retains its adaptive state.
+The control state is discarded with the call. Disposed endpoints reject further
+controls, consistent with the explicit .NET lifetime rather than Python object
+reuse after teardown.
+
+`GenerateTelephoneAgcVectors.py` executes actual primary telephone pause/resume
+and PTT methods plus actual `AGC.handle_frame`; only constructor/call/packetizer
+boundaries are substituted. The fixture records twelve sequential control/PCM
+observations, twelve absent-filter/default-argument cases and both default
+controls. It was generated before implementing the controls and reproduced
+byte-for-byte from the test-local generator. Exact primary pin is
+`eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f`; relevant source SHA-256 values:
+
+| Source | SHA-256 |
+|---|---|
+| `Primitives/Telephony.py` | `921c603ebc189422a6949049c86c2d15704cd9d401ffd9738098a73ce41918ab` |
+| `Filters.py` | `7a3279857fea9b0e09440482afd11e82da98132dac2bb437450506c6b93b60c0` |
+| `Filters.c` | `25ece77fe11ab1b67ad2ad7649623906ebaad546770e50130be67c001af8c328` |
+| `Filters.h` | `9c5f0176554a1fda60d737334209a7d4df0eb2ade3c20cf5b34cadc28328d6a3` |
+
+With the actual pinned import environment above/below, exact generation command:
+
+```sh
+/home/dennis/dotreticulum-ecosystem-acfd3d43/reference-venv/bin/python tests/LXST.Tests/GenerateTelephoneAgcVectors.py --interop-directory tests/Interop --output tests/LXST.Tests/Fixtures/lxst-telephone-agc.json
+```
+
+Independent execution with the existing Windows reference interpreter gives the
+same control states and paused-state preservation. Linux executes the native
+filter; Windows executes upstream's Python fallback because its missing
+`filterlib.dll` triggers an upstream duplicate-CFFI-declaration error during
+fallback compilation. No filter method or binding is replaced for this
+observation. Maximum Windows/Linux PCM difference is `7.450580596923828e-9`;
+the existing DSP tolerance remains `1e-6`, with exact control-state and native
+packet assertions. Both actual reference outputs and comparison are retained
+under `artifacts\tests\lxst-agc`.
+
+Four focused tests execute on both hosts: independent control/PTT and default
+arguments; inactive/disabled filters and call-local construction; hangup/reuse
+and disposal races; and real native Opus packet emission with AGC bypass/resume
+and continued PTT suppression. The packet observation uses a disclosed
+capturing decoder boundary over a real Reticulum link; it does not claim that
+the capture fake decoded audio. Separate strict NativeAOT probes retain and call
+the new APIs between two actual endpoints with real native Opus encoding and
+decoding, no audio devices and no audio/state subscribers. They pass `--help`,
+inverse arguments, no-call behavior, independent PTT, delivered-frame counts,
+teardown and a subsequent call.
+
+The existing actual-Python telephone cases additionally execute both peers'
+independent controls and inverse arguments; actual Python AGC resume preserves
+its packetizer squelch. Synthetic .NET tone frames are sent during paused and
+resumed phases, and observed only on the private virtual PulseAudio output.
+Those cases cover either call origin, direct and separate Python/.NET transport
+hops, plus initially half-duplex direct calls. There is no physical microphone,
+private system-loopback or acoustic claim.
+
+Frozen NativeAOT API-probe hashes:
+
+- `artifacts\builds\lxst-agc-probe-win\AgcProbe.exe`:
+  `c64ffc59aab02809557b8b3aba2f08b96f999411c9f38b32b0c79d57a4648d6c`
+- `artifacts\builds\lxst-agc-probe-linux\AgcProbe`:
+  `5161d1e5604e1c4148b7d1e36716ee1c1d779ec51118c5c2028ea6190e52a309`
+
+Original probe source/project remain under
+`artifacts\builds\lxst-agc-probe-src`. Exact publish commands, with the MSVC
+environment in the same Windows process and the Linux SDK environment below:
+
+```powershell
+dotnet publish artifacts\builds\lxst-agc-probe-src\AgcProbe.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\lxst-agc-probe-build-win -o artifacts\builds\lxst-agc-probe-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet
+```
+
+```sh
+dotnet publish artifacts/builds/lxst-agc-probe-src/AgcProbe.csproj -c Release -r linux-x64 --artifacts-path artifacts/builds/lxst-agc-probe-build-linux -o artifacts/builds/lxst-agc-probe-linux -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet
+```
+
+Both strict publishes and subsequent `--help`/network feature flows passed.
+Compact frozen metadata/recipes are at
+`artifacts\tests\lxst-agc\manifest.json`; large test-output dependency digests
+are separate in `test-output-hashes.json`. `Run-Acceptance.ps1` provides
+non-building `WindowsManaged`, `WindowsNative`, `LinuxLive`, `WindowsProbe`
+and `LinuxProbe` cases; `-Focused` selects the four AGC control cases (three
+passed plus one explicit native skip in managed-only Windows). The published
+`rnphone` process/one-hour evidence below remains tied to its earlier binaries;
+these new API probes are not hour-long tests or an additional shipped utility.
+
+Independent acceptance verified all nine frozen source hashes before running
+the same non-building recipes:
+
+| `Run-Acceptance.ps1 -HostCase` | Independent result |
+|---|---|
+| `WindowsNative` | 166 passed, 5 explicit live skips, no failures |
+| `WindowsProbe` | Passed actual native Opus/AGC/PTT, delivered-frame counts, teardown and call reuse |
+| `LinuxLive` | 196 passed, 5 Windows-only skips, no failures; approximately 3 min 21 s |
+| `LinuxProbe` | Passed actual native Opus/AGC/PTT, delivered-frame counts, teardown and call reuse |
+
+Durable summaries/transcripts are under
+`artifacts\tests\lxst-agc\WindowsNative-20261104-044354` and
+`WindowsProbe-20261104-044413`. Linux summaries/transcripts are under the native
+checkout's `artifacts/tests/lxst-agc/LinuxLive-20261104-044355` and
+`LinuxProbe-20261104-044725`. The compact manifest retains the independently
+accepted source snapshot separately from this documentation-only evidence
+addition. These results do not expand the platform, asset, physical-audio,
+timing or prolonged-operation boundaries stated above.
+
+The integrated Release build and full non-opt-in solution run also passed:
+`dotnet build DotReticulum.Ecosystem.slnx -c Release --artifacts-path
+artifacts\builds\fleet-agc-integrated-final -v quiet`, followed by
+`dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build --artifacts-path
+artifacts\builds\fleet-agc-integrated-final --logger trx --results-directory
+artifacts\tests\fleet-agc-integrated-final -v quiet`.
+The build had zero warnings/errors; distinct per-case TRX records contain
+2,183 passes, 99 explicit skips and no failures. This includes other frozen
+and in-progress application sources; it is not their complete live acceptance.
 
 ### Executed file/native-library audit
 
@@ -1075,9 +1196,9 @@ SIGTERM, clean exit and restart with the same persisted identity.
 
 | Exact command, from repository root unless specified | Result |
 |---|---|
-| `dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path artifacts\builds\lxst-closeout-win --no-build --no-restore --results-directory artifacts\tests\lxst-file-drain-win-managed --logger trx --verbosity quiet`, with native/live opt-ins unset | 138 passed, 29 explicit opt-in skips |
-| `/home/dennis/.dotreticulum-dotnet/dotnet test /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/tests/LXST.Tests/LXST.Tests.csproj -c Release --artifacts-path /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/builds/lxst-file-drain-linux --results-directory /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/lxst-file-drain-linux-final --logger trx --verbosity quiet`, from the native Linux checkout with all three Linux opt-ins above | 192 passed, 5 Windows-only skips, no failures; complete project including actual Python direct/Python-hop/.NET-hop traffic, codec/profile/loss/recovery, headless contracts, native API/file boundaries and queued file completion |
-| `dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path artifacts\builds\lxst-closeout-win --results-directory artifacts\tests\lxst-file-drain-win-final --logger trx --verbosity quiet`, with `DOTLXST_NATIVE=1`, `DOTLXST_WINDOWS_AUDIO=1`, MSYS2 libraries on `PATH` and `DOTLXST_CODEC2_LIBRARY` pointing to `libcodec2.dll` there | 162 passed, 5 explicit live skips, no failures; strict independently executed platform-native PCM, unchanged cross-platform encoded bytes, queued file completion, codec/file lifecycles, multichannel data, echo wiring, shared WASAPI silence/cancellation/reuse, loopback activation and exclusive-format capability/rejection execute; no microphone or private loopback data read |
+| `dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path artifacts\builds\lxst-agc-win --no-build --no-restore --results-directory artifacts\tests\lxst-agc\windows-managed --logger trx --verbosity quiet`, with native/live opt-ins unset | 141 passed, 30 explicit opt-in skips |
+| `/home/dennis/.dotreticulum-dotnet/dotnet test /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/tests/LXST.Tests/LXST.Tests.csproj -c Release --artifacts-path /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/builds/lxst-agc-linux --results-directory /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/lxst-agc/linux-final --logger trx --verbosity quiet`, from the native Linux checkout with all three Linux opt-ins above | 196 passed, 5 Windows-only skips, no failures; complete project including independent AGC controls, actual Python direct/Python-hop/.NET-hop AGC/tone traffic, codec/profile/loss/recovery, headless contracts, native API/file boundaries and queued file completion |
+| `dotnet test tests\LXST.Tests\LXST.Tests.csproj -c Release --artifacts-path artifacts\builds\lxst-agc-win --results-directory artifacts\tests\lxst-agc\windows-final --logger trx --verbosity quiet`, with `DOTLXST_NATIVE=1`, `DOTLXST_WINDOWS_AUDIO=1`, MSYS2 libraries on `PATH` and `DOTLXST_CODEC2_LIBRARY` pointing to `libcodec2.dll` there | 166 passed, 5 explicit live skips, no failures; independent AGC lifecycle/native packet controls, strict independently executed platform-native PCM, unchanged cross-platform encoded bytes, queued file completion, codec/file lifecycles, multichannel data, echo wiring, shared WASAPI silence/cancellation/reuse, loopback activation and exclusive-format capability/rejection execute; no microphone or private loopback data read |
 | `dotnet publish src\rnphone\rnphone.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\lxst-file-drain-publish-win -o artifacts\builds\lxst-file-drain-native-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet`, with MSVC environment in the same process | Passed; frozen binary used for the current Windows native gate below |
 | `/home/dennis/.dotreticulum-dotnet/dotnet publish src/rnphone/rnphone.csproj -c Release -r linux-x64 --artifacts-path artifacts/builds/lxst-file-drain-publish-linux -o artifacts/builds/lxst-file-drain-native-linux -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet` | Passed; frozen published binary used in current Linux native flows |
 | `dotnet publish artifacts\builds\lxst-wasapi-probe-src\WasapiProbe.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\lxst-wasapi-probe-build -o artifacts\builds\lxst-wasapi-probe-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true --verbosity quiet`, then `artifacts\builds\lxst-wasapi-probe-win\WasapiProbe.exe`, with MSVC environment in the publish process | Passed; ignored original probe source retained at the stated path. NativeAOT enumeration reports six inputs/three outputs including loopbacks, shared synthetic silence writes succeed, exclusive float32 reports unsupported. No capture data read |
@@ -1100,7 +1221,8 @@ and macOS/Android execution remain unverified. Managed echo software, reference
 feeds and routing are implemented; synthetic DSP/network tests do not establish
 physical acoustic effectiveness.
 
-Current frozen NativeAOT binary SHA-256 values (supplied native libraries are
+Accepted queued-file-slice `rnphone` NativeAOT binary SHA-256 values, separate
+from the current independent-AGC API probes above (supplied native libraries are
 separate, not committed):
 
 - `artifacts\builds\lxst-file-drain-native-win\rnphone.exe`:

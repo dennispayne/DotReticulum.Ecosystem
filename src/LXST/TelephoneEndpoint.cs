@@ -62,7 +62,7 @@ public sealed record TelephoneOptions
 }
 
 /// <summary>Original, device-independent single-call telephony endpoint over real Reticulum links.</summary>
-public sealed class TelephoneEndpoint : IAsyncDisposable
+public sealed partial class TelephoneEndpoint : IAsyncDisposable
 {
     private sealed class Call(Link link, ReticulumStreamTransport transport, StreamSession session, bool outgoing,
         TelephoneProfile profile)

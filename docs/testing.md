@@ -19,6 +19,16 @@ Native4/4 and actual-primary offline DirectoryImport1/1 on each host. This
 accepts atomic saved-directory/ignore-policy import, ownership/conflicts and
 restart, not other profile migration or a new network topology.
 
+Directory-import regeneration now writes canonical LF and verifies normalized
+source bytes against the exact pinned Git blobs; separate receipts retain each
+host's raw working hashes and imported paths. Actual Windows/Linux reference
+outputs are byte-identical (5,929 bytes, SHA-256
+`ebc92a10c3bda11971f79aa048ca322a7fea5725815d142865b7763791a4a3ee`).
+`dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --filter
+FullyQualifiedName~NomadNetDirectoryImport` passes seven cases per host.
+The original frozen CRLF snapshot and its native evidence remain unchanged;
+canonical regeneration does not relabel those original bytes.
+
 The separate strict initially-propagated retry operator remains **failed** on
 both hosts: six passes/two enabled-primary failures/no skips out of eight
 required unique cases. All three native-origin rows and the primary disabled

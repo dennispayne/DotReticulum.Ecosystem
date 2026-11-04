@@ -2,15 +2,15 @@
   "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
   "sources": {
     "nomadnet/Directory.py": {
-      "workingSha256": "2c1e333044d0417573eef7c280737a849d34f5942303142891770aed05cf8744",
+      "canonicalLfSha256": "29467f537a64feda32a1c6fe075b3836bccbeeecee1a84628075e0e8fa3c723a",
       "blobSha256": "29467f537a64feda32a1c6fe075b3836bccbeeecee1a84628075e0e8fa3c723a"
     },
     "nomadnet/NomadNetworkApp.py": {
-      "workingSha256": "beda2e618d67200cb14cf7d636efa34f13b4607f99717575f02a1c91fafcf60b",
+      "canonicalLfSha256": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2",
       "blobSha256": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2"
     }
   },
-  "method": "Actual Directory constructor/load_from_disk/save_to_disk and DirectoryEntry; legacy public inputs packed by actual RNS.vendor.umsgpack and loaded by primary. Actual NomadNetworkApp._persist_ignored_list produces ignored bytes. Only the app's filesystem paths are supplied by SimpleNamespace; no replacement parser or persistence implementation. No identities/private material.",
+  "method": "Actual Directory constructor/load_from_disk/save_to_disk and DirectoryEntry; legacy public inputs packed by actual RNS.vendor.umsgpack and loaded by primary. Actual NomadNetworkApp._persist_ignored_list produces ignored bytes. Only the app's filesystem paths are supplied by SimpleNamespace; no replacement parser or persistence implementation. Source LF-normalized bytes must equal their pinned Git blobs exactly; per-host raw working hashes and imported paths are retained in the generation root's source-provenance.json, not mislabeled as canonical hashes. No identities/private material.",
   "vectors": [
     {
       "name": "current",

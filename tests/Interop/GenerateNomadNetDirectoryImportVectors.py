@@ -82,19 +82,36 @@ def main():
         [bytes([20]) * 16, "After", 1, True, 3, True, 19, "last saved entry"],
     ], "announce_stream": []})
     source_hashes = {}
+    working_sources = {}
     for filename in ["Directory.py", "NomadNetworkApp.py"]:
         relative = "nomadnet/" + filename
         blob = subprocess.check_output(["git", "-C", str(source), "show", "HEAD:" + relative])
+        working = (source / relative).read_bytes()
+        canonical = working.replace(b"\r\n", b"\n")
+        if canonical != blob:
+            raise RuntimeError(f"Imported source differs from its pinned Git blob after LF normalization: {relative}")
         source_hashes[relative] = {
-            "workingSha256": hashlib.sha256((source / relative).read_bytes()).hexdigest(),
+            "canonicalLfSha256": hashlib.sha256(canonical).hexdigest(),
             "blobSha256": hashlib.sha256(blob).hexdigest(),
+        }
+        working_sources[relative] = {
+            "path": str(source / relative),
+            "workingSha256": hashlib.sha256(working).hexdigest(),
+            **source_hashes[relative],
         }
     result = {
         "commit": revision, "sources": source_hashes,
-        "method": "Actual Directory constructor/load_from_disk/save_to_disk and DirectoryEntry; legacy public inputs packed by actual RNS.vendor.umsgpack and loaded by primary. Actual NomadNetworkApp._persist_ignored_list produces ignored bytes. Only the app's filesystem paths are supplied by SimpleNamespace; no replacement parser or persistence implementation. No identities/private material.",
+        "method": "Actual Directory constructor/load_from_disk/save_to_disk and DirectoryEntry; legacy public inputs packed by actual RNS.vendor.umsgpack and loaded by primary. Actual NomadNetworkApp._persist_ignored_list produces ignored bytes. Only the app's filesystem paths are supplied by SimpleNamespace; no replacement parser or persistence implementation. Source LF-normalized bytes must equal their pinned Git blobs exactly; per-host raw working hashes and imported paths are retained in the generation root's source-provenance.json, not mislabeled as canonical hashes. No identities/private material.",
         "vectors": vectors,
     }
-    Path(sys.argv[1]).write_text(json.dumps(result, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+    output = Path(sys.argv[1])
+    output.write_text(json.dumps(result, indent=2, ensure_ascii=True) + "\n", encoding="utf-8", newline="\n")
+    provenance = {
+        "commit": revision, "sources": working_sources,
+        "outputSha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+    }
+    (root / "source-provenance.json").write_text(
+        json.dumps(provenance, indent=2, ensure_ascii=True) + "\n", encoding="utf-8", newline="\n")
 
 
 if __name__ == "__main__":

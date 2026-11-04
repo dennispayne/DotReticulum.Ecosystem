@@ -25,12 +25,20 @@ public static class SidebandDaemon
             if (standardError) error = Console.Error;
         }
         var store = new SidebandStateStore(dataDirectory);
-        await using var client = new SidebandClient(store, syntheticAudio ? new HeadlessAudioDeviceBackend() : null);
+        await using var client = new SidebandClient(store, syntheticAudio ? new HeadlessAudioDeviceBackend() : null)
+        {
+            RuntimeLogLevel = verbose ? 6 : interactive ? 0 : 2,
+        };
         var outputGate = new object();
         await using var console = new SidebandConsole(client, store, text => Write(output, text), text => Write(error, "ERROR " + text), token);
         CancellationTokenSource? dialStop = null;
         Task dial = Task.CompletedTask;
         client.ErrorReported += message => Write(error, "ERROR " + SidebandConsoleSyntax.Safe(message));
+        client.RuntimeLogReported += entry =>
+        {
+            if (verbose && !console.IsStreaming && entry.Level > 1)
+                Write(error, $"LOG [{entry.Level}] {SidebandConsoleSyntax.Safe(entry.Message)}");
+        };
         client.VoiceStateChanged += snapshot =>
         {
             if (verbose || console.IsStreaming) Write(output, $"VOICE state={snapshot.State} peer={snapshot.RemoteIdentityHash ?? "none"}");

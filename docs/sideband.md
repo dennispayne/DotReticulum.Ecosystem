@@ -128,7 +128,7 @@ runtime evidence.
 | Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. The map passively inspects the selected configuration's discovery cache without autoconnect; shared-owner blackhole policy is queried through actual management RPC. Interface editing, remote shared-owner discovery-cache access and Android interface loading remain absent; `SidebandClient.Discovery.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
 | Long-lived service and OS integration | partial | The desktop window and headless daemon own the same cancellable client. Linux published daemon/interactive processes stop on SIGTERM with closed/blocked stdin; native console quit and restart pass on both hosts. Days-long Sideband service operation remains unverified. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are deferred mobile contracts; `SidebandDaemon.cs`, `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
 | Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/object classification/text/files/images/audio/methods, known client-router tickets/own ratchets/caches, synchronization anchors, bounded delivery/PN announce history, retained call assertions, voice-only identity/name/trust and supported telemetry/settings/permissions/appearance/cursors/map-overlay settings. Unimplemented semantics remain archived; source files never change. Other voice-object metadata, other fields and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `SidebandTelemetryProfile.cs`, `SidebandAnnounceProfile.cs`, `SidebandVoiceProfile.cs`, `SidebandVoicePeerProfile.cs`, `sbapp/main.py:209–273`. |
-| CLI and headless operation | implemented bounded subset | The desktop/headless console has an executed inventory of all56 primary registrations, quoted arguments, longest-prefix resolution, general status, conversation/message/paper/command workflows, propagation/announce/link inspection, active native configuration and telemetry/tracking. Long network operations are owned/cancellable; Unicode pipes, malformed input, persistence and restart are tested. Arbitrary Python evaluation/plugins and runtime RNS log-level control fail explicitly; unsupported configuration is never activated by archiving keys. All twelve primary voice handlers are placeholders; functional native voice remains an extension. See the dedicated console section below for exact inventory, limits, evidence and core gaps; `SidebandDaemon.cs`, `SidebandConsole*.cs`, `sbapp/sideband/cli/*.py`. |
+| CLI and headless operation | implemented bounded subset | The desktop/headless console has an executed inventory of all56 primary registrations, quoted arguments, longest-prefix resolution, general status, conversation/message/paper/command workflows, propagation/announce/link inspection, active native configuration and telemetry/tracking. Long network operations are owned/cancellable; Unicode pipes, malformed input, persistence and restart are tested. Runtime log-level control filters available structured host reports; log streaming is not complete capture of every stack diagnostic. Arbitrary Python evaluation/plugins fail explicitly; unsupported configuration is never activated by archiving keys. All twelve primary voice handlers are placeholders; functional native voice remains an extension. See the dedicated console section below for exact inventory, limits, evidence and core gaps; `SidebandDaemon.cs`, `SidebandConsole*.cs`, `sbapp/sideband/cli/*.py`. |
 | Repository server | implemented bounded subset | Utilities explicitly starts/stops a public unauthenticated HTTPS static mirror with a package list, persistent private certificate, visible fingerprint and joined window shutdown. Default loopback/4444; reachable LAN exposure requires explicit bind and consent. No bundled upstream assets, automatic content downloads or update execution. Original bounded GET-only service, not RNS/rngit Git hosting; safety differences and acceptance are below; `SidebandRepository*.cs`, `MainWindow.Repository.cs`, `sbapp/sideband/core.py`, `sbapp/ui/layouts.py`. |
 | Native packaging and upgrades | partial | Windows and Linux NativeAOT publishes succeed with trimming/linker warnings treated as errors. Package the full publish directory, including Windows `sideband.exe`, `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, `libSkiaSharp.dll` and desktop/shared third-party notices; Linux `sideband`, `libHarfBuzzSharp.so`, `libSkiaSharp.so`, `libSystem.IO.Ports.Native.so` and the same notices. These include Avalonia/Skia/HarfBuzz MIT texts, ANGLE's BSD license, .NET serial runtime notices and `ThirdPartyNotices/ZXing.Net.Apache-2.0.txt`. Installer/signing, self-upgrade and other upstream package formats remain absent; `src/Sideband.Desktop/Sideband.Desktop.csproj`, `src/Sideband.Desktop/THIRD-PARTY-NOTICES*.txt`, `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
 
@@ -2536,8 +2536,8 @@ not assert that Python implements that function.
 |---|---:|---|---|
 | `help` | 0..10 | `cmd_system.py` | implemented, generated bounds/source/status help |
 | `raw` | 1..* | `cmd_system.py` | unsupported; visible error, never evaluated |
-| `log` | 0..1 | `cmd_system.py` | missing native core runtime severity/level API; visible error |
-| `log stream` | 0..0 | `cmd_system.py` | partial: contextual native reports/voice events, Enter ends stream; not all RNS severities |
+| `log` | 0..1 | `cmd_system.py` | implemented for available numeric host reports, with primary labels/filtering and explicit malformed-input errors |
+| `log stream` | 0..0 | `cmd_system.py` | partial: filtered host reports and voice events, Enter ends stream; not every independent stack Trace diagnostic |
 | `clear` | 0..* | `cmd_system.py` | implemented, explicit local ANSI clear |
 | `quit` | 0..* | `cmd_system.py` | implemented, cancels owned work/disposes core |
 | `status` | 0..0 | `cmd_system.py` | implemented, general application status |
@@ -2729,10 +2729,37 @@ WSL storage failure.
 `net propagation set none` clears the configured node but retains the existing
 core's automatic/last-node selection; its output says so. The primary's
 `set_active_propagation_node(None)` also does not clear an already active node,
-despite its CLI response saying “cleared”. Runtime RNS log-level changes cannot
-be implemented through the current public core reporting API, which discards
-severity. `log` therefore fails explicitly; `log stream` exposes contextual
-native reports/voice events, not a claim of full primary log capture.
+despite its CLI response saying “cleared”.
+
+`log [0..7]` now controls available numeric runtime reports through the existing
+`ReticulumNode.Open(config, Action<int,string>)` callback, without a stack
+change. The prior application adapter discarded the callback's level; the
+stack did not. The runtime-only threshold is2 on a fresh client; daemon
+interactive quiet mode uses0 and explicit verbose mode uses6. These follow
+the inspected primary startup and four executed `_reticulum_log_debug`
+quiet/verbose observations, not the generic RNS module's initial3. The level
+is not persisted by configuration reload and filters with the actual RNS numeric
+comparison. Fifteen actual primary `cmd_system._cmd_log` observations and72
+actual pinned `RNS.log` stdout observations cover labels, accepted/rejected
+arguments and all0..7 thresholds against0..8 source levels.
+
+The primary CLI labels are retained verbatim but do not match RNS constant
+names: RNS0 is critical, not squelch; RNS5 is verbose, and extreme is8.
+Consequently, as in the actual primary, CLI0 still admits critical reports
+and CLI7 does not admit RNS8. No severity offset is invented. Legacy string-
+only stack reports are forwarded as5 by the existing host: that classification
+does not recover their original severity or exception objects. Independent
+stack `Trace` diagnostics are not all routed through this callback.
+
+`log stream` displays the filtered, terminal-sanitized runtime reports and
+voice events until Enter, with commands still available. Runtime critical/
+error reports retain the contextual error channel; application errors and
+observer-failure diagnostics remain separate from this optional stream.
+Failing runtime observers are isolated and reported; absent observers do not
+disable core processing. Verbose daemon mode also shows available non-error
+runtime reports outside streaming at the selected threshold. None of this is
+a claim of complete Python/global logger capture. Current logging acceptance
+is recorded separately from preceding native candidates below.
 
 ### Console evidence and replay
 
@@ -2841,7 +2868,7 @@ I/O errors and is mounted emergency read-only. No current-source/pin Linux pass
 is inferred from the preceding candidates. No shared distribution restart or
 filesystem repair was performed.
 
-The current `automatic-names-final` Windows candidate also fixes unnamed
+The preceding `automatic-names-final` Windows candidate also fixes unnamed
 creation and alias clearing. Fresh managed acceptance is2074/74 explicit
 skips, actual-primary live4/0, and strict NativeAOT/help/native5/0. The native
 pair requires empty-name creation, saved alias precedence over an actual
@@ -2859,3 +2886,42 @@ Receipts/logs are under
 `artifacts\tests\sideband-console\windows-automatic-names-final`.
 The preceding candidate does not include this name-policy correction; Linux
 acceptance of it remains blocked by the same unavailable WSL filesystem.
+
+The current guarded `runtime-log-startup-final` Windows candidate passes full
+managed2080/74 explicit skips, actual-primary live4/0 and strict
+NativeAOT/help/native5/0. Selected native SHA-256:
+`4407fd0ba2871b1547d75832768fa5da6e66e51a590f7dab0326509dfc70fa37`.
+Production source guards remain unchanged throughout every mode. Reproduce:
+
+```powershell
+& artifacts\tests\sideband-console\Parent-CurrentConsole.ps1 -Managed -Run runtime-log-startup-final
+```
+
+Receipts/logs are under
+`artifacts\tests\sideband-console\windows-runtime-log-startup-final`.
+The generated CLI fixture SHA-256 is
+`aea4430e8736eaa54c605b16c0b3499245819795c2fd30433fe3d9e6b1eb28fd`.
+Its actual imported core helper observes quiet/verbose selection on a minimal
+owner; these four rows are not full application startup or audio evidence.
+The72 numeric-filter rows execute pinned RNS stdout logging, source SHA-256
+`217d8cd060844475acb692f869c9eb1e051ce5b800d3f23479d562e37f048f33`.
+Upstream filterlib compilation/fallback warnings during actual core import
+remain visible; no reference behavior shim is used for these log observations.
+
+T373–T377 cover command results, numeric filtering, failing/concurrent observers,
+terminal sanitization, Enter/disposal detachment, actual owned-node management
+errors with and without subscribers, and real daemon quiet/verbose startup.
+Healthy TCP startup and connection refusal did not emit runtime callbacks in
+the initial attempts; they are not claimed as logging evidence. The deterministic
+real stimulus is a missing-interface management attachment on the same owned
+node, which reports numeric error1. The published native stream separately
+observes actual routing reports at host-forwarded level5 while the native pair
+continues messaging and synthetic real-Opus calling. It is not a voice-event
+proxy or proof of complete stack logger capture.
+
+The retained earlier `runtime-log-final` native4/1 failure waited for a malformed
+input error on stdout, but errors use stderr. The final gate asserts stderr
+after orderly exit, unchanged threshold and continued service, without weakening
+the rejection. The superseded `runtime-log-accepted` run was stopped before the
+startup-default correction and is not acceptance. Linux current-source replay
+remains blocked by WSL storage EIO.

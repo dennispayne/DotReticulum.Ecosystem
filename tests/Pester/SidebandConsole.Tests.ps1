@@ -98,8 +98,10 @@ BeforeAll {
         Set-Content -LiteralPath (Join-Path $directory 'config') -Value $text -Encoding utf8NoBOM
         return $directory
     }
-    function Start-NativeConsole([string] $Name, [string] $Profile, [string] $Config) {
-        $peer=Start-ConsolePeer $script:Binary @('--daemon','--interactive','--synthetic-audio','--config',$Profile,'--rnsconfig',$Config) $Name
+    function Start-NativeConsole([string] $Name, [string] $Profile, [string] $Config, [switch] $Verbose) {
+        $arguments=@('--daemon','--interactive','--synthetic-audio','--config',$Profile,'--rnsconfig',$Config)
+        if ($Verbose) { $arguments+='--verbose' }
+        $peer=Start-ConsolePeer $script:Binary $arguments $Name
         $ready=Wait-ConsoleLine $peer '^READY identity='
         Add-Member -InputObject $peer -NotePropertyName Delivery -NotePropertyValue ([regex]::Match($ready,'delivery=([0-9a-f]{32})').Groups[1].Value)
         Add-Member -InputObject $peer -NotePropertyName Identity -NotePropertyValue ([regex]::Match($ready,'identity=([0-9a-f]{32})').Groups[1].Value)
@@ -201,6 +203,12 @@ Describe 'Sideband frozen desktop/headless interactive console' -Tag 'Native','S
         $peer=$null
         try {
             $peer=Start-NativeConsole first $profile $config
+            Invoke-ConsoleLine $peer 'log' '^Current log level: 0 \(squelch\)' | Out-Null
+            foreach ($level in 0..7) {
+                Invoke-ConsoleLine $peer "log $level" "^Log level set to $level " | Out-Null
+            }
+            Send-ConsoleLine $peer 'log 8'
+            Invoke-ConsoleLine $peer 'log' '^Current log level: 7 \(extreme\)' | Out-Null
             Invoke-ConsoleLine $peer "conv create 0123456789abcdef0123456789abcdef 'Quoted Ω 雪'" '^Conversation created' | Out-Null
             Invoke-ConsoleLine $peer "conv trust 'Quoted Ω 雪'" '^OK conv trust' | Out-Null
             Invoke-ConsoleLine $peer "config set general display_name 'Native console Ω'" '^general display_name = Native console Ω' | Out-Null
@@ -214,18 +222,24 @@ Describe 'Sideband frozen desktop/headless interactive console' -Tag 'Native','S
             Invoke-ConsoleLine $peer 'status' '^Sideband Status' | Out-Null
             Invoke-ConsoleLine $peer 'voice status' '^STATUS voice=disabled' | Out-Null
             Stop-ConsolePeer $peer
+            $peer.Errors.GetAwaiter().GetResult() | Should -Match 'ERROR Invalid log level: 8'
             $peer=$null
             $state=Get-Content (Join-Path $profile 'state.json') -Raw | ConvertFrom-Json
             $state.DisplayName | Should -Be 'Native console Ω'
             $state.Contacts.Count | Should -Be 1
             $state.Contacts[0].Trusted | Should -BeTrue
             $peer=Start-NativeConsole second $profile $config
+            Invoke-ConsoleLine $peer 'log' '^Current log level: 0 \(squelch\)' | Out-Null
             Invoke-ConsoleLine $peer 'config get general display_name' '^general display_name = Native console Ω' | Out-Null
             Invoke-ConsoleLine $peer 'config get map cluster' '^map cluster = false' | Out-Null
             Invoke-ConsoleLine $peer "conv delete 'Quoted Ω 雪'" '^OK conv delete' | Out-Null
             Stop-ConsolePeer $peer
             $peer=$null
             (Get-Content (Join-Path $profile 'state.json') -Raw | ConvertFrom-Json).Contacts.Count | Should -Be 0
+            $peer=Start-NativeConsole verbose $profile $config -Verbose
+            Invoke-ConsoleLine $peer 'log' '^Current log level: 6 \(debug\)' | Out-Null
+            Stop-ConsolePeer $peer
+            $peer=$null
         }
         finally { Stop-ConsolePeer $peer }
     }
@@ -269,6 +283,9 @@ Describe 'Sideband frozen desktop/headless interactive console' -Tag 'Native','S
         try {
             $server=Start-NativeConsole server $serverProfile $serverConfig
             $client=Start-NativeConsole client $clientProfile $clientConfig
+            Invoke-ConsoleLine $client 'log 7' '^Log level set to 7 \(extreme\)' | Out-Null
+            Invoke-ConsoleLine $client 'log stream' '^Streaming native runtime reports' | Out-Null
+            $streamAfter=$client.Lines.Count
             Invoke-ConsoleLine $server 'conv announce' '^LXMF announce sent' | Out-Null
             Invoke-ConsoleLine $client 'conv announce' '^LXMF announce sent' | Out-Null
             Invoke-ConsoleLine $client "conv create $($server.Delivery) ''" '^Conversation created' | Out-Null
@@ -310,6 +327,8 @@ Describe 'Sideband frozen desktop/headless interactive console' -Tag 'Native','S
             Wait-ConsoleMessage $server $client.Delivery 'client to server Ω'
             Invoke-ConsoleLine $server "conv send $($client.Delivery) 'server to client 雪'" '^Message submitted' | Out-Null
             Wait-ConsoleMessage $client $server.Delivery 'server to client 雪'
+            Wait-ConsoleLine $client '^LOG \[[0-7]\] ' $streamAfter | Out-Null
+            Invoke-ConsoleLine $client '' '^Log stream ended' | Out-Null
             $hash=$client.Delivery
             Stop-ConsolePeer $client
             $client=Start-NativeConsole client-clean $clientProfile $clientConfig

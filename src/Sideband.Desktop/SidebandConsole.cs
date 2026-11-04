@@ -11,7 +11,7 @@ public sealed class SidebandConsole : IAsyncDisposable
     private readonly Action<string> _output;
     private readonly SidebandConsoleOperations _operations;
     private readonly SidebandConsoleConfiguration _configuration;
-    private bool _streaming;
+    private int _streaming;
 
     public SidebandConsole(SidebandClient client, SidebandStateStore store, Action<string> output,
         Action<string> error, CancellationToken lifetime)
@@ -21,14 +21,14 @@ public sealed class SidebandConsole : IAsyncDisposable
         _output = output;
         _operations = new(output, error, lifetime);
         _configuration = new(client);
+        _client.RuntimeLogReported += ReportRuntimeLog;
     }
 
-    public bool IsStreaming => _streaming;
+    public bool IsStreaming => Volatile.Read(ref _streaming) != 0;
 
     public bool EndStream(string[] tokens)
     {
-        if (!_streaming || tokens.Length != 0) return false;
-        _streaming = false;
+        if (tokens.Length != 0 || Interlocked.Exchange(ref _streaming, 0) == 0) return false;
         _output("Log stream ended.");
         return true;
     }
@@ -67,8 +67,26 @@ public sealed class SidebandConsole : IAsyncDisposable
         }
         if (name == "clear") { _output("\u001b[2J\u001b[H"); return true; }
         if (name == "log")
-            throw new NotSupportedException("The native core exposes contextual error reports, but no runtime RNS log-level control. No level was changed.");
-        if (name == "log stream") { _streaming = true; _output("Streaming contextual native error/voice events. Press Enter to stop; commands remain available."); return true; }
+        {
+            if (args.Length != 0)
+            {
+                if (!int.TryParse(args[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var selected))
+                    throw new ArgumentException("Invalid log level: " + Safe(args[0]) + ". Must be an integer 0-7.");
+                if (selected is < 0 or > 7)
+                    throw new ArgumentException($"Invalid log level: {selected}. Must be 0-7.");
+                _client.RuntimeLogLevel = selected;
+            }
+            var level = _client.RuntimeLogLevel;
+            var label = new[] { "squelch", "critical", "error", "warning", "notice", "info", "debug", "extreme" }[level];
+            _output($"{(args.Length == 0 ? "Current log level:" : "Log level set to")} {level} ({label})");
+            return true;
+        }
+        if (name == "log stream")
+        {
+            Volatile.Write(ref _streaming, 1);
+            _output("Streaming native runtime reports and voice events. Press Enter to stop; commands remain available.");
+            return true;
+        }
         var state = await _client.LoadAsync(token).ConfigureAwait(false);
         if (name == "status")
         {
@@ -350,5 +368,15 @@ public sealed class SidebandConsole : IAsyncDisposable
     private static int Nonnegative(string value) => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) && count >= 0 ? count :
         throw new ArgumentException("Sync limit must be a nonnegative 32-bit integer.");
     private static string Safe(string? value) => SidebandConsoleSyntax.Safe(value);
-    public ValueTask DisposeAsync() => _operations.DisposeAsync();
+    private void ReportRuntimeLog(SidebandRuntimeLogEntry entry)
+    {
+        if (IsStreaming) _output($"LOG [{entry.Level}] {Safe(entry.Message)}");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Volatile.Write(ref _streaming, 0);
+        _client.RuntimeLogReported -= ReportRuntimeLog;
+        await _operations.DisposeAsync().ConfigureAwait(false);
+    }
 }

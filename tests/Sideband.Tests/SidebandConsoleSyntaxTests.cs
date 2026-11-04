@@ -29,8 +29,9 @@ public sealed class SidebandConsoleSyntaxTests
         Assert.Equal("d069122af14880e43607aed0b71add4c7806fbe0", fixture.RootElement.GetProperty("sideband_sha").GetString());
         Assert.Equal(166, fixture.RootElement.GetProperty("configuration").GetArrayLength());
         Assert.Equal(9, fixture.RootElement.GetProperty("source_sha256").EnumerateObject().Count());
-        foreach (var name in new[] { "raw", "log", "plugins", "plugins reload" })
+        foreach (var name in new[] { "raw", "plugins", "plugins reload" })
             Assert.Equal("unsupported", Assert.Single(SidebandConsoleSyntax.Commands, c => c.Name == name).Status);
+        Assert.Equal("implemented", Assert.Single(SidebandConsoleSyntax.Commands, c => c.Name == "log").Status);
         foreach (var name in new[] { "log stream", "config list", "config get", "config set", "telemetry sensors" })
             Assert.Equal("partial", Assert.Single(SidebandConsoleSyntax.Commands, c => c.Name == name).Status);
     }

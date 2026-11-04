@@ -1,0 +1,91 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "method": "Actual PageEditorDisplay find_next/replace_one/replace_all/_insert_snippet with actual urwid.Edit and synthetic owner/text; actual write_config_atomic and ConfigObj reload on owned storage. No copied guide/snippet assets or rendered Urwid claim.",
+  "sources": {
+    "nomadnet/ui/textui/Editor.py": "ae6c09cde38d473fd97d1758ebcbc13edaf5d7e1f97dc4e698a870c68cd8d378",
+    "nomadnet/ui/textui/Config.py": "13a0a531ccc2fc207dc6b4c7f644c3eff6d261bb34edf84781c1c6f76f4b0421",
+    "nomadnet/ui/textui/Guide.py": "cff869dfd8834fa55ccc25e1ddbece06a61d72329589e77c62236f72220bd2c5",
+    "nomadnet/util.py": "77a4368c73b8a84ef2e9df41b4e423bcb1d0677e12ed18debe445996fa3a9e38"
+  },
+  "initialText": "synthetic one\nsynthetic two\n",
+  "operations": [
+    {
+      "operation": "find_next",
+      "arguments": [
+        "synthetic"
+      ],
+      "text": "synthetic one\nsynthetic two\n",
+      "cursor": 9
+    },
+    {
+      "operation": "find_next",
+      "arguments": [
+        "synthetic"
+      ],
+      "text": "synthetic one\nsynthetic two\n",
+      "cursor": 23
+    },
+    {
+      "operation": "find_next",
+      "arguments": [
+        "synthetic"
+      ],
+      "text": "synthetic one\nsynthetic two\n",
+      "cursor": 9
+    },
+    {
+      "operation": "replace_one",
+      "arguments": [
+        "synthetic",
+        "changed"
+      ],
+      "text": "changed one\nsynthetic two\n",
+      "cursor": 7
+    },
+    {
+      "operation": "replace_one",
+      "arguments": [
+        "missing",
+        "ignored"
+      ],
+      "text": "changed one\nsynthetic two\n",
+      "cursor": 7
+    },
+    {
+      "operation": "find_next",
+      "arguments": [
+        "two"
+      ],
+      "text": "changed one\nsynthetic two\n",
+      "cursor": 25
+    },
+    {
+      "operation": "replace_all",
+      "arguments": [
+        "synthetic",
+        "original"
+      ],
+      "text": "changed one\noriginal two\n",
+      "cursor": 25
+    },
+    {
+      "operation": "replace_all",
+      "arguments": [
+        "",
+        "ignored"
+      ],
+      "text": "changed one\noriginal two\n",
+      "cursor": 25
+    },
+    {
+      "operation": "_insert_snippet",
+      "arguments": [
+        ">Original sample\n"
+      ],
+      "text": "changed one\noriginal two\n>Original sample\n",
+      "cursor": 42
+    }
+  ],
+  "configReload": "Synthetic changed",
+  "temporaryFiles": []
+}

@@ -4,8 +4,10 @@ Experimental, independently authored .NET terminal application targeting primary
 NomadNet **1.4.4**, not an official implementation or a full port. The application
 reuses `ReticulumNode`, `ClientLinks` and `LxmRouter`; it does not duplicate LXMF,
 paper encryption, propagation, Reticulum links or Resource protocols.
-**Required software remains missing**, including editor/guide workflows,
-remaining configuration and terminal workflows. Scoped primary-peer utilities
+**Required software remains missing**, including complete primary editor/UI,
+remaining configuration and terminal workflows. A bounded original page/file/
+native-configuration editor and local guide are implemented and Windows-native
+verified below; they are not the primary editor or copied guide. Scoped primary-peer utilities
 and ten-minute transfer endurance now have separate Windows/Linux evidence;
 current integrated Linux replay is blocked as recorded below. Missing features are
 software gaps, not hardware or optional-platform blockers. Original terminal/RRC/
@@ -70,7 +72,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file/media retrieval with explicit identification consent, links/bookmarks, reload, session navigation history with back/forward and submitted-field replay, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Automatic/manual inline ASCII previews preserve descriptor/form indices and collapsed visibility, including partial media; a local interactive file picker supports transactional attachment composition. Upstream Kitty widgets and complete layout remain missing. |
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron switches render live/history bodies against executed primary widget vectors; JSON string composition preserves multiline/raw content. Complete Channels layout, mention-span styling, colours/gutters and remaining configuration remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
-| UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop, local attachment picker, bounded notification policy and opt-in OSC52 content/URL copying. Windows clipboard native command/restart acceptance passes; current Linux native replay is blocked by WSL storage failure. Editor, guide integration and remaining configuration/workflows are missing. Utilities have their separate bounded contract below; original presentation is not Urwid layout parity. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
+| UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop, local attachment picker, bounded notification policy and opt-in OSC52 content/URL copying. Original bounded page/file/native-config editing, explicit Micron preview and local guide navigation pass separate Windows NativeAOT acceptance below. Complete primary editor/ConfigObj/Urwid/guide-asset workflows remain missing or intentionally different, as individually inventoried below. Current Linux native replay is blocked by WSL storage failure. Utilities have their separate bounded contract below; original presentation is not Urwid layout parity. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
 | Network utilities; `ui/textui/Utilities.py`, `ui/textui/Transport.py` | **implemented bounded subset**: current-owner tables, identity/path resolution/expiry, receipt-backed probes, named rncp sending and identified streamed speed tests. Executed reference vectors, managed TCP and native-pair evidence are separate from independently replayed actual-primary Windows/Linux direct-loopback gates, including unchanged-process ten-minute service operation. Stack callback ownership is fixed in the selected local stack commit; see C79 below. No new hop/loss, maximum-size, full primary GUI or physical-RF claim. |
 | Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Saved-directory/ignored-policy import preserves existing native history/settings/identity, rejects conflicting contacts atomically and persists through terminal/daemon restarts. Offline profile import retains identity/signed ratchets, bounded client-router tickets/stamp-cost and duplicate histories, supported peer settings with backup fallback, contacts/conversations/attachments/paper and bounded primary RRC hubs/nicks/joined/parted rooms/retained history without silently authenticating cached claims. Separate bounded propagation-node migration has immutable-source and current integrated Windows native acceptance; current Linux pin replay is blocked by WSL storage failure. Complete ConfigObj compatibility and full restart policy remain required gaps. |
 
@@ -1714,15 +1716,16 @@ every listed global RRC key except the two render switches (history cap/filter
 currently affect offline migration only, not global runtime policy);
 utilities; primary config-directory discovery
 (`/etc/nomadnetwork`, `~/.config/nomadnetwork`, `~/.nomadnetwork`) versus the native
-ApplicationData default; complete ConfigObj grammar and configuration-editor/
-hot-reload workflows; safe external-root activation during full profile import;
+ApplicationData default; complete ConfigObj grammar, primary section-form/reset
+and external configuration-editor workflows (the bounded native JSON editor is
+described below); safe external-root activation during full profile import;
 and remaining router/cache/peer-counter/announce-state migration. The existing
 named `[node]` application keys are imported and wired, but complete peer UI,
 storage-pressure order and exhaustive failure/restart acceptance remain separate
 gaps. Primary `ui/textui/Config.py` also edits the separately selected Reticulum
 configuration (`enable_transport`, shared-instance/name/type/ports, interface
 discovery, remote-management allowlist, probes, implicit proofs and panic policy);
-the native app has no equivalent editor, and migration deliberately does not
+the native app has no equivalent Reticulum configuration editor, and migration deliberately does not
 silently replace network configuration. Unknown keys continue to be reported.
 
 Safety differences are intentional and not upstream defaults: content/queue
@@ -2984,7 +2987,120 @@ message state, persisted policy/identity across restart and explicit disabling.
 Their stored native message history is disclosed synthetic input, not primary
 message reception evidence. Current Linux native acceptance is blocked by WSL
 storage failure; its managed process preflight is not relabelled NativeAOT.
-Editor observations are research evidence, not an implemented editor claim.
+Those clipboard-suite editor observations are reference research; the separate
+bounded implementation, additional executed observations and native acceptance
+are described in the editor/guide section below.
+
+### Bounded original document/configuration editor and guide
+
+The original console now has a self-contained, no-external-process authoring
+workflow. It edits the same configured roots used by `NomadNetContent`, defaulting
+to `<profile>/storage/pages` and `<profile>/storage/files`; it does not invent a
+second hosted-content location. Existing host rescan/`node refresh` picks up
+saved, renamed and deleted documents. `config edit` edits native `settings.json`,
+not primary ConfigObj or the separately selected Reticulum configuration.
+`guide` provides original local documentation and samples, not upstream guide,
+image, font, template or snippet assets.
+
+The factual reference is primary **1.4.4**
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`. The inspected raw source hashes are:
+
+| Source | SHA-256 |
+|---|---|
+| `nomadnet/ui/textui/Editor.py` | `ae6c09cde38d473fd97d1758ebcbc13edaf5d7e1f97dc4e698a870c68cd8d378` |
+| `nomadnet/ui/textui/Config.py` | `13a0a531ccc2fc207dc6b4c7f644c3eff6d261bb34edf84781c1c6f76f4b0421` |
+| `nomadnet/ui/textui/Guide.py` | `cff869dfd8834fa55ccc25e1ddbece06a61d72329589e77c62236f72220bd2c5` |
+| `nomadnet/util.py` | `77a4368c73b8a84ef2e9df41b4e423bcb1d0677e12ed18debe445996fa3a9e38` |
+
+`GenerateNomadNetEditorVectors.py` executes actual `PageEditorDisplay.find_next`,
+`replace_one`, `replace_all` and `_insert_snippet` with an actual `urwid.Edit`
+buffer and synthetic owner/text, and actual `write_config_atomic` plus ConfigObj
+reload on owned storage. It imports the verified actual primary checkout and
+records actual module paths. It does not render primary UI, replace a reference
+method, or copy its guide/snippet content. The existing
+`GenerateNomadNetWorkflowVectors.py` separately executes `_confine` and
+`_atomic_write`; lexical primary containment is not relabelled symlink protection.
+
+| Primary editor/config/guide contract and source | Native status and exact boundary |
+|---|---|
+| `Editor._roots`, `_confine`, `build_entries`, `walk_dir`, `_do_new` | **implemented bounded subset / safety difference**: explicit pages/files scope, immediate-child listing and nested directory creation. Relative paths up to512 characters; up to2048 displayed entries and4096 inspected entries. Refuses hidden/traversal/device/alternate-stream paths and every observed symlink/reparse ancestor, including dangling links. Primary confinement is lexical and can cross between configured roots; native requires explicit scope rather than accepting arbitrary absolute paths. Full expanded directory tree and `.mu` filter remain **missing**. |
+| `load_file`, `save_file`, `_atomic_write`, `_do_saveas`, `confirm_discard` | **implemented bounded subset / safety difference**: one-megabyte strict UTF8 buffer, invalid-UTF8 read-only, save/discard/cancel, save-as, no silent overwrite, explicit dirty-open/quit refusal and nonzero dirty EOF. Random private same-directory `CreateNew` staging, flushed file and atomic replacement; save errors/cancellation retain the buffer and previous document. Optimistic snapshots reject ordinary external edits, and a shared in-process mutation gate serializes editor commits. Save-as never overwrites and refuses restricted source copies rather than accidentally publishing them. Existing Unix mode is preserved in code; current Linux execution is **unverified**. Directory fsync, hostile administrator path races and crash-atomic multi-file transactions are **not claimed**. |
+| `_do_rename`, `_do_delete`, `_write_allowed`, `_apply_permissions` | **implemented per-file subset / safety difference**: explicit confirmed deletion, nonoverwriting rename and `.allowed` companion movement; failed second move rolls back the first. Windows locked-companion failure/recovery is exercised. Explicit public removal or up to1024 validated distinct identity hashes; invalid hashes do not modify restrictions. Snapshot conflicts fail before mutation. Destructive recursive folder operations, folder-wide permission application and upstream overwrite confirmation remain **missing**. A committed deletion cleanup failure is surfaced, may retain a hidden tombstone, and is not falsely described as rollback. |
+| `find_next`, `replace_one`, `replace_all`, `_insert_snippet` | **implemented bounded subset**: case-sensitive ordinal search with wrapping, selected-match replacement/next-match behavior, nonoverlapping replace-all and insertion. ASCII observations match executed primary operations. Native cursor positions are UTF-16 offsets rather than Python Unicode-codepoint offsets, an explicit **difference**. Five original samples are usable; the primary's18 snippet assets are not copied or claimed. |
+| `on_edit_change`, `render_preview`, `is_executable`, syntax/gutter/panes | **partial / safety difference**: explicit textual Micron preview through the existing renderer, no network/partial/image retrieval and no executable-source execution. Executable files display source with a warning; binary files do not preview. The primary100000-character preview bound is retained. Automatic400ms preview debounce, syntax highlighting, gutter, split-pane visibility/weights and keyboard/mouse parity remain **missing**. |
+| `_state_file`, `load_state`, `save_state`, `start` | **partial / local-format difference**: bounded schema1 `editor_state.json` stores only selected relative scope/path and supports explicit `edit resume` after restart. No document text/secrets or unsaved drafts are persisted. Primary filter, expanded tree, pane settings and automatic reopen behavior remain **missing**; this is not primary editor-state migration. |
+| `ConfigSectionEditor.on_save`, reset/validation and `util.write_config_atomic` | **implemented native subset / safety difference**: edit/show/validate all represented native JSON settings, requiring schema/name, rejecting unknown/duplicate keys and validating before atomic replacement. Saved settings require restart. The commit is serialized with runtime settings writes: subsequent runtime setting edits are explicitly refused until restart; background announce/sync timestamps continue in memory only, so stale active settings cannot overwrite the restart configuration. Active service options/identity are not silently hot-reloaded. Primary section forms, reset dialogs, complete INI compatibility and separately selected RNS configuration editing remain **missing**. |
+| `Config.EditorTerminal`, `[textui] editor` | **missing**: no configured external editor, embedded Urwid terminal or PTY is launched. The original built-in console editor deliberately avoids mixing buffered `Console.In` with raw stdin; piped command acceptance is not an interactive-external-editor claim. |
+| `GuideEntry.display_topic`, `GuideLinkDelegate.handle_link`, topic reader | **implemented original subset / safety difference**: eight original local topics, local links, anchors, topic list and bounded32-topic back history, using the existing Micron renderer. No remote link is followed implicitly. First-run guide switching, configured `hide_guide`, primary display/demo assets and full keyboard/mouse reader behavior remain **missing**. Network browsing stays an explicit existing browser command. |
+
+Example, using JSON strings for text without invoking a shell or executable page:
+
+```text
+guide authoring
+edit mkdir pages
+edit new pages welcome.mu
+edit text ">A local notice\nSynthetic example text.\n"
+edit preview
+edit save
+node refresh
+edit permissions ["0123456789abcdef0123456789abcdef"]
+edit close discard
+config edit
+config validate
+edit close cancel
+```
+
+Use `edit close save|discard|cancel` explicitly; `edit resume` selects the last
+saved path, not a crash-recovery draft. `guide topics`, `guide links`,
+`guide open <number>`, `guide hosting#access` and `guide back` are local reader
+operations. See `--help` and `guide configuration` for search/replace, original
+snippets, save-as, rename, delete and restart semantics.
+
+Focused source-executed and filesystem tests (T390–T394,T398) cover buffer bounds,
+malformed UTF16, original guide links/anchors, binary refusal, default hosting-root
+response, unchanged running settings, memory-only timestamp persistence after
+restart-config editing, conflicts, concurrent editors, cancellation, restart,
+permissions and Windows second-move rollback. The complete scoped command:
+
+```powershell
+dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=nomad-editor-regression.trx" --results-directory artifacts\tests\nomad-editor\managed-final -v quiet
+```
+
+passes **321 tests,15 explicit skips,zero failures** on Windows. The new Linux
+symlink/executable/mode case (T398) is explicitly skipped there; WSL EIO/ext4
+read-only storage prevents current Linux replay, and no WSL repair was attempted.
+
+Strict Windows publish:
+
+```powershell
+$env:PATH = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer;' + $env:PATH
+dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64 -o artifacts\tests\nomad-editor\native -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v minimal
+```
+
+passes warning-free with SDK**10.0.403** and compiler**10.0.14**, stack
+`e52da394658f6f6c723214a9f811552418789cb6`.
+The exact native SHA-256 is
+`24f3b7d471e44b60acded6b97a057c7cda0adf6b45e4ad98b518180bd17dd49a`.
+With `DOTRETICULUM_NOMADNET_EDITOR=1`, that selected
+`DOTRETICULUM_NOMADNET_BINARY`, and
+`DOTRETICULUM_NOMADNET_EDITOR_REFERENCE=1` plus the pinned Python/RNS/LXMF/
+primary paths, run:
+
+```powershell
+pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\NomadNetEditor.Tests.ps1
+```
+
+T395/T396/T397/T399 pass **4/4,zero skips/failures**, including native `--help`,
+actual console authoring/Micron preview/host-handler refresh, per-file permissions,
+cross-root rename/delete, local guide navigation, identity-preserving restart,
+binary/invalid-input/dirty-EOF refusal, nonoverwrite and Windows junction
+confinement, invalid-config rollback, protected restart-config save and a
+byte-identical independent primary regeneration. Before/after source and executable
+hashes are recorded under ignored `artifacts\tests\nomad-editor`, along with
+TRX, toolchain/publish log and owned per-process stdout/stderr. These are local
+software/CLI flows, not new Python-peer messaging, transport-hop/loss,
+physical-terminal UI, external editor, audio or hardware acceptance. Root
+integration/full-native validation remains a separate parent gate.
 
 ### Selected local picker/composer acceptance
 
@@ -3047,7 +3163,7 @@ errors. `dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build
 --results-directory artifacts\tests\nomadnet-file-picker-integrated -v:q`
 passes **1,799 tests, 87 explicit skips, zero failures**. Converter-dependent
 checks skipped there are separately exercised by the selected scoped runs.
-Remaining Kitty presentation, configuration, migration, editor/notification,
+Remaining Kitty presentation, configuration, migration, complete primary editor,
 and remaining presentation workflows are not declared complete; bounded QR
 export/display, opt-in clipboard and printing software are described separately above.
 

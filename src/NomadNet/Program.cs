@@ -279,8 +279,7 @@ internal static partial class Program
                     throw new InvalidOperationException("The configured inbound stamp cost is unsupported.");
                 return router.AnnounceAsync(token);
             },
-            (timestamp, token) => propagationPolicy.UpdateSettingsAsync(
-                current => current with { LastClientAnnounce = timestamp }, token))
+            propagationPolicy.RecordClientAnnounceAsync)
         { Log = message => logging.Write(1, message) };
         clientAnnounces.Start();
         await using var announceStream = await NomadNetAnnounceStream.OpenAsync(options.DataDirectory,
@@ -476,6 +475,16 @@ internal static partial class Program
               node-config static|priority <hash> <on|off>
               node-peers                     Inspect actual hosted propagation peers
               node-peer-sync <hash>          Request peer transfer through LXMF (three-minute deadline)
+              edit open|new <pages|files> <relative-path> | edit resume
+              edit text <JSON-string> | edit insert <offset> <JSON-string>
+              edit show|preview|save|status | edit close save|discard|cancel
+              edit save-as|rename <pages|files> <relative-path> | edit delete confirm
+              edit find <JSON-string> | edit replace|replace-all ["term","replacement"]
+              edit snippets | edit snippet <name> | edit permissions public|["identity-hash"]
+              edit mkdir|list <pages|files> [relative-folder]
+              config edit|show|validate       Native JSON editor; validated save requires restart
+              guide [topics|links|open <number>|back|<topic>#<anchor>]
+                                             Original local documentation, no upstream assets
               rrc connect <hub> [nick]        Connect to an identified rrc.hub
               rrc hubs | rrc open <hub>       List or inspect saved hubs/history without connecting
               rrc join <room> [key] | rrc part <room>
@@ -565,7 +574,12 @@ internal static partial class Program
             {
                 Console.Write("nomadnet> ");
                 var line = await Console.In.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-                if (line is null) return;
+                if (line is null)
+                {
+                    if (_editor?.Buffer.Dirty == true)
+                        throw new IOException("Terminal input ended with unsaved editor changes; no draft was persisted.");
+                    return;
+                }
                 if (line.Length > 16 * 1024)
                 {
                     Console.WriteLine("Command line exceeds the 16 KiB limit.");
@@ -591,11 +605,15 @@ internal static partial class Program
 
         private async Task<bool> ExecuteAsync(string command, CancellationToken cancellationToken)
         {
+            if (await TryHandleEditorAsync(command, cancellationToken).ConfigureAwait(false)) return false;
             if (await TryHandleClipboardAsync(command, cancellationToken).ConfigureAwait(false)) return false;
             if (await TryHandleUtilityAsync(command, cancellationToken).ConfigureAwait(false)) return false;
             if (await TryHandlePrintingAsync(command, cancellationToken).ConfigureAwait(false)) return false;
             if (command.Equals("quit", StringComparison.OrdinalIgnoreCase) || command.Equals("exit", StringComparison.OrdinalIgnoreCase))
+            {
+                if (_editor?.Buffer.Dirty == true) throw new InvalidOperationException("Unsaved changes: use edit close save or discard before quitting.");
                 return true;
+            }
             if (command.Equals("help", StringComparison.OrdinalIgnoreCase)) { PrintHelp(); return false; }
             if (command.Equals("announces", StringComparison.OrdinalIgnoreCase) ||
                 command.StartsWith("announces ", StringComparison.OrdinalIgnoreCase))

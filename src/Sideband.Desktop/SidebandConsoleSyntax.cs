@@ -16,7 +16,7 @@ public static class SidebandConsoleSyntax
     public static IReadOnlyList<SidebandConsoleCommand> Commands { get; } = Array.AsReadOnly<SidebandConsoleCommand>(
     [
         new("help", 0, 10, "cmd_system.py"), new("raw", 1, null, "cmd_system.py", "unsupported"),
-        new("log", 0, 1, "cmd_system.py", "unsupported"), new("log stream", 0, 0, "cmd_system.py", "partial"),
+        new("log", 0, 1, "cmd_system.py", "implemented"), new("log stream", 0, 0, "cmd_system.py", "partial"),
         new("clear", 0, null, "cmd_system.py"), new("quit", 0, null, "cmd_system.py"),
         new("status", 0, 0, "cmd_system.py"),
         new("conv", 0, 0, "cmd_conv.py"), new("conv send", 2, null, "cmd_conv.py"),

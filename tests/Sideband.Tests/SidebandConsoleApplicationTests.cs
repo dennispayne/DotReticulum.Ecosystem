@@ -110,7 +110,7 @@ public sealed class SidebandConsoleApplicationTests
                 "config set telemetry fg '[2,0,0,1]'", "config set telemetry fg '[[[[]]]]'",
                 "config set sensors fixed_altitude NaN", "config set general display_name ''",
                 "conv msgs " + Peer + " -1", "telemetry list 257", "telemetry track " + Peer + " 0 1",
-                "net propagation set malformed", "log 7"
+                "net propagation set malformed", "log 8"
             };
             foreach (var line in failures)
                 await Assert.ThrowsAnyAsync<Exception>(() => console.ExecuteAsync(SidebandConsoleSyntax.Resolve(SidebandConsoleSyntax.Parse(line))!, token));

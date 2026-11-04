@@ -4,12 +4,15 @@ The recording core/context below are API-boundary doubles, not Sideband core
 implementations. Live application interoperability requires a separate adapter.
 """
 import argparse
+import contextlib
 import hashlib
 import importlib
+import io
 import json
 from pathlib import Path
 import subprocess
 import sys
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Interop"))
 from reference_environment import verify_reference
@@ -74,7 +77,8 @@ def main():
     names = ["commands", "config_tree", "cmd_system", "cmd_conv", "cmd_net",
              "cmd_config", "cmd_telemetry", "cmd_voice", "cmd_plugins"]
     paths = [f"sbapp/sideband/cli/{name}.py" for name in names]
-    if subprocess.check_output(["git", "-C", str(source), "status", "--porcelain", "--", *paths], text=True).strip():
+    if subprocess.check_output(["git", "-C", str(source), "status", "--porcelain", "--",
+                                *paths, "sbapp/sideband/core.py"], text=True).strip():
         raise RuntimeError("Reference CLI source is modified")
     sys.path.insert(0, str(source / "sbapp"))
     modules = {name: importlib.import_module("sideband.cli." + name) for name in names}
@@ -118,6 +122,39 @@ def main():
         parsed.append({"line": line, "tokens": tokens, "command": command.name() if command else None,
                        "remaining": remaining})
     tree = modules["config_tree"]
+    import RNS
+    log_cases = []
+    log_filter_cases = []
+    log_startup_cases = []
+    previous_level = RNS.loglevel
+    previous_destination = RNS.logdest
+    try:
+        for arguments in [[], *[[str(level)] for level in range(8)],
+                          ["-1"], ["8"], ["invalid"], ["1.5"], ["+6"], [" 2 "]]:
+            RNS.loglevel = 3
+            result = modules["cmd_system"]._cmd_log(arguments, Observation(), Observation())
+            log_cases.append({"arguments": arguments, "result": result, "level": RNS.loglevel})
+        RNS.logdest = RNS.LOG_STDOUT
+        for threshold in range(8):
+            RNS.loglevel = threshold
+            for level in range(9):
+                capture = io.StringIO()
+                with contextlib.redirect_stdout(capture):
+                    RNS.log("Synthetic runtime filter observation", level=level)
+                log_filter_cases.append({"threshold": threshold, "level": level, "emitted": bool(capture.getvalue())})
+        sys.path.insert(0, str(source))
+        core = importlib.import_module("sideband.core")
+        core_path = source / "sbapp/sideband/core.py"
+        if Path(core.__file__).resolve() != core_path:
+            raise RuntimeError("Wrong actual Sideband core import")
+        for quiet in (False, True):
+            for verbose in (False, True):
+                owner = SimpleNamespace(log_quiet=quiet, log_verbose=False, is_client=False)
+                core.SidebandCore._reticulum_log_debug(owner, verbose)
+                log_startup_cases.append({"quiet": quiet, "verbose": verbose, "level": RNS.loglevel})
+    finally:
+        RNS.loglevel = previous_level
+        RNS.logdest = previous_destination
     conversions = []
     for key, values in {"debug": ["true", "enabled", "disable", "invalid"],
                         "lxmf_sync_limit": ["none", "3", "true", "-1"],
@@ -131,8 +168,13 @@ def main():
                 conversions.append({"key": key, "input": value, "error": str(error)})
     result = {"sideband_sha": revision,
               "source_sha256": {path: hashlib.sha256((source / path).read_bytes()).hexdigest() for path in paths},
-              "method": "Actual registrations, Command validation/execution, shlex parsing and config conversions; handler core/context are recording boundary doubles, not live core.",
+              "method": "Actual registrations, Command validation/execution, shlex parsing, config conversions, log-level handlers, RNS.log stdout filtering and SidebandCore._reticulum_log_debug on a boundary owner; no application constructor or live core in these observations.",
               "commands": commands, "parsing": parsed,
+              "log_cases": log_cases,
+              "log_filter_cases": log_filter_cases,
+              "log_startup_cases": log_startup_cases,
+              "log_startup_source_sha256": hashlib.sha256(core_path.read_bytes()).hexdigest(),
+              "rns_logging_source_sha256": hashlib.sha256(Path(RNS.__file__).read_bytes()).hexdigest(),
               "configuration": [{"key": key, "category": meta["category"], "alias": meta["alias"], "type": meta["type"]}
                                 for key, meta in tree.CONFIG_METADATA.items()],
               "conversions": conversions}

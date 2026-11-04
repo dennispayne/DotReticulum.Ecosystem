@@ -22,6 +22,7 @@ public sealed class NomadNetPropagation : IAsyncDisposable
     private int _disposed;
     private int _schedulerStarted;
     private int _running;
+    private int _configurationRestartPending;
     private NomadNetSettings _settings;
     private string? _selected;
     private string _status = "Idle";
@@ -52,6 +53,7 @@ public sealed class NomadNetPropagation : IAsyncDisposable
     public string? Selected => Volatile.Read(ref _selected);
     public string Status => Volatile.Read(ref _status);
     public bool IsSyncing => Volatile.Read(ref _running) != 0;
+    public bool ConfigurationRestartPending => Volatile.Read(ref _configurationRestartPending) != 0;
 
     public static string? SelectNode(string? manual, IEnumerable<string> trustedNodes,
         IEnumerable<NomadNetPropagationCandidate> candidates)
@@ -112,10 +114,41 @@ public sealed class NomadNetPropagation : IAsyncDisposable
         try
         {
             ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            if (ConfigurationRestartPending)
+                throw new InvalidOperationException("Configuration was edited for restart; restart before changing runtime settings.");
             var changed = update(Settings);
             changed.Validate();
             changed = changed.Copy();
             await changed.SaveAsync(_directory, cancellationToken).ConfigureAwait(false);
+            _settings = changed;
+            RefreshSelection();
+        }
+        finally { _gate.Release(); }
+    }
+
+    /// <summary>Serialize the editor commit with all runtime settings writers without applying new service options.</summary>
+    public async Task SaveConfigurationForRestartAsync(Func<CancellationToken, Task> save,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(save);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            await save(cancellationToken).ConfigureAwait(false);
+            Volatile.Write(ref _configurationRestartPending, 1);
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task RecordClientAnnounceAsync(DateTimeOffset timestamp, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            var changed = _settings with { LastClientAnnounce = timestamp };
+            if (!ConfigurationRestartPending) await changed.SaveAsync(_directory, cancellationToken).ConfigureAwait(false);
             _settings = changed;
             RefreshSelection();
         }
@@ -154,7 +187,7 @@ public sealed class NomadNetPropagation : IAsyncDisposable
             RefreshSelection();
             if (Selected is null) throw new InvalidOperationException("No propagation node selected.");
             var changed = _settings with { LastLxmfSync = _time.GetUtcNow() };
-            await changed.SaveAsync(_directory, cancellationToken).ConfigureAwait(false);
+            if (!ConfigurationRestartPending) await changed.SaveAsync(_directory, cancellationToken).ConfigureAwait(false);
             _settings = changed;
             _request?.Dispose();
             _request = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);

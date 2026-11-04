@@ -80,7 +80,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
                 : Path.GetFullPath(reticulumConfigDirectory);
             await _store.SetReticulumConfigDirectoryAsync(config, cancellationToken).ConfigureAwait(false);
 
-            var node = ReticulumNode.Open(config, (_, message) => Report(message));
+            var node = ReticulumNode.Open(config, ReportRuntimeLog);
             var inbound = CreateInboundChannel();
             _inbound = inbound;
             Identity? identity = null;

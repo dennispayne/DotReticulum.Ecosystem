@@ -8,6 +8,52 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+The current editor/runtime-logging solution builds with zero warnings/errors and
+passes2707 managed cases/147 explicit skips on Windows:
+
+```powershell
+dotnet build DotReticulum.Ecosystem.slnx -c Release --nologo -v:q
+dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build --nologo -v:q --logger trx --results-directory artifacts\tests\resume-editor-log
+```
+
+Sideband's guarded `runtime-log-startup-final` candidate passes full2080/74,
+separately enabled live4/0, strict NativeAOT/help and native5/0. SHA-256:
+`4407fd0ba2871b1547d75832768fa5da6e66e51a590f7dab0326509dfc70fa37`.
+Actual primary handler/RNS/core observations establish runtime filtering and
+quiet/verbose defaults, not complete stack diagnostic capture. The retained
+preceding native4/1 failure was an assertion waiting for an input error on
+stdout instead of stderr; the final unchanged rejection is checked on stderr
+after orderly exit. A superseded candidate stopped before the final startup
+default correction is not acceptance.
+
+The original Nomad editor/local-guide/native-config candidate passes321/15
+managed and strict Windows NativeAOT/help. Parent independently replays its
+four editor cases and29 printing/node-migration/clipboard/utility cases, zero
+failures/skips, on the same source-guarded binary:
+`24f3b7d471e44b60acded6b97a057c7cda0adf6b45e4ad98b518180bd17dd49a`.
+No new network topology or primary GUI is exercised by the editor cases.
+The29-case regression gate includes actual primary multi-megabyte node
+transfers/restarts but does not repeat the preceding ten-minute utility hold or
+extra descendant-ownership cases. Those retain their earlier source boundary.
+Reproduction operators and receipts are under
+`artifacts\tests\nomad-editor\parent-independent-replay`,
+`parent-broader-native` and
+`artifacts\tests\sideband-console\windows-runtime-log-startup-final`.
+External-editor/PTY, selected RNS editor, bulk-folder and full configuration/
+presentation contracts remain required software gaps. Current Linux replay
+remains blocked by WSL storage EIO, not waived or inferred from Windows.
+
+The refreshed integrated gate also passes:
+
+```powershell
+& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-editor-log-unified -OutputDirectory artifacts\tests\fleet-editor-log-unified
+```
+
+Its81 claims/360 selectors aggregate strictly, with explicit missing live/native/
+hardware evidence retained. Ten coverage reports are unioned by source identity;
+their percentages are not compatibility acceptance. Changed/new PowerShell
+passes `tools\PSScriptAnalyzerSettings.psd1`; `git diff --check` is clean.
+
 Nomad node-state migration C74 now has independent parent no-build/no-republish
 replay of both immutable candidates. Windows full snapshot Nomad267/9 and
 Linux276/0, shared LXMF162/28 each, the separate primary observation and three
@@ -126,7 +172,7 @@ failure or establish complete application parity.
 
 The automatic conversation-name correction adds independently executed
 primary SQLite write observations and four regressions, including original
-desktop controls. The current full Windows solution builds with zero warnings/
+desktop controls. That preceding Windows solution builds with zero warnings/
 errors and passes2693/146 explicit skips:
 
 ```powershell

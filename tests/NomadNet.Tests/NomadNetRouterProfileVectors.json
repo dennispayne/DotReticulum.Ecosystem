@@ -1,0 +1,38 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "rnsVersion": "1.5.7",
+  "lxmfVersion": "1.2.1",
+  "method": "Complete unmodified primary NomadNetworkApp constructor; seed public router attributes with explicitly public synthetic cache values, execute real save methods and Destination.rotate_ratchets. No clocks, classes or algorithms patched. Future timestamps deliberately avoid fixture expiry, not a real traffic observation. Random identity/private ratchets remain only in ignored runtime profile; never in this fixture.",
+  "sources": {
+    "nomadnet/NomadNetworkApp.py": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2",
+    "LXMF/LXMRouter.py": "56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9",
+    "RNS/Destination.py": "7db80f04e8bac330d1c8a8e57f33c49b7df99798f54c74aae3e2d8e5b3bffbde"
+  },
+  "layout": "storage/lxmf",
+  "clientFiles": [
+    "available_tickets",
+    "outbound_stamp_costs",
+    "local_deliveries",
+    "locally_processed",
+    "ratchets/<own-delivery-hash>.ratchets"
+  ],
+  "nodeStatsWrittenByClient": true,
+  "propagationNode": false,
+  "pendingInbound": 0,
+  "pendingOutbound": 0,
+  "ownRatchetsSignatureValid": true,
+  "ownRatchetsCount": 1,
+  "outboundTicket": "22222222222222222222222222222222",
+  "inboundTickets": [
+    "22222222222222222222222222222222"
+  ],
+  "stampCost": 9,
+  "deliveredRetained": true,
+  "processedRetained": true,
+  "publicFilesHex": {
+    "available_tickets": "83a86f7574626f756e6481c4101111111111111111111111111111111192cb41df4add40000000c41022222222222222222222222222222222a7696e626f756e6481c4101111111111111111111111111111111181c4102222222222222222222222222222222291cb41df4add40000000af6c6173745f64656c6976657269657381c41011111111111111111111111111111111cb41ddcd6500000000",
+    "outbound_stamp_costs": "81c4101111111111111111111111111111111192cb41ddcd650000000009",
+    "local_deliveries": "81c4203333333333333333333333333333333333333333333333333333333333333333cb41ddcd6500000000",
+    "locally_processed": "81c4204444444444444444444444444444444444444444444444444444444444444444cb41ddcd6500000000"
+  }
+}

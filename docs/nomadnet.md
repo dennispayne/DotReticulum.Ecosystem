@@ -66,7 +66,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron switches render live/history bodies against executed primary widget vectors; JSON string composition preserves multiline/raw content. Complete Channels layout, mention-span styling, colours/gutters and remaining configuration remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop and local attachment picker. Complete menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
-| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Saved-directory/ignored-policy import preserves existing native history/settings/identity, rejects conflicting contacts atomically and persists through terminal/daemon restarts. Offline profile import retains identity/signed ratchets, supported peer settings with backup fallback, contacts/conversations/attachments/paper and bounded primary RRC hubs/nicks/joined/parted rooms/retained history without silently authenticating cached claims. Complete ConfigObj compatibility, additional router-state migration and full restart policy remain required gaps. |
+| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Saved-directory/ignored-policy import preserves existing native history/settings/identity, rejects conflicting contacts atomically and persists through terminal/daemon restarts. Offline profile import retains identity/signed ratchets, bounded client-router tickets/stamp-cost and duplicate histories, supported peer settings with backup fallback, contacts/conversations/attachments/paper and bounded primary RRC hubs/nicks/joined/parted rooms/retained history without silently authenticating cached claims. Complete ConfigObj compatibility, propagation-node state migration and full restart policy remain required gaps. |
 
 ### Configuration audit
 
@@ -177,7 +177,7 @@ non-regular files, Unix permissions/symlinks and healthy recovery. The
 commands on the selected published binary, primary application file exchange in
 both directions, configured and explicit exports and same-identity restart.
 Physical GUI/file-picker behavior is not exercised or claimed by this slice.
-Printing, utilities, router migration and other complete
+Printing, utilities, propagation-node migration and other complete
 configuration/presentation contracts remain required elsewhere.
 
 ### Bounded compact/full announce history (C71)
@@ -607,7 +607,8 @@ The RNS1.5.7/LXMF1.2.1-versus-declared-minimum discrepancy remains applicable.
 | Primary persistence contract and source | Native import disposition |
 |---|---|
 | `storage/identity`; `NomadNetworkApp.__init__` | **implemented**: exactly64 private-key bytes loaded through existing `Identity.FromPrivateKey`; public delivery address retained. Native imported identity is profile-owned `identity`, not another RNS configuration's `nomadnet_identity`. Old native profiles without this file retain their original RNS-storage identity behavior. Both LXMF and new native RRC sessions use the imported identity. |
-| `storage/lxmf/ratchets/<delivery>.ratchets`; actual delivery destination registration | **implemented**: validate the identity-signed file with existing `SignedDestinationRatchetFile.Decode`, zero all temporary secret buffers, then preserve exact bytes in the existing router's expected path. Other LXMF/router state is individually listed as not imported, never silently copied or asserted compatible. |
+| `storage/lxmf/ratchets/<delivery>.ratchets`; actual delivery destination registration | **implemented bounded subset**: validate the identity-signed file with existing `SignedDestinationRatchetFile.Decode`, enforce the native512-key limit, zero all temporary secret buffers, then preserve exact bytes in the existing router's expected path. Only this identity's delivery ratchets are activated; client-router cache migration is detailed below. |
+| `storage/lxmf/available_tickets`, `outbound_stamp_costs`, `local_deliveries`, `locally_processed`; `LXMRouter` constructor/save APIs | **implemented bounded client subset**: validate primary schemas and activate within the same private absent-target transaction, using the existing LXMF stores for load/expiry/ownership. Preserve incoming/outgoing tickets, ticket-delivery interval, announced stamp costs and delivered/processed duplicate histories. Node/unknown/interrupted files stay explicitly not imported; no queued messages or links are invented. |
 | `config`; `apply_config` | **partial**: existing explicit core importer translates supported keys and reports unsupported keys. Page/file/download overrides are cleared and executable pages stay disabled. Global RNS configs, interface profiles, external paths, executable pages, cached remote material and licensed assets are not activated or copied. The separately selected RNS directory is saved as `rnsConfigDirectory`; runtime `--rnsconfig` may explicitly override it. |
 | `storage/peersettings` and `.bak`; constructor fallback loop and `save_peer_settings` | **implemented bounded subset**: display name, saved propagation-node selection, last delivery announce and last LXMF sync become native settings. Invalid primary MessagePack falls back to a valid backup with an explicit warning; no valid primary/backup fails without creating a target. Both original files remain inert archives. Counters, quit-confirm, node announce timestamp and unknown keys are archived, not asserted to be live native equivalents. No source file is renamed to `.corrupt`. |
 | `storage/directory`, `ignored`; `Directory.save_to_disk`, `_persist_ignored_list` | **implemented** through the existing directory importer/policy: saved contacts, trust, independent ignored hashes, preferred delivery, rank, notes and identify consent retained. Transient announces are counted and archived, not converted into saved trust. |
@@ -617,6 +618,149 @@ The RNS1.5.7/LXMF1.2.1-versus-declared-minimum discrepancy remains applicable.
 | `storage/attachments/<original-message-hash>/manifest`, `file_<n>`; `extract_attachments_from_lxm`, `strip_attachments_from_file` | **implemented bounded subset**: validate names, stored-file grammar, byte counts and aggregate limits; migrate payloads through existing `NomadNetAttachments` bounded storage/checksums/extractors. Original files/manifests remain byte-identical inert archives. Primary `load()` can remove fields0x05/0x06/0x07 from the signed container without resigning or renaming its file: the import retains that original ID and explicitly labels the rewritten container unauthenticated. File/image/audio bytes remain available; stripped media has no reliable field typing, so recovered preview selection detects encoded image headers rather than asserting authenticated `FIELD_IMAGE` provenance. |
 | Paper; `Conversation.paper_output`, container method/state5 | **implemented historical document**: retained text, fields/container and paper state are offline saved documents, not sends. The container does not preserve the original encrypted URI/QR output; external downloads/printer outputs are not searched or regenerated/resubmitted. Existing native paper composition is separate. |
 | RRC; `RRCManager.identity`, `_store_path/load/save`, `RRCHub._append_history/_load_history` | **implemented bounded subset**: string-key CBOR hub profiles and concatenated CBOR room histories convert into the existing separate native hub store. Retain destination hash/aspect/display name, effective nickname, joined and parted rooms (including empty parted rooms), reconnect/list/who policies, and the primary load-visible history window. Original activated files are inert archives; unreferenced logs remain individually not imported. Imported source/nick/mention values are explicitly unauthenticated historical claims, never live roster/membership, unread/active state or authorization. Native startup does not contact imported hubs; connection is explicit. |
+
+#### Bounded primary client-router migration
+
+`NomadNetRouterProfile` is part of the existing offline `--import-profile`
+transaction, not a second router or an online merge command. It reads the actual
+primary layout, **not Sideband's `app_storage` layout**:
+`NomadNetworkApp.__init__` supplies `<profile>/storage` to `LXMRouter`, whose
+constructor appends `/lxmf`. `register_delivery_identity` enables only that
+identity's signed delivery-ratchet file.
+
+| Actual primary client contract | Migration boundary |
+|---|---|
+| `available_tickets`; `LXMRouter.__init__`, `remember_ticket`, `generate_ticket`, `save_available_tickets` | Three maps `outbound`, `inbound`, `last_deliveries`;16-byte destination/ticket values and finite numeric timestamps. Existing `LxmTicketStore` owns copies, expiry/grace, renewal and delivery interval. Native ticket cleanup removes expired interval markers/empty inbound maps rather than retaining them indefinitely. |
+| `outbound_stamp_costs`; constructor, `update_stamp_cost`, save/clean APIs |16-byte destination to `[timestamp,cost]`; finite timestamp and null or integer1–254 cost. Existing LXMF45-day cache policy applies. No inferred cost is invented from conversation text. |
+| `local_deliveries`, `locally_processed`; constructor, save/clean APIs |32-byte message/transient ID to finite timestamp; existing LXMF180-day retention applies on load. Raw files can still contain expired entries until a later native write; this does not reactivate expired entries. |
+| `ratchets/<own-delivery-hash>.ratchets`; delivery registration and RNS `Destination` | Existing signature/ownership decoding and native512-key limit. Other destinations' ratchets, even malformed ones, remain not imported. No RNS global remote-ratchet cache is copied. |
+| `node_stats`; `save_node_stats`, constructor/`enable_propagation` | **not imported**: a primary client writes it, including on exit, but only propagation enable reloads its counters. It is not a required client cache. |
+| `peers`, `messagestore`; propagation enable/exit | **missing node-migration contract**, explicitly not imported. Client cache acceptance does not establish propagation-node restart/synchronization migration. |
+| Pending inbound/outbound, deferred stamps, direct/backchannel links, path-request caches | Memory-only primary state, **not applicable as persistence files**. Import never resumes historical sends or manufactures sockets/jobs. |
+| Unknown files, `.tmp.*`/interrupted writes, other identities' ratchets, RNS/interface files | Individually reported not imported, never silently copied or activated. |
+
+Bounds are4MiB tickets,8MiB per cache,4,096 destinations per ticket map,
+16 inbound tickets per destination,65,536 entries per cache and512 signed own
+ratchets. The existing4MiB signed-ratchet envelope limit,512MiB/12,000-entry
+whole-profile snapshot bounds and private staging ownership remain in force.
+Unknown schemas, invalid key sizes/types, nonfinite timestamps, malformed stores,
+excessive entries or identity-signature mismatch abort the **entire** absent-target
+transaction. This strict failure is intentional: the primary can log/reset a
+corrupt cache, but offline migration must not silently erase protection state.
+The source is hashed before/after and remains unchanged. Cancellation or later
+conversation/configuration failure removes staged private state without
+publishing any target. The preflight instantiates the public `LxmRouter` stores
+without starting transport/workers or registering delivery observers.
+
+`GenerateNomadNetRouterProfile.py` executes the complete unmodified primary
+constructor, seeds public cache attributes with explicitly public synthetic
+values, then executes real router save APIs and `Destination.rotate_ratchets`.
+It verifies actual imported source paths/clean pinned Git objects and normalised
+checkout bytes, and records Git-blob SHA-256s:
+
+| Source | SHA-256 |
+|---|---|
+| `nomadnet/NomadNetworkApp.py` | `c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2` |
+| `LXMF/LXMRouter.py` | `56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9` |
+| `RNS/Destination.py` | `e1117e5ff9c4baeda53f9117ae52c4cd0e1e2a4f4167de628e4afb8b4506b8ae` |
+
+There are no reference algorithm/class/clock patches. Fixed future timestamps
+2,000,000,000/2,100,000,000 keep these **synthetic** fixtures from expiring; they
+are not captured traffic. Random identity/private ratchets remain only in ignored
+runtime profiles; the checked-in JSON contains no private keys or real tickets.
+Independent Windows/Linux execution produces identical public fixture SHA-256
+`81786ad45a8f58b357b402bb6e396628a5fac8472398665bf7364db3759d10d6`.
+The intentionally older dependency pins still do not meet NomadNet's declared
+minimums.
+
+Claim **C72**, exact managed selectors under
+`FullyQualifiedName=NomadNet.Tests.NomadNetRouterProfileTests.`:
+
+| TestId | Method / Pester selector |
+|---|---|
+| T240 | `ExecutedPrimaryFixtureRecordsClientLayoutAndPersistence` |
+| T241 | `ImportsPublicReferenceStoresOwnIdentityRatchetsAndRestartsWithoutSubscribers` |
+| T242 | `MalformedClientFilesFailAtomicallyWithoutRepairOrSecretReplacement` |
+| T243 | `ByteEntryTicketAndOwnRatchetBoundsRejectRatherThanTruncate` |
+| T244 | `CancellationAndLateFailureLeaveNoPublishedRouterStateAndRetrySucceeds` |
+| T245 | `MigratedDuplicatesSurviveRestartAndObserverFaultsDoNotDisableHealthyDelivery` |
+| T246 | `OptionalClientFilesAndExcludedPropagationOrForeignFilesAreExplicit` |
+| T247 | `NomadNet bounded primary client router migration.T247 independently regenerates public primary constructor and router persistence fixtures` |
+| T248 | `NomadNet bounded primary client router migration.T248 atomically imports selected router stores and cross loads primary native primary across restart` |
+| T249 | `NomadNet bounded primary client router migration.T249 exchanges actual primary app messages with migrated identity after clean and abrupt native restart` |
+
+The three Pester cases in `tests/Pester/NomadNetRouterProfile.Tests.ps1` explicitly
+skip unless `DOTRETICULUM_NOMADNET_ROUTER_PROFILE=1`, the selected native binary
+and pinned Python/source variables are provided. T248 executes actual
+primary→native→primary constructor cross-load of all five selected files,
+including signature/ticket/stamp/duplicate observations after two native starts.
+T249 uses the existing thin `nomadnet_live_node.py` adapter around the full
+unchanged primary app. Two direct TCP loopback message exchanges retain the
+imported delivery identity after clean and abrupt native restart; the actual
+primary conversation containers and native durable history are checked.
+The adapter only observes callbacks and invokes real APIs.
+
+A first Windows restart run exposed a harness barrier issue: the primary's old
+accepted TCP child could still report online immediately after the native process
+was killed. The harness now allows two seconds for old-child retirement, then
+still requires the next real announcement and both message directions.
+Failed receipts and stdout/stderr are retained, not relabelled as passes.
+An initial Linux cancellation assertion also exposed recursive-inotify admission
+timing: a new nested router directory was not necessarily watched before its
+first file was created. Cancellation now observes the already-watched parent
+directory's staging admission; it still requires cancellation, absent target,
+complete staging cleanup and a successful retry. The failed TRX is retained.
+
+Selected candidate verification (implementation evidence, not parent acceptance):
+
+```powershell
+dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --artifacts-path artifacts\builds\nomad-router\managed-win --logger trx --results-directory artifacts\tests\nomad-router\managed-win -v quiet
+dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\nomad-router\native-build-win -o artifacts\builds\nomad-router\native-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v quiet
+Invoke-Pester -Path tests\Pester\NomadNetRouterProfile.Tests.ps1 -Output Detailed
+```
+
+Windows full Nomad suite: **258 passed,9 explicit Linux-only skips**;
+Linux native-filesystem full Nomad suite: **267 passed,0 skipped**.
+All seven C72 managed cases pass on both hosts. Explicit converters are supplied
+from the manifest, rather than silently skipping media cases. Strict NativeAOT
+publish and `nomadnet --help` pass on Windows/Linux with SDK10.0.403 and
+runtime/ILC10.0.14. Selected native Pester: **3 passed,0 skipped** on each host.
+The Linux operator selects `DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet` and
+its PATH **before** launching native PowerShell; build/test outputs and working
+directory live under `/home/dennis/dotreticulum-ecosystem-acfd3d43`, not mounted
+Windows filesystem permissions.
+
+Frozen candidates and no-republish operators are under
+`artifacts/tests/nomad-router/frozen-win-final` and the corresponding native
+Linux workspace `artifacts/tests/nomad-router/frozen-linux-final`.
+Each `manifest.json` retains binary/all-file checksums, compiled portable-PDB
+source checks, extracted/physical generated-source checks, actual compiler/runtime
+asset and ILC-response receipts, embedded fixture hash, converter/reference paths,
+exact pass/skip counts, failed receipts, source snapshots and
+`Invoke-FrozenRouterAcceptance.ps1`. Replay verifies those bytes before running
+the frozen full managed assembly and three native cases, without build/publish.
+Both candidates retain embedded base
+`1.4.4.102+ed8f5deb56` / commit
+`ed8f5deb56f8ef3a5dfebd333d943203218f6f3a` plus uncommitted changes, not a future
+integration version. Windows binary SHA-256:
+`5a97bb3eb90f0aae94638f137aa3b87c0a312a5dee2c81d86afcf673497226f3`;
+Linux:
+`a87563649cddbd459508606d1becee6c45ae9d6e04110a30bced5809e5acb05b`.
+
+No transport hop, injected loss, propagation-node state, physical hardware,
+other platform or exhaustive application/dependency compatibility is claimed.
+Parent independently verifies all eight owned source hashes and replays both
+exact frozen candidates successfully, including313 compiled production/test
+source checks and75 generated-source checks per host. A separate current-source
+rebuild passes258/9 explicit Linux-only skips on Windows and267/0 on Linux;
+the current native harness passes3/0 per host. Operator
+`artifacts\tests\nomad-router\Parent-CurrentAcceptance.ps1 -Manifest <manifest>
+-Root <current-repository> -Build <fresh-host-build> -Output <fresh-host-results>`
+uses the recorded converter/reference environment and retains separate TRX and
+NUnit receipts. C72/T240–249 maps ten actual passing cases per host; receipts are
+`artifacts\tests\nomad-router\parent-current-windows\c72.json` and
+`/home/dennis/fleet-router-parent-results/c72.json`. Current-source acceptance
+does not relabel the frozen native binaries as an integration-HEAD build.
 
 #### Bounded primary RRC contracts
 
@@ -735,7 +879,7 @@ Frozen replay logs are `frozen-acceptance-win-final-v5.log` and
 
 These are implementation receipts awaiting independent parent acceptance.
 The newer primary NomadNet dependency-minimum gap, full ConfigObj/runtime
-configuration, remaining router state and remaining terminal/Channels UI remain
+configuration, propagation-node migration and remaining terminal/Channels UI remain
 explicitly outside this bounded slice. No release, push or tag was performed.
 
 #### Import integrity, ownership and usage
@@ -895,7 +1039,7 @@ the post-restart bidirectional application flow on every run. Production,
 native binaries and the unchanged primary adapter are not modified.
 This is implementation evidence, **not parent acceptance** until those frozen
 recipes are independently replayed. Full ConfigObj/remaining settings, additional
-LXMF router-state migration and remaining
+propagation-node state migration and remaining
 terminal workflows are still required software gaps.
 
 ### Primary saved-directory and ignored-list import

@@ -68,21 +68,8 @@ public static class NomadNetProfileImport
             using (identity)
             {
                 var ownHash = Destination.ComputeHashFromNameAndIdentity("lxmf.delivery", identity.Hash);
-                var ratchetPath = "storage/lxmf/ratchets/" + Convert.ToHexStringLower(ownHash) + ".ratchets";
-                if (snapshot.ContainsKey(ratchetPath))
-                {
-                    var encoded = await ReadAsync(source, ratchetPath, SignedDestinationRatchetFile.MaximumBytes, cancellationToken).ConfigureAwait(false);
-                    try
-                    {
-                        var keys = SignedDestinationRatchetFile.Decode(identity, encoded);
-                        foreach (var key in keys) CryptographicOperations.ZeroMemory(key);
-                        var destination = Path.Combine(staging, ratchetPath.Replace('/', Path.DirectorySeparatorChar));
-                        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                        await WritePrivateAsync(destination, encoded, cancellationToken).ConfigureAwait(false);
-                        activated.Add(ratchetPath);
-                    }
-                    finally { CryptographicOperations.ZeroMemory(encoded); }
-                }
+                await NomadNetRouterProfile.ImportAsync(source, staging, identity, snapshot, activated,
+                    warnings, cancellationToken).ConfigureAwait(false);
                 var configText = StrictUtf8.GetString(
                     await ReadAsync(source, "config", NomadNetConfigImport.MaximumConfigBytes, cancellationToken).ConfigureAwait(false));
                 var config = NomadNetConfigImport.Parse(configText);

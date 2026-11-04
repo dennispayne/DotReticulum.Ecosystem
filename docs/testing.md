@@ -8,6 +8,29 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Parent independently accepts Nomad client-router migration C72/T240–249:
+eight owned hashes match, and each frozen replay verifies313 compiled
+production/test sources,75 generated receipts, serviced toolchain, converter
+and native hashes. Separate current-source managed acceptance passes258/9
+explicit Linux-only skips on Windows and267/0 on Linux. Current-harness native
+acceptance passes3/0 per host, including actual primary constructor cross-load
+and application messages both ways after clean/abrupt native restart.
+Each C72 receipt maps ten actual passing cases without omissions or skips:
+`artifacts\tests\nomad-router\parent-current-windows\c72.json` and
+`/home/dennis/fleet-router-parent-results/c72.json`.
+Direct TCP client migration excludes propagation peers/messagestore and does
+not establish new hop/loss, full configuration or newer dependency support.
+Exact pins, fixture/native hashes, commands and bounded safety differences are
+in [NomadNet's reference](nomadnet.md#bounded-primary-client-router-migration).
+Frozen native candidates retain their actual dirty-source base `ed8f5de`,
+embedded `1.4.4.102+ed8f5deb56`, not integration HEAD.
+The integrated command `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-router-parent-unified -OutputDirectory
+artifacts\tests\fleet-router-parent-unified` passes2,573 managed cases/137
+explicit skips,62 Pester tooling cases, strict C72 catalog aggregation and
+merged production coverage. The ordinary resumed Release build also passes
+without warnings and the complete solution test passes2,573/137.
+
 Sideband transfer-limit C73/T250–258 records18 actual passing cases per host:
 11 ordinary managed,3 actual-primary direct/Python-hop/.NET-hop,2 exact router
 boundary/statistics and2 strict native offline cases. The selected managed

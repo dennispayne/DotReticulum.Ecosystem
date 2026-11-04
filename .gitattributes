@@ -20,3 +20,4 @@ tests/NomadNet.Tests/NomadNetAttachmentPathVectors.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-stamp-policy.json text eol=lf
 tests/NomadNet.Tests/NomadNetCompactAnnounceVectors.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-delivery-limits.json text eol=lf
+tests/NomadNet.Tests/NomadNetRouterProfileVectors.json text eol=lf

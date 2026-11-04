@@ -79,6 +79,18 @@ public sealed class SidebandMediaDeviceTests
     }
 
     [Fact]
+    public async Task SlowDeviceOpenDoesNotConsumeTheFirstPlaybackFramePacingInterval()
+    {
+        var backend = new Backend { OpenDelay = TimeSpan.FromMilliseconds(80) };
+        await SidebandMediaDevices.PlayAsync(backend, "speaker", new(new float[2400], 48000, 1),
+            TestContext.Current.CancellationToken);
+        var lease = Assert.Single(backend.Outputs);
+        Assert.Equal(3, lease.Frames.Count);
+        Assert.Equal(1, lease.Disposals);
+        Assert.True(lease.WriteTimes[^1] - lease.WriteTimes[0] >= TimeSpan.FromMilliseconds(30));
+    }
+
+    [Fact]
     public async Task CancellationDisposesBlockedCaptureAndFreshRecordingSucceeds()
     {
         var backend = new Backend { BlockCapture = true };
@@ -216,6 +228,7 @@ public sealed class SidebandMediaDeviceTests
         internal bool EndCaptureEarly;
         internal bool NonfiniteCapture;
         internal bool ChangeCaptureRate;
+        internal TimeSpan OpenDelay;
 
         public ValueTask<IReadOnlyList<AudioDeviceInfo>> ListInputsAsync(CancellationToken cancellationToken = default)
         {
@@ -236,14 +249,15 @@ public sealed class SidebandMediaDeviceTests
             return ValueTask.FromResult<IAudioCapture>(capture);
         }
 
-        public ValueTask<IAudioPlayback> OpenPlaybackAsync(string? device, AudioDeviceFormat format,
+        public async ValueTask<IAudioPlayback> OpenPlaybackAsync(string? device, AudioDeviceFormat format,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (FailOpen) throw new IOException("Synthetic playback open failure.");
+            if (OpenDelay > TimeSpan.Zero) await Task.Delay(OpenDelay, cancellationToken);
             var playback = new Playback(this, device);
             Outputs.Add(playback);
-            return ValueTask.FromResult<IAudioPlayback>(playback);
+            return playback;
         }
     }
 

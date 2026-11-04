@@ -81,16 +81,17 @@ public static class SidebandMediaDevices
             checked((int)Math.Ceiling((double)mono.Length * DeviceRate / frame.SampleRate)));
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromSeconds((double)output.Samples.Length / DeviceRate) + TimeSpan.FromSeconds(2));
-        await using var sink = new DeviceAudioSink(backend, device);
         try
         {
+            await using var playback = await backend.OpenPlaybackAsync(device,
+                new(DeviceRate, 1, ChunkDuration), deadline.Token).ConfigureAwait(false);
             for (var offset = 0; offset < output.Samples.Length; offset += PlaybackSamples)
             {
                 deadline.Token.ThrowIfCancellationRequested();
                 var chunk = new float[PlaybackSamples];
                 output.Samples.Span.Slice(offset, Math.Min(chunk.Length, output.Samples.Length - offset)).CopyTo(chunk);
                 var started = Stopwatch.GetTimestamp();
-                await sink.WriteAsync(new(chunk, DeviceRate, 1), deadline.Token).ConfigureAwait(false);
+                await playback.WriteAsync(new(chunk, DeviceRate, 1), deadline.Token).ConfigureAwait(false);
                 var remaining = ChunkDuration - Stopwatch.GetElapsedTime(started);
                 if (remaining > TimeSpan.Zero)
                     await Task.Delay(remaining, deadline.Token).ConfigureAwait(false);

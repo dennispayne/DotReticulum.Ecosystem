@@ -6,6 +6,47 @@ namespace Sideband.Desktop;
 public sealed partial class MainWindow
 {
     private bool _messageActionsSmokeVerified;
+    private bool _messageRetryRunning;
+
+    private void UpdateRetryAvailability()
+    {
+        var index = MessageList.SelectedIndex;
+        RetryMessageButton.IsEnabled = !_closing && !_messageRetryRunning && _client.IsConnected &&
+            index >= 0 && index < _visibleMessages.Count && SidebandMessageActions.CanRetryText(_visibleMessages[index]);
+    }
+
+    private void RetryMessageClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
+    {
+        if (_messageRetryRunning)
+        {
+            ShowError("A message text retry is already running.");
+            return;
+        }
+        try
+        {
+            var message = SelectedMessage();
+            if (ConfirmRetryMessageBox.IsChecked != true)
+                throw new InvalidOperationException("Confirm retry of only the selected failed message's text first.");
+            if (!string.IsNullOrEmpty(MessageBox.Text) || !string.IsNullOrEmpty(AttachmentPathBox.Text) || _recordedAudio is not null)
+                throw new InvalidOperationException("Send or clear the current draft and attachment before retrying saved text.");
+            if (!SidebandMessageActions.CanRetryText(message))
+                throw new InvalidOperationException("Select an outgoing failed non-paper message with nonempty bounded text.");
+            _messageRetryRunning = true;
+            ConfirmRetryMessageBox.IsChecked = false;
+            RetryMessageButton.IsEnabled = false;
+            SendButton.IsEnabled = false;
+            await _client.RetryMessageTextAsync(message.PeerDeliveryHash, message.Id, _windowCancellation.Token);
+            await RefreshMessagesAsync(_windowCancellation.Token);
+            SetStatus("Failed text queued as a new message with current settings; old failure replaced. Attachments were not resent.");
+        }
+        catch (Exception ex) { ShowError("Could not retry message text: " + ex.Message); }
+        finally
+        {
+            _messageRetryRunning = false;
+            SendButton.IsEnabled = true;
+            UpdateRetryAvailability();
+        }
+    });
 
     private void DeleteMessageClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
     {

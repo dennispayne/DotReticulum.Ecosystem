@@ -522,61 +522,68 @@ public sealed partial class SidebandClient : IAsyncDisposable
         try
         {
             ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-            var router = _router ?? throw new InvalidOperationException("Connect to Reticulum before sending messages.");
-            var identity = _identity ?? throw new InvalidOperationException("The local Reticulum identity is unavailable.");
-            using var owned = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _runCancellation!.Token);
-            var state = await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false);
-            var destination = Convert.FromHexString(normalized);
-            if (await _node!.ResolveIdentityAsync(destination, TimeSpan.FromSeconds(15), owned.Token).ConfigureAwait(false) is null)
-                throw new InvalidOperationException("No announce or path was found for this LXMF delivery address.");
-
-            var method = state.PropagationByDefault ? LxmMethod.Propagated : LxmMethod.Direct;
-            IReadOnlyList<SidebandAttachment>? attachments = null;
-            SidebandImage? storedImage = null;
-            SidebandAudio? storedAudio = null;
-            Dictionary<object, object?>? fields = await OrdinaryTelemetryFieldsAsync(state, normalized, owned.Token).ConfigureAwait(false);
-            if (attachmentData is not null && attachmentName is not null)
-            {
-                attachments = [await _attachments.StoreAsync(attachmentName, attachmentData, owned.Token).ConfigureAwait(false)];
-                fields[LxmField.FileAttachments] = new object?[] { new object?[] { attachmentName, attachmentData } };
-            }
-            if (image is not null)
-            {
-                storedImage = new(image.Format, await _attachments.StoreAsync("image." + image.Format, image.EncodedBytes, owned.Token).ConfigureAwait(false));
-                (fields ??= [])[LxmField.Image] = new object?[] { image.Format, image.EncodedBytes };
-            }
-            if (audio is not null)
-            {
-                storedAudio = new(audio.Mode, await _attachments.StoreAsync(audio.Mode == SidebandMediaCodec.OpusOggMode ? "audio.ogg" : "audio.c2",
-                    audio.EncodedBytes, owned.Token).ConfigureAwait(false));
-                (fields ??= [])[LxmField.Audio] = new object?[] { audio.Mode, audio.EncodedBytes };
-            }
-            var message = LxMessage.Create(destination, identity, content, fields: fields, method: method);
-            if (fields.TryGetValue(LxmField.Telemetry, out var telemetryBytes) && telemetryBytes is byte[] reportBytes)
-                RegisterTelemetryOutcome(message, new(normalized, false, OwnsPending: false), SidebandTelemetryCodec.Decode(reportBytes).TimestampUtcSeconds ?? 0, false);
-            message.IncludeTicket = state.Contacts.Any(contact => contact.DeliveryHash == normalized && contact.Trusted);
-            var local = new SidebandChatMessage(Guid.NewGuid(), normalized, false, string.Empty, content, DateTimeOffset.UtcNow, "Queued",
-                attachments, method.ToString(), storedImage, storedAudio);
-            await _store.AddMessageAsync(local, owned.Token).ConfigureAwait(false);
-            PublishState(await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false));
-            var updates = _inbound;
-            var eligibleForRetry = state.TryPropagationOnFail && router.OutboundPropagationNode is not null;
-            message.StateChanged += changed =>
-            {
-                var failed = SidebandDeliveryRetry.ShouldRetry(changed.State, eligibleForRetry, stampGenerationFailed: false);
-                if (!updates.Writer.TryWrite(new ClientUpdate(MessageId: local.Id, DeliveryState: changed.State.ToString(),
-                    FailedMessage: failed ? changed : null)))
-                    Report("Delivery-state queue is full or closed; a conversation status update could not be saved.");
-            };
-            try { await router.SendAsync(message, owned.Token).ConfigureAwait(false); }
-            catch
-            {
-                await updates.Writer.WriteAsync(new ClientUpdate(MessageId: local.Id,
-                    DeliveryState: owned.IsCancellationRequested ? "Cancelled" : "Failed")).ConfigureAwait(false);
-                throw;
-            }
+            await SendMessageCoreAsync(normalized, content, attachmentName, attachmentData, cancellationToken, image, audio).ConfigureAwait(false);
         }
         finally { _lifecycle.Release(); }
+    }
+
+    private async Task<SidebandChatMessage> SendMessageCoreAsync(string normalized, string content, string? attachmentName,
+        byte[]? attachmentData, CancellationToken cancellationToken, SidebandEncodedImage? image = null,
+        SidebandEncodedAudio? audio = null, Guid? replacedFailedMessageId = null)
+    {
+        var router = _router ?? throw new InvalidOperationException("Connect to Reticulum before sending messages.");
+        var identity = _identity ?? throw new InvalidOperationException("The local Reticulum identity is unavailable.");
+        using var owned = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _runCancellation!.Token);
+        var state = await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false);
+        var destination = Convert.FromHexString(normalized);
+        using var recipient = await _node!.ResolveIdentityAsync(destination, TimeSpan.FromSeconds(15), owned.Token).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("No announce or path was found for this LXMF delivery address.");
+        var method = state.PropagationByDefault ? LxmMethod.Propagated : LxmMethod.Direct;
+        IReadOnlyList<SidebandAttachment>? attachments = null;
+        SidebandImage? storedImage = null;
+        SidebandAudio? storedAudio = null;
+        Dictionary<object, object?>? fields = await OrdinaryTelemetryFieldsAsync(state, normalized, owned.Token).ConfigureAwait(false);
+        if (attachmentData is not null && attachmentName is not null)
+        {
+            attachments = [await _attachments.StoreAsync(attachmentName, attachmentData, owned.Token).ConfigureAwait(false)];
+            fields[LxmField.FileAttachments] = new object?[] { new object?[] { attachmentName, attachmentData } };
+        }
+        if (image is not null)
+        {
+            storedImage = new(image.Format, await _attachments.StoreAsync("image." + image.Format, image.EncodedBytes, owned.Token).ConfigureAwait(false));
+            (fields ??= [])[LxmField.Image] = new object?[] { image.Format, image.EncodedBytes };
+        }
+        if (audio is not null)
+        {
+            storedAudio = new(audio.Mode, await _attachments.StoreAsync(audio.Mode == SidebandMediaCodec.OpusOggMode ? "audio.ogg" : "audio.c2",
+                audio.EncodedBytes, owned.Token).ConfigureAwait(false));
+            (fields ??= [])[LxmField.Audio] = new object?[] { audio.Mode, audio.EncodedBytes };
+        }
+        var message = LxMessage.Create(destination, identity, content, fields: fields, method: method);
+        if (fields.TryGetValue(LxmField.Telemetry, out var telemetryBytes) && telemetryBytes is byte[] reportBytes)
+            RegisterTelemetryOutcome(message, new(normalized, false, OwnsPending: false), SidebandTelemetryCodec.Decode(reportBytes).TimestampUtcSeconds ?? 0, false);
+        message.IncludeTicket = state.Contacts.Any(contact => contact.DeliveryHash == normalized && contact.Trusted);
+        var local = new SidebandChatMessage(Guid.NewGuid(), normalized, false, string.Empty, content, DateTimeOffset.UtcNow, "Queued",
+            attachments, method.ToString(), storedImage, storedAudio);
+        await _store.AddMessageAsync(local, true, owned.Token, replacedFailedMessageId).ConfigureAwait(false);
+        PublishState(await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false));
+        var updates = _inbound;
+        var eligibleForRetry = state.TryPropagationOnFail && router.OutboundPropagationNode is not null;
+        message.StateChanged += changed =>
+        {
+            var failed = SidebandDeliveryRetry.ShouldRetry(changed.State, eligibleForRetry, stampGenerationFailed: false);
+            if (!updates.Writer.TryWrite(new ClientUpdate(MessageId: local.Id, DeliveryState: changed.State.ToString(),
+                FailedMessage: failed ? changed : null)))
+                Report("Delivery-state queue is full or closed; a conversation status update could not be saved.");
+        };
+        try { await router.SendAsync(message, owned.Token).ConfigureAwait(false); }
+        catch
+        {
+            await updates.Writer.WriteAsync(new ClientUpdate(MessageId: local.Id,
+                DeliveryState: owned.IsCancellationRequested ? "Cancelled" : "Failed")).ConfigureAwait(false);
+            throw;
+        }
+        return local;
     }
 
     public async Task ConfigurePropagationAsync(string? node, bool byDefault, CancellationToken cancellationToken = default)

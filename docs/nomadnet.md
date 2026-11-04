@@ -2993,6 +2993,11 @@ are described in the editor/guide section below.
 
 ### Bounded original document/configuration editor and guide
 
+Current folder-candidate validation and fresh cross-slice regressions are recorded
+under **Bounded folder management** below. Earlier explicitly named
+authoring/external-editor candidate receipts retain their original source/binary
+boundaries; they are not relabelled as the current tree.
+
 The original console has a self-contained, built-in authoring
 workflow. It edits the same configured roots used by `NomadNetContent`, defaulting
 to `<profile>/storage/pages` and `<profile>/storage/files`; it does not invent a
@@ -3026,7 +3031,7 @@ method, or copy its guide/snippet content. The existing
 |---|---|
 | `Editor._roots`, `_confine`, `build_entries`, `walk_dir`, `_do_new` | **implemented bounded subset / safety difference**: explicit pages/files scope, immediate-child listing and nested directory creation. Relative paths up to512 characters; up to2048 displayed entries and4096 inspected entries. Refuses hidden/traversal/device/alternate-stream paths and every observed symlink/reparse ancestor, including dangling links. Primary confinement is lexical and can cross between configured roots; native requires explicit scope rather than accepting arbitrary absolute paths. Full expanded directory tree and `.mu` filter remain **missing**. |
 | `load_file`, `save_file`, `_atomic_write`, `_do_saveas`, `confirm_discard` | **implemented bounded subset / safety difference**: one-megabyte strict UTF8 buffer, invalid-UTF8 read-only, save/discard/cancel, save-as, no silent overwrite, explicit dirty-open/quit refusal and nonzero dirty EOF. Random private same-directory `CreateNew` staging, flushed file and atomic replacement; save errors/cancellation retain the buffer and previous document. Optimistic snapshots reject ordinary external edits, and a shared in-process mutation gate serializes editor commits. Save-as never overwrites and refuses restricted source copies rather than accidentally publishing them. Existing Unix mode is preserved in code; current Linux execution is **unverified**. Directory fsync, hostile administrator path races and crash-atomic multi-file transactions are **not claimed**. |
-| `_do_rename`, `_do_delete`, `_write_allowed`, `_apply_permissions` | **implemented per-file subset / safety difference**: explicit confirmed deletion, nonoverwriting rename and `.allowed` companion movement; failed second move rolls back the first. Windows locked-companion failure/recovery is exercised. Explicit public removal or up to1024 validated distinct identity hashes; invalid hashes do not modify restrictions. Snapshot conflicts fail before mutation. Destructive recursive folder operations, folder-wide permission application and upstream overwrite confirmation remain **missing**. A committed deletion cleanup failure is surfaced, may retain a hidden tombstone, and is not falsely described as rollback. |
+| `_do_rename`, `_do_delete`, `_write_allowed`, `_apply_permissions` | **implemented bounded file/folder management / partial permissions / safety difference**: confirmed deletion, nonoverwriting rename/move and per-file `.allowed` companion handling. Folder create/rename/cross-root move/recursive removal use a bounded inspected tree and exact one-use token, preserve descendant permission files, and rebase/clear live and persisted selections; details below. Per-file restrictions accept up to1024 validated distinct identities. Folder-wide permission application remains **missing**; overwrite confirmation is deliberately replaced by refusal. A committed deletion cleanup failure is surfaced with its hidden tombstone, never falsely reported as rollback. |
 | `find_next`, `replace_one`, `replace_all`, `_insert_snippet` | **implemented bounded subset**: case-sensitive ordinal search with wrapping, selected-match replacement/next-match behavior, nonoverlapping replace-all and insertion. ASCII observations match executed primary operations. Native cursor positions are UTF-16 offsets rather than Python Unicode-codepoint offsets, an explicit **difference**. Five original samples are usable; the primary's18 snippet assets are not copied or claimed. |
 | `on_edit_change`, `render_preview`, `is_executable`, syntax/gutter/panes | **partial / safety difference**: explicit textual Micron preview through the existing renderer, no network/partial/image retrieval and no executable-source execution. Executable files display source with a warning; binary files do not preview. The primary100000-character preview bound is retained. Automatic400ms preview debounce, syntax highlighting, gutter, split-pane visibility/weights and keyboard/mouse parity remain **missing**. |
 | `_state_file`, `load_state`, `save_state`, `start` | **partial / local-format difference**: bounded schema1 `editor_state.json` stores only selected relative scope/path and supports explicit `edit resume` after restart. No document text/secrets or unsaved drafts are persisted. Primary filter, expanded tree, pane settings and automatic reopen behavior remain **missing**; this is not primary editor-state migration. |
@@ -3176,7 +3181,8 @@ malicious configured executable/administrator, crash-cleanup guarantee,
 directory-fsync guarantee or forensic-erasure claim. Byte snapshots and staging
 buffers are zeroed when released; managed strings are not securely erasable.
 
-Windows verification for the frozen bounded candidate:
+Retained Windows verification for the external-editor source boundary (current
+folder-candidate verification follows):
 
 - `dotnet build src\NomadNet\NomadNet.csproj -c Release --no-restore -v quiet`:
   zero warnings/errors.
@@ -3215,9 +3221,128 @@ ignored replay operator selects those exact artifacts with fresh evidence.
 Current Linux execution remains blocked by WSL EIO/read-only storage.
 This proves bounded software terminal workflows, not a physical display/input
 device, Python-peer network exchange or complete primary editor/configuration
-inventory. Primary section/reset forms, complete ConfigObj, folder bulk
-rename/delete/permissions, full editor state/tree/panes and remaining guide
+inventory. Primary section/reset forms, complete ConfigObj, folder-wide
+permissions, full editor state/tree/panes and remaining guide
 presentation remain required software work.
+
+### Bounded folder management
+
+The original editor supports the primary's required create/rename/move/remove
+folder operations, with explicit bounded safety differences rather than a full
+Urwid file-tree implementation. These are local authoring operations, not a
+new Reticulum protocol.
+
+Pinned primary **1.4.4** `f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`,
+`nomadnet/ui/textui/Editor.py` SHA-256
+`ae6c09cde38d473fd97d1758ebcbc13edaf5d7e1f97dc4e698a870c68cd8d378`:
+
+| Exact primary contract | Native implementation and boundary |
+|---|---|
+| `_do_new`,819: trailing separator creates nested folders with `exist_ok=True` | `edit mkdir <pages|files> [relative]`, idempotent for directories, never overwrites a file; shared mutation gate, cancellation checks, bounded missing-ancestor creation and empty-directory rollback on failure. |
+| `rename_dialog`,843; `_do_rename`,851: root guard, confinement, relative or absolute destination, parent creation, `os.rename`, optional overwrite confirmation, descendant current-path/tree/state rebasing | `edit folder inspect` captures the selected tree; `move` and `rename` are aliases for one confined, nonoverwriting directory rename, including explicit cross-root destinations. There is no invented upstream copy operation. Destination parent must already exist, and cross-volume rename errors do not fall back to copying. Affected dirty/stale buffers refuse the operation; live and closed persisted selections rebase. Case-only/same-path moves are refused. |
+| `delete_dialog`,886; `_do_delete`,896: root guard, explicit confirmation, recursive removal, descendant editor/tree/state clearing | `edit folder remove TOKEN confirm` requires an exact current one-use inspection token and confirmation. Roots/ancestors of configured roots cannot move/remove. Clean affected live selections and saved resume selections clear after committed removal. |
+| `_walk_pages`,927; `_folder_permissions`,935; `_save_permissions`,975; `_apply_permissions`,990 | **Inventoried, still required software work**: primary recursive permission summaries/application skip hidden directories and `__pycache__`, but not hidden filenames; `.allowed` files are not treated as content. The new generator executes these observations separately. Native folder management retains existing descendant `.allowed` bytes; it does not implement bulk restriction editing, summaries or make-public confirmation. |
+
+`GenerateNomadNetFolderVectors.py` executes actual `_do_new`, `_do_rename`,
+`_do_delete`, root UI guards, traversal/permission summary and atomic writes with
+synthetic owned trees and actual `urwid.Edit`. UI/state callbacks are observers;
+overwrite confirmation is observed and cancelled rather than rendered.
+No primary method is replaced, and no assets are copied. The fixture includes
+actual written file bytes/hashes; Windows primary text-write newline translation
+is therefore observed, not manually fabricated or silently compared with LF.
+Moves preserve those exact bytes.
+
+```text
+edit mkdir pages draft/sub
+edit mkdir files archive
+edit folder inspect pages draft
+# Copy the printed 32-character token; tokens are not shell variables.
+edit folder rename TOKEN pages revised
+edit folder inspect pages revised
+edit folder move TOKEN files archive/published
+edit folder inspect files archive/published
+edit folder remove TOKEN confirm
+edit folder cancel
+```
+
+Successful inspection replaces the previous plan. A valid mutation attempt
+consumes its token even on failure; inspect again after a conflict. An incorrect
+token or missing confirmation does not authorize anything. Plans are memory-only,
+not replayable authorization after restart.
+
+Limits are native safety bounds, not asserted primary defaults: at most1024
+entries including the selected root,16 levels beneath it,512-character
+tree-relative paths, one million bytes per regular file and16MiB combined
+content including permission companions. Selected folder paths retain the
+editor's512-character bound and16-level selection bound. Traversal/hashing is
+iterative, cancellation-aware and bounded; byte buffers are zeroed. The new
+workflow refuses hidden entries, unsupported/device names, special files and
+every observed symlink/reparse ancestor or child instead of silently traversing
+or deleting them. A folder-root `folder.allowed` sidecar requires explicit manual
+reconciliation; descendant `file.allowed` companions move intact. This is a
+safety difference from the primary's best-effort folder-sidecar move.
+
+Inspection snapshots include entry names/types, contents, size, timestamps,
+attributes and available Unix modes. Pre/post-rename checks reject ordinary
+external changes; same-process mutations serialize on the existing editor gate.
+Nonoverwriting rollback restores a detached tree when verification/cancellation
+fails before commit. No hostile-administrator TOCTOU sandbox or inode-identity
+guarantee is claimed.
+
+Removal first detaches to a random hidden sibling. After successful verification,
+detachment commits and bounded cleanup is not interrupted by cancellation.
+Cleanup checks each known file before deleting it and deletes only known,
+nonrecursive directories; it never recursively follows newly added entries.
+Failures after destructive cleanup begins explicitly report **committed removal,
+incomplete cleanup** and the retained tombstone, clear affected selections, and
+leave the command service running. They do not promise rollback of destroyed
+bytes. Operators must reconcile an unexpected tombstone manually. Windows
+integration tests exercise both deny-delete failure before mutation and a
+read-only permission file causing this explicit post-commit cleanup failure.
+Directory-fsync/crash-atomic editor-state transactions and current Unix
+execution remain unverified.
+
+Frozen candidate validation:
+
+- `dotnet build src\NomadNet\NomadNet.csproj -c Release --no-restore -v quiet`:
+  zero warnings/errors.
+- `dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --no-restore --filter "FullyQualifiedName~NomadNetFolderTests" --logger "trx;LogFileName=focused-final.trx" --results-directory artifacts\tests\nomad-folders -v quiet`:
+  **10/10 passed**, covering executed-primary trees/bytes/selection, idempotent
+  creation, confinement, dirty/closed selection, explicit confirmation and
+  token reuse, ordinary and concurrent-editor conflicts, depth/width/per-file/
+  aggregate bounds, cancellation, reparse/root/sidecar refusal and real Windows
+  lock/post-commit cleanup/recovery.
+- `dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --no-build --logger "trx;LogFileName=nomad-folders-regression.trx" --results-directory artifacts\tests\nomad-folders\managed-final -v quiet`:
+  **337 passed,17 explicit skips,zero failures**.
+- `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64 -o artifacts\tests\nomad-folders\native -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v minimal`:
+  warning-free SDK10.0.403 / ILCompiler10.0.14; native `--help` executed.
+- Exact native SHA-256:
+  `1e80c6e066387a3d3b6e11b5c94fba8f9133c19d25b613eb3ce717265f574487`.
+- `pwsh -NoProfile -File artifacts\tests\nomad-folders\Invoke-SelectedNative.ps1`:
+  **11 Pester passes,zero skipped/failed**: new T427–T429 **3/3**, plus the
+  previous authoring/external-editor eight cases, including actual Vim ConPTY
+  facts **2/2** on this exact binary. `-FoldersOnly` selects only the new three.
+
+The new native cases use actual processes and isolated RNS/profiles: create,
+same-root rename, cross-root move, preserved file restrictions/host-handler
+refresh, current/closed selection, removal and identity-preserving restarts;
+invalid paths/confirmation/token, external-writer conflict, occupied destination,
+Windows deny-delete sharing, directory junction refusal, plan cancellation and
+healthy move/restart recovery. The third case independently regenerates the
+byte-identical actual-primary receipt. These standard-console flows use pipes;
+they are not physical terminal/UI or new Python-peer/network acceptance.
+
+Ignored frozen evidence:
+`artifacts\tests\nomad-folders\acceptance-1b2457bc3b2840059410b1ccb249c92e`,
+including matching production/test/native before/after guards
+`9307b0d07f30c99f128f6eb20e1b27bd81be8c450850dc48d0e7c4e55b9e8ff0`.
+`candidate.json` records exact sources/compiler/binary, and the ignored operator
+replays those artifacts into a fresh evidence root. Reference fixture SHA-256:
+`d4df2f4fec4984ca29543354da457fb62c46d4667fad669776f4813644e4d266`.
+Earlier candidate evidence remains separately retained. Current Linux replay is
+still blocked by WSL EIO/read-only storage; no WSL repair was attempted.
+Bulk permissions, primary configuration forms/reset/full ConfigObj, complete
+editor state/tree/panes and remaining guide/presentation remain required work.
 
 ### Selected local picker/composer acceptance
 

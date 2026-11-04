@@ -103,6 +103,9 @@
                 <CheckBox x:Name="ConfirmDeleteMessageBox" Content="Confirm removal of this selected local history entry" />
                 <Button x:Name="DeleteMessageButton" Content="Delete selected message" Click="DeleteMessageClicked"
                         ToolTip.Tip="Removes local history only. Does not recall or cancel delivery, erase shared media files or delete the conversation." />
+                <CheckBox x:Name="ConfirmRetryMessageBox" Content="Confirm retry of only this failed message's text (not its attachments)" />
+                <Button x:Name="RetryMessageButton" Content="Retry selected failed text" IsEnabled="False" Click="RetryMessageClicked"
+                        ToolTip.Tip="Creates a new message with current delivery, trust and telemetry settings. Replaces the old failure atomically after validation; does not reuse attachments or the old LXMF hash." />
                 <Image x:Name="MediaPreview" MaxHeight="240" Stretch="Uniform" IsVisible="False" />
                 <TextBlock x:Name="MediaStatusText" TextWrapping="Wrap" />
                 <StackPanel Orientation="Horizontal" Spacing="8">

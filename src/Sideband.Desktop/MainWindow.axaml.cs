@@ -666,7 +666,9 @@ public sealed partial class MainWindow : Window
     {
         ClearMessagePreview();
         ConfirmDeleteMessageBox.IsChecked = false;
+        ConfirmRetryMessageBox.IsChecked = false;
         MessageDetailsBox.Text = string.Empty;
+        UpdateRetryAvailability();
         var version = _mediaSelectionVersion;
         if (MessageList.SelectedIndex < 0 || MessageList.SelectedIndex >= _visibleMessages.Count) return;
         var message = SelectedMessage();
@@ -1164,6 +1166,7 @@ public sealed partial class MainWindow : Window
         SyncMessagesButton.IsEnabled = connected;
         AnnounceNowButton.IsEnabled = connected;
         ImportSettingsButton.IsEnabled = !connected;
+        UpdateRetryAvailability();
         ToolbarStatusText.Text = connected ? "Connected" : "Offline";
         ActivePropagationNodeText.Text = (_state?.PropagationNode ?? _state?.LastPropagationNode) is { } propagationNode
             ? $"{(_state?.PropagationNode is null ? "Automatic/remembered" : "Manual")} propagation node: {propagationNode}"

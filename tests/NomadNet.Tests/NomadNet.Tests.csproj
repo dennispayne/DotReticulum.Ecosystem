@@ -49,5 +49,6 @@
     <EmbeddedResource Include="NomadNetWorkflowVectors.json" />
     <EmbeddedResource Include="NomadNetEditorVectors.json" />
     <EmbeddedResource Include="NomadNetExternalEditorVectors.json" />
+    <EmbeddedResource Include="NomadNetFolderVectors.json" />
   </ItemGroup>
 </Project>

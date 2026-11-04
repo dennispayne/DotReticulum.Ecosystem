@@ -8,15 +8,59 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
-The current external-editor/saved-message solution builds with zero warnings/errors and
-passes2716 managed cases/149 explicit skips on Windows:
+The current folder/saved-text-retry solution builds with zero warnings/errors and
+passes2731 managed cases/150 explicit skips on Windows:
 
 ```powershell
 dotnet build DotReticulum.Ecosystem.slnx -c Release --nologo -v:q
-& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-message-actions-unified -OutputDirectory artifacts\tests\fleet-editor-message-integrated
+& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-retry-folders-unified -OutputDirectory artifacts\tests\fleet-retry-folders-unified
 ```
 
-Sideband's guarded `message-actions-corrected` candidate passes full2083/74,
+Sideband's current C85 guarded candidate passes full2088/75, separately enabled
+primary console4/0, strict NativeAOT/help and existing native console5/0.
+The same selected binary independently passes actual-primary text retry,
+return messages, repeat rejection and identity-preserving restart; exact
+reference regeneration and the unchanged real desktop deletion regression
+also pass3/0 Pester, including1/0 nested native xUnit. Native SHA-256:
+`c5e9c9a55f181468ef4cdac8d94b69dcc6854ba4456566c154ef6873f83324e5`.
+Validation precedes atomic peer/ID/content-matched history replacement; current
+delivery policy, eight-request admission, cancellation/disconnect, draft protection,
+queue refusal/recovery and same-ID/different-peer isolation are tested.
+Reference callback/SQLite observations disclose their synthetic UI boundaries;
+no primary GUI retry or new hop/loss claim follows. Retained failed operators
+and their corrections remain in [Sideband's reference](sideband.md#selected-failed-message-text-retry).
+
+```powershell
+& artifacts\tests\sideband-console\Parent-CurrentConsole.ps1 -Managed -Run message-retry-peer-scope
+& artifacts\tests\sideband-message-retry\Accept-SelectedNative.ps1 -CandidateRun message-retry-peer-scope -Run peer-scoped-final
+```
+
+Current Nomad C86 passes337/17 managed and strict NativeAOT/help. Parent
+independently repeats11 reference/native editor/folder cases, including actual
+Vim ConPTY2/0, and29 printing/node-migration/clipboard/utility cases with zero
+failures/skips. Native SHA-256:
+`1e80c6e066387a3d3b6e11b5c94fba8f9133c19d25b613eb3ce717265f574487`.
+Folder creation, inspected/confirmed rename/move/removal, dirty/stale/conflict
+refusal, bounded traversal/cleanup and current/saved descendant selection
+survive ordinary-console restart. Reversible detachment is not a crash-atomic
+filesystem-plus-settings transaction; bulk permissions/forms/grammar and full
+presentation remain required. These local editor flows do not add a new
+Python-peer topology; the29-case broader gate separately repeats actual primary
+node transfers/restarts. Earlier endurance/extra ownership receipts retain their
+original source boundaries.
+
+```powershell
+& artifacts\tests\nomad-folders\Invoke-SelectedNative.ps1
+& artifacts\tests\nomad-editor\Parent-BroaderAcceptance.ps1 -Candidate artifacts\tests\nomad-folders\candidate.json -OutputDirectory artifacts\tests\nomad-folders\parent-broader-native
+```
+
+Exact receipts are under
+`artifacts\tests\nomad-folders\acceptance-bf707dd803f44fe0b1dc68aeaa890ff4`,
+`parent-broader-native` and
+`artifacts\tests\sideband-message-retry\peer-scoped-final`.
+Current Linux source replay remains blocked by WSL storage EIO.
+
+The preceding Sideband guarded `message-actions-corrected` candidate passes full2083/74,
 separately enabled live4/0, strict NativeAOT/help and native5/0. SHA-256:
 `d625f2ea5dcff60791ae912fa043c69e5fb8cabf7f5f2140f94c934c7e97cd0a`.
 Selected saved-message details and confirmation-bound local deletion also pass
@@ -45,7 +89,7 @@ stdout instead of stderr; the final unchanged rejection is checked on stderr
 after orderly exit. A superseded candidate stopped before the final startup
 default correction is not acceptance.
 
-The current Nomad external/selected-RNS editor candidate passes327/17 managed
+The preceding Nomad external/selected-RNS editor candidate passes327/17 managed
 and strict Windows NativeAOT/help. Parent independently replays eight
 reference/native cases, including two actual Vim ConPTY cases, and29
 printing/node-migration/clipboard/utility cases, zero failures/skips, on the
@@ -80,10 +124,10 @@ remains blocked by WSL storage EIO, not waived or inferred from Windows.
 The refreshed integrated gate also passes:
 
 ```powershell
-& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-message-actions-unified -OutputDirectory artifacts\tests\fleet-editor-message-integrated
+& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-retry-folders-unified -OutputDirectory artifacts\tests\fleet-retry-folders-unified
 ```
 
-Its83 claims/376 selectors aggregate strictly, with explicit missing live/native/
+Its85 claims/394 selectors aggregate strictly, with explicit missing live/native/
 hardware evidence retained. Ten coverage reports are unioned by source identity;
 their percentages are not compatibility acceptance. Changed/new PowerShell
 passes `tools\PSScriptAnalyzerSettings.psd1`; `git diff --check` is clean.

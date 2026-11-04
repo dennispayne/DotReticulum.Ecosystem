@@ -55,6 +55,14 @@ public sealed class NomadNetGuide
             >Hosting documents
             edit list pages and edit list files show immediate children; add a relative folder to browse it.
             edit mkdir pages chapter creates a folder. edit open pages chapter/notice.mu opens a document.
+            edit folder inspect pages chapter snapshots its bounded tree and prints a one-use token.
+            edit folder move TOKEN files archive moves that inspected folder without overwriting.
+            edit folder rename TOKEN pages renamed is the same operation with an explicit destination.
+            Create the destination parent first; an affected open document must be clean.
+            edit folder remove TOKEN confirm recursively removes exactly the inspected tree.
+            edit folder cancel invalidates the plan without changing files. Inspect again after any conflict.
+            Roots, hidden entries, links, special files and folder-root .allowed sidecars are refused.
+            File permissions inside the folder are retained. Bulk permission changes remain unavailable.
             Native editor paths are relative to the selected configured pages or files root.
             node paths shows registered handlers; node refresh rescans after creating or renaming files.
             Enable hosting in settings.json and restart before expecting remote access.

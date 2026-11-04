@@ -98,7 +98,7 @@ public sealed record NomadNetEditorState(int SchemaVersion = 1, string? Scope = 
 /// Single-console-session editor. The profile lease excludes other native processes; content snapshots
 /// reject ordinary external changes. Filesystem administrators racing path checks are not sandboxed.
 /// </summary>
-public sealed class NomadNetEditor : IDisposable
+public sealed partial class NomadNetEditor : IDisposable
 {
     public const int MaximumBytes = 1_000_000;
     private static readonly UTF8Encoding Utf8 = new(false, true);
@@ -361,13 +361,7 @@ public sealed class NomadNetEditor : IDisposable
     }
 
     public void CreateDirectory(string scope, string? relative = null)
-    {
-        if (scope is not ("pages" or "files")) throw new ArgumentException("Only hosted folders can be created.");
-        var path = relative is null ? _roots[scope] : Resolve(scope, relative);
-        Guard(path);
-        Directory.CreateDirectory(path);
-        Guard(path);
-    }
+        => CreateFolderAsync(scope, relative).GetAwaiter().GetResult();
 
     public IReadOnlyList<string> List(string scope, string? relative = null)
     {
@@ -528,6 +522,7 @@ public sealed class NomadNetEditor : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        CancelFolderPlan();
         ClearSnapshots();
         Buffer.Load("");
         Scope = null;

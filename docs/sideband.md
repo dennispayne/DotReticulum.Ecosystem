@@ -114,6 +114,7 @@ runtime evidence.
 
 | Contract | Status | Upstream contract and source |
 |---|---|---|
+| Explicit failed-message text retry | implemented bounded subset | Confirmed desktop and native console extension create a new ordinary message with current settings, atomically replacing only a matching failed outgoing text entry after validation. Eight-request admission, cancellation/disconnect, duplicate selection, draft protection, current-policy queue refusal/recovery, actual primary reception/return and native restart are separately tested. No old media/title/hash replay, exactly-once crash guarantee or primary Kivy invocation; see selected retry below; `SidebandClient.MessageActions.cs`, `MainWindow.Messages.cs`, `sbapp/ui/messages.py:gen_retry`. |
 | App shell and interaction | partial | Original Avalonia UI provides Conversations, Contacts, Objects, Announce Stream, Connectivity, Backup & Keys, Preferences, Utilities, Guide, Voice, Telemetry, Map and Remote screens. Supported screens expose real local state and explicit errors; hardware/plugin management remain unavailable rather than simulated. Upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
 | Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. A bounded persisted delivery/PN stream exposes inspect, converse, copy, node selection and deletion; receipt does not promote a discovered contact to a known conversation. Bounded primary SQLite history activates separately without contact creation. Appearance values and telemetry permissions persist; voice uses the shared client below. Complete peer settings, groups and broadcasts remain absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `src/Sideband/SidebandAnnounce.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
 | LXMF messaging and propagation UI | partial | Text send/receive, automatic/manual node selection, persisted periodic fetches, cancellation, one-shot failed-delivery propagation retry, trusted-conversation reply tickets and restart retrieval reuse `LxmRouter`. Actual primary Sideband daemon-core direct/propagated round trips pass separately from Python LXMF endpoint tests, with trust enabled and disabled in both directions. Selected saved text/title/time/state/method inspection and confirmed local entry deletion are implemented; deletion does not cancel or recall delivery. Full message presentation/settings remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `MainWindow.Messages.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,4811–4828,5156–5227,5634–5644`, `docs/lxmf.md`. |
@@ -2986,3 +2987,85 @@ and compares shared attachment metadata structurally rather than by list-object
 identity. The earlier candidate's successful console gate alone is not acceptance
 of these corrections. Current Linux desktop/source replay remains blocked by
 WSL storage EIO.
+
+## Selected failed-message text retry
+
+The original Conversations screen provides an explicit, selection-bound
+confirmation for retrying an outgoing failed non-paper message's text.
+`conv retry-text <peer-or-name> <saved-uuid>` exposes the same operation as a
+native console extension, not an invented primary CLI registration. It is an
+owned cancellable console operation. Retry creates a fresh LXMF message with
+current direct/propagated, telemetry and reply-ticket policies; it does not
+replay the saved title, attachments, image, audio, timestamp or LXMF hash.
+The UI refuses to overwrite an existing text/media draft or silently reattach
+its content. Copy/cancel and complete rich-message/menu presentation remain
+separate required contracts.
+
+At primary `d069122af14880e43607aed0b71add4c7806fbe0`,
+`sbapp/ui/messages.py:895-906` copies UTF-8 content into the current composer,
+deletes the old entry, invokes ordinary send and then dismisses/reloads the
+menu. Its menu offers retry for `FAILED`, not for ordinary pending/delivered
+messages or paper. `GenerateMessageRetryVectors.py` executes that exact
+AST-extracted factory and actual core deletion methods on private SQLite.
+Synthetic composer/dispatcher/menu and immediate Clock boundaries are disclosed;
+this is not a primary Kivy GUI or live retry invocation. Source SHA-256 values
+are core `8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25`
+and messages `9b2580f76310356d2e1a30b038857fbad4ee346aad9e2a25ab237515fff39928`;
+generated fixture SHA-256 is
+`5fac8b943eb270f088433faa68ad19a96ffd605bb379be598205448a75e56de2`.
+Four observations include Unicode, empty content, dispatcher failure and
+invalid UTF-8. A dispatcher failure leaves the primary entry deleted.
+
+Native validation/path failures deliberately retain the original failure.
+After identity resolution and message construction, one atomic state write
+replaces the still-matching failed peer/ID/content with the new queued entry,
+before queue submission. Submission failure/cancellation records the replacement
+as failed/cancelled through the existing state worker. This avoids an empty
+history window; it is not an exactly-once network transaction or crash-replay
+guarantee. Late old callbacks cannot resurrect the replaced entry. Shared media
+bytes remain untouched. Empty/whitespace/oversized text, incoming or absent IDs,
+paper and nonfailed state are refused explicitly. These bounded safety
+differences do not assert identical primary empty-message or draft behavior.
+
+At most eight retry requests may be active/waiting. Admission fails immediately
+at capacity; runtime cancellation, disconnect and disposal cancel owned waits,
+and lifecycle serialization prevents concurrent retries of one failed ID from
+both committing. T412-T416 cover executed observations, malformed/cancelled
+and disconnected requests, atomic conflict refusal, late state updates,
+capacity/recovery, actual native TCP delivery, identity/history restart and
+the connected headless desktop confirmation/draft workflow. T417/T418 select an
+exact published executable for actual primary application reception, return
+messages, repeat rejection and identity-preserving native restart. T419
+independently regenerates the actual-primary fixture. Native/live modes skip
+explicitly without their opt-ins. New hop/loss, primary GUI, Linux replay and
+hardware acceptance are not implied.
+
+Windows full Sideband2088/75 explicit skips passes with `-warnaserror`.
+Separately enabled existing primary console4/0, strict NativeAOT/help and
+native console5/0 pass. The same source-guarded published executable passes
+T417 actual-primary retry/reply/restart, T419 reference regeneration and the
+unchanged T381 real desktop deletion regression:3/0 Pester, including1/0 nested
+native xUnit. Selected SHA-256:
+`c5e9c9a55f181468ef4cdac8d94b69dcc6854ba4456566c154ef6873f83324e5`.
+
+```powershell
+& artifacts\tests\sideband-console\Parent-CurrentConsole.ps1 -Managed -Run message-retry-peer-scope
+& artifacts\tests\sideband-message-retry\Accept-SelectedNative.ps1 -CandidateRun message-retry-peer-scope -Run peer-scoped-final
+```
+
+Final receipts are under `windows-message-retry-peer-scope` and
+`artifacts\tests\sideband-message-retry\peer-scoped-final`.
+An added exact-ID/different-peer test verifies replacement cannot remove the
+other peer's history. The preceding accepted
+`749eb8cffb0dd57b9ade3676cdd1a253c22910cf0d9fbc8f4817553a03f39a1b`
+candidate does not establish that final peer-isolation correction.
+The retained first native return-flow timeout and diagnostic failure occurred
+before the test explicitly announced/observed the native delivery destination;
+the actual primary refused to originate a reply without those announced keys.
+The corrected operator observes that announce, checks primary command results
+as well as error fields and preserves the original message-delivery assertions.
+Another retained test setup attempted forbidden propagated mode without a
+selected/discovered node. The final failure-path case instead selects a real
+delivery-only destination, asserts its absent PN-limit refusal, then verifies a
+current-policy direct retry. No configuration guard or delivery assertion was
+relaxed. Current Linux replay remains blocked by WSL storage EIO.

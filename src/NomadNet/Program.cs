@@ -485,6 +485,9 @@ internal static partial class Program
               config edit|show [native|rns]   Native JSON or actual selected RNS text; save requires restart
               config external [native|rns]    Configured editor in an interactive terminal; Ctrl+] cancels
               config validate                Validate the open configuration buffer without saving
+              edit folder inspect <pages|files> <relative>
+              edit folder move|rename <token> <pages|files> <relative>
+              edit folder remove <token> confirm | edit folder cancel
               guide [topics|links|open <number>|back|<topic>#<anchor>]
                                              Original local documentation, no upstream assets
               rrc connect <hub> [nick]        Connect to an identified rrc.hub

@@ -76,6 +76,34 @@ internal static partial class Program
             if (parts[0] != "edit") return false;
             var action = parts.Length > 1 ? parts[1] : "status";
             var value = parts.Length > 2 ? parts[2] : "";
+            if (action == "folder")
+            {
+                var folderParts = Split(value, 4);
+                if (folderParts.Length >= 3 && folderParts[0] == "inspect")
+                {
+                    var source = Split(value, 3);
+                    var summary = await Editor.InspectFolderAsync(source[1], source[2], cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine($"Folder plan: {summary.Token}; scope={summary.Scope}; path={NomadNetTerminalText.Safe(summary.Path)}; " +
+                        $"directories={summary.Directories}; files={summary.Files}; bytes={summary.Bytes}");
+                }
+                else if (folderParts.Length == 4 && folderParts[0] is "move" or "rename")
+                {
+                    await Editor.MoveFolderAsync(folderParts[1], folderParts[2], folderParts[3], cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Folder moved; inspected files and permissions retained.");
+                }
+                else if (folderParts.Length == 3 && folderParts[0] == "remove" && folderParts[2] == "confirm")
+                {
+                    await Editor.RemoveFolderAsync(folderParts[1], confirmed: true, cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Folder removed; selected descendant closed.");
+                }
+                else if (folderParts.Length == 1 && folderParts[0] == "cancel")
+                {
+                    Editor.CancelFolderPlan();
+                    Console.WriteLine("Folder plan cancelled; filesystem unchanged.");
+                }
+                else throw new ArgumentException("Use edit folder inspect <pages|files> <relative>, move|rename <token> <pages|files> <relative>, remove <token> confirm, or cancel.");
+                return true;
+            }
             switch (action)
             {
                 case "open":
@@ -176,8 +204,7 @@ internal static partial class Program
                     if (folder.Length == 0) throw new ArgumentException("Choose pages or files.");
                     if (action == "mkdir")
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        Editor.CreateDirectory(folder[0], folder.ElementAtOrDefault(1));
+                        await Editor.CreateFolderAsync(folder[0], folder.ElementAtOrDefault(1), cancellationToken).ConfigureAwait(false);
                         Console.WriteLine("Hosted folder created.");
                     }
                     else foreach (var entry in Editor.List(folder[0], folder.ElementAtOrDefault(1))) Console.WriteLine(NomadNetTerminalText.Safe(entry));

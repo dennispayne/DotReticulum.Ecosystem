@@ -1,0 +1,53 @@
+{
+    "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+    "core_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+    "messages_sha256": "9b2580f76310356d2e1a30b038857fbad4ee346aad9e2a25ab237515fff39928",
+    "method": "AST-extracted actual gen_retry factory and actual delete_message/_db_delete_message on private SQLite; disclosed synthetic owner, composer, dispatcher, menu and immediate Clock boundary; no primary GUI or live node",
+    "cases": [
+        {
+            "name": "unicode",
+            "content_hex": "536176656420cebb0a7365636f6e64206c696e65",
+            "composer": "Saved \u03bb\nsecond line",
+            "events": [
+                "delete",
+                "send",
+                "dismiss",
+                "reload"
+            ],
+            "error": null,
+            "saved_rows": 0
+        },
+        {
+            "name": "empty",
+            "content_hex": "",
+            "composer": "",
+            "events": [
+                "delete",
+                "send",
+                "dismiss",
+                "reload"
+            ],
+            "error": null,
+            "saved_rows": 0
+        },
+        {
+            "name": "send-failure",
+            "content_hex": "52657461696e206d65206f6e206e61746976652076616c69646174696f6e206661696c757265",
+            "composer": "Retain me on native validation failure",
+            "events": [
+                "delete",
+                "send"
+            ],
+            "error": "RuntimeError",
+            "saved_rows": 0
+        },
+        {
+            "name": "invalid-utf8",
+            "content_hex": "ff",
+            "composer": "Existing draft",
+            "events": [],
+            "error": "UnicodeDecodeError",
+            "saved_rows": 1
+        }
+    ]
+}

@@ -131,6 +131,17 @@ public sealed class SidebandConsole : IAsyncDisposable
                 string.Join('\n', messages.TakeLast(count).Select(m =>
                     $"{m.Id} [{(m.Incoming ? "in" : "out")}] {m.Timestamp.ToString("O", CultureInfo.InvariantCulture)} {m.DeliveryState} {m.DeliveryMethod}\n{Safe(m.Content)}")));
         }
+        else if (name == "conv retry-text")
+        {
+            var hash = ResolveDestination(state, args[0]);
+            if (!Guid.TryParse(args[1], out var id) || id == Guid.Empty)
+                throw new ArgumentException("Retry requires a saved message UUID.");
+            _operations.Start(name, async stop =>
+            {
+                var message = await _client.RetryMessageTextAsync(hash, id, stop).ConfigureAwait(false);
+                return "Message retry queued new-id=" + message.Id + "; text only, current settings, not a delivery confirmation.";
+            });
+        }
         else if (name is "conv send" or "conv command" or "conv paper")
         {
             var hash = ResolveDestination(state, args[0]);

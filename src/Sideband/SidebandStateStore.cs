@@ -151,7 +151,7 @@ public sealed partial class SidebandStateStore
         AddMessageAsync(message, true, cancellationToken);
 
     internal async Task<SidebandChatMessage> AddMessageAsync(SidebandChatMessage message, bool createConversation,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, Guid? replacedFailedMessageId = null)
     {
         ArgumentNullException.ThrowIfNull(message);
         try { ValidateMessage(message); }
@@ -162,7 +162,15 @@ public sealed partial class SidebandStateStore
         try
         {
             var state = await LoadUnderLockAsync(cancellationToken).ConfigureAwait(false);
-            var messages = state.Messages.Append(message).TakeLast(MaximumMessages).ToArray();
+            if (replacedFailedMessageId is { } replaced)
+            {
+                var previous = state.Messages.FirstOrDefault(item => item.Id == replaced && item.PeerDeliveryHash == peerHash);
+                if (previous is null || !SidebandMessageActions.CanRetryText(previous) ||
+                    previous.Content != message.Content || message.Incoming || message.Id == replaced)
+                    throw new InvalidOperationException("The selected failed text changed or was removed before retry.");
+            }
+            var messages = state.Messages.Where(item => item.Id != replacedFailedMessageId || item.PeerDeliveryHash != peerHash)
+                .Append(message).TakeLast(MaximumMessages).ToArray();
             var contacts = state.Contacts.Any(contact => contact.DeliveryHash == peerHash)
                 ? state.Contacts.Select(contact => contact.DeliveryHash == peerHash
                     ? contact with { Unread = true, ConversationKnown = contact.ConversationKnown || createConversation } : contact).ToArray()

@@ -1,0 +1,189 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "method": "Actual PageEditorDisplay _do_new/_do_rename/_do_delete, root UI guards, _walk_pages/_folder_permissions and atomic writes on synthetic owned files; synthetic UI/state observer owner, actual urwid.Edit. Overwrite confirmation captured and cancelled, no rendered primary UI claim.",
+  "source": "nomadnet/ui/textui/Editor.py",
+  "sourceSha256": "ae6c09cde38d473fd97d1758ebcbc13edaf5d7e1f97dc4e698a870c68cd8d378",
+  "notice": ">Original synthetic notice\nA bounded sample.\n",
+  "initial": [
+    {
+      "path": "files",
+      "directory": true
+    },
+    {
+      "path": "pages",
+      "directory": true
+    },
+    {
+      "path": "pages/drafts",
+      "directory": true
+    },
+    {
+      "path": "pages/drafts/chapter",
+      "directory": true
+    },
+    {
+      "path": "pages/drafts/chapter/binary.dat",
+      "directory": false,
+      "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be"
+    },
+    {
+      "path": "pages/drafts/chapter/notice.mu",
+      "directory": false,
+      "sha256": "195d12d03e0c3136cea24d67e2112895b9b64270cf640fd46b5c111bbf43c3db"
+    },
+    {
+      "path": "pages/drafts/chapter/notice.mu.allowed",
+      "directory": false,
+      "sha256": "45dd9904efe3dff25d36775d936aed0ab3c98629735e7abe39096f0d8d00e934"
+    },
+    {
+      "path": "pages/drafts/empty",
+      "directory": true
+    }
+  ],
+  "initialFiles": {
+    "pages/drafts/chapter/binary.dat": "AP8NCg==",
+    "pages/drafts/chapter/notice.mu": "Pk9yaWdpbmFsIHN5bnRoZXRpYyBub3RpY2UNCkEgYm91bmRlZCBzYW1wbGUuDQo=",
+    "pages/drafts/chapter/notice.mu.allowed": "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWENCg=="
+  },
+  "renamed": {
+    "tree": [
+      {
+        "path": "files",
+        "directory": true
+      },
+      {
+        "path": "pages",
+        "directory": true
+      },
+      {
+        "path": "pages/renamed",
+        "directory": true
+      },
+      {
+        "path": "pages/renamed/chapter",
+        "directory": true
+      },
+      {
+        "path": "pages/renamed/chapter/binary.dat",
+        "directory": false,
+        "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be"
+      },
+      {
+        "path": "pages/renamed/chapter/notice.mu",
+        "directory": false,
+        "sha256": "195d12d03e0c3136cea24d67e2112895b9b64270cf640fd46b5c111bbf43c3db"
+      },
+      {
+        "path": "pages/renamed/chapter/notice.mu.allowed",
+        "directory": false,
+        "sha256": "45dd9904efe3dff25d36775d936aed0ab3c98629735e7abe39096f0d8d00e934"
+      },
+      {
+        "path": "pages/renamed/empty",
+        "directory": true
+      }
+    ],
+    "selection": "pages/renamed/chapter/notice.mu",
+    "dirty": true
+  },
+  "moved": {
+    "tree": [
+      {
+        "path": "files",
+        "directory": true
+      },
+      {
+        "path": "files/archive",
+        "directory": true
+      },
+      {
+        "path": "files/archive/moved",
+        "directory": true
+      },
+      {
+        "path": "files/archive/moved/chapter",
+        "directory": true
+      },
+      {
+        "path": "files/archive/moved/chapter/binary.dat",
+        "directory": false,
+        "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be"
+      },
+      {
+        "path": "files/archive/moved/chapter/notice.mu",
+        "directory": false,
+        "sha256": "195d12d03e0c3136cea24d67e2112895b9b64270cf640fd46b5c111bbf43c3db"
+      },
+      {
+        "path": "files/archive/moved/chapter/notice.mu.allowed",
+        "directory": false,
+        "sha256": "45dd9904efe3dff25d36775d936aed0ab3c98629735e7abe39096f0d8d00e934"
+      },
+      {
+        "path": "files/archive/moved/empty",
+        "directory": true
+      },
+      {
+        "path": "pages",
+        "directory": true
+      }
+    ],
+    "selection": "files/archive/moved/chapter/notice.mu",
+    "dirty": true
+  },
+  "overwrite": {
+    "prompts": [
+      "overwrite occupied"
+    ],
+    "sourceRemains": true
+  },
+  "rootStatuses": [
+    "cannot rename the pages/files root",
+    "cannot delete the pages/files root"
+  ],
+  "deleted": {
+    "tree": [
+      {
+        "path": "files",
+        "directory": true
+      },
+      {
+        "path": "files/archive",
+        "directory": true
+      },
+      {
+        "path": "files/occupied",
+        "directory": true
+      },
+      {
+        "path": "pages",
+        "directory": true
+      }
+    ],
+    "selection": null,
+    "dirty": false,
+    "text": ""
+  },
+  "bulkPermissionsInventoryOnly": {
+    "walked": [
+      ".visible-hidden-file",
+      "visible.txt"
+    ],
+    "state": [
+      null,
+      1,
+      2
+    ]
+  },
+  "statuses": [
+    "created folder chapter",
+    "created folder empty",
+    "created folder chapter",
+    "renamed to renamed",
+    "renamed to moved",
+    "cannot rename the pages/files root",
+    "cannot delete the pages/files root",
+    "deleted moved"
+  ]
+}

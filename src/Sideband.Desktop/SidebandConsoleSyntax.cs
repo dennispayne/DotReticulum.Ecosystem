@@ -53,7 +53,8 @@ public static class SidebandConsoleSyntax
         new("plugins", 0, 0, "cmd_plugins.py", "unsupported"),
         new("plugins reload", 0, 0, "cmd_plugins.py", "unsupported"),
         new("exit", 0, 0), new("cancel", 0, 0), new("voice enable", 0, 0), new("voice disable", 0, 0),
-        new("voice reject", 0, 0), new("voice log clear", 0, 0), new("voice ptt on", 0, 0), new("voice ptt off", 0, 0)
+        new("voice reject", 0, 0), new("voice log clear", 0, 0), new("voice ptt on", 0, 0), new("voice ptt off", 0, 0),
+        new("conv retry-text", 2, 2)
     ]);
 
     public static string[] Parse(string line)

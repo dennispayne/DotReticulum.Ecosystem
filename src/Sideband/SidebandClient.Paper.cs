@@ -30,7 +30,7 @@ public sealed partial class SidebandClient
         AdmitPaperOperation(cancellationToken);
         try
         {
-            using var owned = PaperOperationCancellation(cancellationToken);
+            using var owned = RuntimeOperationCancellation(cancellationToken);
             await _lifecycle.WaitAsync(owned.Token).ConfigureAwait(false);
             try
             {
@@ -108,7 +108,7 @@ public sealed partial class SidebandClient
         AdmitPaperOperation(cancellationToken);
         try
         {
-            using var owned = PaperOperationCancellation(cancellationToken);
+            using var owned = RuntimeOperationCancellation(cancellationToken);
             await _lifecycle.WaitAsync(owned.Token).ConfigureAwait(false);
             try
             {
@@ -135,11 +135,4 @@ public sealed partial class SidebandClient
             throw new InvalidOperationException($"Paper operation capacity reached ({MaximumPendingPaperOperations} pending).");
     }
 
-    private CancellationTokenSource PaperOperationCancellation(CancellationToken token)
-    {
-        lock (_cancellationGate)
-            return _runCancellation is { } run
-                ? CancellationTokenSource.CreateLinkedTokenSource(token, run.Token)
-                : CancellationTokenSource.CreateLinkedTokenSource(token);
-    }
 }

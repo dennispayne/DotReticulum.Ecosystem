@@ -7,7 +7,7 @@ using S = Sideband.SidebandTelemetrySensorId;
 
 namespace Sideband;
 
-public enum SidebandMapOverlayKind { Peer, Interface, Connection }
+public enum SidebandMapOverlayKind { Peer, Interface, Connection, Discovery }
 public readonly record struct SidebandMapColor(double Red, double Green, double Blue, double Alpha = 1);
 public sealed record SidebandMapOverlayAppearance(string Icon, SidebandMapColor Foreground, SidebandMapColor Background)
 {

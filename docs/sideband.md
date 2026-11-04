@@ -23,7 +23,7 @@ desktop voice screen reuse the same Reticulum identity/router as messaging.
 Manual telemetry, privacy-aware collector/report exchange, supported telemetry
 migration and an original bounded raster/offline MBTiles map are implemented.
 Actual primary application telemetry passes on Windows/Linux; automatic sensor
-collection, discovery overlays, plugins, mobile operation, broad upstream configuration, and upstream database
+collection, plugins, mobile operation, broad upstream configuration, and upstream database
 migration of all profile semantics remain incomplete. A bounded offline importer
 activates identity, supported settings, LXMF conversations, text/file/image/audio history,
 delivery methods, known client-router files, synchronization state and supported telemetry from upstream profiles. Conversation trust/unread flags
@@ -99,9 +99,9 @@ runtime evidence.
 | Paper messages and `lxm://` imports | implemented bounded subset | Connected paper text creation and local duplicate-aware import reuse LXMF; saved URI/QR display and non-overwriting exports work offline and survive restart. Actual primary daemon-core creation/ingestion both ways, trust on/off and process restart pass separately from native desktop/CLI exports. Nonlocal envelopes are unauthenticated and not forwarded. Hardware camera/printer, desktop OS URI registration and complete upstream paper-history migration remain unverified/missing; `SidebandClient.Paper.cs`, `MainWindow.Paper.cs`, `PaperExportCommand.cs`, `sbapp/sideband/core.py:paper_message,lxm_ingest_uri`. |
 | LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI, call-history migration and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
 | Telemetry, location and situational awareness | partial | All 27 sensor wire formats, exact values, bounded atomic storage and reference-executed geometry exist. Original desktop controls configure manual information/location/sensors, privacy/collector/tracking policies, inspect trusted reports, explicitly delete and show reported locations on the map. Actual primary reports/collector streams, requests, restart, supported profile import, schedules and propagation recovery pass separately on Windows/Linux. Automatic sensor collection, hardware and advanced presentation remain absent/unverified; see sections below; `SidebandTelemetry*.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/ui/telemetry.py`. |
-| Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default/provider/layer and overlay vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, source zoom limits and persisted view. Reported peers/interfaces/connection points, clustering, high-zoom scatter, local fixed overrides and marker inspection are integrated. Thirteen provider presets and supported offline-profile activation exist. Automatic discovery overlays and broader map migration/presentation remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
+| Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default/provider/layer, overlay and passive discovery vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, source zoom limits and persisted view. Reported peers/interfaces/connection points, bounded selected-cache discovery advertisements, clustering, high-zoom scatter, local fixed overrides and marker inspection are integrated. Thirteen provider presets and supported offline-profile activation exist. Broader map migration/presentation remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
 | Remote commands, queries and plugins | partial | Authorized telemetry requests and built-in ping/echo/signal requests use the existing bounded client worker. Actual primary daemon cores exchange commands/replies, propagated requests and offline replies, and verify unknown-conversation admission across direct, Python-hop and .NET-hop paths. Explicit PN storage/retrieval, restart/cancellation and controlled direct-failure recovery are distinct evidence. Original Remote controls configure shared request permissions, queue/cancel commands and preview persisted replies. Initially-propagated failure injection remains unverified; arbitrary Python command/service/telemetry plugins and custom sensors remain missing. Native helpers are not a Python-plugin ABI; `SidebandClient.Remote.cs`, `SidebandRemoteCommands.cs`, `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`. |
-| Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. Interface editing/discovery and Android interface loading are absent; `src/Sideband/SidebandClient.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
+| Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. The map passively inspects the selected configuration's discovery cache without autoconnect; shared-owner blackhole policy is queried through actual management RPC. Interface editing, remote shared-owner discovery-cache access and Android interface loading remain absent; `SidebandClient.Discovery.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
 | Long-lived service and OS integration | partial | The desktop window and headless daemon own the same cancellable client. Linux published daemon/interactive processes stop on SIGTERM with closed/blocked stdin; native console quit and restart pass on both hosts. Days-long Sideband service operation remains unverified. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are deferred mobile contracts; `SidebandDaemon.cs`, `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
 | Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/object classification/text/files/images/audio/methods, known client-router tickets/own ratchets/caches, synchronization anchors and bounded supported telemetry/settings/permissions/appearance/cursors/map-overlay settings. Unimplemented semantics remain archived; source files never change. Voice history, other fields and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `SidebandTelemetryProfile.cs`, `sbapp/main.py:209–273`. |
 | CLI and headless operation | partial | Help/version, init/check, data/config selection, JSON settings exchange, daemon/interactive operation and native extensions `--import-profile`, `--check-media`, `--synthetic-audio` exist. Daemon ignores closed stdin and stops on cancellation; original interactive console bounds input and supports functional voice commands. All twelve pinned upstream voice command handlers execute `Not yet implemented`; native functionality is an extension, not evidence that these primary placeholders work. Native `--interactive`, `--verbose` and synthetic audio require daemon mode; conflicting modes fail before state/UI. Broader upstream console commands remain missing; `Program.cs`, `SidebandDaemon.cs`, `sbapp/main.py`, `sbapp/sideband/cli/cmd_voice.py`. |
@@ -970,12 +970,121 @@ colors and original labels, not licensed symbols. No reported location is proof
 of an authenticated physical position.
 
 Clustering and reported interface/connection overlays are implemented in the
-separate acceptance slice above. Discovery overlays, broader map-setting migration and
+separate acceptance slice above. Cached discovery overlays are described below; broader map-setting migration and
 full primary map presentation remain required software work. Explicit report
 recentring exists; persistent peer-following is not claimed, and no such API was
 identified in the inspected primary `Map` implementation. Arbitrary primary
 Python plugins are not supported by these APIs.
 Manual preview and synthetic maps are not physical sensor or live telemetry evidence.
+
+### Cached interface discovery
+
+The primary `main.py:list_discovered_interfaces` lazily reuses
+`RNS.Discovery.InterfaceDiscovery(discover_interfaces=False)`; `ui/map.py`
+projects transport advertisements with coordinates on its60-second update.
+`GenerateSidebandDiscoveryVectors.py` executes those actual methods, actual
+interface appearance methods and the pinned RNS passive constructor/cache
+listing. Clocks, isolated cache metadata, active-owner lists and inert map
+widgets/triggers are disclosed seams, not a substitute discovery protocol.
+Eight input entries produce seven cached/listed records after real expiry
+pruning and three primary map markers. Distinct synthetic ordering inputs
+avoid filesystem tie-order differences; Windows/Linux independently generated
+fixture bytes match SHA-256
+`01ce009628a837074cbbd4717c63376aa285859ea5419666944658a72a2d57c7`.
+The fixture records exact primary revision/source digests and canonical-LF
+RNS discovery SHA-256
+`3c7833ccd1a682c7313208874e1a66ff9495280d01827c67b0405d7402d4a89d`;
+the CRLF checkout digest differs, not the executed Git blob.
+
+`SidebandClient.GetMapDiscoveryAsync` requires a connected node and inspects
+that selected configuration's `storage\discovery`, not an unrelated remote
+shared owner's cache. Its actual management query applies the current owner's
+blackhole policy, including when connected as a shared client. The public
+stack reader prunes expired, unauthorized and blackholed cache files; this is
+**not a read-only filesystem operation**. No listener or autoconnect is started
+by this inspection. At most512 candidate files and256 retained records are
+examined; an over-cap cache can omit records. Admission permits one refresh
+and no queued refresh backlog. Cancellation/disposal release lifecycle
+ownership, but the public synchronous cache constructor cannot be interrupted
+mid-parse; checks surround its bounded scan. Queued lifecycle cancellation
+within two seconds does not prove that bound during parsing.
+
+Only public metadata is detached into map DTOs; passphrases, network names,
+raw packed payloads and operator credentials are omitted. Raw detached packed
+buffers are zeroed. Discovery IDs are32-byte/64-hex identifiers, not
+16-byte LXMF delivery hashes. Their separate marker kind/inspection never
+creates a contact/conversation or copies the ID into an LXMF peer input.
+Out-of-range locations report a diagnostic and omit the marker without
+discarding other metadata. Native accepts legitimate zero coordinates
+(five markers in the fixture) and replaces each snapshot so moved/deleted
+records do not retain stale markers, deliberately fixing primary truthiness/
+retention behavior rather than claiming exact reproduction of those defects.
+
+The interface overlay refreshes at most once per60seconds while Map is visible;
+its checkbox forces a fresh snapshot. Disabling/disconnecting clears it.
+Failure clears stale markers and reports an error; restoring a valid cache
+recovers service. Reported telemetry retains priority within the shared
+256-marker display limit. Six focused reference/lifecycle/headless cases pass
+on each host, including real shared-owner management RPC, blackhole pruning,
+missing-directory recovery, admission/cancellation/disposal and restored-view
+smoke overrides. Public RPC deserializes maps differently from local management;
+the reader accepts both typed pair collections rather than dropping shared
+blackhole policy.
+
+Two actual-primary live cases pass on each host: direct Python TCP hub and a
+separate .NET transport. Actual RNS signed discovery announcements flow both
+ways; primary's real passive facade lists the native advertisement and the
+native application projects the Python advertisement at0,0 across restart.
+Required stamp8 is an explicit non-default setting. Advertised endpoints are
+synthetic: this proves signed announcement/cache/application listing, not
+successful connectivity, autoconnect or physical position.
+
+Published `--smoke-ui --smoke-discovery --data-dir <private-data> --rnsconfig
+<isolated-rns>` requires explicit configuration and data, renders the real
+cached marker and fails empty cache with exit2. The `Discovery` Pester case
+copies an isolated synthetic profile to private native temporary storage,
+renders across two process starts, then deletes the owned cache and requires
+the explicit failure. This is native renderer/restart evidence, separate from
+the actual-primary network cases.
+
+Final focused acceptance is6/6 per host; final actual-primary live acceptance
+is2/2 per host. Strict NativeAOT publishing passes with zero warnings/errors
+using `dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release
+-r <rid> --artifacts-path <root> -p:ILLinkTreatWarningsAsErrors=true
+-p:IlcTreatWarningsAsErrors=true -warnaserror -v quiet`.
+The final `Native,Discovery` Pester selection passes6 cases per host with one
+explicit unrelated generated-primary-map-profile skip. Discovery itself
+passes1/1 on both hosts, including the initially disabled/off-centre saved
+view, two renders/restarts and empty-cache exit2. The final complete Sideband
+regression passes1,894 cases with50 explicit live/prerequisite skips.
+The separate solution/strict-catalog gates are recorded in
+[testing provenance](testing.md#baseline-provenance).
+
+Selected final native executables:
+
+- Windows `artifacts\builds\fleet-discovery-native-win\publish\Sideband.Desktop\release_win-x64\sideband.exe`,
+  SHA-256 `2f64a131a635c2e11aa8ceb60daca7e8411b9e4a1eb40520205f76df318e2b84`.
+- Linux `/home/dennis/fleet-discovery-native-linux/publish/Sideband.Desktop/release_linux-x64/sideband`,
+  SHA-256 `b88629353ffbf42fac21dc954dae942676572cbc8ed6f39b4141933f4447aecf`.
+
+The synthetic profile is exported by the headless case to
+`artifacts\tests\fleet-discovery-native-race-profile`; export refuses to
+overwrite an existing profile. Earlier smoke acceptance failed: the awaited
+close task depended on its own tracked operation completing, and saved map
+restoration could overwrite the smoke overlay/centre. Close is now scheduled
+outside that tracked task, restoration completes before explicit positioning,
+and both the headless off-centre/disabled-view regression and native empty-cache
+failure execute the unchanged real renderer/exit assertions.
+
+```powershell
+# With the pinned actual-import reference environment selected:
+& $env:DOTRETICULUM_PYTHON tests\Sideband.Tests\GenerateSidebandDiscoveryVectors.py --source $env:DOTRETICULUM_SIDEBAND_UPSTREAM --output <reference-json>
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --filter "FullyQualifiedName~SidebandMapDiscovery|FullyQualifiedName~SidebandDiscovery"
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --filter "FullyQualifiedName~ActualPrimaryPassiveDiscoveryAndNativeMapExchangeAdvertisementsAcrossRestart"
+# Select DOTRETICULUM_SIDEBAND_BINARY and the exported synthetic
+# DOTRETICULUM_SIDEBAND_DISCOVERY_PROFILE:
+& tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1 -Tag Native,Discovery
+```
 
 Focused acceptance:
 

@@ -265,9 +265,11 @@
             <TextBlock x:Name="MapAttributionText" TextWrapping="Wrap" />
             <TextBlock x:Name="MapStatusText" Text="Offline: no online requests without explicit consent." TextWrapping="Wrap" />
             <TextBlock x:Name="MapOverlayStatusText" Text="No reported markers loaded." TextWrapping="Wrap" />
+            <TextBlock x:Name="MapDiscoveryStatusText" Text="Connect to inspect the selected Reticulum discovery cache. No autoconnect; cache inspection can prune expired or unauthorized entries." TextWrapping="Wrap" />
+            <TextBlock x:Name="MapDiscoveryDetailsText" TextWrapping="Wrap" />
             <WrapPanel>
               <CheckBox x:Name="MapClusterBox" Content="Cluster markers" IsChecked="True" Margin="0,0,12,0" Click="MapOverlaysChanged" />
-              <CheckBox x:Name="MapInterfacesBox" Content="Reported interfaces" IsChecked="True" Margin="0,0,12,0" Click="MapOverlaysChanged" />
+              <CheckBox x:Name="MapInterfacesBox" Content="Reported and cached discovery interfaces" IsChecked="True" Margin="0,0,12,0" Click="MapOverlaysChanged" />
               <CheckBox x:Name="MapConnectionsBox" Content="Reported connection points" Margin="0,0,12,0" Click="MapOverlaysChanged" />
               <CheckBox x:Name="MapHideBlockedBox" Content="Hide blocked points" Margin="0,0,12,0" Click="MapOverlaysChanged" />
               <CheckBox x:Name="MapOnlyBlockedBox" Content="Only blocked points (this session)" Click="MapOverlaysChanged" />

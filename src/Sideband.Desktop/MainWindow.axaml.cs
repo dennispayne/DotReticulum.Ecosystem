@@ -122,6 +122,16 @@ public sealed partial class MainWindow : Window
                 }
                 Console.WriteLine("SMOKE_UI_RENDERED_OBJECTS=" + ObjectList.ItemCount);
             }
+            if (Program.SmokeDiscoveryMode)
+            {
+                if (!MapPage.IsVisible || !_discoverySmokeVerified) return;
+                if (MapViewport.RenderedMarkerCount == 0)
+                {
+                    Dispatcher.UIThread.Post(InvalidateVisual);
+                    return;
+                }
+                Console.WriteLine("SMOKE_UI_RENDERED_DISCOVERY=" + SidebandMapDiscovery.Project(_mapDiscovery).Count);
+            }
             if (Program.SmokeTelemetryMode)
             {
                 if (!TelemetryPage.IsVisible || TelemetryDetailsText.Text?.StartsWith("LOCAL MANUAL PREVIEW", StringComparison.Ordinal) != true) return;
@@ -150,7 +160,7 @@ public sealed partial class MainWindow : Window
                 if (!RemotePage.IsVisible || !_remoteSmokeVerified) return;
                 Console.WriteLine("SMOKE_UI_RENDERED_REMOTE=commands-replies-cancellation");
             }
-            var hasImage = !Program.SmokePaperMode && !Program.SmokeObjectsMode &&
+            var hasImage = !Program.SmokePaperMode && !Program.SmokeObjectsMode && !Program.SmokeDiscoveryMode &&
                 _state.Messages.Any(message => message.Image is not null);
             if (hasImage && MediaPreview.Source is null) return;
             SmokeUiSucceeded = true;
@@ -235,7 +245,8 @@ public sealed partial class MainWindow : Window
                 Dispatcher.UIThread.Post(() =>
                 {
                     if (_closing) return;
-                    SendButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    if (!Program.SmokeDiscoveryMode)
+                        SendButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     if (Program.SmokeMapMode) NavigateTo("Map");
                     if (Program.SmokeTelemetryMode)
                     {
@@ -270,6 +281,7 @@ public sealed partial class MainWindow : Window
                     if (Program.SmokeRemotePeer is { } remotePeer)
                         TrackOperation(() => RunRemoteSmokeAsync(remotePeer));
                     if (Program.SmokeObjectsMode) NavigateTo("Objects");
+                    if (Program.SmokeDiscoveryMode) TrackOperation(RunDiscoverySmokeAsync);
                     Volatile.Write(ref _smokeActionInvoked, 1);
                     InvalidateVisual();
                 });

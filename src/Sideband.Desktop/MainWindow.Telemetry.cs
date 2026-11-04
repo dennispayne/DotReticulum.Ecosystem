@@ -209,6 +209,7 @@ public sealed partial class MainWindow
                     TelemetryReportsList.SelectedIndex = selectedIndex;
                     if (selectedIndex < 0) TelemetryDetailsText.Text = _telemetryPreview ?? "";
                     TelemetryReportsSummaryText.Text = $"{_telemetryReports.Count} visible reports from the newest bounded 256-record query; source-trust display policy is applied.";
+                    await RefreshMapDiscoveryAsync();
                     UpdateMapMarkers();
                 } while (_refreshTelemetryAgain && !_closing);
             }
@@ -260,6 +261,16 @@ public sealed partial class MainWindow
                 var marker = point with { Key = $"{report.SourceHash}:{point.Kind}:{point.Key}" };
                 var name = point.Name ?? point.Kind.ToString();
                 var label = name[..Math.Min(name.Length, 60)] + " " + report.SourceHash[..8];
+                markers.Add(new(label, marker.Coordinate, SourceHash: marker.SourceHash, Overlay: marker));
+            }
+        }
+        if (MapInterfacesBox.IsChecked == true && _client.IsConnected)
+        {
+            foreach (var marker in SidebandMapDiscovery.Project(_mapDiscovery))
+            {
+                if (markers.Count == SidebandMapOverlays.MaximumMarkers) { omitted++; continue; }
+                var name = marker.Name ?? "Discovered interface";
+                var label = "Discovery: " + name[..Math.Min(name.Length, 60)];
                 markers.Add(new(label, marker.Coordinate, SourceHash: marker.SourceHash, Overlay: marker));
             }
         }

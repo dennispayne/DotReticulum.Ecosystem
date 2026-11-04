@@ -78,6 +78,11 @@ Describe 'sideband native acceptance' -Tag 'Native' {
         $LASTEXITCODE | Should -Be 1
         $output = & $binary --smoke-ui --smoke-objects --smoke-telemetry --data-dir $rejectedData 2>&1 | Out-String
         $LASTEXITCODE | Should -Be 1
+        $output = & $binary --smoke-ui --smoke-discovery --data-dir $rejectedData 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 1
+        $output | Should -Match 'isolated --rnsconfig'
+        $output = & $binary --smoke-ui --smoke-discovery --smoke-map --data-dir $rejectedData --rnsconfig $rns 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 1
         Test-Path -LiteralPath $rejectedData | Should -BeFalse
     }
 
@@ -440,6 +445,68 @@ Describe 'sideband native repository window acceptance' -Tag 'GUI' {
                 $process.Dispose()
             }
             if (Test-Path -LiteralPath $repositoryRoot) { Remove-Item -LiteralPath $repositoryRoot -Recurse -Force }
+        }
+    }
+}
+
+Describe 'sideband native cached discovery map' -Tag 'GUI', 'Discovery' {
+    It 'renders selected cached discovery across restart and rejects an empty cache without autoconnect' {
+        $profile = $env:DOTRETICULUM_SIDEBAND_DISCOVERY_PROFILE
+        if ([string]::IsNullOrWhiteSpace($profile)) {
+            Set-ItResult -Skipped -Because 'Set DOTRETICULUM_SIDEBAND_DISCOVERY_PROFILE to the synthetic isolated profile exported by SidebandDiscoveryUiTests.'
+            return
+        }
+        $binary = $env:DOTRETICULUM_SIDEBAND_BINARY
+        if ([string]::IsNullOrWhiteSpace($binary) -or -not (Test-Path -LiteralPath $binary -PathType Leaf)) {
+            throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
+        }
+        $root = Join-Path ([IO.Path]::GetTempPath()) "sideband-discovery-$([guid]::NewGuid().ToString('N'))"
+        try {
+            Copy-Item -LiteralPath $profile -Destination $root -Recurse -ErrorAction Stop
+            $data = Join-Path $root 'data'
+            $rns = Join-Path $root 'rns'
+            $cache = Join-Path $rns 'storage\discovery'
+            @(Get-ChildItem -LiteralPath $cache -File).Count | Should -Be 1
+            foreach ($mode in @('cached', 'cached', 'empty')) {
+                if ($mode -eq 'empty') {
+                    foreach ($file in Get-ChildItem -LiteralPath $cache -File) {
+                        Remove-Item -LiteralPath $file.FullName -Force
+                    }
+                }
+                $process = [Diagnostics.Process]::new()
+                $started = $false
+                try {
+                    $process.StartInfo.FileName = $binary
+                    $process.StartInfo.UseShellExecute = $false
+                    $process.StartInfo.RedirectStandardOutput = $true
+                    $process.StartInfo.RedirectStandardError = $true
+                    foreach ($argument in @('--smoke-ui', '--smoke-discovery', '--data-dir', $data, '--rnsconfig', $rns)) {
+                        $process.StartInfo.ArgumentList.Add($argument)
+                    }
+                    $process.Start() | Should -BeTrue
+                    $started = $true
+                    $stdout = $process.StandardOutput.ReadToEndAsync()
+                    $stderr = $process.StandardError.ReadToEndAsync()
+                    if (-not $process.WaitForExit(20000)) {
+                        $process.Kill($true)
+                        $process.WaitForExit()
+                        throw "Published discovery rendering did not finish: $($stdout.GetAwaiter().GetResult()) $($stderr.GetAwaiter().GetResult())"
+                    }
+                    $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+                    $process.ExitCode | Should -Be $(if ($mode -eq 'empty') { 2 } else { 0 }) -Because $output
+                    $output | Should -Match 'SMOKE_UI_RENDERED_INITIAL=1'
+                    if ($mode -eq 'cached') { $output | Should -Match 'SMOKE_UI_RENDERED_DISCOVERY=1' }
+                    else { $output | Should -Match 'Discovery smoke requires a valid cached transport advertisement' }
+                    $output | Should -Not -Match 'synthetic-ui-secret'
+                }
+                finally {
+                    if ($started -and -not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+                    $process.Dispose()
+                }
+            }
+        }
+        finally {
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
         }
     }
 }

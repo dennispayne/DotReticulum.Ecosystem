@@ -8,6 +8,33 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+The integrated discovery/conversation-image gate
+`& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-discovery-nomad-final-unified -OutputDirectory
+artifacts\tests\fleet-discovery-nomad-final-unified` passes **2,334 managed
+cases,117 explicit skips and62 Pester tooling cases**, including strict
+catalog aggregation. It includes the shared-owner discovery regression and
+unaccepted retry diagnostics; disabled live modes are not accepted
+interoperability. Subsequent discovery smoke restoration/centering refinements
+have separate focused and published native acceptance. Parent independently
+repeats both frozen Nomad conversation-image recipes and Linux mixed
+propagation/restart/dropped-Resource acceptance; that slice is committed.
+Discovery's actual-primary signed-announcement cases and original published
+renderer/restart cases are separate evidence in
+[Sideband's reference](sideband.md#cached-interface-discovery).
+
+The preceding `fleet-discovery-nomad-unified` attempt remains a failure: the
+existing headless voice case timed out while waiting for persisted peer trust.
+Its exact cause is not established; neither its five-second wait nor the
+two-second hangup assertion was relaxed. Both the subsequent isolated full
+Release run and strict coverage run pass. Shared-client discovery acceptance
+also initially failed because management RPC decodes maps differently from
+local management; accepting both typed pair collections fixes the actual
+boundary, and the unchanged blackhole/pruning assertions pass on both hosts.
+No hosted workflow was dispatched. Current hosted Build remains successful
+at run `41502113530`; latest Test remains `41643993895`, with the distinct
+artifact-producing commit described below. Neither accepts these local commits.
+
 The remote-transport gate
 `& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
 artifacts\builds\fleet-remote-transport-unified -OutputDirectory

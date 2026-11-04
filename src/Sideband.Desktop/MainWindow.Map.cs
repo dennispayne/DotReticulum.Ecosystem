@@ -12,6 +12,9 @@ public sealed partial class MainWindow
     private bool _restoredMap;
     private bool _changingMap;
     private bool _mapOverlayEdited;
+    private IReadOnlyList<SidebandDiscoveredInterface> _mapDiscovery = [];
+    private DateTimeOffset _nextMapDiscoveryRefresh;
+    private bool _discoverySmokeVerified;
     private readonly Avalonia.Threading.DispatcherTimer _mapMarkerRefreshTimer =
         new() { Interval = TimeSpan.FromSeconds(SidebandMapOverlays.InterfaceUpdateIntervalSeconds) };
 
@@ -71,6 +74,11 @@ public sealed partial class MainWindow
     private void MapOverlaysChanged(object? sender, RoutedEventArgs e)
     {
         _mapOverlayEdited = true;
+        if (ReferenceEquals(sender, MapInterfacesBox))
+        {
+            _nextMapDiscoveryRefresh = default;
+            RequestTelemetryRefresh();
+        }
         if (ReferenceEquals(sender, MapInterfacesBox) && MapInterfacesBox.IsChecked == true ||
             ReferenceEquals(sender, MapConnectionsBox) && MapConnectionsBox.IsChecked == true)
             MapClusterBox.IsChecked = true;
@@ -91,6 +99,20 @@ public sealed partial class MainWindow
 
     private void InspectMapMarker(SidebandMapOverlayMarker marker) => RunTelemetryOperation(() =>
     {
+        if (marker.Kind == SidebandMapOverlayKind.Discovery)
+        {
+            var item = _mapDiscovery.FirstOrDefault(entry => entry.DiscoveryHash == marker.SourceHash)
+                ?? throw new InvalidOperationException("The selected discovery record is no longer in the visible cache snapshot.");
+            MapDiscoveryDetailsText.Text = "CACHED INTERFACE ADVERTISEMENT (not an LXMF address or verified physical position)\n" +
+                $"Name: {item.Name}\nType: {item.InterfaceType}\nDiscovery: {item.DiscoveryHash}\n" +
+                $"Network identity: {item.NetworkIdentityHash}\nTransport identity: {item.TransportIdentityHash}\n" +
+                $"Status: {item.Status}; stamp value: {item.StampValue}; hops: {item.Hops}\n" +
+                $"Last heard: {item.LastHeardUtcSeconds.ToString("G17", CultureInfo.InvariantCulture)} UTC seconds\n" +
+                $"Published endpoint: {item.ReachableOn ?? "(not published)"}" +
+                (item.Port is { } port ? ":" + port.ToString(CultureInfo.InvariantCulture) : "") +
+                "\nNo connection or identity/contact import was performed.";
+            return Task.CompletedTask;
+        }
         var source = marker.ReportingSourceHash ?? marker.SourceHash;
         var report = _telemetryReports.FirstOrDefault(report => report.SourceHash == source)
             ?? throw new InvalidOperationException("The selected marker no longer has a visible telemetry report.");
@@ -102,6 +124,75 @@ public sealed partial class MainWindow
         TelemetryDetailsText.Text = _telemetryPreview;
         return Task.CompletedTask;
     });
+
+    private async Task RefreshMapDiscoveryAsync()
+    {
+        if (!_client.IsConnected || MapInterfacesBox.IsChecked != true)
+        {
+            _mapDiscovery = [];
+            _nextMapDiscoveryRefresh = default;
+            MapDiscoveryStatusText.Text = !_client.IsConnected
+                ? "Connect to inspect the selected Reticulum configuration's cached discovery advertisements."
+                : "Discovery/interface overlay disabled.";
+            MapDiscoveryDetailsText.Text = "";
+            return;
+        }
+        if (!MapPage.IsVisible || DateTimeOffset.UtcNow < _nextMapDiscoveryRefresh) return;
+        _nextMapDiscoveryRefresh = DateTimeOffset.UtcNow.AddSeconds(SidebandMapOverlays.InterfaceUpdateIntervalSeconds);
+        MapDiscoveryStatusText.Text = "Inspecting selected discovery cache; expired or unauthorized entries may be pruned. No autoconnect.";
+        try
+        {
+            var snapshot = await _client.GetMapDiscoveryAsync(_windowCancellation.Token);
+            _mapDiscovery = snapshot.Interfaces;
+            MapDiscoveryStatusText.Text = $"{snapshot.Interfaces.Count} cached transport advertisements. " +
+                $"Scan bounded to {snapshot.ScanCandidateLimit} candidate files / {snapshot.RecordLimit} retained records; other entries may be omitted. " +
+                "Selected configuration cache only, not a remote shared owner's discovery state. No autoconnect.";
+            MapDiscoveryDetailsText.Text = "";
+        }
+        catch
+        {
+            _mapDiscovery = [];
+            MapDiscoveryStatusText.Text = "Discovery cache refresh failed; stale cached map markers removed.";
+            MapDiscoveryDetailsText.Text = "";
+            UpdateMapMarkers();
+            throw;
+        }
+    }
+
+    internal async Task RunDiscoverySmokeAsync()
+    {
+        try
+        {
+            await _client.ConnectAsync(_commandLineRnsConfig, _windowCancellation.Token);
+            _mapOverlayEdited = true;
+            await MapStoreAsync();
+            MapInterfacesBox.IsChecked = true;
+            NavigateTo("Map");
+            RequestTelemetryRefresh();
+            var deadline = DateTime.UtcNow.AddSeconds(5);
+            while (_refreshingTelemetry || _refreshTelemetryAgain)
+            {
+                if (DateTime.UtcNow >= deadline)
+                    throw new TimeoutException("Discovery smoke cache refresh did not complete within five seconds.");
+                await Task.Delay(20, _windowCancellation.Token);
+            }
+            var marker = SidebandMapDiscovery.Project(_mapDiscovery).FirstOrDefault()
+                ?? throw new InvalidOperationException("Discovery smoke requires a valid cached transport advertisement with a location. " +
+                    MapDiscoveryStatusText.Text);
+            MapViewport.SetView(marker.Coordinate.Latitude, marker.Coordinate.Longitude, 3);
+            _discoverySmokeVerified = true;
+            SetStatus("Cached discovery marker prepared without autoconnect.");
+            InvalidateVisual();
+        }
+        catch (OperationCanceledException) when (_windowCancellation.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            ShowError("Discovery smoke failed: " + exception.Message);
+            Console.Error.WriteLine("sideband: Discovery smoke failed: " + exception.Message);
+            Volatile.Write(ref _smokeActionInvoked, 0);
+            _ = CloseAfterCaptureAsync();
+        }
+    }
 
     private void MapGoClicked(object? sender, RoutedEventArgs e)
     {

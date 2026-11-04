@@ -56,6 +56,14 @@ public sealed partial class SidebandClient : IAsyncDisposable
     public async Task<SidebandState> LoadAsync(CancellationToken cancellationToken = default) =>
         await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
+    private CancellationTokenSource RuntimeOperationCancellation(CancellationToken token)
+    {
+        lock (_cancellationGate)
+            return _runCancellation is { } run
+                ? CancellationTokenSource.CreateLinkedTokenSource(token, run.Token)
+                : CancellationTokenSource.CreateLinkedTokenSource(token);
+    }
+
     public async Task ConnectAsync(string? reticulumConfigDirectory = null, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);

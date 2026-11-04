@@ -25,6 +25,7 @@
     <None Include="..\Interop\sideband_live_node.py" Link="Interop\sideband_live_node.py" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Interop\sideband_application_node.py" Link="Interop\sideband_application_node.py" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Interop\sideband_paper_node.py" Link="Interop\sideband_paper_node.py" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Interop\sideband_remote_node.py" Link="Interop\sideband_remote_node.py" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Interop\sideband_attachment_node.py" Link="Interop\sideband_attachment_node.py" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Interop\reference_environment.py" Link="Interop\reference_environment.py" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

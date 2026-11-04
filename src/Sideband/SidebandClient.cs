@@ -791,7 +791,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
                 }
                 else if (update.Contact is { } contact)
                 {
-                    await _store.AddContactAsync(contact).ConfigureAwait(false);
+                    await _store.ObserveDeliveryAnnounceAsync(contact).ConfigureAwait(false);
                     await RefreshVoicePolicyCoreAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 else if (update.Call is { } call)
@@ -806,14 +806,27 @@ public sealed partial class SidebandClient : IAsyncDisposable
                 }
                 else if (update.Received is { } received)
                 {
+                    var state = await _store.LoadAsync().ConfigureAwait(false);
+                    var hash = Convert.ToHexStringLower(received.Message.SourceHash);
+                    if (SidebandTelemetryPolicy.DeliveryDisposition(state.Telemetry.Policy, ConversationPolicy(state, hash),
+                        received.Message.SignatureValidated, received.Message.TryGetField(LxmField.Commands, out _),
+                        SidebandRemoteCommands.Authorization(state).IgnoreUnknown) == SidebandTelemetryDeliveryDisposition.Drop)
+                    {
+                        Report($"LXMF message from {hash} rejected: sender not authorized (unknown conversation or command policy).");
+                        continue;
+                    }
                     try { await ReceiveTelemetryAsync(received.Message, CancellationToken.None).ConfigureAwait(false); }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     { Report("Received telemetry metadata was rejected; text/media are retained: " + ex.Message); }
+                    if (received.Message.TryGetField(LxmField.Commands, out _)) continue;
+                    var telemetryOnly = string.IsNullOrEmpty(received.Message.Content) && string.IsNullOrEmpty(received.Message.Title) &&
+                        (received.Message.TryGetField(LxmField.Telemetry, out _) || received.Message.TryGetField(LxmField.TelemetryStream, out _));
                     if (string.IsNullOrEmpty(received.Message.Content) &&
                         string.IsNullOrEmpty(received.Message.Title) &&
                         !received.Message.TryGetField(LxmField.FileAttachments, out _) &&
                         !received.Message.TryGetField(LxmField.Image, out _) && !received.Message.TryGetField(LxmField.Audio, out _))
                     {
+                        if (!telemetryOnly) await _store.PromoteConversationAsync(hash).ConfigureAwait(false);
                         PublishState(await _store.LoadAsync().ConfigureAwait(false));
                         continue;
                     }
@@ -879,7 +892,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
                         received.Message.Method.ToString(),
                         image,
                         audio);
-                    await _store.AddMessageAsync(stored).ConfigureAwait(false);
+                    await _store.AddMessageAsync(stored, !telemetryOnly).ConfigureAwait(false);
                     await RefreshVoicePolicyCoreAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 PublishState(await _store.LoadAsync().ConfigureAwait(false));

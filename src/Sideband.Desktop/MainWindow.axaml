@@ -47,6 +47,8 @@
             <Button x:Name="RepositoryNavButton" HorizontalContentAlignment="Left" Content="Repository Server"
                     Tag="Utilities" Click="NavigateClicked"
                     ToolTip.Tip="Explicit public HTTPS mirroring is configured in Utilities." />
+            <Button x:Name="RemoteNavButton" HorizontalContentAlignment="Left" Content="Remote Commands"
+                    Tag="Remote" Click="NavigateClicked" />
             <TextBlock Margin="8,18,0,4" FontSize="12" FontWeight="Bold"
                        Foreground="{DynamicResource SecondaryTextBrush}" Text="APPLICATION" />
             <Button x:Name="PreferencesNavButton" HorizontalContentAlignment="Left"
@@ -379,6 +381,36 @@
               <Button x:Name="ImportSettingsButton" Content="Import settings" Click="ImportSettingsClicked" />
               <Button x:Name="ExportSettingsButton" Content="Export settings" Click="ExportSettingsClicked" />
             </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="RemotePage" IsVisible="False" Margin="24">
+          <StackPanel Spacing="12">
+            <TextBlock FontSize="26" FontWeight="SemiBold" Text="Remote Commands" />
+            <TextBlock Text="Commands use signed LXMF messages. ping, echo TEXT and sig are built in. Other text requests a plugin on the remote peer; no local Python or shell code runs. Remote authorization is required. Replies appear as ordinary conversation messages."
+                       TextWrapping="Wrap" />
+            <TextBlock FontWeight="SemiBold" Text="Incoming request authorization (shared with telemetry)" />
+            <CheckBox x:Name="RemoteRequestsAnyoneBox" Content="Allow requests from anyone" />
+            <CheckBox x:Name="RemoteRequestsTrustedBox" Content="Otherwise allow only trusted conversations" />
+            <CheckBox x:Name="RemoteIgnoreUnknownBox" Content="Ignore messages and requests from unknown conversations" />
+            <TextBlock Text="Allow anyone overrides trusted-only. Otherwise trusted-only overrides individual conversation permissions. With both off, explicit conversation permission is required. Telemetry collection is not enabled by these controls."
+                       TextWrapping="Wrap" />
+            <Button x:Name="SaveRemoteAuthorizationButton" Content="Save request policy" HorizontalAlignment="Left" Click="SaveRemoteAuthorizationClicked" />
+            <TextBox x:Name="RemoteCommandPeerBox" MaxLength="32" PlaceholderText="Remote LXMF delivery address (32 hex)"
+                     TextChanged="RemotePeerChanged" />
+            <TextBlock x:Name="RemoteConversationPolicyText" TextWrapping="Wrap" />
+            <CheckBox x:Name="RemoteConversationRequestsBox" Content="Allow requests from this saved conversation" />
+            <Button x:Name="SaveRemoteConversationButton" Content="Save conversation permission" HorizontalAlignment="Left" Click="SaveRemoteConversationClicked" />
+            <TextBox x:Name="RemoteCommandBox" MaxLength="4096" AcceptsReturn="True" MinHeight="64"
+                     PlaceholderText="ping, echo TEXT, sig, or a remote plugin request" />
+            <CheckBox x:Name="RemotePropagatedBox" Content="Use the selected propagation node (storage is not recipient delivery)" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="SendRemoteCommandButton" Content="Send command" Click="SendRemoteCommandClicked" />
+              <Button x:Name="CancelRemoteCommandsButton" Content="Cancel this window's queued commands" Click="CancelRemoteCommandsClicked" />
+            </StackPanel>
+            <TextBlock x:Name="RemoteStatusText" Text="Offline. Sending requires an explicit Reticulum connection." TextWrapping="Wrap" />
+            <TextBlock Text="Latest 50 conversation messages, including command delivery state and replies. Unsent command work is not replayed after restart."
+                       TextWrapping="Wrap" />
+            <ListBox x:Name="RemoteHistoryList" MinHeight="180" />
           </StackPanel>
         </ScrollViewer>
         <ScrollViewer x:Name="UtilitiesPage" IsVisible="False" Margin="24">

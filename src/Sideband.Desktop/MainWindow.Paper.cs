@@ -103,6 +103,8 @@ public sealed partial class MainWindow
         if (_paperUiBusy) { ShowError("Another paper operation is pending."); return; }
         _paperUiBusy = true;
         SetPaperButtonsEnabled(false);
+        PaperImportStatusText.Text = "Paper operation pending.";
+        SetStatus(PaperImportStatusText.Text);
         try { await operation(); }
         catch (OperationCanceledException) { SetStatus("Paper operation cancelled."); }
         catch (Exception ex)

@@ -6,6 +6,63 @@ namespace Sideband.Tests;
 [Trait("Category", "Integration")]
 public sealed class SidebandSettingsTests
 {
+    [Theory]
+    [InlineData("null")]
+    [InlineData("1")]
+    [InlineData("\"true\"")]
+    [InlineData("[]")]
+    [InlineData("{}")]
+    public async Task IgnoreUnknownImportRejectsNonBooleanTransactionallyAndExportsActiveDefault(string invalid)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "sideband-command-settings-" + Guid.NewGuid().ToString("N"));
+        var token = TestContext.Current.CancellationToken;
+        try
+        {
+            var store = new SidebandStateStore(root);
+            await store.SetPreferencesAsync("Retained", "Dark", token);
+            var defaults = Path.Combine(root, "defaults.json");
+            await store.ExportSettingsAsync(defaults, token);
+            using (var json = JsonDocument.Parse(await File.ReadAllTextAsync(defaults, token)))
+                Assert.False(json.RootElement.GetProperty("lxmf_ignore_unknown").GetBoolean());
+            var input = Path.Combine(root, "input.json");
+            await File.WriteAllTextAsync(input, """{"display_name":"Changed","lxmf_ignore_unknown":""" + invalid + "}", token);
+            var before = await File.ReadAllBytesAsync(store.StatePath, token);
+            await Assert.ThrowsAsync<InvalidDataException>(() => store.ImportSettingsAsync(input, token));
+            Assert.Equal(before, await File.ReadAllBytesAsync(store.StatePath, token));
+            await File.WriteAllTextAsync(input, """{"lxmf_ignore_unknown":true}""", token);
+            Assert.Empty(await store.ImportSettingsAsync(input, token));
+            await File.WriteAllTextAsync(input, """{"display_name":"Changed"}""", token);
+            Assert.Empty(await store.ImportSettingsAsync(input, token));
+            Assert.True((await new SidebandStateStore(root).LoadAsync(cancellationToken: token))
+                .ImportedSettings!["lxmf_ignore_unknown"].GetBoolean());
+            var output = Path.Combine(root, "output.json");
+            await store.ExportSettingsAsync(output, token);
+            using var exported = JsonDocument.Parse(await File.ReadAllTextAsync(output, token));
+            Assert.True(exported.RootElement.GetProperty("lxmf_ignore_unknown").GetBoolean());
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task InvalidPersistedAdmissionPolicyIsReportedInsteadOfSilentlyDefaulting()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "sideband-command-settings-" + Guid.NewGuid().ToString("N"));
+        var token = TestContext.Current.CancellationToken;
+        try
+        {
+            var store = new SidebandStateStore(root);
+            await store.LoadAsync(cancellationToken: token);
+            await File.WriteAllTextAsync(store.StatePath, """
+                {"SchemaVersion":1,"ReticulumConfigDirectory":"isolated","Contacts":[],"Messages":[],
+                 "ImportedSettings":{"lxmf_ignore_unknown":"true"}}
+                """, token);
+            var before = await File.ReadAllBytesAsync(store.StatePath, token);
+            await Assert.ThrowsAsync<InvalidDataException>(() => new SidebandStateStore(root).LoadAsync(cancellationToken: token));
+            Assert.Equal(before, await File.ReadAllBytesAsync(store.StatePath, token));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
     // GenerateSettingsVectors.py executes main.py's export statements at Sideband
     // d069122af14880e43607aed0b71add4c7806fbe0 (source SHA-256 recorded by the generator).
     [Fact]

@@ -8,16 +8,31 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
-The local map/profile and pending-dial lifecycle gate
+The local remote-command, admission and desktop lifecycle gate
 `& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
-artifacts\builds\fleet-map-dial-unified-final -OutputDirectory
-artifacts\tests\fleet-map-dial-unified-final` passed **2,159 managed cases,
-95 explicit skips and 62 Pester tooling cases**, with merged coverage for all
-eight production assemblies. It includes the then-frozen uncommitted LXST
-file-drain, Nomad inline-media and remote-command backend sources. It does not
-establish their complete application acceptance: the new Nomad binary's separate
-mixed propagation restart regression remains unresolved, and remote desktop
-integration is separate required work.
+artifacts\builds\fleet-remote-ui-unified-final2 -OutputDirectory
+artifacts\tests\fleet-remote-ui-unified-final2` passed **2,200 managed cases,
+99 explicit skips and 62 Pester tooling cases**, with merged coverage for all
+eight production assemblies. It includes committed LXST drain/AGC and Nomad
+inline-media behavior, integrated remote backend/UI and the then-uncommitted
+Nomad node-configuration slice. That slice's managed results are not final
+application acceptance. Actual-primary remote command/admission acceptance
+separately passes on Windows/Linux, and final strict native remote/paper/voice
+flows pass 17/five skips and 19/three skips respectively; exact commands,
+source revisions, executable hashes and topology boundaries are in
+[Sideband's reference](sideband.md#built-in-commands-and-incoming-admission).
+
+The preceding `fleet-remote-ui-unified-final` run passed its managed/tooling
+checks but failed strict aggregation: two new catalog selectors used filenames
+instead of the actual partial class/method names. Exact-method selectors now
+discover the six real live cases; absent prerequisites remain skips, not passes.
+No tests or aggregation checks were disabled. A deterministic store-gate test
+also reproduced stale paper-operation feedback before its correction; pending
+status now precedes asynchronous work without changing completion assertions
+or deadlines. Separate current Nomad mixed propagation restart acceptance
+passes using observed online/active route readiness, not a timed sleep; prior
+offline-route failures are retained and controlled stale-route recovery is
+not claimed.
 
 Earlier `fleet-map-profile-unified` failed the original desktop voice test's
 post-hangup five-second wait. The subsequent

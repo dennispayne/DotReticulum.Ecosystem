@@ -92,7 +92,7 @@ runtime evidence.
 
 | Contract | Status | Upstream contract and source |
 |---|---|---|
-| App shell and interaction | partial | Original Avalonia UI provides Conversations, Contacts, Connectivity, Backup & Keys, Preferences, Utilities, Guide, Voice, Telemetry and Map screens. Supported screens expose real local state and explicit errors; announce-stream, object and hardware/plugin management remain unavailable rather than simulated. Upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
+| App shell and interaction | partial | Original Avalonia UI provides Conversations, Contacts, Connectivity, Backup & Keys, Preferences, Utilities, Guide, Voice, Telemetry, Map and Remote screens. Supported screens expose real local state and explicit errors; announce-stream, object and hardware/plugin management remain unavailable rather than simulated. Upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
 | Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. Appearance values and telemetry permissions persist; voice uses the shared client below. Complete peer settings, groups, broadcasts and announce-stream presentation remain absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
 | LXMF messaging and propagation UI | partial | Text send/receive, automatic/manual node selection, persisted periodic fetches, cancellation, one-shot failed-delivery propagation retry, trusted-conversation reply tickets and restart retrieval reuse `LxmRouter`. Actual primary Sideband daemon-core direct/propagated round trips pass separately from Python LXMF endpoint tests, with trust enabled and disabled in both directions. Full message presentation/settings remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,4811–4828,5156–5227,5634–5644`, `docs/lxmf.md`. |
 | Text, image/file and audio messages | implemented bounded subset | Text/files, WebP image preparation/preview, Ogg Opus and Codec2 composition/decoding, explicit 10-second recording/playback/cancellation, content-addressed persistence and explicit exports. Actual Python Sideband core sends/receives images and both audio families directly/through a Python propagation transport; actual Pillow/audioproc decode native output. Published binaries decode imported media and render images. Device tests use fakes; physical capture/acoustics remain unverified. Unknown audio is retained/exportable but playback fails explicitly; no autoplay. See media limits below; `src/Sideband/SidebandMedia*.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py:message_send_dispatch`, `sbapp/sideband/audioproc.py`, `sbapp/sideband/core.py:5189–5196`. |
@@ -100,7 +100,7 @@ runtime evidence.
 | LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI, call-history migration and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
 | Telemetry, location and situational awareness | partial | All 27 sensor wire formats, exact values, bounded atomic storage and reference-executed geometry exist. Original desktop controls configure manual information/location/sensors, privacy/collector/tracking policies, inspect trusted reports, explicitly delete and show reported locations on the map. Actual primary reports/collector streams, requests, restart, supported profile import, schedules and propagation recovery pass separately on Windows/Linux. Automatic sensor collection, hardware and advanced presentation remain absent/unverified; see sections below; `SidebandTelemetry*.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/ui/telemetry.py`. |
 | Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default/provider/layer vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, source zoom limits, persisted provider/view and reported-location markers. Thirteen provider presets and supported offline-profile coordinate/provider activation exist. Clustering, connection/interface overlays and broader map migration/presentation remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
-| Remote commands, queries and plugins | partial | Authorized telemetry requests are implemented and live-tested below. Built-in ping/echo/signal, general command/service/telemetry plugin execution, Python custom sensor plugins and configurable plugin loading remain missing. Manual wire readings are not a Python-plugin ABI. This is an application extension contract, not part of the existing .NET `Telemetry` tool; `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`, `README.md`. |
+| Remote commands, queries and plugins | partial | Authorized telemetry requests and built-in ping/echo/signal requests use the existing bounded client worker. Actual primary daemon cores exchange commands/replies and verify global unknown-conversation admission across direct, Python-hop and .NET-hop paths. Original Remote controls configure shared request permissions, queue/cancel commands and preview persisted replies. Command-specific propagation/fallback remains separately unverified; arbitrary Python command/service/telemetry plugins and custom sensors remain missing. Native helpers are not a Python-plugin ABI; `SidebandClient.Remote.cs`, `SidebandRemoteCommands.cs`, `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`. |
 | Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. Interface editing/discovery and Android interface loading are absent; `src/Sideband/SidebandClient.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
 | Long-lived service and OS integration | partial | The desktop window and headless daemon own the same cancellable client. Linux published daemon/interactive processes stop on SIGTERM with closed/blocked stdin; native console quit and restart pass on both hosts. Days-long Sideband service operation remains unverified. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are deferred mobile contracts; `SidebandDaemon.cs`, `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
 | Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/text/files/images/audio/methods, known client-router tickets/own ratchets/caches, synchronization anchors and bounded supported telemetry/settings/permissions/appearance/cursors. Unimplemented semantics remain archived; source files never change. Voice objects, other fields and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `SidebandTelemetryProfile.cs`, `sbapp/main.py:209–273`. |
@@ -1017,9 +1017,9 @@ called. Those observations are not an endorsement of executing untrusted code.
 `Fixtures/sideband-extensions.json` records actual send/authorization/reply/loader
 execution with the pinned core hash. It includes command fields, trusted-setting
 precedence, signature gating and replies; it is reference evidence only.
-Built-in ping/echo/signal handling and arbitrary Python-plugin execution are not
-implemented in the native application. Telemetry requests have their separate
-application contract and cannot establish general remote control.
+Built-in ping/echo/signal requests and telemetry requests are implemented as
+described below. Arbitrary Python-plugin execution is not implemented; these
+built-ins do not establish that ABI or general remote execution.
 
 There is no production Python interpreter, Python-to-Core bridge or compatible
 Python plugin ABI here. A different .NET extension interface would not supply
@@ -1027,6 +1027,136 @@ that compatibility. Full arbitrary Python-plugin support requires a consequentia
 runtime/architecture decision beyond the current native-only, Python-as-reference
 boundary; it remains a required unresolved contract, not a passing native API
 substitution or a hardware deferral. No example plugin source is copied.
+
+### Built-in commands and incoming admission
+
+`SendCommandAsync` returns explicit empty/address/offline/capacity outcomes or a
+local operation ID. Admission is not transmission, delivery or remote execution.
+The Remote page configures global anyone/trusted request permissions shared with
+telemetry, independent per-conversation request permission and
+`lxmf_ignore_unknown`. Saving individual permission preserves trust and telemetry
+sending. It supports explicit propagated selection, cancellation and a newest-50
+conversation/reply preview; full history remains in Conversations. No Python,
+shell command, audio device or sensor is started by these controls.
+Concurrent page loads join one settings read, disable policy edits while it is
+pending and preserve peer text edited during that read. Completed loads replace
+the pending status explicitly.
+
+Actual primary parsing removes every `echo ` occurrence after the initial
+prefix, rejects an empty echo, recognises `sig` and `ping` prefixes and treats
+other text as a plugin request. Native built-ins preserve that parsing and reply
+text. Unsupported plugin/unknown command IDs are explicitly reported, never
+executed locally. Signal replies use received link observations or state that no
+reception information exists; TCP tests are not physical signal measurements.
+
+Unknown-conversation filtering applies before ordinary content/media/telemetry
+ingestion as well as command authorization. An announce or telemetry appearance
+alone does not create a known conversation. Explicit contact/conversation edits
+and ordinary message history promote membership; command and telemetry-only
+traffic do not silently create it. `lxmf_ignore_unknown` rejects unknown sources
+even when anyone requests are otherwise allowed. For known sources,
+anyone permission wins; otherwise trusted-only overrides individual request
+permission. Queued replies recheck authorization before sending.
+
+Native schema-1 contacts without `ConversationKnown` default to known, preserving
+legacy explicit/imported contacts. Their historical creation origins were not
+stored, so old announce-only contacts cannot be reconstructed. New discoveries
+are distinguished correctly. This is an explicit migration limitation, not
+evidence of perfect legacy filtering. Native continues suppressing empty ordinary
+history entries while promoting the corresponding conversation; primary saves
+them. Unverified command-field messages are strictly dropped rather than falling
+through to primary's ordinary ingestion.
+
+Commands share the existing 64-slot telemetry worker, with 64 bounded remote
+admissions, at most 64 maps per incoming batch and 4096 strict UTF-8 bytes per
+command/echo payload. Bad signatures, malformed text/maps and unauthorized
+requests fail explicitly without disabling later work. Outgoing history records
+the operation, state and actual method; replies are ordinary inbound text.
+Cancellation releases admission and an unreachable peer does not stop healthy
+commands. Unstarted queued work is neither durable nor replayed after restart.
+Settings imports validate the active boolean transactionally, preserve it across
+unrelated imports and export its actual value/default. Invalid persisted policy
+is reported rather than silently defaulted.
+
+`GenerateSidebandRemoteVectors.py` executes 120 primary observations;
+`GenerateSidebandAdmissionVectors.py` executes 123 more: 112 delivery dispatches,
+10 conversation-creation observations and one announce trace. Both verify the
+exact primary revision and core hash recorded above. Windows/Linux independent
+execution produces byte-identical fixtures. Synthetic owners/observers replace
+constructor, storage and GUI boundaries, not the executed methods; vectors alone
+are not cryptographic or live interoperability evidence.
+
+Independent actual-primary acceptance on each host passed 1,475 cases with no
+skips, including parsing/policy regressions, command origins/replies, ordinary
+unknown filtering, restart, failed-peer recovery, malformed UTF-8/oversized
+batches and bad-signature injection. Direct, Python transport and .NET transport
+topologies use a transparent TCP proxy delaying each read 100 ms in each
+direction; it neither parses nor modifies RNS traffic. Undelayed Linux primary
+can return false after transmission because of a SQLite `UNIQUE lxm.lxm_hash`
+failure. Delayed acceptance is not undelayed API-stability evidence. Windows
+primary optional filter acceleration falls back to actual Python filters;
+these cases are not codec/filter acceptance.
+
+With the reference environment from CONTRIBUTING configured:
+
+```powershell
+& .\tests\Interop\Invoke-SidebandRemoteAcceptance.ps1 -ArtifactsPath artifacts\builds\fleet-remote-addendum-parent-win -OutputDirectory artifacts\tests\fleet-remote-addendum-parent-win -IncludeRegression
+```
+
+The Linux run uses `/home/dennis/fleet-remote-addendum-parent-linux` build output
+and `artifacts/tests/fleet-remote-addendum-parent-linux` evidence. Both operators
+verify actual imported modules/pins and regenerate/compare both fixtures.
+Command-specific propagation/fallback, arbitrary random loss, RF measurements,
+arbitrary Python plugins and prolonged command-service operation remain
+unverified or missing; generic message/telemetry acceptance does not prove them.
+
+Original headless desktop/settings/profile-import acceptance passes 55 cases
+and one explicit generated-profile skip per host. The final Windows focused
+run additionally includes the deterministic paper regression: 56 passes and
+one explicit skip. Full Linux managed acceptance
+passes 1,775 cases with 34 explicit skips. Earlier full Linux batches twice failed
+paper import after a stale preceding error satisfied a completion wait. A
+deterministically held store gate reproduces that stale status before the fix:
+expected pending, observed the previous offline-creation failure. Accepted paper
+operations now expose pending status before awaiting; original completion
+assertions and five-second deadlines remain. Three focused paper/remote UI cases
+pass after the fix; earlier failed TRX is retained at
+`artifacts\tests\fleet-paper-pending-before`.
+
+Strict NativeAOT publication uses:
+
+```powershell
+dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\fleet-remote-ui-final2-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v quiet
+```
+
+Linux uses `-r linux-x64 --artifacts-path
+/home/dennis/fleet-remote-ui-final2-linux`. Both pass; Windows requires the
+documented MSVC discovery path. Published feature acceptance:
+
+```powershell
+& .\tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1,tests\Pester\SidebandPaper.Tests.ps1,tests\Pester\SidebandVoice.Tests.ps1 -Tag Native,GUI
+```
+
+With the selected binary, generated map profile and documented codec libraries,
+Windows passes 17 cases/five skips; Linux passes 19/three skips. These include the
+real Remote window sending ping/echo to another native daemon, cancellation of an
+unreachable lookup, a subsequent healthy reply, policy export after restart,
+paper URI/QR rendering/export, map/manual preview/TLS and synthetic voice
+recovery. Windows additionally skips two POSIX cases. Both skip unselected media
+profile/oracle and one-hour modes; prior evidence is not relabelled as a rerun.
+An initial Windows invocation omitted codec-library paths and failed both voice
+origins; unchanged binaries/assertions pass with those prerequisites supplied.
+This is not physical audio or published-native Python-command interoperability.
+
+| Frozen remote/paper acceptance executable | SHA-256 |
+|---|---|
+| `artifacts\builds\fleet-remote-ui-final2-win\publish\Sideband.Desktop\release_win-x64\sideband.exe` | `8af548182fad39389325c5b1692c658138f51ddf3c25347ee354125463121f34` |
+| `/home/dennis/fleet-remote-ui-final2-linux/publish/Sideband.Desktop/release_linux-x64/sideband` | `384ab037c660568128cbb830f8f825d8a52f857232a156574da29599ebda6723` |
+
+`--smoke-ui --smoke-remote <lxmf-address>` is an explicit native acceptance
+extension requiring a test data directory and isolated RNS configuration. It
+changes test-profile request settings and performs real network requests; it
+does not run implicitly in normal desktop operation.
 
 ## Public HTTPS software mirror
 

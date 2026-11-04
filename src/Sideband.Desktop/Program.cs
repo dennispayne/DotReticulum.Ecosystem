@@ -13,6 +13,7 @@ internal static class Program
     internal static bool SmokeTelemetryMode { get; private set; }
     internal static string? SmokeRepositoryRoot { get; private set; }
     internal static bool SmokePaperMode { get; private set; }
+    internal static string? SmokeRemotePeer { get; private set; }
 
     [STAThread]
     private static int Main(string[] args)
@@ -39,6 +40,7 @@ internal static class Program
             SmokeTelemetryMode = options.SmokeTelemetry;
             SmokeRepositoryRoot = options.SmokeRepositoryRoot;
             SmokePaperMode = options.SmokePaper;
+            SmokeRemotePeer = options.SmokeRemotePeer;
             if (options.ExportPaperId is { } paperId)
             {
                 using var cancellation = new CancellationTokenSource();
@@ -200,6 +202,7 @@ internal static class Program
         string? importMap = null;
         string? smokeRepositoryRoot = null;
         var smokePaper = false;
+        string? smokeRemotePeer = null;
         Guid? exportPaperId = null;
         string? paperOutput = null;
         var paperQr = false;
@@ -214,6 +217,7 @@ internal static class Program
                 case "--smoke-telemetry": smokeTelemetry = true; break;
                 case "--smoke-repository": smokeRepositoryRoot = NextValue(args, ref index); break;
                 case "--smoke-paper": smokePaper = true; break;
+                case "--smoke-remote": smokeRemotePeer = NextValue(args, ref index); break;
                 case "--export-paper":
                     if (!Guid.TryParse(NextValue(args, ref index), out var paperId))
                         throw new ArgumentException("--export-paper requires a message UUID.");
@@ -245,6 +249,17 @@ internal static class Program
             throw new ArgumentException("--daemon cannot be combined with maintenance or UI smoke modes.");
         if ((interactive || syntheticAudio || verbose) && !daemon)
             throw new ArgumentException("--interactive, --synthetic-audio and --verbose require --daemon.");
+        if (smokeRemotePeer is not null)
+        {
+            if (!SidebandContact.TryNormalizeDeliveryHash(smokeRemotePeer, out var remotePeer))
+                throw new ArgumentException("--smoke-remote requires a 32-character hexadecimal LXMF delivery address.");
+            if (!smokeUi || string.IsNullOrWhiteSpace(dataDirectory) || string.IsNullOrWhiteSpace(rnsConfig) ||
+                daemon || smokePaper || smokeMap || smokeTelemetry || smokeRepositoryRoot is not null ||
+                initialize || check || checkMedia || importSettings is not null || exportSettings is not null ||
+                importProfile is not null || importMap is not null || exportPaperId is not null)
+                throw new ArgumentException("--smoke-remote requires --smoke-ui, an explicit --data-dir and isolated --rnsconfig, without other modes.");
+            smokeRemotePeer = remotePeer;
+        }
         if (exportPaperId is not null && (string.IsNullOrWhiteSpace(dataDirectory) || string.IsNullOrWhiteSpace(paperOutput) ||
             rnsConfig is not null || daemon || smokeUi || smokePaper || smokeMap || smokeTelemetry || smokeRepositoryRoot is not null ||
             initialize || check || checkMedia || importSettings is not null || exportSettings is not null ||
@@ -282,7 +297,7 @@ internal static class Program
 
         return new Options(dataDirectory, rnsConfig, initialize, check, help, version, smokeUi, importSettings, exportSettings, importProfile, checkMedia,
             daemon, interactive, syntheticAudio, verbose, importMap, smokeMap, smokeTelemetry, smokeRepositoryRoot,
-            smokePaper, exportPaperId, paperOutput, paperQr);
+            smokePaper, exportPaperId, paperOutput, paperQr, smokeRemotePeer);
     }
 
     private static string NextValue(string[] args, ref int index)
@@ -310,6 +325,7 @@ internal static class Program
           sideband --smoke-ui [--smoke-map | --smoke-telemetry] [--data-dir <path>] [--rnsconfig <path>]
           sideband --smoke-ui --smoke-repository <public-directory> --data-dir <path>
           sideband --smoke-ui --smoke-paper --data-dir <existing-directory>
+          sideband --smoke-ui --smoke-remote <lxmf-address> --data-dir <test-directory> --rnsconfig <isolated-config>
           sideband --export-paper <message-uuid> --paper-output <new-file> [--paper-qr] --data-dir <existing-directory>
           sideband --daemon [--interactive] [--verbose] [--synthetic-audio] [--config <path>] [--rnsconfig <path>]
           sideband --help | --version
@@ -329,6 +345,7 @@ internal static class Program
         --smoke-telemetry  With --smoke-ui, prepare a configured manual report and render its desktop preview.
         --smoke-repository  Explicit loopback HTTPS/window acceptance with synthetic public files; requires --smoke-ui and --data-dir.
         --smoke-paper  Render a saved paper URI and QR without connecting; requires --smoke-ui and an existing --data-dir.
+        --smoke-remote  Explicit native-window command/reply/cancellation acceptance against a test peer; changes test-profile policy.
         --export-paper  Export a saved outgoing paper URI offline, or its QR PNG with --paper-qr; never overwrite.
         --paper-output  Explicit destination for --export-paper; requires --data-dir.
         --daemon     Serve without opening the desktop; runs until cancellation, even when stdin closes.
@@ -340,5 +357,5 @@ internal static class Program
     private sealed record Options(string? DataDirectory, string? ReticulumConfigDirectory, bool Initialize, bool Check, bool Help, bool Version, bool SmokeUi,
         string? ImportSettings, string? ExportSettings, string? ImportProfile, bool CheckMedia,
         bool Daemon, bool Interactive, bool SyntheticAudio, bool Verbose, string? ImportMap, bool SmokeMap, bool SmokeTelemetry,
-        string? SmokeRepositoryRoot, bool SmokePaper, Guid? ExportPaperId, string? PaperOutput, bool PaperQr);
+        string? SmokeRepositoryRoot, bool SmokePaper, Guid? ExportPaperId, string? PaperOutput, bool PaperQr, string? SmokeRemotePeer);
 }

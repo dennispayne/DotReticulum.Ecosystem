@@ -1,0 +1,1348 @@
+{
+  "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "core_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+  "sense_sha256": "80418b1aa4de638f2c65f1bd64e5ea0466378a6f0bc682781672ef89b93a7dab",
+  "method": "Actual imported SidebandCore.send_command/handle_commands; real LXMF constructors and RNS identities. Offline router, trust, persistence, reply-send and no-singleton identity-use seams; no plugin/GUI/live claim.",
+  "constants": {
+    "PLUGIN_COMMAND": 0,
+    "TELEMETRY_REQUEST": 1,
+    "PING": 2,
+    "ECHO": 3,
+    "SIGNAL_REPORT": 4
+  },
+  "sends": [
+    {
+      "input": "",
+      "accepted": false,
+      "commands": null,
+      "include_ticket": null
+    },
+    {
+      "input": "echo ",
+      "accepted": false,
+      "commands": null,
+      "include_ticket": null
+    },
+    {
+      "input": "echo hello ✓",
+      "accepted": true,
+      "commands": [
+        {
+          "3": {
+            "binary": "68656c6c6f20e29c93"
+          }
+        }
+      ],
+      "include_ticket": true
+    },
+    {
+      "input": "echo echo a echo b",
+      "accepted": true,
+      "commands": [
+        {
+          "3": {
+            "binary": "612062"
+          }
+        }
+      ],
+      "include_ticket": true
+    },
+    {
+      "input": "ping",
+      "accepted": true,
+      "commands": [
+        {
+          "2": true
+        }
+      ],
+      "include_ticket": true
+    },
+    {
+      "input": "pinganything",
+      "accepted": true,
+      "commands": [
+        {
+          "2": true
+        }
+      ],
+      "include_ticket": true
+    },
+    {
+      "input": "sig",
+      "accepted": true,
+      "commands": [
+        {
+          "4": true
+        }
+      ],
+      "include_ticket": true
+    },
+    {
+      "input": "signal",
+      "accepted": true,
+      "commands": [
+        {
+          "4": true
+        }
+      ],
+      "include_ticket": true
+    },
+    {
+      "input": " ping",
+      "accepted": true,
+      "commands": [
+        {
+          "0": " ping"
+        }
+      ],
+      "include_ticket": true
+    },
+    {
+      "input": "PING",
+      "accepted": true,
+      "commands": [
+        {
+          "0": "PING"
+        }
+      ],
+      "include_ticket": true
+    },
+    {
+      "input": "plugin 'two words'",
+      "accepted": true,
+      "commands": [
+        {
+          "0": "plugin 'two words'"
+        }
+      ],
+      "include_ticket": true
+    },
+    {
+      "input": " ",
+      "accepted": true,
+      "commands": [
+        {
+          "0": " "
+        }
+      ],
+      "include_ticket": true
+    }
+  ],
+  "responses": [
+    {
+      "name": "ping_false",
+      "commands": [
+        {
+          "2": false
+        }
+      ],
+      "quality": null,
+      "rssi": null,
+      "snr": null,
+      "replies": [
+        {
+          "content": "Ping reply",
+          "propagation": false,
+          "skip_fields": true,
+          "no_display": true
+        }
+      ]
+    },
+    {
+      "name": "echo_unicode",
+      "commands": [
+        {
+          "3": {
+            "binary": "68656c6c6f20e29c93"
+          }
+        }
+      ],
+      "quality": null,
+      "rssi": null,
+      "snr": null,
+      "replies": [
+        {
+          "content": "Echo reply: hello ✓",
+          "propagation": false,
+          "skip_fields": true,
+          "no_display": true
+        }
+      ]
+    },
+    {
+      "name": "echo_empty",
+      "commands": [
+        {
+          "3": {
+            "binary": ""
+          }
+        }
+      ],
+      "quality": null,
+      "rssi": null,
+      "snr": null,
+      "replies": [
+        {
+          "content": "Echo reply: ",
+          "propagation": false,
+          "skip_fields": true,
+          "no_display": true
+        }
+      ]
+    },
+    {
+      "name": "signal_absent",
+      "commands": [
+        {
+          "4": true
+        }
+      ],
+      "quality": null,
+      "rssi": null,
+      "snr": null,
+      "replies": [
+        {
+          "content": "No reception info available",
+          "propagation": false,
+          "skip_fields": true,
+          "no_display": true
+        }
+      ]
+    },
+    {
+      "name": "signal_zero",
+      "commands": [
+        {
+          "4": true
+        }
+      ],
+      "quality": 0.0,
+      "rssi": 0.0,
+      "snr": 0.0,
+      "replies": [
+        {
+          "content": "Link Quality: 0.0%\nRSSI: 0.0 dBm\nSNR: 0.0 dB",
+          "propagation": false,
+          "skip_fields": true,
+          "no_display": true
+        }
+      ]
+    },
+    {
+      "name": "signal_all",
+      "commands": [
+        {
+          "4": true
+        }
+      ],
+      "quality": 83.5,
+      "rssi": -101.25,
+      "snr": 9.5,
+      "replies": [
+        {
+          "content": "Link Quality: 83.5%\nRSSI: -101.25 dBm\nSNR: 9.5 dB",
+          "propagation": false,
+          "skip_fields": true,
+          "no_display": true
+        }
+      ]
+    },
+    {
+      "name": "signal_scientific",
+      "commands": [
+        {
+          "4": true
+        }
+      ],
+      "quality": 1e-05,
+      "rssi": -1e+16,
+      "snr": -0.0,
+      "replies": [
+        {
+          "content": "Link Quality: 1e-05%\nRSSI: -1e+16 dBm\nSNR: -0.0 dB",
+          "propagation": false,
+          "skip_fields": true,
+          "no_display": true
+        }
+      ]
+    },
+    {
+      "name": "signal_rssi",
+      "commands": [
+        {
+          "4": false
+        }
+      ],
+      "quality": null,
+      "rssi": -77.0,
+      "snr": null,
+      "replies": [
+        {
+          "content": "RSSI: -77.0 dBm",
+          "propagation": false,
+          "skip_fields": true,
+          "no_display": true
+        }
+      ]
+    },
+    {
+      "name": "precedence",
+      "commands": [
+        {
+          "2": true,
+          "3": {
+            "binary": "69676e6f726564"
+          }
+        }
+      ],
+      "quality": null,
+      "rssi": null,
+      "snr": null,
+      "replies": [
+        {
+          "content": "Ping reply",
+          "propagation": false,
+          "skip_fields": true,
+          "no_display": true
+        }
+      ]
+    },
+    {
+      "name": "unknown",
+      "commands": [
+        {
+          "99": true
+        }
+      ],
+      "quality": null,
+      "rssi": null,
+      "snr": null,
+      "replies": []
+    },
+    {
+      "name": "invalid_utf8_stops_batch",
+      "commands": [
+        {
+          "3": {
+            "binary": "ff"
+          }
+        },
+        {
+          "2": true
+        }
+      ],
+      "quality": null,
+      "rssi": null,
+      "snr": null,
+      "replies": []
+    },
+    {
+      "name": "multiple",
+      "commands": [
+        {
+          "2": true
+        },
+        {
+          "3": {
+            "binary": "7365636f6e64"
+          }
+        }
+      ],
+      "quality": null,
+      "rssi": null,
+      "snr": null,
+      "replies": [
+        {
+          "content": "Ping reply",
+          "propagation": false,
+          "skip_fields": true,
+          "no_display": true
+        },
+        {
+          "content": "Echo reply: second",
+          "propagation": false,
+          "skip_fields": true,
+          "no_display": true
+        }
+      ]
+    }
+  ],
+  "admissions": [
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": false,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": false,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": false,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": false,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": false,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": false,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": false,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": false,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": true,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": true,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": true,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": true,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": true,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": true,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": true,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": false,
+      "trusted": true,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": false,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": false,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": false,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": false,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": false,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": false,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": false,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": false,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": true,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": true,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": true,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": true,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": true,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": true,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": true,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "conversation",
+      "exists": true,
+      "trusted": true,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": false,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": false,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": false,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": false,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": false,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": false,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": false,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": false,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": true,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": true,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": true,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": true,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": true,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": true,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": true,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": false,
+      "trusted": true,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": false,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": false,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": false,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": false,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": false,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": false,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": false,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": false,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": true,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": true,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": true,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": true,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": true,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": true,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": true,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "trusted",
+      "exists": true,
+      "trusted": true,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": false,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": false,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": false,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": false,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": false,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": false,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": false,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": false,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": true,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": true,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": true,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": true,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": true,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": true,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": true,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": false,
+      "trusted": true,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": []
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": false,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": false,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": false,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": false,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": false,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": false,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": false,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": false,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": true,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": true,
+      "allow": false,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": true,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": true,
+      "allow": false,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": true,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": false,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": true,
+      "allow": true,
+      "signature": false,
+      "ignore_unknown": true,
+      "events": [
+        "ingested"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": true,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": false,
+      "events": [
+        "handled"
+      ]
+    },
+    {
+      "mode": "anyone",
+      "exists": true,
+      "trusted": true,
+      "allow": true,
+      "signature": true,
+      "ignore_unknown": true,
+      "events": [
+        "handled"
+      ]
+    }
+  ]
+}

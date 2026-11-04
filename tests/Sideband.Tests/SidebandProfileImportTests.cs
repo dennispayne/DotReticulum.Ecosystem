@@ -72,6 +72,7 @@ public sealed partial class SidebandProfileImportTests
     [InlineData("identity")]
     [InlineData("config")]
     [InlineData("config-type")]
+    [InlineData("ignore-unknown")]
     [InlineData("schema")]
     [InlineData("database")]
     [InlineData("file-bound")]
@@ -96,6 +97,10 @@ public sealed partial class SidebandProfileImportTests
             case "config-type":
                 await File.WriteAllBytesAsync(Path.Combine(profile.Source, "sideband_config"),
                     MsgPack.Pack(new Dictionary<object, object?> { ["lxmf_sync_interval"] = 1.5 }), TestContext.Current.CancellationToken);
+                break;
+            case "ignore-unknown":
+                await File.WriteAllBytesAsync(Path.Combine(profile.Source, "sideband_config"),
+                    MsgPack.Pack(new Dictionary<object, object?> { ["lxmf_ignore_unknown"] = "true" }), TestContext.Current.CancellationToken);
                 break;
             case "schema":
                 WriteSql(databasePath, "ALTER TABLE conv RENAME COLUMN dest_context TO unsupported");

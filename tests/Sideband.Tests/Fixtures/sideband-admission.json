@@ -1,0 +1,1239 @@
+{
+  "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "core_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+  "method": "Actual imported SidebandCore.lxmf_delivery/log_announce/lxm_ingest. Explicit conversation, authorization, command, ingestion, message/announce-storage and GUI observers; no cryptographic, payload-validation, SQLite or live claim.",
+  "announce_trace": [
+    "save_announce",
+    "announce_flag"
+  ],
+  "observations": [
+    {
+      "kind": "text",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "text",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "title",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "empty",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "authorize"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "authorize",
+        "commands"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "authorize"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "authorize",
+        "commands"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "conversation",
+        "authorize"
+      ]
+    },
+    {
+      "kind": "commands",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "conversation",
+        "authorize",
+        "commands"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "authorize"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": false,
+      "known": false,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "authorize",
+        "commands"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "ingest"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "authorize"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": false,
+      "known": true,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "authorize",
+        "commands"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": true,
+      "known": false,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "conversation"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": false,
+      "authorized": false,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": false,
+      "authorized": true,
+      "trace": [
+        "conversation",
+        "ingest"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": true,
+      "authorized": false,
+      "trace": [
+        "conversation",
+        "authorize"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "ignore_unknown": true,
+      "known": true,
+      "signature": true,
+      "authorized": true,
+      "trace": [
+        "conversation",
+        "authorize",
+        "commands"
+      ]
+    }
+  ],
+  "ingestions": [
+    {
+      "kind": "text",
+      "trace": [
+        "save_message",
+        "create_conversation",
+        "unread"
+      ]
+    },
+    {
+      "kind": "title",
+      "trace": [
+        "save_message",
+        "create_conversation",
+        "unread"
+      ]
+    },
+    {
+      "kind": "empty",
+      "trace": [
+        "save_message",
+        "create_conversation",
+        "unread"
+      ]
+    },
+    {
+      "kind": "telemetry",
+      "trace": [
+        "save_message"
+      ]
+    },
+    {
+      "kind": "attachment",
+      "trace": [
+        "save_message",
+        "create_conversation",
+        "unread"
+      ]
+    },
+    {
+      "kind": "commands",
+      "trace": [
+        "save_message"
+      ]
+    },
+    {
+      "kind": "commands_with_text",
+      "trace": [
+        "save_message",
+        "create_conversation",
+        "unread"
+      ]
+    },
+    {
+      "kind": "telemetry_stream",
+      "trace": [
+        "save_message"
+      ]
+    },
+    {
+      "kind": "telemetry_attachment",
+      "trace": [
+        "save_message"
+      ]
+    },
+    {
+      "kind": "telemetry_attachment_text",
+      "trace": [
+        "save_message",
+        "create_conversation",
+        "unread"
+      ]
+    }
+  ]
+}

@@ -131,6 +131,11 @@ public sealed partial class MainWindow : Window
                 Console.WriteLine("SMOKE_UI_RENDERED_PAPER=uri-and-qr");
                 Console.WriteLine("SMOKE_UI_RENDERED_PAPER_PIXELS=" + PaperQrPreview.RenderedImageCount);
             }
+            if (Program.SmokeRemotePeer is not null)
+            {
+                if (!RemotePage.IsVisible || !_remoteSmokeVerified) return;
+                Console.WriteLine("SMOKE_UI_RENDERED_REMOTE=commands-replies-cancellation");
+            }
             var hasImage = !Program.SmokePaperMode && _state.Messages.Any(message => message.Image is not null);
             if (hasImage && MediaPreview.Source is null) return;
             SmokeUiSucceeded = true;
@@ -152,6 +157,7 @@ public sealed partial class MainWindow : Window
         VoicePage.IsVisible = page == "Voice";
         MapPage.IsVisible = page == "Map";
         TelemetryPage.IsVisible = page == "Telemetry";
+        RemotePage.IsVisible = page == "Remote";
         if (page != "Map") _mapCancellation?.Cancel();
         if (page != "Voice") ReleasePushToTalk();
         PageTitle.Text = page switch
@@ -165,6 +171,7 @@ public sealed partial class MainWindow : Window
         if (page == "Voice") { LoadVoiceSettings(); UpdateVoiceView(); }
         if (page == "Map") { RequestMapRefresh(); RequestTelemetryRefresh(); }
         if (page == "Telemetry") { LoadTelemetrySettings(); RequestTelemetryRefresh(); }
+        if (page == "Remote") LoadRemoteSettings();
     }
 
     private async void OnOpened(object? sender, EventArgs e)
@@ -243,6 +250,8 @@ public sealed partial class MainWindow : Window
                             catch (Exception ex) { ShowError("Paper smoke failed: " + ex.Message); }
                         });
                     }
+                    if (Program.SmokeRemotePeer is { } remotePeer)
+                        TrackOperation(() => RunRemoteSmokeAsync(remotePeer));
                     Volatile.Write(ref _smokeActionInvoked, 1);
                     InvalidateVisual();
                 });
@@ -680,6 +689,7 @@ public sealed partial class MainWindow : Window
             UpdateConnectivityView();
             UpdateVoiceView();
             UpdateTelemetryTrackingView();
+            UpdateRemoteHistory();
             if (TelemetryPage.IsVisible || MapPage.IsVisible) RequestTelemetryRefresh();
         });
     }
@@ -1093,6 +1103,7 @@ public sealed partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
+        _remoteCommandsCancellation?.Dispose();
         ClearPaperPreview();
         MediaPreview.Source = null;
         _previewBitmap?.Dispose();

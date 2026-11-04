@@ -4,6 +4,7 @@ using Avalonia.Interactivity;
 using Sideband.Desktop;
 using System.Text.Json;
 using Avalonia.Media.Imaging;
+using System.Reflection;
 
 namespace Sideband.Tests;
 
@@ -101,7 +102,19 @@ public sealed partial class SidebandHeadlessUiTests
             window.FindControl<Button>("CreatePaperButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await WaitForAsync(() => window.FindControl<TextBlock>("StatusText")?.Text?.Contains("Connect to Reticulum", StringComparison.Ordinal) == true);
             window.FindControl<ListBox>("MessageList")!.SelectedIndex = 0;
-            window.FindControl<Button>("ShowPaperButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var windowStore = Assert.IsType<SidebandStateStore>(typeof(MainWindow)
+                .GetField("_store", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window));
+            var gate = Assert.IsType<SemaphoreSlim>(typeof(SidebandStateStore)
+                .GetField("_gate", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(windowStore));
+            await gate.WaitAsync(TestContext.Current.CancellationToken);
+            try
+            {
+                window.FindControl<Button>("ShowPaperButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.Equal("Paper operation pending.", window.FindControl<TextBlock>("StatusText")!.Text);
+                Assert.Equal("Paper operation pending.", window.FindControl<TextBlock>("PaperImportStatusText")!.Text);
+                Assert.False(window.FindControl<Button>("ImportPaperButton")!.IsEnabled);
+            }
+            finally { gate.Release(); }
             await WaitForAsync(() => window.FindControl<TextBlock>("StatusText")?.Text?.StartsWith("Paper operation failed:", StringComparison.Ordinal) == true);
             Assert.Null(window.FindControl<PaperQrView>("PaperQrPreview")!.Source);
             window.FindControl<Button>("UtilitiesNavButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

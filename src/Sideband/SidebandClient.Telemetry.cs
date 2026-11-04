@@ -112,9 +112,18 @@ public sealed partial class SidebandClient
     {
         var channel = _telemetryOutbound;
         if (channel is null || _router is null) return new(SidebandTelemetryQueueStatus.NotConnected);
-        if (!_telemetryPending.TryAdd(work.Key, 0)) return new(SidebandTelemetryQueueStatus.InProgress);
+        if (work.Remote is not null && !_commandAdmission.Wait(0))
+        {
+            Report("Remote command admission is full (64 pending operations).");
+            return new(SidebandTelemetryQueueStatus.QueueFull);
+        }
+        if (!_telemetryPending.TryAdd(work.Key, 0))
+        {
+            if (work.Remote is not null) _commandAdmission.Release();
+            return new(SidebandTelemetryQueueStatus.InProgress);
+        }
         if (channel.Writer.TryWrite(work)) return new(SidebandTelemetryQueueStatus.Queued);
-        _telemetryPending.TryRemove(work.Key, out _);
+        ReleaseTelemetryPending(work);
         Report("Telemetry outbound queue is full or closed.");
         return new(SidebandTelemetryQueueStatus.QueueFull);
     }
@@ -149,7 +158,8 @@ public sealed partial class SidebandClient
         if (_telemetryScheduleTask is { } schedule) await schedule.ConfigureAwait(false);
         _telemetryOutboundTask = null;
         _telemetryScheduleTask = null;
-        _telemetryPending.Clear();
+        foreach (var key in _telemetryPending.Keys)
+            if (_telemetryPending.TryRemove(key, out _) && key.StartsWith("command:", StringComparison.Ordinal)) _commandAdmission.Release();
     }
 
     private async Task ProcessTelemetryOutboundAsync(ChannelReader<TelemetryWork> reader, LxmRouter router,
@@ -165,10 +175,16 @@ public sealed partial class SidebandClient
                     using var operation = CancellationTokenSource.CreateLinkedTokenSource(token, work.CallerToken);
                     var ct = operation.Token;
                     ct.ThrowIfCancellationRequested();
+                    if (work.Remote is not null && work.Retry is null)
+                    {
+                        await SendRemoteCommandCoreAsync(work, router, node, identity, ct).ConfigureAwait(false);
+                        registered = true;
+                        continue;
+                    }
                     var state = await _store.LoadAsync(cancellationToken: ct).ConfigureAwait(false);
                     var peer = ValidPeer(state, work.Hash);
                     var config = state.Telemetry;
-                    if (work.Retry is null)
+                    if (work.Retry is null && work.Remote is null)
                         await _store.RecordTelemetryAttemptAsync(work.Hash, work.Request, work.Live, work.Scheduled, TelemetryNow, ct).ConfigureAwait(false);
                     var address = Convert.FromHexString(work.Hash);
                     using var remote = await node.ResolveIdentityAsync(address, TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
@@ -176,6 +192,7 @@ public sealed partial class SidebandClient
                     if (work.Retry is not null)
                     {
                         var retry = SidebandDeliveryRetry.CreatePropagatedRetry(work.Retry);
+                        ObserveRemoteCommand(retry, work);
                         RegisterTelemetryOutcome(retry, work with { Retry = null }, work.Timebase, false);
                         await router.SendAsync(retry, ct).ConfigureAwait(false);
                         registered = true;
@@ -222,9 +239,14 @@ public sealed partial class SidebandClient
                     await router.SendAsync(message, ct).ConfigureAwait(false);
                     registered = true;
                 }
-                catch (OperationCanceledException) when (token.IsCancellationRequested || work.CallerToken.IsCancellationRequested) { }
-                catch (Exception ex) { Report($"Telemetry {(work.Request ? "request" : "send")} to {work.Hash} failed: {ex.Message}"); }
-                finally { if (!registered) _telemetryPending.TryRemove(work.Key, out _); }
+                catch (OperationCanceledException) when (token.IsCancellationRequested || work.CallerToken.IsCancellationRequested)
+                { await FailRemoteCommandAsync(work, "Cancelled").ConfigureAwait(false); }
+                catch (Exception ex)
+                {
+                    await FailRemoteCommandAsync(work, "Failed").ConfigureAwait(false);
+                    Report($"{(work.Remote is null ? "Telemetry" : "Remote command")} {(work.Request ? "request" : "send")} to {work.Hash} failed: {ex.Message}");
+                }
+                finally { if (!registered) ReleaseTelemetryPending(work); }
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
@@ -241,7 +263,7 @@ public sealed partial class SidebandClient
                 Interlocked.Exchange(ref concluded, 1) != 0) return;
             if (!updates.Writer.TryWrite(new ClientUpdate(TelemetryDelivery: new(work, changed, timebase, retry))))
             {
-                if (work.OwnsPending) _telemetryPending.TryRemove(work.Key, out _);
+                if (work.OwnsPending) ReleaseTelemetryPending(work);
                 Report("Telemetry delivery-state queue is full or closed; the timebase was not advanced.");
             }
         };
@@ -250,10 +272,18 @@ public sealed partial class SidebandClient
     private async Task CompleteTelemetryAsync(TelemetryDelivery delivery)
     {
         var work = delivery.Work;
-        if (work.OwnsPending) _telemetryPending.TryRemove(work.Key, out _);
+        if (work.OwnsPending) ReleaseTelemetryPending(work);
+        if (work.Remote is { Reply: null } command)
+            await _store.RecordCommandMethodAsync(command.Id, delivery.Message.DesiredMethod).ConfigureAwait(false);
         if (delivery.Message.State == LxmState.Failed && delivery.Retry && _router?.OutboundPropagationNode is not null)
         {
             EnqueueTelemetry(work with { Retry = delivery.Message, Timebase = delivery.Timebase });
+            return;
+        }
+        if (work.Remote is not null)
+        {
+            if (delivery.Message.State is LxmState.Failed or LxmState.Rejected or LxmState.Cancelled)
+                Report($"Remote command to {work.Hash} ended as {delivery.Message.State}.");
             return;
         }
         if (delivery.Message.State == LxmState.Delivered)
@@ -311,6 +341,11 @@ public sealed partial class SidebandClient
         var hasCommands = message.TryGetField(LxmField.Commands, out var commands);
         var hasAppearance = message.TryGetField(LxmField.IconAppearance, out var appearance);
         if (!(hasTelemetry || hasStream || hasCommands || hasAppearance)) return false;
+        if (hasCommands)
+        {
+            await ReceiveRemoteCommandsAsync(message, commands, token).ConfigureAwait(false);
+            return true;
+        }
         // Stricter than primary ordinary-message ingestion: never act on unsigned/unverified metadata.
         if (!message.SignatureValidated) { Report("Unverified telemetry/commands/appearance were ignored."); return true; }
         var hash = Convert.ToHexStringLower(message.SourceHash);
@@ -367,24 +402,6 @@ public sealed partial class SidebandClient
                 }
                 await _store.UpdateTelemetryPeerAsync(hash, p => p with { LastReceivedTimebase =
                     Math.Max(SidebandTelemetryCodec.IsValidTimebase(p.LastReceivedTimebase, TelemetryNow) ? p.LastReceivedTimebase : 0, cursor) }, token).ConfigureAwait(false);
-            }
-        }
-        if (hasCommands && SidebandTelemetryPolicy.AllowRequest(config.Policy, conversation))
-        {
-            var value = SafeField(commands);
-            if (value.Kind != SidebandTelemetryValueKind.Array || value.Items.Count > 64)
-                throw new InvalidDataException("Commands must be a bounded array.");
-            foreach (var command in value.Items)
-            {
-                if (command.Get((long)SidebandTelemetryCommand.TelemetryRequest) is not { } request) continue;
-                var time = request.Kind == SidebandTelemetryValueKind.Array && request.Items.Count == 2 ? request.Items[0] : request;
-                var collector = request.Kind == SidebandTelemetryValueKind.Array && request.Items.Count == 2
-                    ? request.Items[1].Boolean ?? throw new InvalidDataException("Invalid collector-request flag.") : true;
-                if (time.Number is not { } after || !SidebandTelemetryCodec.IsValidTimebase(after, TelemetryNow))
-                    throw new InvalidDataException("Invalid/future telemetry request cursor.");
-                var response = collector && config.CollectorEnabled;
-                EnqueueTelemetry(new(hash, false, Authorized: response, CollectorResponse: response,
-                    After: response ? Math.Truncate(after) : null));
             }
         }
         return hasTelemetry || hasStream || hasCommands;
@@ -450,7 +467,7 @@ public sealed partial class SidebandClient
 
     private static double TelemetryNow => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000d;
     private static SidebandTelemetryConversationPolicy ConversationPolicy(SidebandState state, string hash) =>
-        state.Contacts.FirstOrDefault(c => c.DeliveryHash == hash) is { } contact
+        state.Contacts.FirstOrDefault(c => c.DeliveryHash == hash && c.ConversationKnown) is { } contact
             ? new(true, contact.Trusted ? 1 : 0, contact.SendTelemetry, contact.AllowTelemetryRequests) : new();
     private static SidebandTelemetryPeerState ValidPeer(SidebandState state, string hash)
     {
@@ -479,9 +496,9 @@ public sealed partial class SidebandClient
     }
     private sealed record TelemetryWork(string Hash, bool Request, bool Authorized = false, bool CollectorResponse = false,
         bool CollectorRequest = false, double? After = null, bool Live = false, CancellationToken CallerToken = default,
-        LxMessage? Retry = null, double Timebase = 0, bool Scheduled = false, bool OwnsPending = true)
+        LxMessage? Retry = null, double Timebase = 0, bool Scheduled = false, bool OwnsPending = true, RemoteCommandWork? Remote = null)
     {
-        public string Key => (Request ? "request:" : "send:") + Hash;
+        public string Key => Remote is { } remote ? "command:" + remote.Id : (Request ? "request:" : "send:") + Hash;
     }
     private sealed record TelemetryDelivery(TelemetryWork Work, LxMessage Message, double Timebase, bool Retry);
 }

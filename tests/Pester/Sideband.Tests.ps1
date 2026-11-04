@@ -64,6 +64,19 @@ Describe 'sideband native acceptance' -Tag 'Native' {
         (Get-FileHash -LiteralPath (Join-Path $data 'state.json')).Hash | Should -Be $original.Hash
     }
 
+    It 'rejects remote acceptance modes without an explicit valid peer and isolated profile configuration' {
+        $rejectedData = Join-Path $root 'rejected-remote'
+        $output = & $binary --smoke-ui --smoke-remote bad --data-dir $rejectedData --rnsconfig $rns 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 1
+        $output | Should -Match '32-character hexadecimal'
+        $output = & $binary --smoke-ui --smoke-remote '00112233445566778899aabbccddeeff' --data-dir $rejectedData 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 1
+        $output | Should -Match 'isolated --rnsconfig'
+        $output = & $binary --smoke-ui --smoke-map --smoke-remote '00112233445566778899aabbccddeeff' --data-dir $rejectedData --rnsconfig $rns 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 1
+        Test-Path -LiteralPath $rejectedData | Should -BeFalse
+    }
+
     AfterAll {
         if ($root -and (Test-Path -LiteralPath $root)) { Remove-Item -LiteralPath $root -Recurse -Force }
     }
@@ -342,6 +355,97 @@ Describe 'sideband native repository window acceptance' -Tag 'GUI' {
                 $process.Dispose()
             }
             if (Test-Path -LiteralPath $repositoryRoot) { Remove-Item -LiteralPath $repositoryRoot -Recurse -Force }
+        }
+    }
+}
+
+Describe 'sideband native remote command window' -Tag 'GUI', 'Remote' {
+    It 'exchanges real commands, cancels unresolved work and persists request policy across native restart' {
+        $binary = $env:DOTRETICULUM_SIDEBAND_BINARY
+        if (!$binary -or !(Test-Path -LiteralPath $binary -PathType Leaf)) {
+            throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
+        }
+        $root = Join-Path (Join-Path (Get-Location) 'artifacts\tests') ('sideband-remote-gui-' + [Guid]::NewGuid().ToString('N'))
+        $server = $null
+        $window = $null
+        try {
+            $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+            try { $listener.Start(); $port = ([Net.IPEndPoint]$listener.LocalEndpoint).Port }
+            finally { $listener.Stop() }
+            New-Item -ItemType Directory -Force -Path (Join-Path $root 'server-rns'), (Join-Path $root 'client-rns') | Out-Null
+            $common = "[reticulum]`n share_instance = no`n enable_transport = no`n`n[logging]`n loglevel = 0`n`n[interfaces]`n"
+            Set-Content -LiteralPath (Join-Path $root 'server-rns\config') -Value ($common +
+                " [[Remote]]`n type = TCPServerInterface`n enabled = yes`n listen_ip = 127.0.0.1`n listen_port = $port`n")
+            Set-Content -LiteralPath (Join-Path $root 'client-rns\config') -Value ($common +
+                " [[Remote]]`n type = TCPClientInterface`n enabled = yes`n target_host = 127.0.0.1`n target_port = $port`n")
+            $settings = Join-Path $root 'settings.json'
+            '{"telemetry_allow_requests_from_anyone":true}' | Set-Content -LiteralPath $settings
+            & $binary --import-settings $settings --data-dir (Join-Path $root 'server') 2>&1 | Out-Null
+            $LASTEXITCODE | Should -Be 0
+            $start = [Diagnostics.ProcessStartInfo]::new($binary)
+            $start.UseShellExecute = $false
+            $start.RedirectStandardInput = $true
+            $start.RedirectStandardOutput = $true
+            $start.RedirectStandardError = $true
+            foreach ($argument in @('--daemon', '--interactive', '--data-dir', (Join-Path $root 'server'),
+                    '--rnsconfig', (Join-Path $root 'server-rns'))) { $start.ArgumentList.Add($argument) }
+            $server = [Diagnostics.Process]::Start($start)
+            $serverError = $server.StandardError.ReadToEndAsync()
+            $ready = $server.StandardOutput.ReadLineAsync()
+            if (!$ready.Wait(10000)) { throw 'The native remote peer did not become ready within ten seconds.' }
+            $line = $ready.GetAwaiter().GetResult()
+            $line | Should -Match '^READY identity=[0-9a-f]{32} delivery=([0-9a-f]{32}) voice=disabled'
+            $peer = [regex]::Match($line, 'delivery=([0-9a-f]{32})').Groups[1].Value
+            $serverOutput = $server.StandardOutput.ReadToEndAsync()
+            $start = [Diagnostics.ProcessStartInfo]::new($binary)
+            $start.UseShellExecute = $false
+            $start.RedirectStandardOutput = $true
+            $start.RedirectStandardError = $true
+            foreach ($argument in @('--smoke-ui', '--smoke-remote', $peer, '--data-dir', (Join-Path $root 'client'),
+                    '--rnsconfig', (Join-Path $root 'client-rns'))) { $start.ArgumentList.Add($argument) }
+            $window = [Diagnostics.Process]::Start($start)
+            $stdout = $window.StandardOutput.ReadToEndAsync()
+            $stderr = $window.StandardError.ReadToEndAsync()
+            if (!$window.WaitForExit(30000)) {
+                $window.Kill($true)
+                $window.WaitForExit()
+                throw "The remote window did not finish: $($stdout.GetAwaiter().GetResult()) $($stderr.GetAwaiter().GetResult())"
+            }
+            $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+            $window.ExitCode | Should -Be 0 -Because $output
+            $output | Should -Match 'SMOKE_UI_RENDERED_REMOTE=commands-replies-cancellation'
+            $state = Get-Content -LiteralPath (Join-Path $root 'client\state.json') -Raw | ConvertFrom-Json
+            foreach ($reply in 'Ping reply', 'Echo reply: repeated', 'Echo reply: after cancellation') {
+                @($state.messages | Where-Object { $_.incoming -and $_.content -eq $reply }).Count | Should -Be 1
+            }
+            $state.telemetry.enabled | Should -BeFalse
+            $state.voiceEnabled | Should -BeFalse
+            $contact = @($state.contacts | Where-Object deliveryHash -EQ $peer)
+            $contact.Count | Should -Be 1
+            $contact[0].trusted | Should -BeFalse
+            $contact[0].allowTelemetryRequests | Should -BeTrue
+            $contact[0].sendTelemetry | Should -BeFalse
+            $export = Join-Path $root 'export.json'
+            & $binary --export-settings $export --data-dir (Join-Path $root 'client') 2>&1 | Out-Null
+            $LASTEXITCODE | Should -Be 0
+            $policy = Get-Content -LiteralPath $export -Raw | ConvertFrom-Json
+            $policy.lxmf_ignore_unknown | Should -BeTrue
+            $policy.telemetry_allow_requests_from_anyone | Should -BeFalse
+            $policy.telemetry_allow_requests_from_trusted | Should -BeFalse
+            $server.StandardInput.WriteLine('quit')
+            $server.StandardInput.Flush()
+            $server.StandardInput.Close()
+            $server.WaitForExit(10000) | Should -BeTrue
+            $server.ExitCode | Should -Be 0 -Because ($serverOutput.GetAwaiter().GetResult() + $serverError.GetAwaiter().GetResult())
+        }
+        finally {
+            foreach ($process in @($window, $server)) {
+                if ($process) {
+                    if (!$process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+                    $process.Dispose()
+                }
+            }
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
         }
     }
 }

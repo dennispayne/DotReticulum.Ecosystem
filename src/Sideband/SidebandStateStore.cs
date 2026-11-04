@@ -122,7 +122,11 @@ public sealed partial class SidebandStateStore
                 : state;
         }, cancellationToken);
 
-    public async Task<SidebandChatMessage> AddMessageAsync(SidebandChatMessage message, CancellationToken cancellationToken = default)
+    public Task<SidebandChatMessage> AddMessageAsync(SidebandChatMessage message, CancellationToken cancellationToken = default) =>
+        AddMessageAsync(message, true, cancellationToken);
+
+    internal async Task<SidebandChatMessage> AddMessageAsync(SidebandChatMessage message, bool createConversation,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(message);
         try { ValidateMessage(message); }
@@ -135,8 +139,9 @@ public sealed partial class SidebandStateStore
             var state = await LoadUnderLockAsync(cancellationToken).ConfigureAwait(false);
             var messages = state.Messages.Append(message).TakeLast(MaximumMessages).ToArray();
             var contacts = state.Contacts.Any(contact => contact.DeliveryHash == peerHash)
-                ? state.Contacts.Select(contact => contact.DeliveryHash == peerHash ? contact with { Unread = true } : contact).ToArray()
-                : state.Contacts.Append(SidebandContact.Create(peerHash, peerHash, unread: true)).ToArray();
+                ? state.Contacts.Select(contact => contact.DeliveryHash == peerHash
+                    ? contact with { Unread = true, ConversationKnown = contact.ConversationKnown || createConversation } : contact).ToArray()
+                : state.Contacts.Append(SidebandContact.Create(peerHash, peerHash, unread: true) with { ConversationKnown = createConversation }).ToArray();
             var next = state with { Contacts = contacts, Messages = messages };
             await WriteAtomicallyAsync(next, cancellationToken).ConfigureAwait(false);
             _state = next;
@@ -240,6 +245,9 @@ public sealed partial class SidebandStateStore
                 (address.ValueKind != JsonValueKind.String || !SidebandContact.TryNormalizeDeliveryHash(address.GetString(), out _)))
                 throw new InvalidDataException($"Setting '{key}' must be null or a 32-character hexadecimal address.");
         }
+        if (settings.TryGetValue("lxmf_ignore_unknown", out var ignoreUnknown) &&
+            ignoreUnknown.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            throw new InvalidDataException("Setting 'lxmf_ignore_unknown' must be boolean.");
 
         await MutateAsync(state =>
         {
@@ -267,6 +275,9 @@ public sealed partial class SidebandStateStore
             if (settings.TryGetValue("lxmf_sync_interval", out var syncInterval) &&
                 (syncInterval.ValueKind != JsonValueKind.Number || !syncInterval.TryGetInt32(out interval)))
                 throw new InvalidDataException("The synchronization interval must be a positive whole number of seconds.");
+            if (!settings.ContainsKey("lxmf_ignore_unknown"))
+                settings["lxmf_ignore_unknown"] = JsonSerializer.SerializeToElement(
+                    SidebandRemoteCommands.Authorization(state).IgnoreUnknown, SidebandStateJsonContext.Default.Boolean);
             if (node is not null) node = node.ToLowerInvariant();
             return state with
             {
@@ -286,7 +297,7 @@ public sealed partial class SidebandStateStore
         }, cancellationToken).ConfigureAwait(false);
         return settings.Keys.Where(key => !SidebandTelemetrySettings.IsSupported(key) && key is not ("display_name" or "dark_ui" or "lxmf_propagation_node" or
             "last_lxmf_propagation_node" or "propagation_by_default" or "lxmf_periodic_sync" or "lxmf_sync_interval" or
-            "lxmf_try_propagation_on_fail" or "voice_enabled" or "voice_trusted_only" or "voice_hdx_direct_ptt" or
+            "lxmf_try_propagation_on_fail" or "lxmf_ignore_unknown" or "voice_enabled" or "voice_trusted_only" or "voice_hdx_direct_ptt" or
             "voice_hdx_loudspeaker" or "voice_input" or "voice_speaker" or "voice_loudspeaker" or "voice_ringer")).Order(StringComparer.Ordinal).ToArray();
     }
 
@@ -303,6 +314,8 @@ public sealed partial class SidebandStateStore
         settings["propagation_by_default"] = JsonSerializer.SerializeToElement(state.PropagationByDefault, SidebandStateJsonContext.Default.Boolean);
         settings["lxmf_periodic_sync"] = JsonSerializer.SerializeToElement(state.PeriodicSynchronization, SidebandStateJsonContext.Default.Boolean);
         settings["lxmf_try_propagation_on_fail"] = JsonSerializer.SerializeToElement(state.TryPropagationOnFail, SidebandStateJsonContext.Default.Boolean);
+        settings["lxmf_ignore_unknown"] = JsonSerializer.SerializeToElement(
+            SidebandRemoteCommands.Authorization(state).IgnoreUnknown, SidebandStateJsonContext.Default.Boolean);
         settings["lxmf_sync_interval"] = JsonSerializer.SerializeToElement(state.SynchronizationIntervalSeconds, SidebandStateJsonContext.Default.Int32);
         var voice = state.Voice ?? new();
         settings["voice_enabled"] = JsonSerializer.SerializeToElement(state.VoiceEnabled, SidebandStateJsonContext.Default.Boolean);
@@ -394,7 +407,8 @@ public sealed partial class SidebandStateStore
             throw new ArgumentException("An LXMF delivery address must be exactly 32 hexadecimal characters.", nameof(deliveryHash));
         return MutateAsync(state => state with
         {
-            Contacts = state.Contacts.Select(contact => contact.DeliveryHash == normalized ? mutation(contact) : contact).ToArray(),
+            Contacts = state.Contacts.Select(contact => contact.DeliveryHash == normalized
+                ? mutation(contact) with { ConversationKnown = true } : contact).ToArray(),
         }, cancellationToken);
     }
 
@@ -457,6 +471,7 @@ public sealed partial class SidebandStateStore
         if (state.Contacts.Count > 1_000 || state.Messages.Count > MaximumMessages)
             throw new InvalidDataException("Sideband state exceeds its contact or message count limit.");
         _ = state.Telemetry.Validate();
+        _ = SidebandRemoteCommands.Authorization(state);
         if (state.TelemetryPeers is { Count: > 1_000 }) throw new InvalidDataException("Too many telemetry peers.");
         foreach (var peer in state.TelemetryPeers ?? [])
             if (peer is null || !SidebandContact.TryNormalizeDeliveryHash(peer.DeliveryHash, out _) ||

@@ -30,7 +30,8 @@ public sealed partial class SidebandStateStore
         return MutateAsync(state =>
         {
             if (!SidebandContact.TryNormalizeDeliveryHash(deliveryHash, out var hash)) throw new ArgumentException("Invalid telemetry source.");
-            var contact = state.Contacts.FirstOrDefault(c => c.DeliveryHash == hash) ?? SidebandContact.Create(hash, hash);
+            var contact = state.Contacts.FirstOrDefault(c => c.DeliveryHash == hash) ??
+                SidebandContact.Create(hash, hash) with { ConversationKnown = false };
             if (forwarded && contact.Appearance is not null && contact.Appearance != new SidebandTelemetryAppearance()) return state;
             return state with { Contacts = state.Contacts.Where(c => c.DeliveryHash != hash).Append(contact with { Appearance = appearance }).ToArray() };
         }, cancellationToken);

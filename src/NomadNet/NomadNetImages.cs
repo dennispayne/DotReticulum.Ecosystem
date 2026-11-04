@@ -28,7 +28,7 @@ public sealed class NomadNetImages(string executable = "ffmpeg", string? workDir
                 staged = Path.Combine(directory, Guid.NewGuid().ToString("N") + ".tiff");
                 await File.WriteAllBytesAsync(staged, source, cancellationToken).ConfigureAwait(false);
             }
-            result = await RunAsync(source, ["-quality", quality.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            result = await RunAsync(source, ["-frames:v", "1", "-quality", quality.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 "-vf", $"scale='min(iw,{maximumDimension})':'min(ih,{maximumDimension})':force_original_aspect_ratio=decrease",
                 "-f", "webp", "pipe:1"], NomadNetHost.MaximumFileBytes, cancellationToken, staged).ConfigureAwait(false);
         }
@@ -116,7 +116,8 @@ public sealed class NomadNetImages(string executable = "ffmpeg", string? workDir
                 RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
             },
         };
-        var inputArguments = new List<string> { "-nostdin", "-hide_banner", "-loglevel", "error", "-max_alloc", "67108864" };
+        var inputArguments = new List<string> { "-nostdin", "-hide_banner", "-loglevel", "error", "-max_alloc", "67108864",
+            "-protocol_whitelist", inputFile is null ? "pipe" : "file" };
         inputArguments.AddRange(["-i", inputFile ?? "pipe:0"]);
         foreach (var argument in inputArguments.Concat(arguments))
             process.StartInfo.ArgumentList.Add(argument);

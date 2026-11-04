@@ -215,8 +215,8 @@ internal static class Program
                 current => current with { LastClientAnnounce = timestamp }, token))
         { Log = message => Console.Error.WriteLine(message) };
         clientAnnounces.Start();
-        var receiver = PersistIncomingAsync(inbox.Reader, state, options.DataDirectory, cancellationToken);
         await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host, clientAnnounces);
+        var receiver = PersistIncomingAsync(inbox.Reader, state, options.DataDirectory, session.ObserveConversationImageAsync, cancellationToken);
 
         Console.WriteLine("NomadNet .NET client (scoped native implementation; type help for commands)");
         Console.WriteLine($"LXMF delivery address: {router.DeliveryHashHex}");
@@ -239,7 +239,8 @@ internal static class Program
         }
     }
 
-    private static async Task PersistIncomingAsync(ChannelReader<ReceivedMessage> reader, NomadNetStore store, string directory, CancellationToken cancellationToken)
+    private static async Task PersistIncomingAsync(ChannelReader<ReceivedMessage> reader, NomadNetStore store, string directory,
+        Func<NomadNetMessage, CancellationToken, Task> observeImage, CancellationToken cancellationToken)
     {
         try
         {
@@ -252,10 +253,12 @@ internal static class Program
                 var id = message.Hash is { Length: > 0 } hash ? Convert.ToHexStringLower(hash) : Guid.NewGuid().ToString("N");
                 try
                 {
+                    int? imageIndex = null;
                     try
                     {
                         await NomadNetAttachments.SaveAsync(directory, id, message.Fields, cancellationToken).ConfigureAwait(false);
                         var attachments = NomadNetAttachments.Extract(message.Fields);
+                        imageIndex = NomadNetAttachments.ImageIndex(message.Fields);
                         if (attachments.Count > 0) content += "\nAttachments: " + string.Join(", ", attachments.Select(attachment => attachment.Name));
                     }
                     catch (Exception exception) when (exception is not OperationCanceledException)
@@ -263,15 +266,16 @@ internal static class Program
                         Console.Error.WriteLine($"Could not save incoming attachments for {id}: {exception.Message}");
                         content += "\n[attachments could not be saved]";
                     }
-                    await store.SaveMessageAsync(new NomadNetMessage(id, Convert.ToHexStringLower(message.SourceHash), "inbound",
+                    var stored = new NomadNetMessage(id, Convert.ToHexStringLower(message.SourceHash), "inbound",
                         DateTimeOffset.FromUnixTimeMilliseconds((long)(message.Timestamp * 1000)), message.Title, content, "received")
-                        { Renderer = NomadNetPresentation.Renderer(message.Fields) },
-                        cancellationToken).ConfigureAwait(false);
+                        { Renderer = NomadNetPresentation.Renderer(message.Fields), ImageAttachmentIndex = imageIndex };
+                    await store.SaveMessageAsync(stored, cancellationToken).ConfigureAwait(false);
                     if (await store.ActiveConversationAsync(cancellationToken).ConfigureAwait(false) == Convert.ToHexStringLower(message.SourceHash))
                         try
                         {
                             Console.WriteLine($"Conversation received: {NomadNetTerminalText.Safe(message.Title)} " +
                                 NomadNetPresentation.Conversation(content, NomadNetPresentation.Renderer(message.Fields)));
+                            await observeImage(stored, cancellationToken).ConfigureAwait(false);
                         }
                         catch (Exception exception)
                         {
@@ -318,6 +322,8 @@ internal static class Program
               conversation active <hash|off> Mark read and select viewed conversation
               conversation read|delete|purge-failed <hash>
               conversation export <hash> <name.txt>
+              conversation images status|load|reload|cancel
+                                             Preview shown conversation images as ASCII
               send <hash> <message>          Send a text LXMF message
               send-propagated <hash> <text>  Send through selected propagation node
               attach <hash> <file>           Send a file attachment
@@ -350,7 +356,7 @@ internal static class Program
               partial <number>                Fetch a partial with current form data
               media <number> <name.webp>      Download image bytes (no visual decode)
               show-media <number> [color]    Decode to text/ANSI true-colour preview
-              images [mode|load|reload]      Inline ASCII images: never/manual/auto/always
+              images [mode|load|reload]      Browser/conversation policy: never/manual/auto/always
               image-convert <file> <name.webp> Convert local image into downloads
               reload                          Fetch current page without cache
               bookmark [title] | bookmarks | open-bookmark <number>
@@ -411,6 +417,11 @@ internal static class Program
         private RrcClient? _rrc;
         private NomadNetMicronBrowser? _browser;
         private NomadNetInlineMedia? _inlineImages;
+        private NomadNetConversationImages? _conversationImages;
+        private readonly object _conversationGate = new();
+        private IReadOnlyList<NomadNetMessage> _conversationMessages = [];
+        private readonly NomadNetImageCache _conversationConversions = new(dataDirectory,
+            new NomadNetImages(propagation.Settings.MediaConverter, Path.Combine(dataDirectory, "storage", "image-work")));
         private NomadNetImageLinkMetrics? _pageMetrics;
         private NomadNetRenderedPage? _page => _browser?.Current;
         private object? _currentRequestData;
@@ -422,6 +433,7 @@ internal static class Program
         {
             if (_browser is not null) await _browser.DisposeAsync().ConfigureAwait(false);
             if (_inlineImages is not null) await _inlineImages.DisposeAsync().ConfigureAwait(false);
+            if (_conversationImages is not null) await _conversationImages.DisposeAsync().ConfigureAwait(false);
             _mediaCache.Dispose();
             await _delivery.DisposeAsync().ConfigureAwait(false);
             if (_rrc is not null) await _rrc.DisposeAsync().ConfigureAwait(false);
@@ -804,6 +816,26 @@ internal static class Program
                 Console.WriteLine("Conversations complete.");
                 return false;
             }
+            if (command.StartsWith("conversation images ", StringComparison.OrdinalIgnoreCase))
+            {
+                var action = command["conversation images ".Length..].Trim().ToLowerInvariant();
+                if (action == "status")
+                    Console.WriteLine($"Conversation images: loading={_conversationImages?.Completion.IsCompleted == false}; previews={_conversationImages?.Previews.Count ?? 0}.");
+                else if (action == "cancel")
+                {
+                    if (_conversationImages is not null)
+                        await _conversationImages.ShowAsync([], NomadNetImageLoading.Never, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Conversation image loading cancelled.");
+                }
+                else if (action is "load" or "reload")
+                {
+                    if (_conversationMessages.Count == 0) throw new InvalidOperationException("Show stored messages first.");
+                    await ShowConversationImagesAsync(_conversationMessages, true, action == "reload", cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Conversation image loading started.");
+                }
+                else throw new ArgumentException("Use conversation images status|load|reload|cancel.");
+                return false;
+            }
             if (command.StartsWith("conversation ", StringComparison.OrdinalIgnoreCase))
             {
                 var parts = Split(command, 4);
@@ -813,11 +845,21 @@ internal static class Program
                 {
                     case "active" when parts.Length == 3:
                         await store.SetActiveConversationAsync(hash, cancellationToken).ConfigureAwait(false);
+                        if (hash is not null) await ShowMessagesAsync(hash, cancellationToken).ConfigureAwait(false);
+                        else
+                        {
+                            _conversationMessages = [];
+                            if (_conversationImages is not null)
+                                await _conversationImages.ShowAsync([], NomadNetImageLoading.Never, cancellationToken: cancellationToken).ConfigureAwait(false);
+                        }
                         break;
                     case "read" when parts.Length == 3:
                         await store.MarkReadAsync(hash!, cancellationToken).ConfigureAwait(false);
                         break;
                     case "delete" or "purge-failed" when parts.Length == 3:
+                        if (_conversationImages is not null)
+                            await _conversationImages.ShowAsync([], NomadNetImageLoading.Never, cancellationToken: cancellationToken).ConfigureAwait(false);
+                        _conversationMessages = [];
                         var removed = await store.DeleteConversationAsync(hash!, parts[1] == "purge-failed", cancellationToken).ConfigureAwait(false);
                         await NomadNetAttachments.DeleteAsync(dataDirectory, removed, cancellationToken).ConfigureAwait(false);
                         break;
@@ -922,6 +964,7 @@ internal static class Program
                     }
                     if (_page is { } currentPage && _currentNode is { } currentNode)
                         StartInlineImages(currentPage, currentNode);
+                    await ShowConversationImagesAsync(_conversationMessages, false, false, cancellationToken).ConfigureAwait(false);
                     Console.WriteLine($"Inline images: {action}.");
                 }
                 return false;
@@ -1246,22 +1289,67 @@ internal static class Program
             fields = fields is null ? new() : new(fields);
             if (propagation.Settings.ComposeInMarkdown) fields[LxmField.Renderer] = NomadNetPresentation.MarkdownRenderer;
             var message = LxMessage.Create(destination, identity, content, "", fields, method.Value);
-            var id = Guid.NewGuid().ToString("N");
-            await _delivery.QueueAsync(message, new NomadNetMessage(id, Convert.ToHexStringLower(destination), "outbound",
+            var id = Convert.ToHexStringLower(message.ComputeHash());
+            await NomadNetAttachments.SaveAsync(dataDirectory, id, fields, cancellationToken).ConfigureAwait(false);
+            var stored = new NomadNetMessage(id, Convert.ToHexStringLower(destination), "outbound",
                 DateTimeOffset.UtcNow, "", content, "queued")
-                { Renderer = NomadNetPresentation.Renderer(fields) }, cancellationToken).ConfigureAwait(false);
+                { Renderer = NomadNetPresentation.Renderer(fields), ImageAttachmentIndex = NomadNetAttachments.ImageIndex(fields) };
+            await _delivery.QueueAsync(message, stored, cancellationToken).ConfigureAwait(false);
             Console.WriteLine($"Message queued: {message.State}");
+            if (await store.ActiveConversationAsync(cancellationToken).ConfigureAwait(false) == stored.PeerHash)
+                await ObserveConversationImageAsync(stored, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task ShowMessagesAsync(string? peer, CancellationToken cancellationToken)
         {
             var messages = await store.MessagesAsync(peer, cancellationToken).ConfigureAwait(false);
+            await ShowConversationImagesAsync(messages, false, false, cancellationToken).ConfigureAwait(false);
+            var previews = _conversationImages?.Previews;
             foreach (var message in messages)
             {
                 Console.WriteLine($"{message.Timestamp:u} {message.Direction} {message.PeerHash} [{message.Status}] {NomadNetTerminalText.Safe(message.Title)}");
                 Console.WriteLine(NomadNetPresentation.Conversation(message.Content, message.Renderer));
+                if (message.ImageAttachmentIndex is not null)
+                {
+                    Console.WriteLine($"Conversation image {NomadNetTerminalText.Safe(message.Id)}: stored attachment {message.ImageAttachmentIndex}; use conversation images load.");
+                    if (propagation.Settings.ImageLoading != NomadNetImageLoading.Never && previews?.TryGetValue(message.Id, out var preview) == true)
+                        Console.WriteLine(preview);
+                }
             }
             if (messages.Count == 0) Console.WriteLine("No stored messages.");
+            Console.WriteLine("Messages complete.");
+        }
+
+        public async Task ObserveConversationImageAsync(NomadNetMessage message, CancellationToken cancellationToken)
+        {
+            if (message.ImageAttachmentIndex is null) return;
+            await ShowConversationImagesAsync(await store.MessagesAsync(message.PeerHash, cancellationToken).ConfigureAwait(false),
+                false, false, cancellationToken).ConfigureAwait(false);
+        }
+
+        private Task ShowConversationImagesAsync(IReadOnlyList<NomadNetMessage> messages, bool explicitLoad,
+            bool reload, CancellationToken cancellationToken)
+        {
+            NomadNetConversationImages images;
+            lock (_conversationGate)
+            {
+                _conversationMessages = messages;
+                if (_conversationImages is null)
+                {
+                    _conversationImages = new NomadNetConversationImages((message, token) =>
+                    {
+                        if (propagation.Settings.ImageLoading == NomadNetImageLoading.Never)
+                            throw new InvalidOperationException("Conversation images are disabled.");
+                        return NomadNetConversationImages.PreviewAsync(dataDirectory, message, _conversationConversions,
+                            new NomadNetImages(propagation.Settings.MediaConverter,
+                                Path.Combine(dataDirectory, "storage", "image-work")), token);
+                    }) { Log = message => Console.Error.WriteLine(message) };
+                    _conversationImages.Changed += (message, preview) =>
+                        Console.WriteLine($"--- conversation image {NomadNetTerminalText.Safe(message.Id)} ---\n{preview}\n--- conversation image complete ---");
+                }
+                images = _conversationImages;
+            }
+            return images.ShowAsync(messages, propagation.Settings.ImageLoading, explicitLoad, reload, cancellationToken);
         }
 
         private async Task ShowPeersAsync(CancellationToken cancellationToken)

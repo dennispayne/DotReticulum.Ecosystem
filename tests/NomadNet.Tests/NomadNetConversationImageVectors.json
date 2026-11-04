@@ -1,0 +1,120 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "rnsVersion": "1.5.7",
+  "lxmfVersion": "1.2.1",
+  "method": "Actual LXMessage pack/get_fields, ConversationMessage._unpack_media_field, extract_attachments_from_lxm and get_attachment_file_path with a data-only application host; Pillow-generated public pixels. Primary Conversations.py represents these as ClickableAttachment labels, not inline image widgets. Native conversation ASCII/policy is an original extension, not an upstream rendering contract.",
+  "sourceSha256": {
+    "Conversation.py": "38c419564248cc8777669ec77a055f8dcebcdf0e94a71ee4f7970c7d76640df5",
+    "ui/textui/Conversations.py": "aac71b94efd412749a85abb5509c843f07378d72d3694edd4df00b809a149e75"
+  },
+  "vectors": [
+    {
+      "name": "raw-png",
+      "imagePresent": true,
+      "imageFormat": null,
+      "imageBytes": "iVBORw0KGgoAAAANSUhEUgAAACAAAAAQCAIAAAD4YuoOAAAAKklEQVR4nGNkIBH8//+fJPVMDDQGTKMWEAKjQUQQjAYRQTAaRATB0A8iAPB1Ax2A4Or/AAAAAElFTkSuQmCC",
+      "invalidPair": false,
+      "files": [],
+      "attachments": [
+        {
+          "name": "image.png",
+          "size": 99,
+          "sha256": "9ea7a83d6bb8802d0a23a75063bd03d195a8f77dec0b2b382b5d83d7d0aed5a9"
+        }
+      ]
+    },
+    {
+      "name": "formatted-png",
+      "imagePresent": true,
+      "imageFormat": "png",
+      "imageBytes": "iVBORw0KGgoAAAANSUhEUgAAACAAAAAQCAIAAAD4YuoOAAAAKklEQVR4nGNkIBH8//+fJPVMDDQGTKMWEAKjQUQQjAYRQTAaRATB0A8iAPB1Ax2A4Or/AAAAAElFTkSuQmCC",
+      "invalidPair": false,
+      "files": [],
+      "attachments": [
+        {
+          "name": "image.png",
+          "size": 99,
+          "sha256": "9ea7a83d6bb8802d0a23a75063bd03d195a8f77dec0b2b382b5d83d7d0aed5a9"
+        }
+      ]
+    },
+    {
+      "name": "formatted-webp",
+      "imagePresent": true,
+      "imageFormat": "webp",
+      "imageBytes": "UklGRjIAAABXRUJQVlA4ICYAAABwAgCdASogABAALk02m02hJCQkBABMS0gAB7KAAP79Ny3/sdAAAA==",
+      "invalidPair": false,
+      "files": [],
+      "attachments": [
+        {
+          "name": "image.webp",
+          "size": 58,
+          "sha256": "00fbfca3978c6a93c1a354883e5e271965be3b3ec232e77efad30d7a3175b750"
+        }
+      ]
+    },
+    {
+      "name": "decoy-and-image",
+      "imagePresent": true,
+      "imageFormat": "png",
+      "imageBytes": "iVBORw0KGgoAAAANSUhEUgAAACAAAAAQCAIAAAD4YuoOAAAAKklEQVR4nGNkIBH8//+fJPVMDDQGTKMWEAKjQUQQjAYRQTAaRATB0A8iAPB1Ax2A4Or/AAAAAElFTkSuQmCC",
+      "invalidPair": false,
+      "files": [
+        {
+          "name": "image.png",
+          "bytes": "b3JkaW5hcnkgZmlsZSwgbm90IEZJRUxEX0lNQUdF"
+        }
+      ],
+      "attachments": [
+        {
+          "name": "image.png",
+          "size": 30,
+          "sha256": "21ae79cff6669cb02ab12c2e2c1b0ecef2bd5c79f190f9f1a65bdae264072ce2"
+        },
+        {
+          "name": "image.png",
+          "size": 99,
+          "sha256": "9ea7a83d6bb8802d0a23a75063bd03d195a8f77dec0b2b382b5d83d7d0aed5a9"
+        }
+      ]
+    },
+    {
+      "name": "empty",
+      "imagePresent": true,
+      "imageFormat": null,
+      "imageBytes": "",
+      "invalidPair": false,
+      "files": [],
+      "attachments": []
+    },
+    {
+      "name": "invalid-pair",
+      "imagePresent": true,
+      "imageFormat": null,
+      "imageBytes": null,
+      "invalidPair": true,
+      "files": [],
+      "attachments": []
+    },
+    {
+      "name": "decoy-only",
+      "imagePresent": false,
+      "imageFormat": null,
+      "imageBytes": null,
+      "invalidPair": false,
+      "files": [
+        {
+          "name": "image.png",
+          "bytes": "iVBORw0KGgoAAAANSUhEUgAAACAAAAAQCAIAAAD4YuoOAAAAKklEQVR4nGNkIBH8//+fJPVMDDQGTKMWEAKjQUQQjAYRQTAaRATB0A8iAPB1Ax2A4Or/AAAAAElFTkSuQmCC"
+        }
+      ],
+      "attachments": [
+        {
+          "name": "image.png",
+          "size": 99,
+          "sha256": "9ea7a83d6bb8802d0a23a75063bd03d195a8f77dec0b2b382b5d83d7d0aed5a9"
+        }
+      ]
+    }
+  ]
+}

@@ -5,7 +5,7 @@ NomadNet **1.4.4**, not an official implementation or a full port. The applicati
 reuses `ReticulumNode`, `ClientLinks` and `LxmRouter`; it does not duplicate LXMF,
 paper encryption, propagation, Reticulum links or Resource protocols.
 **Required software remains missing**, including remaining RRC layout/presentation,
-remaining image presentation and configuration/UI parity. These are implementation gaps, not
+remaining terminal/Kitty presentation and configuration/UI parity. These are implementation gaps, not
 hardware or optional-platform blockers. Sideband has its own implementation and
 inventory in [sideband.md](sideband.md); this document does not track it.
 
@@ -54,14 +54,14 @@ Underlying-library acceptance is not automatically application acceptance.
 | Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`, `--console`, `--textui` accepted. Daemon ignores terminal input and serves until cancellation. `--console` selects the existing console logging; `--textui` selects the original command loop, not Urwid. Extensions: `--help`, `--init`, `--status`, explicit non-overwriting core `--import-config`. |
 | Client announcements; `NomadNetworkApp.START_ANNOUNCE_DELAY`, `__jobs`, `announce_now`, `apply_config`, `set_display_name` | **implemented bounded subset**: configurable three-second startup, strict periodic interval after90seconds with five-second checks, manual delivery-only or combined announces, durable successful timestamp, runtime display-name and stamp-cost edits through existing LXMF APIs. Display-name changes save without announcing or replacing the identity/destination. Retains unused `enable_client` metadata rather than inventing delivery-disable semantics. Native safety differences for names, fresh null timestamps, failed background work, serialization and interval bounds are explicit below. |
 | Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, per-peer direct/propagated/opportunistic preference, unread/failure counters, explicit viewed/read state, latest-activity listing, deletion/failed purge and plain-text export. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. Native opportunistic text is received by the actual primary; direct reply/viewed state and both applications' read counters are exercised. Upstream `.index`/conversation import and full conversation UI remain missing. |
-| File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Encoded image files can be explicitly converted with the local image adapter; automatic conversation-image display remains missing. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
+| File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Typed image references support explicit/automatic original ASCII conversation previews, using the existing converter/cache and never/manual/auto/always controls; this is not primary UI parity. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
 | Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. `paper-qr`/`paper-save` save PNG/URI and outbound history; `qr` exports an existing URI, `qr-show` renders explicit black-on-white half-blocks. All QR encoding uses shared `LxPaperQr`, not a second codec. Executed primary save-QR vectors and terminal module tests exist; selected application acceptance is recorded below. Image-import/scanner and printer commands remain missing/unverified; no physical scanning/printing claim. |
 | Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; hosted propagation uses `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Configured static-peer transfers are now application-verified both ways on Windows/Linux through a separate Python transport, with restart, real loss and2.2MB attachment assertions. Storage/limit/cost/static/priority settings are imported/persisted through existing LXMF options. Full peer management, storage-pressure eviction-order acceptance and additional peer failure/topology cases remain missing/unverified. |
 | Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Saved-node listing/opening, primary rank/trust/name ordering, explicit browser identification consent and existing associated-node trust updates are operational. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Complete announce-stream/node-directory presentation and upstream directory import remain missing. |
 | Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **partial**: `nomadnetwork.node`, UTF-8 name app-data, default index, nested static pages, configurable six-second startup announce and periodic node announce; independent configurable page/file rescan intervals, explicit refresh and bounded handler inspection. New/deleted paths update handlers. `.allowed` identity lists enforced. Node announces chain the existing hosted propagation announce rather than duplicate its protocol. Source-specific counters and upstream default assets remain missing. |
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
 | Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. OS-process tests cover native execution; selected Linux native browser also submits real forms to unmodified Python executable pages across a Python transport. Python-to-native executable-form browser acceptance remains unverified. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
-| Media; `Node.serve_media`, `convert_media_to_webp` | **partial, live-verified core**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` responses and PNG/JPEG/BMP/GIF/TIFF conversion through configured external FFmpeg. Primary quality85/dimension1200 and content-hash cache naming, 256-file/192-MiB quota, corruption regeneration and restart/cache-only serving are exercised. `show-media` provides ASCII/explicit ANSI previews; bounded browser inline ASCII uses imported/runtime never/manual/auto/always policy, a separate durable remote cache and joined cancellation. Actual primary `ImageData` decodes native-served images and native previews primary-served images on Windows/Linux; exact additional inline acceptance is recorded below. Animated/multipage, alpha/EXIF behavior, conversation-image integration and Kitty graphics remain unverified/missing. |
+| Media; `Node.serve_media`, `convert_media_to_webp` | **partial, live-verified core**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` responses and PNG/JPEG/BMP/GIF/TIFF conversion through configured external FFmpeg. Primary quality85/dimension1200 and content-hash cache naming, 256-file/192-MiB quota, corruption regeneration and restart/cache-only serving are exercised. `show-media` provides ASCII/explicit ANSI previews; bounded browser inline ASCII uses imported/runtime never/manual/auto/always policy, a separate durable remote cache and joined cancellation. Original conversation previews reuse the conversion cache and attachment storage. Actual primary `ImageData` decodes native-served images and native previews primary-served images on Windows/Linux; exact additional inline acceptance is recorded below. Native conversion explicitly selects one frame; complete animated/multipage, alpha/EXIF behavior and Kitty graphics remain unverified/missing. |
 | Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file/media retrieval with explicit identification consent, links/bookmarks, reload, session navigation history with back/forward and submitted-field replay, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Automatic/manual inline ASCII previews preserve descriptor/form indices and collapsed visibility, including partial media; a local interactive file picker supports transactional attachment composition. Upstream Kitty widgets and complete layout remain missing. |
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron switches render live/history bodies against executed primary widget vectors; JSON string composition preserves multiline/raw content. Complete Channels layout, mention-span styling, colours/gutters and remaining configuration remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
@@ -700,7 +700,142 @@ distributions, architectures and macOS are not inferred support.
 or explicit ANSI true-colour preview; this is not Kitty graphics or a
 pixel-identical primary widget. `image-convert <file> <name.webp>` explicitly
 converts a local encoded image. Browser inline ASCII loading is described below;
-conversation-image integration and upstream Kitty rendering remain required work.
+original conversation previews are described next. Upstream Kitty rendering
+remains missing/unverified.
+
+#### Conversation image presentation
+
+Primary `Conversation.py:732–741,805–866,890–902` normalizes raw bytes or
+`[format, bytes]` image fields and persists encoded attachments.
+`ui/textui/Conversations.py:2967–2985,3044–3096` presents clickable attachment
+labels, not inline conversation image widgets. Its browser's image-loading
+policy is not a conversation-image implementation. Seven independently
+executed observations in `NomadNetConversationImageVectors.json`, generated by
+`GenerateNomadNetConversationImageVectors.py`, record actual primary
+normalization/extraction/path methods and both source SHA-256 values.
+No upstream source/assets or image widget implementation is copied.
+
+Native conversation ASCII is an original extension. `messages [hash]` displays
+history and selects the current image view; `conversation active <hash>` also
+selects the active peer and displays its history. Newly received images in the
+active conversation join that view. New outgoing image attachments are stored
+under their actual64-character LXMF message hash, not a second media format.
+An optional history `imageAttachmentIndex` identifies only the actual image
+field, so a normal file named `image.png` is not automatically decoded.
+Legacy history without that metadata is readable but not guessed into images.
+
+The existing persisted `images never|manual|auto|always` policy covers both
+browser and conversation presentation. Never prohibits even explicit loads
+and clears/cancels the current preview work. Manual waits for
+`conversation images load`; `reload` explicitly retries failed previews and
+decodes again using the verified conversion cache. Auto treats already-stored
+conversation bytes as local using the existing image policy; it does not
+invent message-link RTT or fetch remote media. Always loads displayed local
+images regardless of browser link eligibility. This distinction from browser
+network heuristics is intentional, not an observed primary conversation rule.
+`conversation images status` reports loading/successful preview count;
+`conversation images cancel` joins the loader without changing saved policy.
+Changing active view, disabling images, deleting a conversation or application
+disposal cancels and joins superseded work.
+
+At most the latest32 distinct image messages are retained per view. A single
+decoder processes them serially; failures remain failed until explicit reload
+and do not prevent other images, terminal commands or messaging. Observer/log
+exceptions retain message context and use a Trace fallback. Core work does
+not require a subscriber. Saved attachment reads reject linked directories or
+files, invalid indices/hashes, oversized data/checksum metadata and checksum
+mismatches, with constant-time digest comparison.
+
+Encoded input is limited to16MiB; existing shared conversion cache limits are
+256files/192MiB, quality85 and maximum dimension1200. Cached WebP must pass the
+existing sixteen-megapixel header bound. FFmpeg explicitly converts only one
+frame, restricts input protocols to `pipe` (only `file` for staged TIFF),
+has a64MiB individual allocation ceiling, bounded output/error streams
+and an eight-second process deadline with cancellation/kill/join. These are
+resource bounds, not a process-wide memory sandbox or codec-exploit safety
+guarantee. Use never/manual to avoid automatic external decoding of received
+bytes. Plain ASCII output is bounded and excludes terminal control sequences;
+no physical audio, Kitty-pixel or full upstream UI claim is made.
+
+#### Conversation image verification
+
+Final protocol-restricted native acceptance is separate from the earlier
+pre-protocol executables; the earlier passing recipes/binaries are retained
+without relabelling them as evidence of the final safety boundary.
+
+| Final selected acceptance | Windows x64 | Linux x64 |
+|---|---|---|
+| Scoped managed, selected real FFmpeg |163 passed /6 explicit Linux-only skips |169 passed /0 skipped |
+| Strict NativeAOT publish |passed, zero warnings/errors |passed, zero warnings/errors |
+| Native executable/core flows |4/4 |4/4 |
+| Actual primary image messages and native conversation presentation |1/1,9.53seconds |1/1,8.53seconds |
+| Existing primary `ImageData`/host/browser conversion-cache flow |1/1,13.24seconds |1/1,10.33seconds |
+| Separate mixed propagation/restart/dropped-Resource regression |not rerun in this slice |1/1,240.99seconds |
+
+Selected executables:
+
+- `artifacts\builds\nomadnet-conversation-images-safe-win\publish\NomadNet\release_win-x64\nomadnet.exe`,
+  SHA-256 `094d9fdd0edfb7ad9e01cfb4a5cfab541fa75e35bf9aaa7193905eb9ed1df741`.
+- `artifacts\builds\nomadnet-conversation-images-safe-linux\publish\NomadNet\release_linux-x64\nomadnet`,
+  SHA-256 `8d57e19fb51be56d3af403cabdaeb83c2b6061572422fed387e91d51dbff387b`.
+
+The direct isolated loopback TCP application case exchanges actual primary
+formatted PNG/raw WebP messages toward native and an unchanged PNG image field
+toward primary; it checks actual primary attachment persistence, native typed
+metadata/bytes, all four policies, eight native32-column/eight-row ASCII
+frames, both application identities after restart, persisted manual policy,
+joined explicit cancellation and successful actual messaging while the local
+converter is missing. Synthetic accepted PNG/WebP payloads are99/58bytes;
+this is not large-image, multi-hop/loss conversation-image or physical-device
+evidence. The tiny live decode may complete before the cancel command;
+deterministic in-flight cancellation/disposal/observer ownership is established
+by the managed controller tests, not inferred from that live timing.
+
+Real converter tests reject an SDP input at the protocol whitelist without
+opening its RTP/UDP stream, and retain all previously tested image formats,
+including staged TIFF. The seven primary extraction observations execute on
+both hosts; native fixture bytes come from the executed Windows generator.
+Linux's generated PNG has different compression bytes/size but the same
+normalization, attachment naming and byte-preservation contracts. This is not
+a cross-platform encoder-bitstream claim.
+
+Frozen reproduction:
+
+```powershell
+pwsh -NoLogo -NoProfile -File artifacts\tests\nomadnet-conversation-images-win-acceptance.ps1
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-conversation-images-linux-acceptance.ps1
+```
+
+These recipes guard exact native/managed binaries, frozen Pester, actual thin
+adapter, both image fixtures and required transitive notice; Linux also guards
+the transport/impairment helpers used by its separate propagation regression.
+Each invocation has unique TRX and Pester result paths. The13 owned source
+paths, raw snapshots, twelve compiled-source PDB checksums and public results
+are recorded in `artifacts\tests\nomadnet-conversation-images-acceptance.json`;
+snapshots are under `artifacts\tests\nomadnet-conversation-images-source`.
+
+Parent independent execution of both SHA-guarded recipes reproduces the scoped
+managed counts and all four native core cases on each host. Conversation images
+and the separate existing primary `ImageData` case each pass on both hosts;
+the Linux mixed propagation/restart/dropped-Resource regression passes1/1 in
+235.68seconds. Exact parent TRX directories end in
+`nomadnet-conversation-images-win-recipe-75e13bd7eb2b4fe894a0b71375ca5d91`
+and `nomadnet-conversation-images-linux-recipe-25927b00baa84a718329f44c30e7d331`.
+All13 frozen source/snapshot hashes, recipe hashes and the selected binaries
+were checked before those repetitions; this subsequent documentation update
+does not change the frozen production or test source.
+
+The final isolated full solution Release build has zero warnings/errors.
+`dotnet build DotReticulum.Ecosystem.slnx -c Release --artifacts-path artifacts\builds\nn-ci -v quiet`
+and `dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build --artifacts-path artifacts\builds\nn-ci --logger trx --results-directory artifacts\tests\nn-ci -v quiet`
+pass2328cases with109explicit skips/0failures, counted from all five actual
+TRX case-result collections. Without the selected converter, that full gate
+explicitly skips four additional NomadNet converter cases.
+An earlier longer-artifact-root run retained17Sideband profile SQLite snapshot
+failures, not NomadNet failures; Sideband was untouched by this slice.
+Concurrent Sideband changes mean the fresh green gate is not a path-only
+causal control. Initial fixture/observation failures and the pre-protocol
+acceptance paths remain in the manifest rather than being rewritten as passes.
 
 #### Browser inline loading
 
@@ -1192,7 +1327,7 @@ errors. `dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build
 --results-directory artifacts\tests\nomadnet-file-picker-integrated -v:q`
 passes **1,799 tests, 87 explicit skips, zero failures**. Converter-dependent
 checks skipped there are separately exercised by the selected scoped runs.
-Required conversation-image/Kitty presentation, configuration, migration, editor/notification/clipboard,
+Remaining Kitty presentation, configuration, migration, editor/notification/clipboard,
 printing and remaining presentation workflows are not declared complete; the
 bounded QR export/display slice is described separately above.
 
@@ -1382,7 +1517,8 @@ wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.
 The image case writes the selected binary hash and explicit `navigation` flag
 to its `acceptance.json`; an older frozen binary must not enable the new mode.
 The current local file picker and inline ASCII loader are documented separately
-above; complete terminal UI, conversation-image and Kitty workflows remain missing.
+above, including original conversation ASCII; complete terminal UI and Kitty
+workflows remain missing.
 
 The integrated `dotnet build DotReticulum.Ecosystem.slnx -c Release
 --artifacts-path artifacts\builds\nomadnet-navigation-solution -v:q` passes
@@ -1861,6 +1997,6 @@ test prerequisites; the committed Pester cases and variables define acceptance.
 
 RF, physical audio/printers, macOS and other operating systems remain
 **unverified**. No new DotReticulum API gap was needed for this slice.
-Remaining RRC behaviors, conversation-image/Kitty presentation,
-configuration/import parity and propagation-node peering acceptance remain
+Remaining RRC behaviors, Kitty presentation,
+configuration/import parity and additional propagation-node peering acceptance remain
 required work rather than a claim of completed NomadNet parity.

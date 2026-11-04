@@ -186,6 +186,7 @@ public sealed record NomadNetMessage(
     string Status)
 {
     public int? Renderer { get; init; }
+    public int? ImageAttachmentIndex { get; init; }
 }
 
 public sealed record NomadNetBookmark(string DestinationHash, string Path, string Title);

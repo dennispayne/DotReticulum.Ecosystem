@@ -1,3 +1,246 @@
+Describe 'NomadNet conversation image presentation' -Tag 'Live', 'ConversationImages' {
+    It 'exchanges actual primary image messages and presents bounded local ASCII under policy, restart, cancellation and converter failure' {
+        if ($env:DOTRETICULUM_NOMADNET_CONVERSATION_IMAGES_LIVE -ne '1') {
+            Set-ItResult -Skipped -Because 'Enable DOTRETICULUM_NOMADNET_CONVERSATION_IMAGES_LIVE=1 with exact native/reference/converter paths.'
+            return
+        }
+        foreach ($variable in 'DOTRETICULUM_NOMADNET_BINARY', 'DOTRETICULUM_PYTHON',
+            'DOTRETICULUM_UPSTREAM', 'DOTRETICULUM_NOMADNET_SOURCE', 'DOTRETICULUM_NOMADNET_IMAGE_CONVERTER') {
+            if (-not [Environment]::GetEnvironmentVariable($variable)) { throw "$variable is required." }
+        }
+        $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        $work = Join-Path (Get-Location) "artifacts\tests\nomadnet-conversation-images-$([Guid]::NewGuid().ToString('N'))"
+        $null = New-Item $work -ItemType Directory -Force
+        $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
+        $pending = @{}
+        $errors = @{}
+        $names = @{}
+        $start = {
+            param([string] $name, [string] $binary, [string[]] $arguments)
+            $info = [Diagnostics.ProcessStartInfo]::new($binary)
+            $info.UseShellExecute = $false
+            $info.RedirectStandardInput = $true
+            $info.RedirectStandardOutput = $true
+            $info.RedirectStandardError = $true
+            $info.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
+            $info.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
+            foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
+            $paths = @($env:DOTRETICULUM_UPSTREAM, $env:DOTRETICULUM_NOMADNET_SOURCE, (Join-Path $root 'tests\Interop'))
+            if ($env:DOTRETICULUM_LXMF_UPSTREAM) { $paths += $env:DOTRETICULUM_LXMF_UPSTREAM }
+            $info.Environment['PYTHONPATH'] = $paths -join [IO.Path]::PathSeparator
+            $info.Environment['PYTHON_CPU_COUNT'] = '2'
+            foreach ($variable in 'TMP', 'TEMP', 'TMPDIR') { $info.Environment[$variable] = $work }
+            $process = [Diagnostics.Process]::new()
+            $process.StartInfo = $info
+            $null = $process.Start()
+            $processes.Add($process)
+            $names[$process.Id] = $name
+            $errors[$process.Id] = $process.StandardError.ReadToEndAsync()
+            return $process
+        }.GetNewClosure()
+        $send = {
+            param($process, [string] $text)
+            $process.StandardInput.WriteLine($text)
+            $process.StandardInput.Flush()
+        }
+        $read = {
+            param($process, [string] $pattern, [int] $seconds = 45, [bool] $expectedError = $false)
+            $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+            while ([DateTime]::UtcNow -lt $deadline) {
+                if (-not $pending.ContainsKey($process.Id)) { $pending[$process.Id] = $process.StandardOutput.ReadLineAsync() }
+                try { $line = $pending[$process.Id].WaitAsync([TimeSpan]::FromMilliseconds(250)).GetAwaiter().GetResult() }
+                catch [TimeoutException] { continue }
+                $pending.Remove($process.Id)
+                if ($null -eq $line) { throw "$($names[$process.Id]) closed stdout before '$pattern'; diagnostics $work" }
+                Add-Content (Join-Path $work "$($names[$process.Id]).stdout") $line
+                if ($line -match '"event"\s*:\s*"(error|failed)"' -or
+                    ($line -match '(^|nomadnet> )Error:' -and (-not $expectedError -or $line -notmatch $pattern))) { throw $line }
+                if ($line -match $pattern) { return $line }
+            }
+            throw "$($names[$process.Id]) timed out before '$pattern'; diagnostics $work"
+        }.GetNewClosure()
+        $json = { param([string] $line) $line.Substring($line.IndexOf('@@') + 2) | ConvertFrom-Json }
+        $stop = {
+            param($process)
+            & $send $process 'quit'
+            $process.WaitForExit(20000) | Should -BeTrue
+            $process.ExitCode | Should -Be 0
+        }.GetNewClosure()
+        $frame = {
+            param($process, [string] $id = '[0-9a-f]{64}')
+            $header = & $read $process "--- conversation image $id ---"
+            $rows = [Collections.Generic.List[string]]::new()
+            do {
+                $line = & $read $process '^[ .:\-=+*#%@]+$|--- conversation image complete ---'
+                if ($line -notmatch '--- conversation image complete ---') { $rows.Add($line) }
+            } while ($line -notmatch '--- conversation image complete ---')
+            $rows.Count | Should -Be 8
+            foreach ($row in $rows) {
+                $row.Length | Should -Be 32
+                $row | Should -Match '^[ .:\-=+*#%@]+$'
+            }
+            ($rows -join '') | Should -Match '[#%@]'
+            $header
+        }.GetNewClosure()
+        $nativeArguments = @('--config', (Join-Path $work 'native'), '--rnsconfig', (Join-Path $work 'native-rns'))
+        $pythonArguments = @('-u', (Join-Path $root 'tests\Interop\nomadnet_live_node.py'),
+            '--config', (Join-Path $work 'python'), '--rnsconfig', (Join-Path $work 'python-rns'))
+        try {
+            $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+            $listener.Start()
+            $port = $listener.LocalEndpoint.Port
+            $listener.Stop()
+            foreach ($name in 'native', 'python') {
+                $null = New-Item (Join-Path $work "$name-rns") -ItemType Directory -Force
+                $null = New-Item (Join-Path $work $name) -ItemType Directory -Force
+                $lines = @('[reticulum]', ' share_instance=No', ' enable_transport=No', '[logging]', ' loglevel=2', '[interfaces]')
+                if ($name -eq 'native') {
+                    $lines += @(' [[Server]]', ' type=TCPServerInterface', ' enabled=Yes', ' listen_ip=127.0.0.1', " listen_port=$port")
+                } else {
+                    $lines += @(' [[Client]]', ' type=TCPClientInterface', ' enabled=Yes', ' target_host=127.0.0.1', " target_port=$port")
+                }
+                $lines | Set-Content (Join-Path $work "$name-rns\config") -Encoding utf8
+            }
+            @('[client]', 'user_interface=text', 'periodic_lxmf_sync=no', '[node]',
+                'enable_node=yes', 'disable_propagation=yes', 'announce_at_start=no',
+                '[textui]', 'colormode=256', '[logging]', 'loglevel=2', 'destination=console') |
+                Set-Content (Join-Path $work 'python\config') -Encoding utf8
+            $settingsPath = Join-Path $work 'native\settings.json'
+            @{ schemaVersion=1; displayName='Conversation image acceptance'; periodicLxmfSync=$false;
+                imageLoading=0; mediaConverter=$env:DOTRETICULUM_NOMADNET_IMAGE_CONVERTER } |
+                ConvertTo-Json | Set-Content $settingsPath -Encoding utf8
+            $fixture = Get-Content (Join-Path $root 'tests\NomadNet.Tests\NomadNetConversationImageVectors.json') -Raw | ConvertFrom-Json
+            $png = [Convert]::FromBase64String($fixture.vectors[0].imageBytes)
+            $webp = [Convert]::FromBase64String($fixture.vectors[2].imageBytes)
+            [IO.File]::WriteAllBytes((Join-Path $work 'primary.png'), $png)
+            [IO.File]::WriteAllBytes((Join-Path $work 'primary.webp'), $webp)
+            [IO.File]::WriteAllBytes((Join-Path $work 'always.png'), $png)
+            $pngSha = (Get-FileHash (Join-Path $work 'primary.png')).Hash.ToLowerInvariant()
+            $native = & $start 'native1' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArguments
+            $nativeDelivery = [regex]::Match((& $read $native 'LXMF delivery address:'), '[0-9a-f]{32}').Value
+            $python = & $start 'python1' $env:DOTRETICULUM_PYTHON $pythonArguments
+            $ready = & $json (& $read $python '"event"\s*:\s*"ready"')
+            $ready.revision | Should -Be 'f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2'
+            & $send $python 'wait-network'
+            $null = & $read $python '"event"\s*:\s*"network-ready"'
+            & $send $native 'announce'
+            $null = & $read $native 'Announced'
+            & $send $python 'announce'
+            $null = & $read $python '"event"\s*:\s*"announced"'
+            & $send $native "conversation active $($ready.delivery)"
+            $null = & $read $native 'Conversation command complete'
+            & $send $python "send-image $nativeDelivery $(Join-Path $work 'primary.png')"
+            $queued = & $json (& $read $python '"event"\s*:\s*"queued"')
+            $firstId = $queued.message_hash
+            $null = & $read $python '"event"\s*:\s*"delivered"'
+            $null = & $read $native 'Conversation received:.*upstream-image-primary.png'
+            & $send $native "messages $($ready.delivery)"
+            $null = & $read $native 'Messages complete'
+            $state = Get-Content (Join-Path $work 'native\state.json') -Raw | ConvertFrom-Json
+            @($state.messages | Where-Object id -EQ $firstId)[0].imageAttachmentIndex | Should -Be 0
+            (Get-FileHash (Join-Path $work "native\attachments\$firstId\0.bin")).Hash.ToLowerInvariant() | Should -Be $pngSha
+            $conversions = Join-Path $work 'native\storage\cache\conversions'
+            @(Get-ChildItem $conversions -Filter *.webp -ErrorAction SilentlyContinue).Count | Should -Be 0
+            & $send $native 'conversation images load'
+            $null = & $read $native 'Conversation images are disabled' 45 $true
+            & $send $native 'images manual'
+            $null = & $read $native 'Inline images: manual'
+            & $send $native "messages $($ready.delivery)"
+            $null = & $read $native 'Messages complete'
+            @(Get-ChildItem $conversions -Filter *.webp -ErrorAction SilentlyContinue).Count | Should -Be 0
+            & $send $native 'conversation images load'
+            $null = & $frame $native $firstId
+            & $send $native 'images auto'
+            $null = & $read $native 'Inline images: auto'
+            & $send $python "send-image-raw $nativeDelivery $(Join-Path $work 'primary.webp')"
+            $second = & $json (& $read $python '"event"\s*:\s*"queued"')
+            $null = & $frame $native $second.message_hash
+            $null = & $read $python '"event"\s*:\s*"delivered"'
+            & $send $native 'images always'
+            $null = & $read $native 'Inline images: always'
+            & $send $python "send-image $nativeDelivery $(Join-Path $work 'always.png')"
+            $third = & $json (& $read $python '"event"\s*:\s*"queued"')
+            $null = & $frame $native $third.message_hash
+            $null = & $read $python '"event"\s*:\s*"delivered"'
+            & $send $native "image $($ready.delivery) $(Join-Path $work 'primary.png')"
+            $null = & $read $native 'Message queued'
+            $received = & $json (& $read $python '"event"\s*:\s*"received"')
+            $received.image.sha256 | Should -Be $pngSha
+            $received.image.size | Should -Be $png.Length
+            $null = & $frame $native $received.message_hash
+            (Get-FileHash (Join-Path $work "python\storage\attachments\$($received.message_hash)\file_0")).Hash.ToLowerInvariant() | Should -Be $pngSha
+            @(Get-ChildItem $conversions -Filter *.webp).Count | Should -Be 2
+            & $send $native 'conversation images reload'
+            & $send $native 'conversation images cancel'
+            $null = & $read $native 'Conversation image loading cancelled'
+            & $send $native 'conversation images status'
+            $null = & $read $native 'Conversation images: loading=False; previews=0'
+            & $send $native 'images manual'
+            $null = & $read $native 'Inline images: manual'
+            & $stop $python
+            & $stop $native
+            $native = & $start 'native2' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArguments
+            (& $read $native 'LXMF delivery address:') | Should -Match $nativeDelivery
+            $python = & $start 'python2' $env:DOTRETICULUM_PYTHON $pythonArguments
+            $restored = & $json (& $read $python '"event"\s*:\s*"ready"')
+            $restored.delivery | Should -Be $ready.delivery
+            & $send $native "messages $($ready.delivery)"
+            $null = & $read $native 'Messages complete'
+            & $send $native 'conversation images status'
+            $null = & $read $native 'Conversation images: loading=False; previews=0'
+            & $send $native 'conversation images load'
+            foreach ($index in 1..4) { $null = & $frame $native }
+            & $stop $native
+            $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
+            $settings.imageLoading | Should -Be 1
+            $settings.mediaConverter = Join-Path $work 'missing-converter'
+            $settings | ConvertTo-Json | Set-Content $settingsPath -Encoding utf8
+            $native = & $start 'native3' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArguments
+            $null = & $read $native 'LXMF delivery address:'
+            & $send $native "messages $($ready.delivery)"
+            $null = & $read $native 'Messages complete'
+            & $send $native 'conversation images load'
+            $null = & $read $native 'Conversation image loading started'
+            $deadline = [DateTime]::UtcNow.AddSeconds(15)
+            do {
+                & $send $native 'conversation images status'
+                $status = & $read $native 'Conversation images:'
+                if ($status -match 'loading=False') { break }
+                Start-Sleep -Milliseconds 50
+            } while ([DateTime]::UtcNow -lt $deadline)
+            $status | Should -Match 'loading=False; previews=0'
+            & $send $python 'wait-network'
+            $null = & $read $python '"event"\s*:\s*"network-ready"'
+            & $send $native "send $($ready.delivery) CONVERTER_FAILURE_RECOVERY"
+            $receivedRecovery = & $json (& $read $python '"event"\s*:\s*"received"')
+            $receivedRecovery.content | Should -Be 'CONVERTER_FAILURE_RECOVERY'
+            & $stop $native
+            $failureReports = $errors[$native.Id].GetAwaiter().GetResult()
+            $failureReports | Should -Match "Could not load conversation image $firstId"
+            $failureReports | Should -Match 'configured local FFmpeg executable'
+            @{ primaryRevision=$ready.revision; nativeBinary=$env:DOTRETICULUM_NOMADNET_BINARY;
+                nativeSha256=(Get-FileHash $env:DOTRETICULUM_NOMADNET_BINARY).Hash;
+                topology='Direct native application / actual primary application over isolated loopback TCP; no hardware or Kitty assertion';
+                pngSha256=$pngSha; pngBytes=$png.Length; webpBytes=$webp.Length;
+                primaryInboundImages=1; nativeInboundImages=3; verifiedNativeAsciiFrames=8;
+                policyModes=@('never','manual','auto','always'); restartedApplications=2;
+                nativeCancelJoined=$true; converterFailureContinuedMessaging=$true } |
+                ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
+        }
+        finally {
+            foreach ($process in $processes) {
+                if (-not $process.HasExited) {
+                    try { & $send $process 'quit' } catch {}
+                    if (-not $process.WaitForExit(5000)) { $process.Kill($true); $process.WaitForExit() }
+                }
+                [IO.File]::WriteAllText((Join-Path $work "$($names[$process.Id]).stderr"), $errors[$process.Id].GetAwaiter().GetResult())
+                $process.Dispose()
+            }
+            if ($env:DOTRETICULUM_NOMADNET_KEEP_WORK -ne '1') { Remove-Item $work -Recurse -Force }
+        }
+    }
+}
+
 Describe 'NomadNet configured propagation peer workflows' -Tag 'Live', 'NodeConfiguration' {
     It 'imports and persists node limits and static priority policies, peers application attachments both ways, and restores all profiles' {
         if ($env:DOTRETICULUM_NOMADNET_NODE_CONFIG_LIVE -ne '1') {

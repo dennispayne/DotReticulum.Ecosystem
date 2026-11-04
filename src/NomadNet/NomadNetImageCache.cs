@@ -9,13 +9,28 @@ public sealed class NomadNetImageCache(string directory, NomadNetImages images)
     private readonly string _root = Path.GetFullPath(Path.Combine(directory, "storage", "cache", "conversions"));
     private readonly SemaphoreSlim _gate = new(1, 1);
 
-    public async Task<byte[]> ConvertAsync(string path, CancellationToken cancellationToken = default)
+    public Task<byte[]> ConvertAsync(string path, CancellationToken cancellationToken = default)
+        => ConvertAsync(() => NomadNetContent.ReadBoundedAsync(path, NomadNetHost.MaximumFileBytes, cancellationToken), cancellationToken);
+
+    public Task<byte[]> ConvertAsync(byte[] source, CancellationToken cancellationToken = default)
+        => ConvertAsync(() => Task.FromResult(source), cancellationToken);
+
+    private async Task<byte[]> ConvertAsync(Func<Task<byte[]>> read, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var source = await NomadNetContent.ReadBoundedAsync(path, NomadNetHost.MaximumFileBytes, cancellationToken).ConfigureAwait(false);
+            var source = await read().ConfigureAwait(false);
+            if (source.Length is 0 or > NomadNetHost.MaximumFileBytes)
+                throw new InvalidDataException("Image source exceeds the encoded size bound.");
             var key = Convert.ToHexStringLower(SHA256.HashData(source)) + ".q85.d1200.webp";
+            var profile = Path.GetFullPath(directory);
+            for (var item = new DirectoryInfo(_root); item is not null; item = item.Parent)
+            {
+                if (item.Exists && (item.Attributes & FileAttributes.ReparsePoint) != 0)
+                    throw new InvalidDataException("Conversion cache cannot contain directory links.");
+                if (item.FullName == profile) break;
+            }
             Directory.CreateDirectory(_root);
             if ((File.GetAttributes(_root) & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("Conversion cache cannot be a link.");
             var target = Path.Combine(_root, key);

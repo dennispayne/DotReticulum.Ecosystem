@@ -4,7 +4,10 @@ using LXMF;
 
 namespace NomadNet;
 
-public sealed record NomadNetAttachment(string Name, byte[] Data);
+public sealed record NomadNetAttachment(string Name, byte[] Data)
+{
+    public bool IsImage { get; init; }
+}
 
 public static class NomadNetAttachments
 {
@@ -29,12 +32,12 @@ public static class NomadNetAttachments
     {
         var result = new List<NomadNetAttachment>();
         var total = 0;
-        void Add(string name, byte[] bytes)
+        void Add(string name, byte[] bytes, bool image = false)
         {
             if (result.Count >= MaximumAttachments || bytes.Length > MaximumBytes - total)
                 throw new InvalidDataException("Message attachments exceed the configured limits.");
             total += bytes.Length;
-            result.Add(new NomadNetAttachment(name, bytes));
+            result.Add(new NomadNetAttachment(name, bytes) { IsImage = image });
         }
         if (fields.GetValueOrDefault(LxmField.FileAttachments) is object?[] files)
             foreach (var value in files)
@@ -46,9 +49,40 @@ public static class NomadNetAttachments
             var value = fields.GetValueOrDefault(key);
             var bytes = value is byte[] raw ? raw : value is object?[] { Length: >= 2 } pair ? pair[1] as byte[] : null;
             var format = value is object?[] { Length: >= 2 } formatted ? formatted[0] : null;
-            if (bytes is { Length: > 0 }) Add(name + MediaExtension(format, bytes, audio), bytes);
+            if (bytes is { Length: > 0 }) Add(name + MediaExtension(format, bytes, audio), bytes, image: !audio);
         }
         return result;
+    }
+
+    public static int? ImageIndex(Dictionary<object, object?> fields) =>
+        Extract(fields).Select((attachment, index) => (attachment, index))
+            .Where(item => item.attachment.IsImage).Select(item => (int?)item.index).FirstOrDefault();
+
+    public static async Task<byte[]> ReadAsync(string directory, string messageId, int index,
+        CancellationToken cancellationToken = default)
+    {
+        if (messageId.Length != 64 || messageId.Any(character => !Uri.IsHexDigit(character)) ||
+            index is < 0 or >= MaximumAttachments)
+            throw new InvalidDataException("Invalid stored attachment identifier.");
+        var profile = Path.GetFullPath(directory);
+        var root = Path.Combine(profile, "attachments", messageId.ToLowerInvariant());
+        var path = Path.Combine(root, index.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".bin");
+        for (var item = new DirectoryInfo(root); item is not null; item = item.Parent)
+        {
+            if (item.Exists && (item.Attributes & FileAttributes.ReparsePoint) != 0)
+                throw new InvalidDataException("Stored attachment directory cannot be a link.");
+            if (item.FullName == profile) break;
+        }
+        foreach (var file in new[] { path, path + ".sha256" })
+            if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) != 0)
+                throw new InvalidDataException("Stored attachment cannot be a link.");
+        var expected = await NomadNetContent.ReadBoundedAsync(path + ".sha256", 64, cancellationToken).ConfigureAwait(false);
+        if (expected.Length != 64 || expected.Any(character => !Uri.IsHexDigit((char)character)))
+            throw new InvalidDataException("Invalid stored attachment checksum.");
+        var data = await NomadNetContent.ReadBoundedAsync(path, MaximumBytes, cancellationToken).ConfigureAwait(false);
+        if (!CryptographicOperations.FixedTimeEquals(SHA256.HashData(data), Convert.FromHexString(Encoding.ASCII.GetString(expected))))
+            throw new InvalidDataException("Stored attachment checksum does not match.");
+        return data;
     }
 
     public static string MediaExtension(object? format, ReadOnlySpan<byte> bytes, bool audio)

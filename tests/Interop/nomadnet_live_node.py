@@ -105,9 +105,14 @@ def main():
             def observe_delivery(message):
                 app.lxmf_delivery(message)
                 files = message.fields.get(LXMF.FIELD_FILE_ATTACHMENTS, [])
+                from nomadnet.Conversation import ConversationMessage
+                image_format, image_data = ConversationMessage._unpack_media_field(message.fields.get(LXMF.FIELD_IMAGE))
                 emit("received", content=message.content.decode("utf-8", errors="replace"),
+                     message_hash=message.hash.hex(),
                      method=message.method,
                      renderer=message.fields.get(LXMF.FIELD_RENDERER),
+                     image=({"format": image_format, "size": len(image_data),
+                             "sha256": hashlib.sha256(image_data).hexdigest()} if image_data else None),
                      files=[{"name": item[0].decode("utf-8", errors="replace") if isinstance(item[0], bytes) else str(item[0]),
                              "size": len(item[1]), "sha256": hashlib.sha256(item[1]).hexdigest()}
                             for item in files])
@@ -444,7 +449,7 @@ def main():
                             raise ValueError("Actual zxing-cpp did not decode an LXMF URI")
                         emit("qr-decoded", uri=decoded.text, width=image.width, height=image.height)
                     continue
-                if parts[0] not in ("send", "send-file", "send-file-propagated", "send-files", "send-formatted", "send-propagated", "paper", "request", "request-media") or len(parts) != 3:
+                if parts[0] not in ("send", "send-file", "send-file-propagated", "send-files", "send-image", "send-image-raw", "send-formatted", "send-propagated", "paper", "request", "request-media") or len(parts) != 3:
                     raise ValueError("expected send, send-file, paper, request, ingest, stats, or quit")
 
                 destination_hash = bytes.fromhex(parts[1])
@@ -512,6 +517,14 @@ def main():
                 )
                 fields = {}
                 content = parts[2]
+                if parts[0] in ("send-image", "send-image-raw"):
+                    with open(parts[2], "rb") as stream:
+                        image_data = stream.read(16000001)
+                    if not 0 < len(image_data) <= 16000000:
+                        raise ValueError("Reference image exceeds adapter bound")
+                    fields[LXMF.FIELD_IMAGE] = (image_data if parts[0] == "send-image-raw"
+                                               else [Path(parts[2]).suffix.lstrip("."), image_data])
+                    content = "upstream-image-" + Path(parts[2]).name
                 if parts[0] == "send-formatted":
                     payload = json.loads(parts[2])
                     if not isinstance(payload, dict) or not isinstance(payload.get("text"), str) or type(payload.get("renderer")) is not int:

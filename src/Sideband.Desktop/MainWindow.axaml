@@ -389,6 +389,13 @@
             <TextBlock x:Name="EffectiveConfigPathText" TextWrapping="Wrap"
                        Foreground="{DynamicResource SecondaryTextBrush}" />
             <TextBlock FontSize="17" FontWeight="SemiBold" Text="LXMF propagation" />
+            <CheckBox x:Name="StartupAnnouncementBox" Content="Announce delivery destination eight seconds after connecting" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="SaveStartupAnnouncementButton" Content="Save startup announcement" Click="SaveStartupAnnouncementClicked" />
+              <Button x:Name="AnnounceNowButton" Content="Announce now" IsEnabled="False" Click="AnnounceNowClicked" />
+            </StackPanel>
+            <TextBlock x:Name="AnnouncementStatusText" TextWrapping="Wrap"
+                       Text="This is not a silent mode: manual requests and solicited path responses remain available. Enabled voice has its own discovery lifecycle." />
             <TextBox x:Name="PropagationNodeBox" MaxLength="32" PlaceholderText="32-hex propagation address, or empty for automatic selection" />
             <TextBlock x:Name="ActivePropagationNodeText" TextWrapping="Wrap" Text="No propagation node selected or discovered." />
             <CheckBox x:Name="PropagationDefaultBox" Content="Send through the selected propagation node by default" />

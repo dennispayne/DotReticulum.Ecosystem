@@ -46,6 +46,7 @@ def main():
     parser.add_argument("--rnsd-port", type=int, default=0)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--no-propagation-retry", action="store_true")
+    parser.add_argument("--startup-announce", choices=("on", "off"))
     args = parser.parse_args()
     lxst_source = os.environ.get("DOTRETICULUM_LXST_UPSTREAM")
     if lxst_source:
@@ -71,6 +72,9 @@ def main():
     write_config(str(rns), args.tcp_server_port, args.rnsd_port)
     core = SidebandCore(None, config_path=str(args.config / "profile"),
                         rns_config_path=str(rns), is_daemon=True, quiet=True)
+    if args.startup_announce is not None:
+        core.config["start_announce"] = args.startup_announce == "on"
+    startup_time = time.time()
     core.start()
     if args.no_propagation_retry:
         core.config["lxmf_try_propagation_on_fail"] = False
@@ -95,6 +99,10 @@ def main():
         if parts[0] == "announce":
             core.lxmf_announce()
             emit({"event": "announced", "dest": core.lxmf_destination.hash.hex()})
+        elif parts[0] == "startup-status":
+            emit({"event": "startup-status", "enabled": core.config["start_announce"],
+                  "last_announce": core.last_lxmf_announce,
+                  "startup_delay": core.last_lxmf_announce-startup_time if core.last_lxmf_announce else None})
         elif parts[0] == "announce-empty":
             # Explicit public RNS emission seam; does not replace Sideband's received handlers.
             core.lxmf_destination.announce(app_data=b"")

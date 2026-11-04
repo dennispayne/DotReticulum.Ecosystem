@@ -123,7 +123,8 @@ public sealed partial class SidebandClient : IAsyncDisposable
                 await ApplyVoiceConfigurationAsync(state, cancellationToken).ConfigureAwait(false);
                 var runToken = runCancellation.Token;
                 _periodicTask = Task.Run(() => ProcessPeriodicAsync(runToken), CancellationToken.None);
-                await router.AnnounceAsync(cancellationToken).ConfigureAwait(false);
+                _startupAnnounceTask = SidebandAnnounceConfiguration.FromState(state).AnnounceOnStartup
+                    ? AnnounceAfterStartupAsync(router, runToken) : Task.CompletedTask;
                 await _store.SetOwnDeliveryHashAsync(router.DeliveryHashHex, cancellationToken).ConfigureAwait(false);
                 ConnectionInfo = new SidebandConnectionInfo(
                     node.ConfigDir,
@@ -138,6 +139,8 @@ public sealed partial class SidebandClient : IAsyncDisposable
             {
                 lock (_cancellationGate) _runCancellation = null;
                 if (runCancellation is not null) await runCancellation.CancelAsync().ConfigureAwait(false);
+                if (_startupAnnounceTask is not null) await _startupAnnounceTask.ConfigureAwait(false);
+                _startupAnnounceTask = null;
                 await StopTelemetryAsync().ConfigureAwait(false);
                 if (_announceHandler is not null) node.Router.Engine.DeregisterHandler(_announceHandler);
                 if (_propagationHandler is not null) node.Router.Engine.DeregisterHandler(_propagationHandler);
@@ -711,6 +714,8 @@ public sealed partial class SidebandClient : IAsyncDisposable
         }
         finally { _propagationGate.Release(); }
         if (cancellation is not null) await cancellation.CancelAsync().ConfigureAwait(false);
+        if (_startupAnnounceTask is not null) await _startupAnnounceTask.ConfigureAwait(false);
+        _startupAnnounceTask = null;
         await StopTelemetryAsync().ConfigureAwait(false);
         var voice = _voice;
         _voice = null;

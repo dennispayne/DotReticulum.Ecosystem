@@ -1,0 +1,178 @@
+{
+  "upstream": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "coreSha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+  "method": "Exact __start_jobs_deferred AST, standalone desktop, synchronous fake threads/clock and fake delivery/telephone observers. Does not execute periodic workers, audio, Android service or actual elapsed time.",
+  "rows": [
+    {
+      "configured": true,
+      "voice": false,
+      "events": [
+        {
+          "kind": "sleep",
+          "seconds": 8
+        },
+        {
+          "kind": "delivery"
+        },
+        {
+          "kind": "periodic"
+        }
+      ],
+      "lastInterfaceAnnounce": 1700000008
+    },
+    {
+      "configured": true,
+      "voice": true,
+      "events": [
+        {
+          "kind": "sleep",
+          "seconds": 8
+        },
+        {
+          "kind": "delivery"
+        },
+        {
+          "kind": "voice"
+        },
+        {
+          "kind": "periodic"
+        }
+      ],
+      "lastInterfaceAnnounce": 1700000008
+    },
+    {
+      "configured": false,
+      "voice": false,
+      "events": [
+        {
+          "kind": "periodic"
+        }
+      ],
+      "lastInterfaceAnnounce": 0
+    },
+    {
+      "configured": false,
+      "voice": true,
+      "events": [
+        {
+          "kind": "periodic"
+        }
+      ],
+      "lastInterfaceAnnounce": 0
+    },
+    {
+      "configured": null,
+      "voice": false,
+      "events": [
+        {
+          "kind": "periodic"
+        }
+      ],
+      "lastInterfaceAnnounce": 0
+    },
+    {
+      "configured": null,
+      "voice": true,
+      "events": [
+        {
+          "kind": "periodic"
+        }
+      ],
+      "lastInterfaceAnnounce": 0
+    },
+    {
+      "configured": 0,
+      "voice": false,
+      "events": [
+        {
+          "kind": "periodic"
+        }
+      ],
+      "lastInterfaceAnnounce": 0
+    },
+    {
+      "configured": 0,
+      "voice": true,
+      "events": [
+        {
+          "kind": "periodic"
+        }
+      ],
+      "lastInterfaceAnnounce": 0
+    },
+    {
+      "configured": 1,
+      "voice": false,
+      "events": [
+        {
+          "kind": "sleep",
+          "seconds": 8
+        },
+        {
+          "kind": "delivery"
+        },
+        {
+          "kind": "periodic"
+        }
+      ],
+      "lastInterfaceAnnounce": 1700000008
+    },
+    {
+      "configured": 1,
+      "voice": true,
+      "events": [
+        {
+          "kind": "sleep",
+          "seconds": 8
+        },
+        {
+          "kind": "delivery"
+        },
+        {
+          "kind": "voice"
+        },
+        {
+          "kind": "periodic"
+        }
+      ],
+      "lastInterfaceAnnounce": 1700000008
+    },
+    {
+      "configured": "false",
+      "voice": false,
+      "events": [
+        {
+          "kind": "sleep",
+          "seconds": 8
+        },
+        {
+          "kind": "delivery"
+        },
+        {
+          "kind": "periodic"
+        }
+      ],
+      "lastInterfaceAnnounce": 1700000008
+    },
+    {
+      "configured": "false",
+      "voice": true,
+      "events": [
+        {
+          "kind": "sleep",
+          "seconds": 8
+        },
+        {
+          "kind": "delivery"
+        },
+        {
+          "kind": "voice"
+        },
+        {
+          "kind": "periodic"
+        }
+      ],
+      "lastInterfaceAnnounce": 1700000008
+    }
+  ]
+}

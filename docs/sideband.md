@@ -132,6 +132,92 @@ runtime evidence.
 | Repository server | implemented bounded subset | Utilities explicitly starts/stops a public unauthenticated HTTPS static mirror with a package list, persistent private certificate, visible fingerprint and joined window shutdown. Default loopback/4444; reachable LAN exposure requires explicit bind and consent. No bundled upstream assets, automatic content downloads or update execution. Original bounded GET-only service, not RNS/rngit Git hosting; safety differences and acceptance are below; `SidebandRepository*.cs`, `MainWindow.Repository.cs`, `sbapp/sideband/core.py`, `sbapp/ui/layouts.py`. |
 | Native packaging and upgrades | partial | Windows and Linux NativeAOT publishes succeed with trimming/linker warnings treated as errors. Package the full publish directory, including Windows `sideband.exe`, `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, `libSkiaSharp.dll` and desktop/shared third-party notices; Linux `sideband`, `libHarfBuzzSharp.so`, `libSkiaSharp.so`, `libSystem.IO.Ports.Native.so` and the same notices. These include Avalonia/Skia/HarfBuzz MIT texts, ANGLE's BSD license, .NET serial runtime notices and `ThirdPartyNotices/ZXing.Net.Apache-2.0.txt`. Installer/signing, self-upgrade and other upstream package formats remain absent; `src/Sideband.Desktop/Sideband.Desktop.csproj`, `src/Sideband.Desktop/THIRD-PARTY-NOTICES*.txt`, `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
 
+## Standalone startup announcements
+
+The desktop/headless standalone `start_announce` setting defaults to true.
+`SidebandAnnounceConfiguration` replaces the former immediate LXMF announce
+with the primary's **eight-second deferred startup**. The client owns one
+cancellable task per connection and joins it before router/voice/identity
+disposal, including failed startup and rapid disconnect/reconnect. There is no
+detached timer or unowned task retaining a disposed node. Startup errors are
+reported with context; saves/announcements do not require a subscriber.
+
+Atomic settings/profile import, canonical export and original Connectivity
+controls support the flag. Disabling while the startup task is pending also
+suppresses that announcement: an intentional privacy improvement over the
+primary's flag captured before sleeping. Enabling after a disabled connection
+applies on the next connection; it does not invent an immediate startup event.
+Strict native boolean validation rejects null/numeric/string truthiness,
+including partial-import rollback without replacing the old value.
+
+This is **not silent mode**. Existing explicit delivery announcements and
+solicited path responses remain available when startup is disabled. A delayed
+startup announcement also reannounces an already enabled telephone as in the
+reference; the independent voice initialization/discovery lifecycle is unchanged.
+Android service AutoInterface/carrier/periodic auto-announcement jobs are not
+implemented by this standalone setting and remain mobile-only deferred work.
+
+`tests/Interop/GenerateSidebandStartupAnnounce.py` executes the exact
+`SidebandCore.__start_jobs_deferred` AST at primary2.2.0
+`d069122af14880e43607aed0b71add4c7806fbe0`,
+`core.py` SHA-256
+`8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25`.
+Twelve rows use controlled synchronous threads/clock and fake delivery/telephone
+observers: they prove selected routing/order, not actual elapsed time, Kivy UI,
+periodic workers or audio devices. Independent Windows/Linux executions produce
+fixture SHA-256
+`e0b4fb6145e9bbba6e3350e70617f2017f739a754b802f19406642fafbcd2fd4`.
+The optional profile path runs the complete actual primary constructor/start
+with startup disabled and snapshots its real persistence; no algorithm
+replacement or reference source edit is used.
+
+Separately, actual primary Sideband and the native managed application pass
+three direct-TCP cases on each host: enabled startup (both actual measured
+delays are at least8 seconds), initially disabled startup, and pending native
+disable with the primary still enabled. Disabled startup emits no unsolicited
+delivery announcement during the9-second observation; subsequent explicit
+announcements work. Native identity/policy restart and bounded cancellation
+of the next delayed task also pass. No packet loss or fresh transport-hop
+claim is inferred. Original controls separately reopen offline without devices.
+
+Operator `artifacts\tests\sideband-startup-announce\Acceptance.ps1` runs
+`dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release
+--artifacts-path <host-build> --filter
+"FullyQualifiedName~SidebandStartupAnnounce|FullyQualifiedName~ActualPrimaryStartupDelay"
+--logger trx --results-directory <host-results>`:12 passed/0 skipped on
+Windows and Linux. `Reference.ps1` records the separately generated actual
+primary startup-disabled profile. The opt-in native process harness is
+`tests/Pester/SidebandStartupAnnouncement.Tests.ps1`, enabled by
+`DOTRETICULUM_SIDEBAND_STARTUP_ANNOUNCE=1`, the actual
+`DOTRETICULUM_SIDEBAND_BINARY` and generated
+`DOTRETICULUM_SIDEBAND_STARTUP_PROFILE`. Native elapsed network timing,
+physical devices and other platforms require separate evidence.
+
+Strict NativeAOT publish with `-p:ILLinkTreatWarningsAsErrors=true
+-p:IlcTreatWarningsAsErrors=true -warnaserror`, `sideband --help`, and both
+native offline process/profile cases pass on Windows/Linux with SDK10.0.403
+and runtime/ILC10.0.14. Windows binary SHA-256:
+`4dc9d3d9b5e9cdb1e3f9a3a45542dd511ac2383e885d32711d2a82ed40936e62`;
+Linux:
+`0c3b680520248c129acbe7a7c1b002d2f113c4d5b7e42c8a5aa2b8dfdef8b5a4`.
+`Native.ps1` snapshots referenced Sideband/LXMF/LXST production files and
+requires identical hashes before/after publish; source receipts, compiler
+packages, runtime assets and ILC-response hashes are retained. The dirty-source
+build base is `5c7b4f1e53f407a89b31656e8c1560db331982c5`, embedded
+`2.2.0.103+5c7b4f1e53`, including the concurrent frozen C74 shared LXMF
+implementation, not a future integration HEAD or C74 node-migration acceptance.
+
+C76/T290–296 records14 actual passing cases per host, with frozen-source
+managed12/0 and separate native2/0. Receipts:
+`artifacts\tests\sideband-startup-announce\windows\c76.json` and
+`/home/dennis/fleet-startup-announce-results/c76.json`.
+The first integrated run exposed a remote-control UI test relying on immediate
+startup discovery. It now explicitly uses the existing manual-announcement
+path before commands and retains its exact five-second UI assertions.
+Focused startup/remote cases pass11/0 on both hosts. That initial failed gate
+is retained, not relabelled; the complete post-fix gate is recorded in
+[testing](testing.md#baseline-provenance).
+
 ## Manual synchronization limits
 
 `lxmf_sync_limit` defaults to null (unlimited); true uses `lxmf_sync_max`,

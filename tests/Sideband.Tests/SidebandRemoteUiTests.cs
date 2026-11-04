@@ -128,6 +128,9 @@ public sealed class SidebandRemoteUiTests
             await ReadyAsync(window);
             Click(window, "ConnectButton");
             await UntilAsync(() => window.FindControl<TextBlock>("ToolbarStatusText")!.Text == "Connected");
+            Click(window, "AnnounceNowButton");
+            await UntilAsync(() => window.FindControl<TextBlock>("AnnouncementStatusText")!.Text == "Delivery destination announced.");
+            await server.AnnounceAsync(token);
             Click(window, "RemoteNavButton");
             await UntilAsync(() => window.FindControl<TextBox>("RemoteCommandPeerBox")!.Text == peer);
             foreach (var (command, reply) in new[] { ("ping", "Ping reply"), ("echo echo repeated", "Echo reply: repeated") })

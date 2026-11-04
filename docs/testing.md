@@ -8,6 +8,33 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Sideband standalone startup C76/T290–296 records14 actual passing cases per
+host:12 managed/reference/original-UI/actual-primary cases and2 strict native
+offline cases. Enabled startup is measured at no less than8 seconds in both
+actual primary and native-origin managed applications; disabled and pending
+disabled startup, explicit announcements and identity restart pass direct TCP.
+The owned delayed task is cancelled/joined on disconnect/disposal. This is not
+silent mode and does not implement Android service auto-announcement jobs.
+Receipts are `artifacts\tests\sideband-startup-announce\windows\c76.json` and
+`/home/dennis/fleet-startup-announce-results/c76.json`; exact pins, fixture/native
+digests, source snapshots, commands and remaining boundaries are in
+[Sideband's reference](sideband.md#standalone-startup-announcements).
+The initial integrated gate failed a remote-UI test relying on immediate startup
+discovery. Explicit manual announcements now establish that test's precondition
+without changing its five-second command assertions; the focused startup/remote
+selection passes11/0 per host. The failed run remains recorded.
+The complete post-fix command `tests\run-tests.ps1 -Coverage -Pester
+-ArtifactsPath artifacts\builds\fleet-startup-announce-unified-v2
+-OutputDirectory artifacts\tests\fleet-startup-announce-unified-v2` passes2,606
+managed cases/141 explicit skips,62 Pester tooling cases, strict C76 catalog
+aggregation and merged production coverage. Concurrent C74 node sources are
+regression inputs, not independent migration acceptance.
+The two native candidates retain dirty-source base `5c7b4f1`, embedded
+`2.2.0.103+5c7b4f1e53`, SDK10.0.403/runtime and ILC10.0.14; guarded source
+snapshots include the concurrent frozen shared LXMF C74 implementation.
+Native offline process/profile flows are not native Python-peer elapsed-time
+or GUI evidence.
+
 Sideband manual synchronization C75/T280–286 records15 actual passing cases
 per host:13 scoped managed cases and2 strict native offline cases.
 The focused command passes14/0 each including the existing schedule-policy

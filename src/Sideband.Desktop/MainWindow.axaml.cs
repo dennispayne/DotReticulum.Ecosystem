@@ -281,6 +281,7 @@ public sealed partial class MainWindow : Window
             LoadStampSettings();
             LoadDeliverySettings();
             LoadSynchronizationSettings();
+            LoadStartupAnnouncementSettings();
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
             PropagationFallbackBox.IsChecked = _state.TryPropagationOnFail;
@@ -486,6 +487,7 @@ public sealed partial class MainWindow : Window
             LoadStampSettings();
             LoadDeliverySettings();
             LoadSynchronizationSettings();
+            LoadStartupAnnouncementSettings();
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
             PropagationFallbackBox.IsChecked = _state.TryPropagationOnFail;
@@ -1129,6 +1131,7 @@ public sealed partial class MainWindow : Window
         SaveConfigButton.IsEnabled = !connected;
         ReticulumConfigBox.IsEnabled = !connected;
         SyncMessagesButton.IsEnabled = connected;
+        AnnounceNowButton.IsEnabled = connected;
         ImportSettingsButton.IsEnabled = !connected;
         ToolbarStatusText.Text = connected ? "Connected" : "Offline";
         ActivePropagationNodeText.Text = (_state?.PropagationNode ?? _state?.LastPropagationNode) is { } propagationNode

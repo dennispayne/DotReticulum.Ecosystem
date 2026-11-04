@@ -534,6 +534,93 @@ Describe 'sideband native announce stream' -Tag 'GUI', 'Announces' {
     }
 }
 
+Describe 'sideband primary announce profile migration' -Tag 'GUI', 'AnnounceImport' {
+    It 'imports actual primary WAL announcements and renders persisted history after native restart without changing the source' {
+        $binary = $env:DOTRETICULUM_SIDEBAND_BINARY
+        if ([string]::IsNullOrWhiteSpace($binary) -or -not (Test-Path -LiteralPath $binary -PathType Leaf)) {
+            throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
+        }
+        $profile = $env:DOTRETICULUM_SIDEBAND_ANNOUNCE_PROFILE
+        if ([string]::IsNullOrWhiteSpace($profile)) {
+            Set-ItResult -Skipped -Because 'Generate a private actual primary profile with GenerateSidebandProfile.py --announce-profile and set DOTRETICULUM_SIDEBAND_ANNOUNCE_PROFILE.'
+            return
+        }
+        $observations = Get-Content -LiteralPath (Join-Path $profile 'observations.json') -Raw | ConvertFrom-Json
+        $observations.upstream | Should -Be 'd069122af14880e43607aed0b71add4c7806fbe0'
+        @($observations.announces).Count | Should -Be 4
+        $source = Join-Path $profile 'app_storage'
+        (Get-Item -LiteralPath (Join-Path $source 'sideband.db-wal')).Length | Should -BeGreaterThan 0
+        $before = @(Get-ChildItem -LiteralPath $source -File | Sort-Object Name | ForEach-Object {
+            "$($_.Name):$((Get-FileHash -LiteralPath $_.FullName).Hash)"
+        }) -join '|'
+        $root = Join-Path ([IO.Path]::GetTempPath()) "sideband-announce-import-$([guid]::NewGuid().ToString('N'))"
+        $data = Join-Path $root 'native'
+        try {
+            $output = & $binary --import-profile $profile --data-dir $data 2>&1 | Out-String
+            $LASTEXITCODE | Should -Be 0 -Because $output
+            $output | Should -Match 'Activated 4 newest unique supported announcements'
+            $output | Should -Match 'delivery stamp costs are unknown'
+            $path = Join-Path $data 'state.json'
+            $state = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+            $state.ownDeliveryHash | Should -Be $observations.ownDeliveryHash
+            @($state.announces).Count | Should -Be 4
+            @($state.contacts).Count | Should -Be 1
+            $state.contacts[0].trusted | Should -BeTrue
+            $state.contacts[0].unread | Should -BeTrue
+            @($state.messages).Count | Should -Be 2
+            foreach ($observed in $observations.announces) {
+                $actual = @($state.announces | Where-Object destinationHash -EQ $observed.dest)
+                $actual.Count | Should -Be 1
+                $actual[0].destinationType | Should -Be $observed.type
+                $actual[0].name | Should -Be $observed.name
+                $actual[0].nodeVersion | Should -Be $observed.pn_ver
+                if ($observed.type -eq 'lxmf.delivery') { $actual[0].stampCost | Should -BeNullOrEmpty }
+                else { $actual[0].stampCost | Should -Be $observed.cost }
+            }
+            $stateHash = (Get-FileHash -LiteralPath $path).Hash
+            & $binary --import-profile $profile --data-dir $data 2>&1 | Out-Null
+            $LASTEXITCODE | Should -Be 1
+            (Get-FileHash -LiteralPath $path).Hash | Should -Be $stateHash
+            foreach ($restart in 1, 2) {
+                $process = [Diagnostics.Process]::new()
+                $started = $false
+                try {
+                    $process.StartInfo.FileName = $binary
+                    $process.StartInfo.UseShellExecute = $false
+                    $process.StartInfo.RedirectStandardOutput = $true
+                    $process.StartInfo.RedirectStandardError = $true
+                    foreach ($argument in '--smoke-ui', '--smoke-announces', '--data-dir', $data) {
+                        $process.StartInfo.ArgumentList.Add($argument)
+                    }
+                    $process.Start() | Should -BeTrue
+                    $started = $true
+                    $stdout = $process.StandardOutput.ReadToEndAsync()
+                    $stderr = $process.StandardError.ReadToEndAsync()
+                    if (-not $process.WaitForExit(20000)) {
+                        $process.Kill($true)
+                        $process.WaitForExit()
+                        throw 'Published imported announcement rendering did not finish.'
+                    }
+                    $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+                    $process.ExitCode | Should -Be 0 -Because $output
+                    $output | Should -Match 'SMOKE_UI_RENDERED_INITIAL=1'
+                    $output | Should -Match 'SMOKE_UI_RENDERED_ANNOUNCES=4'
+                    (Get-FileHash -LiteralPath $path).Hash | Should -Be $stateHash
+                }
+                finally {
+                    if ($started -and -not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+                    $process.Dispose()
+                }
+            }
+            $after = @(Get-ChildItem -LiteralPath $source -File | Sort-Object Name | ForEach-Object {
+                "$($_.Name):$((Get-FileHash -LiteralPath $_.FullName).Hash)"
+            }) -join '|'
+            $after | Should -Be $before
+        }
+        finally { if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force } }
+    }
+}
+
 Describe 'sideband native cached discovery map' -Tag 'GUI', 'Discovery' {
     It 'renders selected cached discovery across restart and rejects an empty cache without autoconnect' {
         $profile = $env:DOTRETICULUM_SIDEBAND_DISCOVERY_PROFILE

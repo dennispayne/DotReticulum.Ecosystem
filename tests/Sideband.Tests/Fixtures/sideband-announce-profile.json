@@ -1,0 +1,120 @@
+{
+  "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "core_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+  "method": "Unchanged primary received_announce/log/list/SQLite bodies and _db_upgradetables in an upstream-created empty schema. Synthetic clock, cached-cost and PHY observers only; no network, hardware or GUI claim. Input LXMF providers are independently executed pinned fixtures; receiver actually normalizes delivery app data before persistence. Local database IDs excluded. A DB snapshot alone lacks the router cost cache, so offline import cannot reconstruct listed delivery costs.",
+  "columns": [
+    {
+      "name": "id",
+      "type": ""
+    },
+    {
+      "name": "received",
+      "type": "INTEGER"
+    },
+    {
+      "name": "source",
+      "type": "BLOB"
+    },
+    {
+      "name": "data",
+      "type": "BLOB"
+    },
+    {
+      "name": "dest_type",
+      "type": "BLOB"
+    },
+    {
+      "name": "extra",
+      "type": "BLOB"
+    }
+  ],
+  "schema": "CREATE TABLE announce (id PRIMARY KEY, received INTEGER, source BLOB, data BLOB, dest_type BLOB, extra BLOB)",
+  "rows": [
+    {
+      "received": 1700000001,
+      "source": "00000000000000000000000000000001",
+      "data": "53796e7468657469632070656572",
+      "type": "lxmf.delivery",
+      "extra": "81aa6c696e6b5f737461747383a472737369cbc053400000000000a3736e72cb4029000000000000a171cb4057800000000000"
+    },
+    {
+      "received": 1700000002,
+      "source": "00000000000000000000000000000002",
+      "data": "",
+      "type": "lxmf.delivery",
+      "extra": "81aa6c696e6b5f737461747383a472737369cbc053400000000000a3736e72cb4029000000000000a171cb4057800000000000"
+    },
+    {
+      "received": 1700000003,
+      "source": "00000000000000000000000000000003",
+      "data": "4c65676163792070656572",
+      "type": "lxmf.delivery",
+      "extra": "81aa6c696e6b5f737461747383a472737369cbc053400000000000a3736e72cb4029000000000000a171cb4057800000000000"
+    },
+    {
+      "received": 1700000004,
+      "source": "00000000000000000000000000000004",
+      "data": "97c2ce6553f100c3cd0100cd28009310031283ccfea46c786d6400a5312e322e3101c41a53796e7468657469632070726f7061676174696f6e206e6f6465",
+      "type": "lxmf.propagation",
+      "extra": "81aa6c696e6b5f7374617473c0"
+    }
+  ],
+  "listed_with_router_cache": [
+    {
+      "dest": "00000000000000000000000000000001",
+      "name": "Synthetic peer",
+      "cost": 13,
+      "time": 1700000001,
+      "type": "lxmf.delivery",
+      "extras": {
+        "link_stats": {
+          "rssi": -77.0,
+          "snr": 12.5,
+          "q": 94.0
+        }
+      },
+      "pn_ver": null
+    },
+    {
+      "dest": "00000000000000000000000000000002",
+      "name": null,
+      "cost": null,
+      "time": 1700000002,
+      "type": "lxmf.delivery",
+      "extras": {
+        "link_stats": {
+          "rssi": -77.0,
+          "snr": 12.5,
+          "q": 94.0
+        }
+      },
+      "pn_ver": null
+    },
+    {
+      "dest": "00000000000000000000000000000003",
+      "name": "Legacy peer",
+      "cost": 7,
+      "time": 1700000003,
+      "type": "lxmf.delivery",
+      "extras": {
+        "link_stats": {
+          "rssi": -77.0,
+          "snr": 12.5,
+          "q": 94.0
+        }
+      },
+      "pn_ver": null
+    },
+    {
+      "dest": "00000000000000000000000000000004",
+      "name": "Synthetic propagation node",
+      "cost": 16,
+      "time": 1700000004,
+      "type": "lxmf.propagation",
+      "extras": {
+        "link_stats": null
+      },
+      "pn_ver": "lxmd 1.2.1"
+    }
+  ]
+}

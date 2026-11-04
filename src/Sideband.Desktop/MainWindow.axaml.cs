@@ -80,7 +80,7 @@ public sealed partial class MainWindow : Window
         Closing += OnClosing;
         Opened += OnOpened;
         Activated += (_, _) => MarkVisibleConversationRead();
-        NavigateTo("Conversations");
+        NavigateTo(Program.SmokeAnnouncesMode ? "Announces" : "Conversations");
         UpdateConnectivityView();
     }
 

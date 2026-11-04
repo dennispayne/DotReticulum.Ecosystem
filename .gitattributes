@@ -5,4 +5,5 @@ tests/Sideband.Tests/Fixtures/sideband-remote-transport.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-discovery.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-propagation-retry.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-announces.json text eol=lf
+tests/Sideband.Tests/Fixtures/sideband-announce-profile.json text eol=lf
 tests/NomadNet.Tests/NomadNetDirectoryImportVectors.json text eol=lf

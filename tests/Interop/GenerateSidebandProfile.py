@@ -30,7 +30,10 @@ def main():
     parser.add_argument("--public-fixture", type=Path)
     parser.add_argument("--media-fixture", type=Path)
     parser.add_argument("--map-profile", action="store_true")
+    parser.add_argument("--announce-profile", action="store_true")
     args = parser.parse_args()
+    if args.announce_profile and args.public_fixture:
+        parser.error("--announce-profile cannot replace the existing empty public fixture")
     source = args.sideband.resolve()
     revision = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
     if revision != "d069122af14880e43607aed0b71add4c7806fbe0":
@@ -112,6 +115,8 @@ def main():
             "map_storage_file": str(output / "unavailable-external-map.mbtiles"),
         })
     core._SidebandCore__db_init()
+    if args.announce_profile:
+        core._db_upgradetables()
     core._SidebandCore__save_config(no_thread=True)
     if args.public_fixture:
         fixture = {
@@ -209,6 +214,20 @@ def main():
     core.setstate("app.displaying", "conversations_screen")
     core.lxm_ingest(incoming)
     observe_conversation("incoming_unselected")
+    announce_observations = []
+    if args.announce_profile:
+        announce_fixture = json.loads((Path(__file__).parent.parent / "Sideband.Tests" /
+            "Fixtures" / "sideband-announce-profile.json").read_text(encoding="utf-8"))
+        if announce_fixture["revision"] != revision or announce_fixture["core_sha256"] != fingerprint:
+            raise RuntimeError("The executed announcement fixture targets another primary revision")
+        core.message_router = types.SimpleNamespace(get_outbound_stamp_cost=lambda _: None)
+        for row in announce_fixture["rows"]:
+            extras = msgpack.unpackb(bytes.fromhex(row["extra"])) if row["extra"] is not None else {}
+            core.log_announce(bytes.fromhex(row["source"]), bytes.fromhex(row["data"]),
+                              row["type"], link_stats=extras.get("link_stats"))
+        announce_observations = [{**item, "dest": item["dest"].hex()} for item in core.list_announces()]
+        if len(announce_observations) != 4:
+            raise RuntimeError("Actual primary announcement persistence/readback omitted observations")
     storage = output / "app_storage"
     storage.mkdir(mode=0o700)
     for name in ["primary_identity", "sideband_config", "sideband.db", "sideband.db-wal", "sideband.db-shm"]:
@@ -234,6 +253,7 @@ def main():
         "conversationUnread": bool(core._db_conversation(peer_dest.hash)["unread"]),
         "mainDatabaseTrusted": bool(main_trust), "mainDatabaseUnread": bool(main_unread),
         "missingConversationCreated": missing_conversation_created,
+        "announces": announce_observations,
         "lastSynchronization": core.getpersistent("lxmf.lastsync"),
         "synchronizationRetrying": core.getpersistent("lxmf.syncretrying"),
         "walBytes": (storage / "sideband.db-wal").stat().st_size,

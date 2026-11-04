@@ -8,6 +8,17 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+The announce-profile migration gate
+`tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-announce-import-unified -OutputDirectory
+artifacts\tests\fleet-announce-import-unified` passes **2,395 managed cases,
+123 explicit skips and62 Pester tooling cases**, with strict catalog aggregation
+and merged coverage. Separate Windows/Linux actual-primary SQLite-WAL migration
+passes15/15 each; published native CLI/import/restart/render selections pass7
+with one unrelated missing-map-profile skip each. Imported delivery costs remain
+unknown without the router cache; offline migration is not live interoperability.
+Concurrent LXMF/Nomad changes require their own frozen-slice acceptance.
+
 The announce-stream integration gate
 `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
 artifacts\builds\fleet-announces-unified -OutputDirectory

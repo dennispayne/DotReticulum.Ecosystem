@@ -6,6 +6,7 @@ import inspect
 import io
 import json
 import os
+import random
 from pathlib import Path
 import subprocess
 import sys
@@ -26,6 +27,9 @@ def media_summary(message):
     result = {}
     result["telemetry_included"] = LXMF.FIELD_TELEMETRY in fields
     result["appearance_included"] = LXMF.FIELD_ICON_APPEARANCE in fields
+    if LXMF.FIELD_FILE_ATTACHMENTS in fields:
+        result["files"] = [{"name": name, "length": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+                           for name, data in fields[LXMF.FIELD_FILE_ATTACHMENTS]]
     if LXMF.FIELD_IMAGE in fields:
         fmt, data = fields[LXMF.FIELD_IMAGE]
         result["image"] = {"format": fmt, "length": len(data), "sha256": hashlib.sha256(data).hexdigest()}
@@ -41,6 +45,7 @@ def main():
     parser.add_argument("--tcp-server-port", type=int, default=0)
     parser.add_argument("--rnsd-port", type=int, default=0)
     parser.add_argument("--source", type=Path, required=True)
+    parser.add_argument("--no-propagation-retry", action="store_true")
     args = parser.parse_args()
     lxst_source = os.environ.get("DOTRETICULUM_LXST_UPSTREAM")
     if lxst_source:
@@ -67,6 +72,8 @@ def main():
     core = SidebandCore(None, config_path=str(args.config / "profile"),
                         rns_config_path=str(rns), is_daemon=True, quiet=True)
     core.start()
+    if args.no_propagation_retry:
+        core.config["lxmf_try_propagation_on_fail"] = False
     delivery_packet_callback = core.lxmf_destination.callbacks.packet
     delivery_proof_strategy = core.lxmf_destination.proof_strategy
     observed_runtime = [None]
@@ -109,6 +116,15 @@ def main():
                   "app_data": core.message_router.get_announce_app_data(core.lxmf_destination.hash).hex()})
         elif parts[0] == "stamp-cost" and len(parts) == 2:
             emit({"event": "stamp-cost", "cost": core.message_router.get_outbound_stamp_cost(bytes.fromhex(parts[1]))})
+        elif parts[0] == "delivery-limit" and len(parts) == 2:
+            settings = json.loads(base64.b64decode(parts[1], validate=True))
+            if not isinstance(settings, dict) or set(settings) - {"lxm_limit_1mb"}:
+                raise ValueError("Unexpected delivery-limit observation keys")
+            core.config.update(settings)
+            core._update_delivery_limits()
+            emit({"event": "delivery-limit", "configured": core.config["lxm_limit_1mb"],
+                  "limit_kilobytes": core.message_router.delivery_per_transfer_limit,
+                  "default_kilobytes": core.default_lxm_limit})
         elif parts[0] == "reset-stamp-cost" and len(parts) == 2:
             # Explicit stale-cache fault injection through the actual public SDK;
             # send_message, packing, stamping and recipient admission remain unchanged.
@@ -293,6 +309,15 @@ def main():
             if os.name != "nt":
                 (destination / "sideband.db").chmod(0o600)
             emit({"event": "telemetry-profile-snapshotted"})
+        elif parts[0] == "send-file" and len(parts) == 5:
+            size = int(parts[2])
+            if not 0 < size <= 2097152:
+                raise ValueError("Synthetic reference attachment must be within 2 MiB")
+            data = random.Random(parts[3]).randbytes(size)
+            if not core.send_message("Reference file " + parts[4], bytes.fromhex(parts[1]), False,
+                                     attachment=[parts[4], data]):
+                raise RuntimeError("The actual application rejected the synthetic attachment")
+            emit({"event": "file_queued", "size": size, "sha256": hashlib.sha256(data).hexdigest()})
         elif parts[0] in ("send", "send-propagated", "send-media", "send-media-propagated") and len(parts) == 3:
             destination = bytes.fromhex(parts[1])
             media = {}
@@ -345,6 +370,8 @@ def main():
                   "messages": [
                 {"hash": message["hash"].hex(), "source": message["source"].hex(),
                  "state": message["state"], "method": message["method"],
+                 "rejected": message["state"] == LXMF.LXMessage.REJECTED,
+                 "failed": message["state"] == LXMF.LXMessage.FAILED,
                  "incoming": message["dest"] == core.lxmf_destination.hash,
                  "includes_ticket": LXMF.FIELD_TICKET in message["lxm"].fields,
                  **media_summary(message),

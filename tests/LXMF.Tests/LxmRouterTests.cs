@@ -417,6 +417,53 @@ public class LxmRouterTests
     }
 
     [Fact]
+    public async Task MutableDeliveryLimitUpdatesExistingPropagationStatistics()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "lxmf-delivery-limit-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            await using var pair = await LxmfPair.CreateAsync(serverOptions: new() { StoragePath = root });
+            var node = pair.Server.EnablePropagationNode();
+            Assert.Equal(1000d, Assert.IsType<double>(node.CompileStats()!["delivery_limit"]));
+            pair.Server.DeliveryPerTransferLimit = 128_000_000;
+            Assert.Equal(128000d, Assert.IsType<double>(node.CompileStats()!["delivery_limit"]));
+            pair.Server.DeliveryPerTransferLimit = 1_000_000;
+            Assert.Equal(1000d, Assert.IsType<double>(node.CompileStats()!["delivery_limit"]));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task MutableDeliveryLimitEnforcesExactResourceBoundaryAndRecoversWithoutReplacingLinks()
+    {
+        await using var pair = await LxmfPair.CreateAsync();
+        var content = new byte[4096];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(content);
+        var first = LxMessage.CreateBinary(pair.Server.DeliveryHash, pair.ClientIdentity, content);
+        first.Pack();
+        pair.Server.DeliveryPerTransferLimit = first.Packed!.Length;
+        await pair.Client.SendAsync(first);
+        Assert.Equal(LxmState.Delivered, await first.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+        await pair.WaitAsync(() => pair.ServerInbox.Count == 1);
+        var second = LxMessage.CreateBinary(pair.Server.DeliveryHash, pair.ClientIdentity, content);
+        second.Pack();
+        pair.Server.DeliveryPerTransferLimit = second.Packed!.Length - 1;
+        await pair.Client.SendAsync(second);
+        Assert.Equal(LxmState.Rejected, await second.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+        Assert.Single(pair.ServerInbox);
+        Assert.Throws<ArgumentOutOfRangeException>(() => pair.Server.DeliveryPerTransferLimit = 0);
+        Assert.Throws<ArgumentOutOfRangeException>(() => pair.Server.DeliveryPerTransferLimit = -1);
+        Assert.Equal(second.Packed.Length - 1, pair.Server.DeliveryPerTransferLimit);
+        pair.Server.DeliveryPerTransferLimit = 128_000_000;
+        var healthy = LxMessage.CreateBinary(pair.Server.DeliveryHash, pair.ClientIdentity, content);
+        await pair.Client.SendAsync(healthy);
+        Assert.Equal(LxmState.Delivered, await healthy.Completion.WaitAsync(TimeSpan.FromSeconds(20)));
+        await pair.WaitAsync(() => pair.ServerInbox.Count == 2);
+        await pair.Server.DisposeAsync();
+        Assert.Throws<ObjectDisposedException>(() => pair.Server.DeliveryPerTransferLimit = 1_000_000);
+    }
+
+    [Fact]
     public async Task MutableStampCost_AnnouncesNewRequirementAndNoStampPolicy()
     {
         await using var pair = await LxmfPair.CreateAsync();

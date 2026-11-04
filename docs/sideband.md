@@ -15,6 +15,9 @@ restart persistence and upstream-shaped JSON settings exchange are implemented.
 Inbound stamp-cost advertisement and invalid-stamp rejection are independently
 configurable, including supported settings/profile migration and original
 Preferences controls.
+Incoming transfer limits also activate on startup and explicit runtime save:
+the primary default is1,000,000 bytes, or128,000,000 when explicitly disabled.
+Attachment composition and local storage retain their independent safety bounds.
 Periodic inbox synchronization and its retry schedule persist over restart.
 Bounded file, image and audio attachments can be sent, received, persisted and explicitly saved.
 Paper text creation, duplicate-aware URI import, durable offline URI retrieval
@@ -115,6 +118,7 @@ runtime evidence.
 | Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. A bounded persisted delivery/PN stream exposes inspect, converse, copy, node selection and deletion; receipt does not promote a discovered contact to a known conversation. Bounded primary SQLite history activates separately without contact creation. Appearance values and telemetry permissions persist; voice uses the shared client below. Complete peer settings, groups and broadcasts remain absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `src/Sideband/SidebandAnnounce.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
 | LXMF messaging and propagation UI | partial | Text send/receive, automatic/manual node selection, persisted periodic fetches, cancellation, one-shot failed-delivery propagation retry, trusted-conversation reply tickets and restart retrieval reuse `LxmRouter`. Actual primary Sideband daemon-core direct/propagated round trips pass separately from Python LXMF endpoint tests, with trust enabled and disabled in both directions. Full message presentation/settings remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,4811–4828,5156–5227,5634–5644`, `docs/lxmf.md`. |
 | Inbound delivery stamp configuration | implemented bounded subset | Independent `lxmf_require_stamps`, `lxmf_inbound_stamp_cost` and `lxmf_ignore_invalid_stamps` activate on startup and explicit runtime save, persist/import/export atomically and have original Preferences controls. Actual primary cost8 announcements, signed stamped delivery, explicit stale-cache rejection/admission and identity-preserving restart pass Windows/Linux direct/Python-hop/.NET-hop. Strict native offline process/profile activation is separate; safety differences, timing and remaining boundaries are below; `SidebandStampConfiguration.cs`, `SidebandClient.Stamps.cs`, `SidebandStateStore.Stamps.cs`, `MainWindow.Stamps.cs`, `sbapp/sideband/core.py:lxmf_announce,update_ignore_invalid_stamps`. |
+| Incoming transfer-size configuration | implemented bounded subset | Primary `lxm_limit_1mb` maps decimal1000/128000KB onto startup and mutable router admission/retrieval, atomic settings/profile persistence and original Preferences. Windows/Linux actual primary oversize refusal, larger-policy recovery both ways and native identity restart pass direct/Python-hop/.NET-hop; separate native offline settings/profile flows pass.128MB payload acceptance is not established, and existing attachment/local-storage bounds remain; `SidebandDeliveryConfiguration.cs`, `SidebandClient.Delivery.cs`, `MainWindow.Delivery.cs`, `sbapp/sideband/core.py:start_reticulum,_update_delivery_limits`. |
 | Text, image/file and audio messages | implemented bounded subset | Text/files, WebP image preparation/preview, Ogg Opus and Codec2 composition/decoding, explicit 10-second recording/playback/cancellation, content-addressed persistence and explicit exports. Actual Python Sideband core sends/receives images and both audio families directly/through a Python propagation transport; actual Pillow/audioproc decode native output. Published binaries decode imported media and render images. Device tests use fakes; physical capture/acoustics remain unverified. Unknown audio is retained/exportable but playback fails explicitly; no autoplay. See media limits below; `src/Sideband/SidebandMedia*.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py:message_send_dispatch`, `sbapp/sideband/audioproc.py`, `sbapp/sideband/core.py:5189–5196`. |
 | Paper messages and `lxm://` imports | implemented bounded subset | Connected paper text creation and local duplicate-aware import reuse LXMF; saved URI/QR display and non-overwriting exports work offline and survive restart. Bounded historical outgoing primary envelopes restore exact exports with persisted imported provenance and CLI/UI warnings. Actual primary daemon-core creation/ingestion both ways, trust on/off and process restart pass separately from historical migration/export/recipient-ingestion acceptance. Nonlocal envelopes are unauthenticated and not forwarded. Hardware camera/printer, desktop OS URI registration and other historical paper-field semantics remain unverified/missing; `SidebandClient.Paper.cs`, `SidebandPaperProfile.cs`, `MainWindow.Paper.cs`, `PaperExportCommand.cs`, `sbapp/sideband/core.py:paper_message,lxm_ingest_uri,_db_message`. |
 | LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Voice-only names/trust import, editing and deletion are operational independently of contacts; existing LXMF conversation policy wins, but discovery-only metadata does not. Optional primary call-log migration retains labelled historical assertions separately from authenticated call events. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux; separate actual calls verify voice-only policy removal/recovery and delivery overrides. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
@@ -214,6 +218,73 @@ Failed observer/operator/early restart receipts remain separate; no admission
 assertions are disabled. Long-running/high-cost proof search, new propagation
 topologies, physical devices, other platforms and full configuration parity are
 not established by this slice.
+
+## Incoming LXMF transfer limits
+
+Pinned primary `core.py:181,543,719,3744–3754,4765–4770` defines
+`lxm_limit_1mb`: true/default selects1000 decimal kilobytes, false selects the
+primary's128000KB default. `LXMF/LXMRouter.py:delivery_resource_advertised`
+accepts a Resource exactly at the byte limit and refuses larger advertisements.
+`GenerateSidebandDeliveryLimits.py` executes the unchanged actual daemon core's
+constructor/startup and update method, not a reconstructed policy. Eight
+Windows/Linux observations produce identical fixture bytes, SHA-256
+`2f5ee3ad86ab87a5dd1db3114244fb3e00321b2c06df614f98bf07702125df35`.
+The Sideband revision/core digest and RNS/LXMF pins are those recorded above.
+Actual primary truthiness accepts malformed null/numeric/string settings;
+native activation deliberately requires a boolean and rejects the whole import.
+
+`SidebandDeliveryConfiguration` stores the supported key in existing settings,
+preserves it across partial imports and exports it canonically. Startup and
+explicit lifecycle-gated saves apply the policy to the existing router, without
+replacing identity/links, announcing or reconnecting. Preferences saves this
+setting separately from unsaved appearance/stamp edits, and displays the decimal
+limits and independent attachment/storage bounds. Missing settings, including
+legacy native profiles, now receive the primary1MB default instead of the earlier
+fixed8MiB value; users requiring larger transfers explicitly disable the limit.
+Disabling does not enlarge the existing2MiB file/4MiB per-message storage bounds.
+Already admitted Resources and an active retrieval retain their admission;
+subsequent Resource advertisements/retrievals use the new limit. Router statistics
+remain consistent for an already hosted propagation node.
+
+C73/T250–258 records18 actual passing cases per host:11 ordinary
+reference/persistence/lifecycle/original-UI,3 actual-primary topologies,2 exact
+router/statistics cases and2 strict native offline cases. Managed primary
+acceptance uses `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release
+--artifacts-path <host-specific-build> --filter
+"FullyQualifiedName~SidebandDeliveryConfigurationTests|FullyQualifiedName~SidebandDeliveryPersistenceTests|FullyQualifiedName~SidebandDeliveryUiTests|FullyQualifiedName~ActualPrimaryDeliveryLimits|FullyQualifiedName~FilesExchangeWithActualPythonAndRemainExportableAfterRestart"`
+with the documented actual-primary opt-ins and paths. The selected15 cases also
+reaccept the pre-existing2MiB file case with explicit larger-policy configuration;
+that case retains its separate C31 mapping. Router selection
+`FullyQualifiedName~MutableDeliveryLimit` covers the inclusive exact byte boundary,
+one-byte excess refusal, retained-link recovery, malformed/disposed updates and
+existing propagation statistics.
+
+Actual primary applications and native managed clients refuse1,050,000-byte
+random file attachments in both directions under the default, then exchange
+checksum-verified files after both limits are raised. Native identity/policy
+restart and subsequent file/text delivery pass direct, through a Python transport
+and through a .NET transport. The primary's
+`lxmf_try_propagation_on_fail=False` is explicit peer configuration to isolate size
+refusal from its documented callback-lock retry defect; no source patch or
+resource-admission replacement is used. This is not natural packet loss, a128MB
+payload, full dependency/configuration parity or prolonged operation.
+
+Strict NativeAOT publish uses SDK10.0.403/runtime and compiler10.0.14,
+`-p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror`.
+`tests\run-pester.ps1 -Path tests\Pester\SidebandDeliveryLimits.Tests.ps1
+-Tag DeliveryLimits` requires `DOTRETICULUM_SIDEBAND_DELIVERY_LIMITS=1`,
+the selected `DOTRETICULUM_SIDEBAND_BINARY` and an actual primary saved profile at
+`DOTRETICULUM_SIDEBAND_DELIVERY_PROFILE`. Both cases pass on Windows/Linux,
+including malformed atomic rejection, all reference boolean transitions,
+actual-primary offline profile activation, immutable source bytes and native
+process restarts. These are not published-native network or GUI cases.
+Windows binary SHA-256 is
+`3f79122987de72dce6f0946f6c57416b10e80510bb88a1addeea05668768774a`;
+Linux is
+`fe1814750c2f6f9cdedc14bc58528b6a3cb32b6139525d3e840aab48212f9e3d`.
+Both retain actual dirty-source build base `ed8f5de`, not integration HEAD.
+Receipts are `artifacts\tests\sideband-delivery-limits\windows\c73.json` and
+`/home/dennis/fleet-delivery-limits-results/c73.json`.
 
 ## Announce stream
 
@@ -819,8 +890,10 @@ and non-secret synthetic settings; private identities are generated at runtime.
 File attachments reuse `LxmField.FileAttachments` and the existing LXMF
 message serializer: `[[filename, binary_data], ...]`. The separate thin adapter
 executes actual `LXMessage`/`LXMRouter` APIs and hashes the received file data.
-It uses Python `delivery_limit=8192` KB, explicitly above its default; native
-inbound Resources allow 8 MiB. Native safety ceilings are 2 MiB per file,
+It uses Python `delivery_limit=8192` KB, explicitly above its default; the
+reaccepted native2MiB file case explicitly disables `lxm_limit_1mb`.
+Native incoming Resources otherwise default to1,000,000 bytes, matching primary
+Sideband, rather than the earlier fixed8MiB value. Native safety ceilings are 2 MiB per file,
 4 MiB/eight files per received message and 128 MiB/4,096 content-addressed files
 on disk. These are explicit bounded native policies, not upstream limits.
 Hash verification precedes export; existing export destinations are never

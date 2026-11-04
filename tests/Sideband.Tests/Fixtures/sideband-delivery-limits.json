@@ -1,0 +1,101 @@
+{
+  "upstream": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "coreSha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+  "rnsRevision": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "lxmfRevision": "e8ba02483217af43be284a72f1c059c730b7d047",
+  "method": "Actual SidebandCore constructor, start_reticulum and _update_delivery_limits; actual LXMRouter; isolated no-interface RNS, no algorithm replacements.",
+  "rows": [
+    {
+      "name": "default",
+      "changes": {},
+      "observed": {
+        "event": "delivery-limit",
+        "configured": true,
+        "limit_kilobytes": 1000,
+        "default_kilobytes": 128000
+      }
+    },
+    {
+      "name": "large",
+      "changes": {
+        "lxm_limit_1mb": false
+      },
+      "observed": {
+        "event": "delivery-limit",
+        "configured": false,
+        "limit_kilobytes": 128000,
+        "default_kilobytes": 128000
+      }
+    },
+    {
+      "name": "limited",
+      "changes": {
+        "lxm_limit_1mb": true
+      },
+      "observed": {
+        "event": "delivery-limit",
+        "configured": true,
+        "limit_kilobytes": 1000,
+        "default_kilobytes": 128000
+      }
+    },
+    {
+      "name": "retained",
+      "changes": {},
+      "observed": {
+        "event": "delivery-limit",
+        "configured": true,
+        "limit_kilobytes": 1000,
+        "default_kilobytes": 128000
+      }
+    },
+    {
+      "name": "null",
+      "changes": {
+        "lxm_limit_1mb": null
+      },
+      "observed": {
+        "event": "delivery-limit",
+        "configured": null,
+        "limit_kilobytes": 128000,
+        "default_kilobytes": 128000
+      }
+    },
+    {
+      "name": "zero",
+      "changes": {
+        "lxm_limit_1mb": 0
+      },
+      "observed": {
+        "event": "delivery-limit",
+        "configured": 0,
+        "limit_kilobytes": 128000,
+        "default_kilobytes": 128000
+      }
+    },
+    {
+      "name": "one",
+      "changes": {
+        "lxm_limit_1mb": 1
+      },
+      "observed": {
+        "event": "delivery-limit",
+        "configured": 1,
+        "limit_kilobytes": 1000,
+        "default_kilobytes": 128000
+      }
+    },
+    {
+      "name": "string",
+      "changes": {
+        "lxm_limit_1mb": "false"
+      },
+      "observed": {
+        "event": "delivery-limit",
+        "configured": "false",
+        "limit_kilobytes": 1000,
+        "default_kilobytes": 128000
+      }
+    }
+  ]
+}

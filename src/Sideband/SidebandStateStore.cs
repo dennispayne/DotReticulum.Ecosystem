@@ -304,6 +304,7 @@ public sealed partial class SidebandStateStore
                 settings["lxmf_ignore_unknown"] = JsonSerializer.SerializeToElement(
                     SidebandRemoteCommands.Authorization(state).IgnoreUnknown, SidebandStateJsonContext.Default.Boolean);
             SidebandStampConfiguration.Import(settings, SidebandStampConfiguration.FromState(state)).Export(settings);
+            SidebandDeliveryConfiguration.Import(settings, SidebandDeliveryConfiguration.FromState(state)).Export(settings);
             if (node is not null) node = node.ToLowerInvariant();
             return state with
             {
@@ -321,7 +322,7 @@ public sealed partial class SidebandStateStore
                 Telemetry = SidebandTelemetrySettings.Import(settings, state.Telemetry),
             };
         }, cancellationToken).ConfigureAwait(false);
-        return settings.Keys.Where(key => !SidebandTelemetrySettings.IsSupported(key) && !SidebandStampConfiguration.IsSupported(key) && key is not ("display_name" or "dark_ui" or "lxmf_propagation_node" or
+        return settings.Keys.Where(key => !SidebandTelemetrySettings.IsSupported(key) && !SidebandStampConfiguration.IsSupported(key) && key is not ("lxm_limit_1mb" or "display_name" or "dark_ui" or "lxmf_propagation_node" or
             "last_lxmf_propagation_node" or "propagation_by_default" or "lxmf_periodic_sync" or "lxmf_sync_interval" or
             "lxmf_try_propagation_on_fail" or "lxmf_ignore_unknown" or "voice_enabled" or "voice_trusted_only" or "voice_hdx_direct_ptt" or
             "voice_hdx_loudspeaker" or "voice_input" or "voice_speaker" or "voice_loudspeaker" or "voice_ringer")).Order(StringComparer.Ordinal).ToArray();
@@ -354,6 +355,7 @@ public sealed partial class SidebandStateStore
         settings["voice_ringer"] = JsonSerializer.SerializeToElement(voice.Ringer, SidebandStateJsonContext.Default.String);
         SidebandTelemetrySettings.Export(settings, state.Telemetry);
         SidebandStampConfiguration.FromState(state).Export(settings);
+        SidebandDeliveryConfiguration.FromState(state).Export(settings);
         var target = Path.GetFullPath(path);
         if (string.Equals(target, StatePath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             throw new ArgumentException("Export cannot overwrite the application's state file.", nameof(path));
@@ -500,6 +502,7 @@ public sealed partial class SidebandStateStore
         _ = state.Telemetry.Validate();
         _ = SidebandRemoteCommands.Authorization(state);
         _ = SidebandStampConfiguration.FromState(state);
+        _ = SidebandDeliveryConfiguration.FromState(state);
         SidebandFixedLocations.Validate(state.MapFixedLocations ?? []);
         SidebandAnnounce.ValidateHistory(state.Announces ?? []);
         if (state.TelemetryPeers is { Count: > 1_000 }) throw new InvalidDataException("Too many telemetry peers.");

@@ -8,6 +8,27 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Sideband transfer-limit C73/T250–258 records18 actual passing cases per host:
+11 ordinary managed,3 actual-primary direct/Python-hop/.NET-hop,2 exact router
+boundary/statistics and2 strict native offline cases. The selected managed
+application command passes15/0 each, including separate reacceptance of the
+existing C31 two-MiB transfer with explicitly increased limits. Default admission
+now matches primary1,000,000 bytes rather than the old fixed8MiB value.
+Runtime changes preserve links/identity and affect subsequent admission;
+local attachment/storage bounds remain independent. Actual primary
+propagation retry is explicitly disabled to isolate size refusal from its
+documented callback defect. Fixture/native hashes, commands and remaining
+boundaries are in [Sideband's reference](sideband.md#incoming-lxmf-transfer-limits).
+Receipts are `artifacts\tests\sideband-delivery-limits\windows\c73.json` and
+`/home/dennis/fleet-delivery-limits-results/c73.json`.
+The integrated command `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-delivery-limits-unified -OutputDirectory
+artifacts\tests\fleet-delivery-limits-unified` passes2,573 managed cases/137
+explicit skips,62 Pester tooling cases, strict C73 catalog aggregation and
+merged production coverage. Concurrent Nomad router-import sources are
+regression inputs, not independent C72 acceptance. Native candidates retain
+their actual dirty-source build base `ed8f5de`, not integration HEAD.
+
 Parent independently accepts Nomad compact-announcement C71/T230–239:
 all11 owned hashes match, and each frozen replay verifies311 compiled
 production/test sources,75 generated receipts, serviced toolchain, converter

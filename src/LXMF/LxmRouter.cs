@@ -75,6 +75,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
     private readonly DestinationRatchets? _ratchets;
     private readonly LxmTicketStore _tickets;
     private int _inboundStampCost;
+    private long _deliveryPerTransferLimit;
     private string? _displayName;
     private int _started;
     private int _disposed;
@@ -88,6 +89,8 @@ public sealed partial class LxmRouter : IAsyncDisposable
         ArgumentOutOfRangeException.ThrowIfLessThan(_options.InboundQueueCapacity, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(_options.OutboundQueueCapacity, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(_options.InboundStampCost ?? 0, 255);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(_options.DeliveryPerTransferLimit);
+        _deliveryPerTransferLimit = _options.DeliveryPerTransferLimit;
         _inboundStampCost = Math.Max(0, _options.InboundStampCost ?? 0);
         _enforceStamps = _options.EnforceStamps ? 1 : 0;
         _inbound = System.Threading.Channels.Channel.CreateBounded<InboundWork>(new BoundedChannelOptions(_options.InboundQueueCapacity)
@@ -143,6 +146,25 @@ public sealed partial class LxmRouter : IAsyncDisposable
     public byte[] DeliveryHash => _local.Destination.Hash;
 
     public string DeliveryHashHex => Convert.ToHexStringLower(DeliveryHash);
+
+    /// <summary>
+    /// Maximum incoming direct Resource bytes. Updates apply to subsequent advertisements;
+    /// each propagation retrieval snapshots the limit before requesting messages.
+    /// </summary>
+    public long DeliveryPerTransferLimit
+    {
+        get => Interlocked.Read(ref _deliveryPerTransferLimit);
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(value);
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+                Interlocked.Exchange(ref _deliveryPerTransferLimit, value);
+                PropagationNode?.UpdateDeliveryLimit(value);
+            }
+        }
+    }
 
     /// <summary>Ticket lifecycle and persistence; lifetime is owned by this router.</summary>
     public LxmTicketStore Tickets => _tickets;
@@ -637,7 +659,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
         if (link.Status == LinkStatus.Closed) return;
         link.ResourceStrategy = ResourceStrategy.AcceptApp;
         link.PacketReceived = (data, packet) => Deliver(data, LxmMethod.Direct, link.LinkId, packet.PhysicalLayer);
-        link.ResourceAdvertised = advertisement => advertisement.DataSize <= _options.DeliveryPerTransferLimit;
+        link.ResourceAdvertised = advertisement => advertisement.DataSize <= DeliveryPerTransferLimit;
         link.ResourceStarted = resource =>
         {
             lock (_gate) _incomingResources[Convert.ToHexStringLower(resource.Hash)] = resource;

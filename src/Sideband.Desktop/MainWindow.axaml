@@ -448,6 +448,12 @@
                        TextWrapping="Wrap" />
             <Button x:Name="SaveStampPolicyButton" Content="Save stamp policy" HorizontalAlignment="Left" Click="SaveStampPolicyClicked" />
             <TextBlock x:Name="StampPolicyStatusText" TextWrapping="Wrap" />
+            <TextBlock FontSize="17" FontWeight="SemiBold" Text="Incoming transfer size" />
+            <CheckBox x:Name="LimitIncomingMessagesBox" Content="Limit incoming LXMF transfers to 1 MB (1,000,000 bytes)" />
+            <TextBlock Text="Disabling this limit permits transfers up to 128 MB (128,000,000 bytes). This is a per-transfer network limit, not a change to attachment composition or local storage bounds. Already admitted transfers are not interrupted."
+                       TextWrapping="Wrap" />
+            <Button x:Name="SaveDeliverySettingsButton" Content="Save delivery limit" HorizontalAlignment="Left" Click="SaveDeliverySettingsClicked" />
+            <TextBlock x:Name="DeliverySettingsStatusText" TextWrapping="Wrap" />
             <TextBlock FontSize="17" FontWeight="SemiBold" Text="Upstream settings exchange" />
             <TextBlock Text="JSON settings exchange applies the documented display, propagation, stamp, voice and telemetry subset. Other keys are retained and reported, not activated. Identity and SQLite migration use the separate offline --import-profile command. Disconnect before importing settings."
                        TextWrapping="Wrap" />

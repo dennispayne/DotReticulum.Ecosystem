@@ -97,7 +97,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
                     StoragePath = _store.DataDirectory,
                     InboundQueueCapacity = 128,
                     OutboundQueueCapacity = 128,
-                    DeliveryPerTransferLimit = 8 * 1024 * 1024,
+                    DeliveryPerTransferLimit = SidebandDeliveryConfiguration.FromState(state).MaximumTransferBytes,
                     InboundStampCost = stampPolicy.EffectiveCost,
                     EnforceStamps = stampPolicy.RejectInvalidStamps,
                 });

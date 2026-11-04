@@ -75,7 +75,7 @@ public sealed partial class LxmRouter
             if (PropagationNode is not null) { PropagationNode.SetEnabled(true); return PropagationNode; }
             if (_options.StoragePath is not { } storage) throw new InvalidOperationException("Propagation nodes require StoragePath.");
             PropagationNode = new LxmPropagationNode(_router, _identity, storage, options, ReceivePropagatedData,
-                _options.DeliveryPerTransferLimit)
+                DeliveryPerTransferLimit)
             { Log = Log };
             return PropagationNode;
         }
@@ -125,6 +125,7 @@ public sealed partial class LxmRouter
         var succeeded = false;
         try
         {
+            var deliveryLimit = DeliveryPerTransferLimit;
             lock (_gate)
             {
                 _activeRetrieval = owned;
@@ -137,7 +138,7 @@ public sealed partial class LxmRouter
             link.Identify(_identity);
             PropagationTransferState = LxmPropagationTransferState.RequestSent;
             var response = await LxmPropagationTransport.RequestAsync(link, "/get", new object?[] { null, null },
-                TimeSpan.FromSeconds(30), _options.DeliveryPerTransferLimit, owned.Token).ConfigureAwait(false);
+                TimeSpan.FromSeconds(30), deliveryLimit, owned.Token).ConfigureAwait(false);
             EnsureRetrievalResponse(response);
             if (response is not object?[] ids || ids.Any(id => id is not byte[] { Length: 32 })) throw new FormatException("Invalid propagation message list.");
             var haves = new List<object?>();
@@ -159,8 +160,8 @@ public sealed partial class LxmRouter
 
             PropagationTransferState = LxmPropagationTransferState.Receiving;
             response = await LxmPropagationTransport.RequestAsync(link, "/get",
-                new object?[] { wants.ToArray(), haves.ToArray(), _options.DeliveryPerTransferLimit / 1000.0 },
-                TimeSpan.FromSeconds(60), _options.DeliveryPerTransferLimit, owned.Token,
+                new object?[] { wants.ToArray(), haves.ToArray(), deliveryLimit / 1000.0 },
+                TimeSpan.FromSeconds(60), deliveryLimit, owned.Token,
                 receipt => UpdateRetrievalProgress(receipt, owned)).ConfigureAwait(false);
             PropagationTransferState = LxmPropagationTransferState.ResponseReceived;
             EnsureRetrievalResponse(response);
@@ -188,7 +189,7 @@ public sealed partial class LxmRouter
             }
 
             if (haves.Count > 0) await LxmPropagationTransport.RequestAsync(link, "/get", new object?[] { null, haves.ToArray() },
-                TimeSpan.FromSeconds(30), _options.DeliveryPerTransferLimit, owned.Token).ConfigureAwait(false);
+                TimeSpan.FromSeconds(30), deliveryLimit, owned.Token).ConfigureAwait(false);
             PropagationTransferState = LxmPropagationTransferState.Complete;
             PropagationTransferProgress = 1;
             PropagationTransferLastResult = messages.Length;

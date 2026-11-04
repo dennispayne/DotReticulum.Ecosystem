@@ -279,6 +279,7 @@ public sealed partial class MainWindow : Window
             DisplayNameBox.Text = _state.DisplayName;
             ThemeSelector.SelectedItem = _state.Theme;
             LoadStampSettings();
+            LoadDeliverySettings();
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
             PropagationFallbackBox.IsChecked = _state.TryPropagationOnFail;
@@ -482,6 +483,7 @@ public sealed partial class MainWindow : Window
             DisplayNameBox.Text = _state.DisplayName;
             ThemeSelector.SelectedItem = _state.Theme;
             LoadStampSettings();
+            LoadDeliverySettings();
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
             PropagationFallbackBox.IsChecked = _state.TryPropagationOnFail;

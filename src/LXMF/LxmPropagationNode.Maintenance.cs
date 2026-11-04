@@ -359,7 +359,7 @@ public sealed partial class LxmPropagationNode
                 ["identity_hash"] = _identity.Hash,
                 ["destination_hash"] = DestinationHash,
                 ["uptime"] = Now - _started,
-                ["delivery_limit"] = _deliveryLimit / 1000.0,
+                ["delivery_limit"] = Interlocked.Read(ref _deliveryLimit) / 1000.0,
                 ["propagation_limit"] = _options.TransferLimit / 1000.0,
                 ["sync_limit"] = SyncLimit / 1000.0,
                 ["target_stamp_cost"] = (long)StampCost,

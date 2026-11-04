@@ -52,6 +52,15 @@ The delivery destination is `lxmf.delivery`. Announce data may carry a display n
 
 `SetInboundStampCost()` changes the advertised/enforced cost; values below one clear it and values at least 255 are rejected. Delivery announces and path responses update a bounded upstream-compatible `outbound_stamp_costs` map with 45-day expiry. The worker and graceful disposal flush dirty costs atomically; `SaveOutboundStampCosts()` explicitly flushes them. `GetOutboundStampCost()` consults the cache and known announce data.
 
+`DeliveryPerTransferLimit` changes the positive byte limit for subsequent direct
+Resource advertisements, with the exact limit accepted and the next byte refused.
+Already admitted Resources are not interrupted. Each propagation retrieval
+snapshots its limit for consistent request/response admission, and an existing
+hosted node's `delivery_limit` statistics update in decimal kilobytes. Caller-owned
+options remain immutable. Managed exact-byte rejection/recovery and statistics
+tests are separate from Sideband's actual-primary application acceptance in
+[its reference](sideband.md#incoming-lxmf-transfer-limits).
+
 `SetDisplayName()` updates the name used by the existing dynamic announce/path-response
 provider without replacing the identity, changing the stamp cost or automatically
 announcing/persisting. Applications own persistence and explicit announcements.

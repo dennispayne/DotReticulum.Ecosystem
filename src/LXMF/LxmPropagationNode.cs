@@ -41,7 +41,9 @@ public sealed partial class LxmPropagationNode : IAsyncDisposable
     private readonly LxmPropagationOptions _options;
     private readonly string _directory;
     private readonly Func<byte[], bool>? _localDelivery;
-    private readonly long _deliveryLimit;
+    private long _deliveryLimit;
+
+    internal void UpdateDeliveryLimit(long value) => Interlocked.Exchange(ref _deliveryLimit, value);
     private readonly Dictionary<string, Entry> _entries = [];
     private readonly HashSet<string> _validatedLinks = [];
     private readonly HashSet<string> _transferringLinks = [];

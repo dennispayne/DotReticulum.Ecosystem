@@ -347,6 +347,8 @@ public sealed partial class SidebandLiveInteropTests
         {
             await using var python = await PyLinkNode.StartAsync("SidebandAttachments", tcpServerPort: port, harness: "sideband_attachment_node.py");
             Guid incomingId;
+            // This existing 2 MiB acceptance requires the explicit larger primary delivery policy.
+            await new SidebandStateStore(dataDirectory).ConfigureDeliveryAsync(new(false), token);
             await using (var client = new SidebandClient(new SidebandStateStore(dataDirectory)))
             {
                 var errors = new System.Collections.Concurrent.ConcurrentQueue<string>();

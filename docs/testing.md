@@ -8,6 +8,30 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+The serviced baseline selects SDK **10.0.403**, runtime and NativeAOT compiler
+**10.0.14**. A fresh Linux retry restore exposed `NU1903` on compiler10.0.13
+([GHSA-p3jp-9v83-76w9](https://github.com/advisories/GHSA-p3jp-9v83-76w9),
+CVE-2026-111497). `global.json` now requires403 instead of relying on Windows'
+already-installed newer SDK; Linux was updated side-by-side from the official
+SHA-512-verified archive. No audit suppression, package downgrade or submodule
+edit was used. Existing native executable evidence retains its actual compiler
+version and is not relabelled as rebuilt.
+
+`dotnet build DotReticulum.Ecosystem.slnx -c Release -warnaserror --nologo
+-v quiet` passes with zero warnings/errors on Windows and Linux (Linux adds
+`--artifacts-path /home/dennis/fleet-servicing-baseline`). Full non-opt-in tests
+on these serviced builds pass **2,341/117 explicit skips on Windows** and
+**2,346/112 on Linux**: `dotnet test DotReticulum.Ecosystem.slnx -c Release
+--no-build --logger trx --results-directory <results> --nologo -v quiet`,
+with the same Linux artifacts path. The default corpus includes concurrently
+developed Nomad directory-import tests, not independent acceptance of that slice.
+Actual platform-specific skips differ; neither count establishes compatibility.
+Fresh strict Linux Sideband NativeAOT publication selects compiler10.0.14 and
+its `Native,Discovery` Pester selection passes6/one unrelated profile skip;
+the executable/hash and exact evidence boundary are in
+[Sideband's reference](sideband.md#cached-interface-discovery). Hosted
+Build/Test results below are unchanged and do not accept these local changes.
+
 The integrated discovery/conversation-image gate
 `& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
 artifacts\builds\fleet-discovery-nomad-final-unified -OutputDirectory

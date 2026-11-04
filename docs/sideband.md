@@ -1064,8 +1064,19 @@ Selected final native executables:
 
 - Windows `artifacts\builds\fleet-discovery-native-win\publish\Sideband.Desktop\release_win-x64\sideband.exe`,
   SHA-256 `2f64a131a635c2e11aa8ceb60daca7e8411b9e4a1eb40520205f76df318e2b84`.
-- Linux `/home/dennis/fleet-discovery-native-linux/publish/Sideband.Desktop/release_linux-x64/sideband`,
-  SHA-256 `b88629353ffbf42fac21dc954dae942676572cbc8ed6f39b4141933f4447aecf`.
+- Linux `/home/dennis/fleet-discovery-native-linux-serviced/publish/Sideband.Desktop/release_linux-x64/sideband`,
+  SHA-256 `7a695759338eec8145349d824b29225fb3ae41e5e07dfdb3d541bc65f103a8f6`.
+
+The selected Linux executable is freshly rebuilt with SDK10.0.403 and
+NativeAOT compiler10.0.14 after the compiler10.0.13 advisory; its assets record
+both `Microsoft.DotNet.ILCompiler/10.0.14` and the Linux compiler runtime pack.
+The unchanged `Native,Discovery` Pester selection is independently repeated:
+6passed/one unrelated profile skip, including two discovery renders/restarts
+and explicit empty-cache failure. Windows already selected SDK403. The earlier
+Linux compiler13 executable, SHA-256
+`b88629353ffbf42fac21dc954dae942676572cbc8ed6f39b4141933f4447aecf`,
+retains its earlier behavioral evidence but is not the selected serviced binary.
+Other previously recorded native executables are not silently relabelled.
 
 The synthetic profile is exported by the headless case to
 `artifacts\tests\fleet-discovery-native-race-profile`; export refuses to

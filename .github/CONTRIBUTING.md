@@ -4,7 +4,17 @@ DotReticulum.Ecosystem is an experimental project written predominantly by LLM c
 
 ## Development
 
-Install the .NET 10 SDK and use C# 13, nullable reference types, file-scoped namespaces, and the repository `.editorconfig`. Nullable diagnostics are errors. The solution file is `DotReticulum.Ecosystem.slnx`.
+Install the .NET 10 SDK **10.0.403 or later compatible servicing release** selected
+by `global.json`, and use C# 13, nullable reference types, file-scoped namespaces,
+and the repository `.editorconfig`. Nullable diagnostics are errors. The solution
+file is `DotReticulum.Ecosystem.slnx`.
+
+The SDK floor selects runtime/NativeAOT compiler 10.0.14 rather than the affected
+10.0.13 packages ([GHSA-p3jp-9v83-76w9](https://github.com/advisories/GHSA-p3jp-9v83-76w9),
+CVE-2026-111497). Install the serviced SDK on each build host; a framework-dependent
+test run does not update an already published NativeAOT executable. Rebuild and
+exercise selected native binaries, retaining their exact hashes and toolchain
+provenance. Do not suppress NuGet audit warnings to reuse the affected compiler.
 
 ```sh
 git submodule update --init

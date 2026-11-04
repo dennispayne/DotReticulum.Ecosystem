@@ -281,7 +281,14 @@ internal static class Program
                 current => current with { LastClientAnnounce = timestamp }, token))
         { Log = message => logging.Write(1, message) };
         clientAnnounces.Start();
+        await using var announceStream = await NomadNetAnnounceStream.OpenAsync(options.DataDirectory,
+            () => propagationPolicy.Settings.CompactAnnounceStream, cancellationToken).ConfigureAwait(false);
+        announceStream.Log = message => logging.Write(1, message);
+        announceStream.Accept = async (hash, token) =>
+            !(await state.IgnoredDestinationsAsync(token).ConfigureAwait(false)).Contains(hash);
+        announceStream.Start(node.Router.Engine);
         await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host, clientAnnounces, logging);
+        session.AnnounceStream = announceStream;
         var receiver = PersistIncomingAsync(inbox.Reader, state, options.DataDirectory, session.ObserveConversationImageAsync,
             () => propagationPolicy.Settings, headless, logging, cancellationToken);
         logging.Write(3, "NomadNet client started");
@@ -392,6 +399,10 @@ internal static class Program
               client name <text>              Save display name without announcing
               client markdown <on|off>        Set outgoing LXMF Markdown renderer
               peers                          List announced Reticulum destinations
+              announces [nodes|peers|pn] [name|dest] [search]
+                                             Show bounded announce history (nodes default)
+              announces mode <compact|full>   Save receive-time deduplication policy
+              announces import <profile>      Import bounded primary transient history
               contact add <hash> <name>      Save a known LXMF destination
               contacts | contact remove <hash>
               directory-import <profile>     Add primary directory/ignored policy; refuse conflicts
@@ -520,6 +531,7 @@ internal static class Program
         private readonly NomadNetNavigationHistory _navigation = new();
         private NomadNetFilePicker? _filePicker;
         private IReadOnlyList<string> _selectedAttachments = [];
+        public NomadNetAnnounceStream AnnounceStream { private get; set; } = null!;
 
         public async ValueTask DisposeAsync()
         {
@@ -566,6 +578,47 @@ internal static class Program
             if (command.Equals("quit", StringComparison.OrdinalIgnoreCase) || command.Equals("exit", StringComparison.OrdinalIgnoreCase))
                 return true;
             if (command.Equals("help", StringComparison.OrdinalIgnoreCase)) { PrintHelp(); return false; }
+            if (command.Equals("announces", StringComparison.OrdinalIgnoreCase) ||
+                command.StartsWith("announces ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = Split(command, 4);
+                if (parts.Length >= 2 && parts[1] == "mode")
+                {
+                    if (parts.Length != 3 || parts[2] is not ("compact" or "full"))
+                        throw new ArgumentException("Usage: announces mode <compact|full>");
+                    await propagation.UpdateSettingsAsync(current => current with
+                    { CompactAnnounceStream = parts[2] == "compact" }, cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Announce stream mode saved: " + parts[2] + "; affects subsequent arrivals only.");
+                }
+                else if (parts.Length >= 2 && parts[1] == "import")
+                {
+                    var path = command["announces import".Length..].Trim();
+                    if (path.Length == 0) throw new ArgumentException("Usage: announces import <primary-profile>");
+                    var added = await AnnounceStream.ImportAsync(path, cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine($"Announce import complete: {added} entries added; no identities or contact policy imported.");
+                }
+                else
+                {
+                    var kind = parts.Length == 1 ? "node" : parts[1] switch
+                    { "nodes" => "node", "peers" => "peer", "pn" => "pn",
+                        _ => throw new ArgumentException("Usage: announces [nodes|peers|pn] [name|dest] [search]") };
+                    var destination = parts.Length > 2 && parts[2] == "dest";
+                    if (parts.Length > 2 && parts[2] is not ("name" or "dest"))
+                        throw new ArgumentException("Display must be name or dest.");
+                    var search = parts.Length > 3 ? parts[3] : "";
+                    var entries = (await AnnounceStream.SnapshotAsync(cancellationToken).ConfigureAwait(false))
+                        .Where(e => NomadNetAnnounceStream.Matches(e, search)).ToArray();
+                    Console.WriteLine($"Announce stream ({(propagation.Settings.CompactAnnounceStream ? "compact" : "full")}): Nodes ({entries.Count(e => e.Kind == "node")}); Peers ({entries.Count(e => e.Kind == "peer")}); Propagation Nodes ({entries.Count(e => e.Kind == "pn")}).");
+                    var shown = entries.Where(e => e.Kind == kind).ToArray();
+                    foreach (var entry in shown)
+                    {
+                        var trust = await store.TrustLevelAsync(entry.DestinationHash, null, cancellationToken).ConfigureAwait(false);
+                        Console.WriteLine(NomadNetAnnounceStream.Label(entry, destination, DateTimeOffset.Now) + $" trust={trust}");
+                    }
+                    if (shown.Length == 0) Console.WriteLine($"No {parts.ElementAtOrDefault(1) ?? "nodes"} announces");
+                }
+                return false;
+            }
             if (command.Equals("files", StringComparison.OrdinalIgnoreCase) || command.StartsWith("files ", StringComparison.OrdinalIgnoreCase))
             {
                 ExecuteFiles(command);

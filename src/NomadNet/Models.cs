@@ -20,6 +20,7 @@ public sealed record NomadNetSettings
     public bool EnableClient { get; set; } = true;
     public NomadNetUserInterface UserInterface { get; set; } = NomadNetUserInterface.Text;
     public bool NotifyOnNewMessage { get; set; } = true;
+    public bool CompactAnnounceStream { get; set; } = true;
     public int? LogLevel { get; set; } = 4;
     public NomadNetLogDestination? LogDestination { get; set; } = NomadNetLogDestination.File;
     public string? LogFile { get; set; }

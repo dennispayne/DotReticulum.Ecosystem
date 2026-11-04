@@ -8,6 +8,27 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Parent independently accepts Nomad compact-announcement C71/T230–239:
+all11 owned hashes match, and each frozen replay verifies311 compiled
+production/test sources,75 generated receipts, serviced toolchain, converter
+and native hashes. Frozen and separate fresh-source managed runs pass251/9
+explicit Linux-only skips on Windows and260/0 on Linux. Current-harness native
+acceptance passes3/0 per host; each C71 receipt maps ten actual passing cases
+without omissions or skips. Receipts are
+`artifacts\tests\nomad-compact\parent-current-windows\c71.json` and
+`/home/dennis/fleet-compact-parent-results/c71.json`.
+Direct-TCP primary node/delivery announcements and native restart are not
+PN-live, new multi-hop/loss or Urwid evidence. Exact pins, fixture/native hashes,
+commands and safety/presentation boundaries are in
+[NomadNet's reference](nomadnet.md#bounded-compactfull-announce-history-c71).
+The integrated command `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-compact-parent-unified -OutputDirectory
+artifacts\tests\fleet-compact-parent-unified` passes2,553 managed cases/134
+explicit skips,62 Pester tooling cases, strict C71 catalog aggregation and
+merged production coverage. Native candidates retain dirty-source build base
+`d59a781` and embedded `1.4.4.99+d59a7815c0`; later parent commits are not
+retrospectively assigned to those binaries.
+
 Sideband stamp C70/T209–218 records21 actual passing cases per host:16 ordinary
 managed reference/persistence/lifecycle/original-UI cases,3 actual-primary live
 cases and2 strict published native cases. Actual primary validates native

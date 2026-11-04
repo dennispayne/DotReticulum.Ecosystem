@@ -57,7 +57,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Typed image references support explicit/automatic original ASCII conversation previews, using the existing converter/cache and never/manual/auto/always controls; this is not primary UI parity. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
 | Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. `paper-qr`/`paper-save` save PNG/URI and outbound history; `qr` exports an existing URI, `qr-show` renders explicit black-on-white half-blocks. All QR encoding uses shared `LxPaperQr`, not a second codec. Executed primary save-QR vectors and terminal module tests exist; selected application acceptance is recorded below. Image-import/scanner and printer commands remain missing/unverified; no physical scanning/printing claim. |
 | Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; hosted propagation uses `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Configured static-peer transfers are now application-verified both ways on Windows/Linux through a separate Python transport, with restart, real loss and2.2MB attachment assertions. Storage/limit/cost/static/priority settings are imported/persisted through existing LXMF options. Full peer management, storage-pressure eviction-order acceptance and additional peer failure/topology cases remain missing/unverified. |
-| Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Saved-node listing/opening, primary rank/trust/name ordering, explicit browser identification consent and existing associated-node trust updates are operational. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Current and legacy primary saved-directory/ignored-list import is operational through offline CLI and terminal, with atomic additive merging, idempotence and conflict rejection. Transient announce migration and complete announce-stream/node-directory presentation remain missing. |
+| Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Saved-node listing/opening, primary rank/trust/name ordering, explicit browser identification consent and existing associated-node trust updates are operational. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Current and legacy primary saved-directory/ignored-list import is operational through offline CLI and terminal, with atomic additive merging, idempotence and conflict rejection. Bounded compact/full announce history, separate explicit transient import, per-type/search/name-or-address terminal presentation and restart persistence are implemented below. Complete Urwid stream/node-directory presentation remains missing. |
 | Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **partial**: `nomadnetwork.node`, UTF-8 name app-data, default index, nested static pages, configurable six-second startup announce and periodic node announce; independent configurable page/file rescan intervals, explicit refresh and bounded handler inspection. New/deleted paths update handlers. `.allowed` identity lists enforced. Node announces chain the existing hosted propagation announce rather than duplicate its protocol. Source-specific counters and upstream default assets remain missing. |
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
 | Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. OS-process tests cover native execution; selected Linux native browser also submits real forms to unmodified Python executable pages across a Python transport. Python-to-native executable-form browser acceptance remains unverified. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
@@ -177,8 +177,130 @@ non-regular files, Unix permissions/symlinks and healthy recovery. The
 commands on the selected published binary, primary application file exchange in
 both directions, configured and explicit exports and same-identity restart.
 Physical GUI/file-picker behavior is not exercised or claimed by this slice.
-Printing, utilities, compact announces, router migration and other complete
+Printing, utilities, router migration and other complete
 configuration/presentation contracts remain required elsewhere.
+
+### Bounded compact/full announce history (C71)
+
+The actual primary `NomadNetworkApp.py:155,930–932,1382–1386`,
+`Directory.py:44–83,116–240` and `ui/textui/Network.py:279–591` at
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2` define this contract.
+“Compact” does **not** shorten a row: on each new arrival it removes previous
+announces from that destination **within that type**, then prepends the new row.
+Full mode retains repeats. Each type retains256 rows; combined enumeration is
+nodes, peers, propagation nodes, not a globally timestamp-sorted list. Changing
+mode does not rewrite existing history; the next compact arrival removes all
+previous same-type/destination rows. The primary's raw absent-option default is
+false, but its generated default configuration says `yes`. Native new profiles
+use true; explicit configuration/profile imports with an absent option use false.
+The ConfigObj boolean spellings and malformed boolean rejection are independently
+executed by `GenerateNomadNetCompactAnnounceVectors.py`, as are the actual primary
+constructor, receive methods, save/reload and30 headless entry-widget observations.
+The fixture records exact Git-blob SHA256 values and the unchanged RNS/LXMF pins.
+
+Native settings expose `compactAnnounceStream`; the core/profile configuration
+importer supports `[client] compact_announce_stream`. Terminal commands:
+
+```text
+announces [nodes|peers|pn] [name|dest] [search]
+announces mode compact
+announces mode full
+announces import <offline-primary-profile>
+```
+
+The first command defaults to nodes, reports search-filtered counts across all
+three types and shows the chosen type. Search matches case-insensitive **raw
+decoded announce data**, not the displayed destination hash or saved contact name,
+as in the primary. A destination view does not change search semantics. Rows use
+local `HH:mm:ss` for today or `yyyy-MM-dd` otherwise, normalized/sanitized names,
+34Unicode-scalar truncation plus ellipsis and address fallback. Original terminal
+type markers `N`/`P`/`S` and explicit `trust=<level>` replace theme glyphs/colours.
+The native presentation always uses the safe-name mode; arbitrary terminal
+controls and symbols are not enabled by importing `sanitize_names=no`. Unicode
+normalization/category tables follow the host .NET implementation rather than
+claiming identical rendering for every Python/terminal Unicode version.
+No Urwid layout, mouse/focus, popup announce-info, per-row delete or pixel
+equivalence is claimed by this bounded presentation.
+
+Live validated node/delivery/active-PN announcements are registered through the
+existing stack APIs. Delivery wire app-data is converted to the display-name bytes
+stored by primary `Conversation.received_announce`; path responses are excluded.
+Ignored destinations are filtered by native contact policy. Native history is
+atomically stored in `storage/announce-stream.json`, separately from saved trust
+and conversation state. `announces import` explicitly reads the primary
+`storage/directory` stream; it never creates identities, paths, trust or fresh
+network observations. Exact duplicate records import idempotently; merging more
+than256 records/type fails without changing existing history, rather than silently
+evicting previously imported rows. The older `--import-directory` and profile
+archive behavior remain unchanged; transient migration is a separate explicit
+operation. Invalid records, legacy boolean type tags, out-of-range/nonfinite
+timestamps, app-data over4096bytes and stream files over7MiB are rejected.
+Primary directory reads retain the existing5MiB bound. Receive persistence uses a
+bounded128-entry queue: overload/failures are reported, not silently labelled
+complete capture. Observer failures are reported independently; no subscriber is
+required. Disposal deregisters handlers and joins queued/admitted writes.
+
+Evidence and exact catalog selectors (C71/T230–239):
+
+| TestId | Actual selector / cases |
+|---|---|
+| T230 | `FullyQualifiedName=NomadNet.Tests.NomadNetCompactAnnounceTests.ConfigurationMatchesExecutedPrimary`: generated/absent/yes/no/on/False defaults, malformed booleans and config import. |
+| T231 | `FullyQualifiedName=NomadNet.Tests.NomadNetCompactAnnounceTests.PresentationAndRawSearchMatchExecutedPrimary`:30 primary widget suffixes, truncation, safe names, address fallback/toggle, date boundary, raw search and malformed UTF-8. |
+| T232 | `FullyQualifiedName=NomadNet.Tests.NomadNetCompactAnnounceTests.MalformedPrimaryAndBoundsAreRejected`: timestamp/type/hash/data/MessagePack/file/per-type bounds. |
+| T233 | `FullyQualifiedName=NomadNet.Tests.NomadNetCompactAnnouncePersistenceTests.ReceiveSequencesCapsAndRestartMatchExecutedPrimary`: six constructor policies, every observed receive sequence, same-kind repeats, per-type caps and settings/history restart. |
+| T234 | `FullyQualifiedName=NomadNet.Tests.NomadNetCompactAnnouncePersistenceTests.PrimaryImportIsAtomicIdempotentAndDoesNotCompactHistory`: repeated offline records retained until next live compact arrival; idempotence and malformed rollback. |
+| T235 | `FullyQualifiedName=NomadNet.Tests.NomadNetCompactAnnouncePersistenceTests.CancellationObserverFaultsDisposalAndFailedWriteRecover`: cancelled write/no publication, blocked storage/recovery, faulty observer/logger isolation, mode switch, concurrent admitted writes/disposal/restart. |
+| T236 | Pester `NomadNet bounded compact announce stream.T236 persists configured modes imports primary history and presents terminal views across restart`. |
+| T237 | Pester `NomadNet bounded compact announce stream.T237 captures actual primary application announcements in compact and full modes with healthy restart`. |
+| T238 | Pester `NomadNet bounded compact announce stream.T238 regenerates independent primary constructor history and widget vectors`. |
+| T239 | `FullyQualifiedName=NomadNet.Tests.NomadNetCompactAnnouncePersistenceTests.RegisteredHandlersBoundQueueFilterPathsAndRecoverWithoutObservers`: signed native announce inputs through real handlers;128-queue overload reporting, display-name envelope conversion, path-response/invalid-PN exclusion, joined disposal and healthy service without observers. |
+
+Focused selector: `FullyQualifiedName~NomadNetCompactAnnounce`.
+The managed suite is260cases: Windows251passed/9explicit Linux-only skips;
+Linux260passed/0skips, with the recorded reference converter selected.
+Strict Windows/Linux NativeAOT publish uses SDK10.0.403/runtime and compiler10.0.14,
+both trim/AOT warnings-as-errors flags, native `--help` and the three
+`CompactAnnounce` Pester cases (all pass on both hosts).
+Those Pester tests skip explicitly unless
+`DOTRETICULUM_NOMADNET_COMPACT_ANNOUNCE=1` and require the selected binary, Python,
+RNS, LXMF and primary source paths when enabled.
+Native network evidence is an actual unchanged primary application over direct
+loopback TCP: delivery/node repeats into native compact/full history and recovery
+after native restart, plus native delivery announces received in the actual
+primary compact stream. Test-only interface settings are `announce_cap=100`,
+`bitrate=10000000`, `ingress_control=no`; the thin adapter spaces the two independent
+primary delivery/node announcements by250ms to avoid its immediate outbound queue.
+Earlier unspaced attempts and their failures are retained, not counted as passes.
+This does not establish propagation-node traffic, multi-hop/loss topologies,
+physical network/hardware, GUI or complete application equivalence.
+Primary NomadNet1.4.4 declares newer dependency minimums; these observations use
+the unchanged pinned RNS1.5.7/LXMF1.2.1, not a claim that those minimums are met.
+
+Frozen candidates and no-republish operators live under
+`artifacts/tests/nomad-compact/frozen-win-final` and the native Linux workspace's
+`artifacts/tests/nomad-compact/frozen-linux-final`. Manifests preserve actual
+embedded Git build versions, binary/fixture hashes, compiled-source PDB checks,
+generated-source receipts, converter/toolchain/reference paths and host skip
+reasons. They describe a dirty candidate built on `d59a781`, not a relabelled later
+integration commit. Parent independently replays both frozen candidates,
+verifying all11 owned hashes,311 compiled production/test PDB checks and75
+generated-source receipts per host, plus compiler/runtime/converter/binary hashes.
+Fresh current-source managed acceptance separately passes251/9 on Windows and
+260/0 on Linux; the current native harness passes all three cases on both hosts.
+C71/T230–239 independently maps all10 selected passing cases per host.
+Parent operator `artifacts\tests\nomad-compact\Parent-CurrentAcceptance.ps1`
+uses the recorded manifest environment with explicit source/build/result roots;
+receipts are `artifacts\tests\nomad-compact\parent-current-windows\c71.json`
+and `/home/dennis/fleet-compact-parent-results/c71.json`.
+Fixture SHA-256 is
+`4d8aaf05c33ee5e26e61c9e93b7798b842707af57d98c3b623b035cb63785d17`;
+native Windows SHA-256 is
+`2dc8a710e1a916477523ad652fa8faa474666b40f19c23eb500c298cf31562d0`;
+native Linux SHA-256 is
+`976d73d15c0dd57bc1491a954d313953c4d25dcff70c64d0682068c9abb3508e`.
+Embedded version remains `1.4.4.99+d59a7815c0`, not parent integration HEAD.
+
+### Configured attachment export acceptance
 
 Scoped Windows/Linux acceptance uses SDK10.0.403 and runtime/NativeAOT
 compiler10.0.14, with both `ILLinkTreatWarningsAsErrors=true` and
@@ -826,9 +948,10 @@ Native safety differences are explicit: maximum directory5MiB, ignored512KiB,
 printable names and4096-character notes, known trust/delivery values and typed
 boolean/rank fields. Unsupported/future entry fields, unknown root keys, unsafe
 names or lossy normalization fail rather than silently discard policy.
-Transient announce entries are counted and reported as not imported; they are
+Transient announce entries are counted and reported as not imported by this saved-directory command; they are
 not treated as fresh network observations. This does not migrate global RNS
-blackholes. Complete directory presentation and the other migrations listed
+blackholes. The separate `announces import` command above migrates bounded transient
+history without changing this command's contact-policy boundary. Complete directory presentation and the other migrations listed
 above remain required software, not silently deferred as optional.
 
 Native terminal/daemon/init/offline directory-import processes now hold an
@@ -996,7 +1119,8 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   `enable_client` is retained unused metadata as in the actual primary; `compose_in_markdown`,
   `notify_on_new_message` and `user_interface=none|text` are operational/imported.
   `attachment_save_path` is operational/imported with explicit terminal export
-  as documented above; `compact_announce_stream` remains **missing**.
+  as documented above; `compact_announce_stream` is operational/imported with
+  bounded receive-time history and original terminal presentation as documented above.
   Menu UI is an **upstream-placeholder**, not an invented third native UI.
 - `[node]`: `enable_node`, `node_name`, `disable_propagation`, `announce_at_start`,
   `announce_interval`, `pages_path`, `files_path`, `page_refresh_interval`,

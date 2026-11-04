@@ -28,7 +28,8 @@ public static class NomadNetConfigImport
         if (Encoding.UTF8.GetByteCount(text) > MaximumConfigBytes) throw new InvalidDataException("Configuration exceeds 64 KiB.");
         var values = Read(text);
         var settings = new NomadNetSettings { EnableClient = false, NodeAnnounceIntervalMinutes = 720, NodeAnnounceAtStart = false,
-            NodePageRefreshIntervalMinutes = 0, NodeFileRefreshIntervalMinutes = 0, LogLevel = null, LogDestination = null };
+            NodePageRefreshIntervalMinutes = 0, NodeFileRefreshIntervalMinutes = 0, LogLevel = null, LogDestination = null,
+            CompactAnnounceStream = false };
         if (values.TryGetValue("logging.loglevel", out var logLevel))
             settings.LogLevel = NomadNetLogging.ParseLevel(Scalar(logLevel));
         if (values.TryGetValue("logging.destination", out var logDestination))
@@ -54,7 +55,7 @@ public static class NomadNetConfigImport
                 "client.periodic_lxmf_sync" or "client.lxmf_sync_interval" or "client.lxmf_sync_limit" or
                 "client.try_propagation_on_send_fail" or "client.required_stamp_cost" or "client.accept_invalid_stamps" or
                 "client.max_accepted_size" or "client.downloads_path" or "node.enable_node" or "node.disable_propagation" or
-                "client.user_interface" or "client.notify_on_new_message" or "client.attachment_save_path" or
+                "client.user_interface" or "client.notify_on_new_message" or "client.attachment_save_path" or "client.compact_announce_stream" or
                 "node.node_name" or "node.announce_interval" or "node.pages_path" or "node.files_path" or
                 "node.announce_at_start" or "node.page_refresh_interval" or "node.file_refresh_interval" or
                 "node.max_transfer_size" or "node.max_sync_size" or "node.propagation_cost" or
@@ -73,6 +74,7 @@ public static class NomadNetConfigImport
                 case "client.enable_client": settings.EnableClient = Boolean(value); break;
                 case "client.user_interface": settings.UserInterface = NomadNetClientRuntime.ParseInterface(value); break;
                 case "client.notify_on_new_message": settings.NotifyOnNewMessage = Boolean(value); break;
+                case "client.compact_announce_stream": settings.CompactAnnounceStream = Boolean(value); break;
                 case "client.announce_at_start": settings.ClientAnnounceAtStart = Boolean(value); break;
                 case "client.announce_interval": settings.ClientAnnounceIntervalMinutes = Math.Max(30, Integer(value)); break;
                 case "client.periodic_lxmf_sync": settings.PeriodicLxmfSync = Boolean(value); break;

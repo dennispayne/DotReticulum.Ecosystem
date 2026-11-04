@@ -39,5 +39,6 @@
     <EmbeddedResource Include="NomadNetClientRuntimeVectors.json" />
     <EmbeddedResource Include="NomadNetLoggingVectors.json" />
     <EmbeddedResource Include="NomadNetAttachmentPathVectors.json" />
+    <EmbeddedResource Include="NomadNetCompactAnnounceVectors.json" />
   </ItemGroup>
 </Project>

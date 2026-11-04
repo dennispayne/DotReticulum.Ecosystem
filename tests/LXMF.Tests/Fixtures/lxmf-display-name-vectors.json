@@ -1,0 +1,44 @@
+{
+  "revision": "e8ba02483217af43be284a72f1c059c730b7d047",
+  "source_sha256": "56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9",
+  "method": "Actual LXMRouter.get_announce_app_data with synthetic destination/owner; sequential display_name mutation, no network or router lifecycle",
+  "actual_imports_verified": true,
+  "vectors": [
+    {
+      "name": null,
+      "stamp_cost": 13,
+      "app_data": "93c00d9100"
+    },
+    {
+      "name": "Initial",
+      "stamp_cost": 13,
+      "app_data": "93c407496e697469616c0d9100"
+    },
+    {
+      "name": "Renamed",
+      "stamp_cost": 13,
+      "app_data": "93c40752656e616d65640d9100"
+    },
+    {
+      "name": "",
+      "stamp_cost": 13,
+      "app_data": "93c4000d9100"
+    },
+    {
+      "name": "Gr\u00fc\u00dfe",
+      "stamp_cost": 13,
+      "app_data": "93c4074772c3bcc39f650d9100"
+    },
+    {
+      "name": "\ud83c\udf0d",
+      "stamp_cost": 13,
+      "app_data": "93c404f09f8c8d0d9100"
+    },
+    {
+      "name": null,
+      "stamp_cost": 13,
+      "app_data": "93c00d9100"
+    }
+  ],
+  "invalid_name_error": "UnicodeEncodeError"
+}

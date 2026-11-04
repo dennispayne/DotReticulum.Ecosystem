@@ -75,6 +75,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
     private readonly DestinationRatchets? _ratchets;
     private readonly LxmTicketStore _tickets;
     private int _inboundStampCost;
+    private string? _displayName;
     private int _started;
     private int _disposed;
 
@@ -82,6 +83,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
     {
         _router = router ?? throw new ArgumentNullException(nameof(router));
         _identity = identity ?? throw new ArgumentNullException(nameof(identity));
+        LxmfAppData.ValidateDisplayName(displayName);
         _options = options ?? new LxmRouterOptions();
         ArgumentOutOfRangeException.ThrowIfLessThan(_options.InboundQueueCapacity, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(_options.OutboundQueueCapacity, 1);
@@ -93,7 +95,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
             SingleReader = true,
             FullMode = BoundedChannelFullMode.Wait,
         });
-        DisplayName = displayName;
+        _displayName = displayName;
         var destination = Destination.Create(DestinationType.Single, AppName, [DeliveryAspect], identity);
         if (_options.EnableRatchets)
         {
@@ -128,7 +130,15 @@ public sealed partial class LxmRouter : IAsyncDisposable
         InitializeDeliveryAnnounces();
     }
 
-    public string? DisplayName { get; }
+    public string? DisplayName => Volatile.Read(ref _displayName);
+
+    /// <summary>Updates the name used by subsequent announces and path responses; does not announce or persist automatically.</summary>
+    public void SetDisplayName(string? displayName)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        LxmfAppData.ValidateDisplayName(displayName);
+        Volatile.Write(ref _displayName, displayName);
+    }
 
     public byte[] DeliveryHash => _local.Destination.Hash;
 

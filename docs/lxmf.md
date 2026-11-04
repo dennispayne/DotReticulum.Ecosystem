@@ -34,13 +34,50 @@ The delivery destination is `lxmf.delivery`. Announce data may carry a display n
 
 `SetInboundStampCost()` changes the advertised/enforced cost; values below one clear it and values at least 255 are rejected. Delivery announces and path responses update a bounded upstream-compatible `outbound_stamp_costs` map with 45-day expiry. The worker and graceful disposal flush dirty costs atomically; `SaveOutboundStampCosts()` explicitly flushes them. `GetOutboundStampCost()` consults the cache and known announce data.
 
+`SetDisplayName()` updates the name used by the existing dynamic announce/path-response
+provider without replacing the identity, changing the stamp cost or automatically
+announcing/persisting. Applications own persistence and explicit announcements.
+Null, empty and Unicode names match executed primary `get_announce_app_data`
+observations; invalid UTF-8 input is rejected before mutation/resource acquisition,
+as primary encoding does. `GenerateLxmDisplayNameVectors.py` verifies actual pinned
+imports and records `LXMRouter.py` SHA-256
+`56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9`.
+The synthetic-owner provider vectors do not claim router lifecycle interoperability.
+Separate real two-node tests verify explicitly renamed announcements and updated
+names in solicited path responses without an explicit announcement; the focused
+corpus passes 3/3 on Windows/Linux.
+
 Direct links identify the sender; opportunistic packets are encrypted to the destination identity or announced ratchet. Message callbacks execute serially on a separate bounded receive worker; duplicate messages are suppressed even without subscribers. One observer throwing does not prevent other observers or later processing. Inbound overload is explicitly logged and dropped (default capacity 256); outbound capacity (default 256) includes messages still preparing stamps. `Cancel(message)` or `CancelOutbound(messageId)` cancels preparation or an active Resource and releases capacity; disposal cancels pending completion tasks. Message-ID progress and target-stamp-cost lookups include deferred preparation. Messages expose stamp value/check/validation metadata.
 
 Identified incoming delivery links provide backchannels for replies, without requiring a destination path or opening another link. Both link roles install receive/resource handlers and packet proving before sending; this includes proofs for packets received by the original initiator. Direct packets remain `Sending` until proved. Already-concluded receipts are checked after callback registration, and an active delivery link is usable immediately rather than waiting out its connection retry deadline. `CleanLinks()` closes outbound direct links strictly after 600 seconds without data and propagation links strictly after 180 seconds; node cleanup releases validation/transfer admission records. Maintenance checks links every four seconds and terminal delivery-resource tracking every eight seconds. Tests advance an explicitly controlled protocol clock with automatic stack timers disabled, then verify the exact boundaries and fresh-link recovery; this is not a real 600-second idle soak.
 
 Closed outbound links immediately release their destination, identification and propagation-message cache entries. This is native ownership cleanup, not a claim that upstream's empty `delivery_link_closed` callback performs it. Cleanup compares link instances, so a delayed close observer cannot remove a newer link to the same destination; creation does not cache an already-closed link or retain one after disposal. A peer's teardown is traffic and updates the receiving link's `LastData`: it must not require a second local idle expiry. The propagation boundary test independently expires each endpoint, checks zero expiry at exactly 180 seconds and one expiry at 180.001 seconds, waits for both close notifications, then checks that no closed cache entry survives another 180.001 seconds and that a fresh link delivers. Its explicit-cleanup client uses a one-hour processing interval rather than racing the normal polling worker.
 
-`CreateBinary` preserves arbitrary title/content bytes. Text conversion uses strict UTF-8: invalid titles throw, invalid content reports the decoding error and returns null, and unpaired input surrogates throw, matching the reference. `CreateUnassigned`, one-time source/destination assignment and pre-pack setters support deferred construction. Explicit timestamp zero is retained. For paper messages, create with `LxmMethod.Paper`, call `Pack(destinationIdentity: identity)`, then `AsUri()`. The URI is `lxm://` plus unpadded URL-safe base64 of `destination || encrypted(source || signature || payload)`, with an encrypted-size ceiling of 2210 bytes. `FromPaperUri` decrypts for the addressed identity or caller-owned `DestinationEndpoint` and validates the message; an optional decryptor supports a caller-owned ratchet ring. GROUP paper encryption/decryption has executed reference vectors. `AsUri()` finalizes with upstream's paper state `0x05` (not a network delivery confirmation). `IngestPaperUriAsync()` queues local delivery, reports rejected/local/duplicate results, supports explicit duplicate acceptance and persists processed transient IDs. As upstream, paper ingestion bypasses stamp enforcement and reports the propagated delivery method. Cancellation stops waiting, not an already queued delivery. Nonlocal paper forwarding is not a working pinned-source contract (see the defect/placeholder inventory below); native ingestion explicitly rejects it. Optional QR image rendering is not implemented.
+`CreateBinary` preserves arbitrary title/content bytes. Text conversion uses strict UTF-8: invalid titles throw, invalid content reports the decoding error and returns null, and unpaired input surrogates throw, matching the reference. `CreateUnassigned`, one-time source/destination assignment and pre-pack setters support deferred construction. Explicit timestamp zero is retained. For paper messages, create with `LxmMethod.Paper`, call `Pack(destinationIdentity: identity)`, then `AsUri()`. The URI is `lxm://` plus unpadded URL-safe base64 of `destination || encrypted(source || signature || payload)`, with an encrypted-size ceiling of 2210 bytes. `FromPaperUri` decrypts for the addressed identity or caller-owned `DestinationEndpoint` and validates the message; an optional decryptor supports a caller-owned ratchet ring. GROUP paper encryption/decryption has executed reference vectors. `AsUri()` finalizes with upstream's paper state `0x05` (not a network delivery confirmation). `IngestPaperUriAsync()` queues local delivery, reports rejected/local/duplicate results, supports explicit duplicate acceptance and persists processed transient IDs. As upstream, paper ingestion bypasses stamp enforcement and reports the propagated delivery method. Cancellation stops waiting, not an already queued delivery. Nonlocal paper forwarding is not a working pinned-source contract (see the defect/placeholder inventory below); native ingestion explicitly rejects it.
+
+`LxPaperQr.Encode()` produces immutable QR modules and original PNG output;
+`Decode()` accepts caller-decoded Gray8/RGB24 pixels. Defaults match executed
+primary `LXMessage.as_qr`: correction L, border 1, scale 10. Limits are version
+40/177 core modules, 2954 strict UTF-8 URI bytes, 2048 pixels per side and 4 Mi
+pixels; at most four orientations/two extraction attempts each. Cancellation
+is checked around decoder passes and on each PNG scanline. It is not a camera
+or general image parser, and envelope validity is not message authentication.
+Managed ZXing.Net 0.16.11 has no native dependencies; retain its transitive
+`ThirdPartyNotices/ZXing.Net.Apache-2.0.txt` in executable packages. The root
+Reticulum License is unchanged.
+
+`GenerateLxPaperQrVectors.py` executes verified LXMF 1.2.1
+`e8ba02483217af43be284a72f1c059c730b7d047`; `LXMessage.py` SHA-256 is
+`2fe8a1cb610e70f3d1c0b4f5086f660a45607484ce8dd53bd925943e95398aea`.
+Actual upstream qrcode 8.2 pixels decode in .NET; independent Pillow/zxing-cpp
+2.3.0 reads Windows/Linux native PNGs to the exact synthetic encrypted URI.
+Capacity probes execute `as_qr` with repeated existing ciphertext and are not
+decryptable messages. Sixteen focused tests pass per host, including bounds,
+immutability, cancellation, concurrent calls, rotation and one-module damage.
+Strict warning-as-error NativeAOT probe publication, `--help` and actual
+encode/decode/PNG flows pass on both hosts; acceptance commands and SHA-256s
+are retained in `artifacts/builds/qr-probe/acceptance.json`. This proves software
+QR exchange, not physical scanning, printing or macOS support.
 
 `RegisterPlainDelivery()` additionally receives signed, unencrypted PLAIN packets without stamp gating. Actual Python router-originated PLAIN messages reach this endpoint. Native PLAIN packing matches actual reference bytes; receiving them through a registered Python PLAIN endpoint is **not verified working**: pinned RNS `Identity.recall` dereferences that endpoint's null identity while LXMF unpacks, and `LXMRouter.lxmf_delivery` separately assumes a registered SINGLE delivery policy. No reference shim bypasses either defect. Upstream `LXMessage.pack` raises `UnboundLocalError` for GROUP opportunistic messages; native code explicitly rejects that mode. Paper GROUP support does not establish GROUP network delivery.
 
@@ -70,7 +107,7 @@ Client receive counters count accepted packets, including retransmitted deposits
 
 ## Limitations and differences from upstream
 
-Optional QR rendering is not implemented. Required node admission, startup/reload, delayed announcement, retrieval/progress and failure-signalling contracts have source-generated and executable evidence. Final-library daemon NativeAOT/process acceptance passes on Windows and Linux; physical and exhaustive fault-matrix boundaries remain separate.
+Optional software QR rendering and bounded pixel decoding are implemented as described below. Required node admission, startup/reload, delayed announcement, retrieval/progress and failure-signalling contracts have source-generated and executable evidence. Final-library daemon NativeAOT/process acceptance passes on Windows and Linux; physical and exhaustive fault-matrix boundaries remain separate.
 
 `LxMessage.GetPaperDestinationHash()` is a native application helper sharing the
 existing bounded URI decoder. It exposes only the unauthenticated envelope
@@ -100,7 +137,7 @@ Stamp preparation starts asynchronously rather than waiting for the Python four-
 
 Restart tests load actual reference encrypted/stamped storage, remove only recognized native interrupted-write files, preserve committed bytes, reject hash corruption and release the exclusive lease after failed startup. Delivery/processed/stamp-cost and node peer/stat atomic-write remnants are cleaned by their owners. Live process restart and failure recovery are described separately below. Simulated interrupted files and process restarts are not storage-device power-loss testing.
 
-Remaining deferrals are optional QR/client field rendering and codec/playback support explicitly optional in `LXMF.py`; nonworking upstream PLAIN/GROUP/nonlocal-paper behaviors and inbound-node differentiation; and external physical-radio/slow-medium accuracy or storage-device power-loss validation. No new required wire format or placeholder behavior is invented. Exhaustive combinations of every policy, filesystem failure and simultaneous full-payload saturation are not claimed verified merely because the corresponding gates execute.
+Remaining deferrals are optional client field rendering and codec/playback support explicitly optional in `LXMF.py`; nonworking upstream PLAIN/GROUP/nonlocal-paper behaviors and inbound-node differentiation; and external physical-radio/slow-medium accuracy or storage-device power-loss validation. No new required wire format or placeholder behavior is invented. Exhaustive combinations of every policy, filesystem failure and simultaneous full-payload saturation are not claimed verified merely because the corresponding gates execute.
 
 ## Platform notes
 
@@ -184,7 +221,7 @@ Source paths below are relative to the official wheel's `LXMF/` directory. This 
 | `get_propagation_stamp`, transient ID, PN workblock expansion, deferred generation | Implemented generation/transient association and target-cost inspection with upstream vectors and live propagation directions. Cancellation uses owned async tokens, not a Python registry. `timeout` parameters on upstream stamp methods are not enforced (**upstream-placeholder**). |
 | Propagated envelope `msgpack([time, [destination || encrypted(source || signature || payload) || propagation_stamp]])` | Implemented; generated Python encrypted fixture and actual propagation client/node round trips. |
 | Paper encryption, `as_uri(finalise)`, URI scheme and size ceiling | Implemented primitives; upstream-generated paper URI decrypts/signature-validates and normalizes identically. Reverse Python acceptance is separately tested by adapter when enabled. |
-| `as_qr`: optional `qrcode`, error correction L, border 1 | Missing. QR image rendering is optional upstream functionality, not needed to parse URI bytes. No QR interoperability claim. |
+| `as_qr`: optional `qrcode`, error correction L, border 1 | Implemented optional software equivalent: `LxPaperQr.Encode`, immutable symbol/PNG, default correction L/border 1/scale 10. Actual upstream pixels decode in .NET; independent Python zxing-cpp decodes Windows/Linux native PNGs. Physical camera/printer behavior unverified. |
 | `packed_container`, `write_to_directory`, `unpack_from_file` | Implemented container primitives and `WriteToDirectoryAsync` / `UnpackFromFileAsync`, with executed source file/name vectors, bounded reads, atomic concurrent replacement and cancellation/failure cleanup. Daemon inbox ownership remains separate. |
 | Python locks, worker threads and callback registration spelling | Not-applicable as implementation mechanisms; observable serialization, bounds, cancellation and ownership use .NET abstractions instead. |
 
@@ -300,6 +337,6 @@ Daemon filesystem inventory: config discovery (`/etc/lxmd`, XDG user config or `
 
 ### Required remaining interoperability
 
-Verified evidence includes propagation delivery/retrieval and explicit/autonomous synchronization in both Python/.NET directions, lazy/persistent bounded batches, native/native peer restart and continued service, ticket exchange, message/container/paper vectors, paper ingestion, persistent caches, weight/priority behavior, native daemon flows on Windows/Linux, and bidirectional multi-megabyte delivery through Python or .NET transport hops with one-part loss, latency, mid-Resource cancellation and post-teardown recovery. Small direct/opportunistic packet loss is retried against actual Python. Stalled-advertisement contention, static bypass under contention, teardown/recovery and real throttle expiry pass actual native process acceptance. This does **not** establish every cost/concurrency boundary, persistence of in-flight transport jobs absent from upstream, arbitrary loss/latency schedules, optional paper QR rendering, audio/image device behavior, physical-radio behavior or platform-wide interface support. Final publication and independent platform gates remain distinct from implemented-software inventory.
+Verified evidence includes propagation delivery/retrieval and explicit/autonomous synchronization in both Python/.NET directions, lazy/persistent bounded batches, native/native peer restart and continued service, ticket exchange, message/container/paper vectors, paper ingestion, persistent caches, weight/priority behavior, native daemon flows on Windows/Linux, and bidirectional multi-megabyte delivery through Python or .NET transport hops with one-part loss, latency, mid-Resource cancellation and post-teardown recovery. Small direct/opportunistic packet loss is retried against actual Python. Stalled-advertisement contention, static bypass under contention, teardown/recovery and real throttle expiry pass actual native process acceptance. Optional software QR has separate executed-reference and native image-decoder evidence above. This does **not** establish every cost/concurrency boundary, persistence of in-flight transport jobs absent from upstream, arbitrary loss/latency schedules, physical QR scanning, audio/image device behavior, physical-radio behavior or platform-wide interface support. Final publication and independent platform gates remain distinct from implemented-software inventory.
 
 The stack's incoming link setup race was repaired in `21ec8ac9e167c7ad6df289dc5b7d2a347b703ce9`. A captured conditional `CloseLocked()` / `DrainResourceWorkAsync()` deadlock was subsequently reproduced deterministically and repaired in `36dafd2`: completed resource tasks are pruned under the gate before awaiting pending work, without depending on blocked bookkeeping continuations. Stack regression tests and the current native restart/impaired-hop/cancellation flows pass with this repair. Neither issue is a current known blocker; this is not a claim that every cancellation race is fixed.

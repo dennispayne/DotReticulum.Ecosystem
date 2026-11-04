@@ -5,16 +5,23 @@ namespace LXMF;
 /// <summary>Helpers for <c>lxmf.delivery</c> announce app_data: <c>msgpack([display_name_bytes|nil, stamp_cost|nil, [supported_functionality]])</c>, with a legacy raw display name form.</summary>
 public static class LxmfAppData
 {
+    private static readonly System.Text.UTF8Encoding NameEncoding = new(false, true);
+
     /// <summary>Upstream <c>SF_COMPRESSION</c> supported-functionality flag.</summary>
     public const long SupportsCompression = 0;
 
     public static byte[] Build(string? displayName, int? stampCost = null) =>
         MsgPack.Pack(new object?[]
         {
-            displayName is null ? null : System.Text.Encoding.UTF8.GetBytes(displayName),
+            displayName is null ? null : NameEncoding.GetBytes(displayName),
             stampCost is > 0 and < 255 ? (long)stampCost.Value : null,
             new object?[] { SupportsCompression },
         });
+
+    internal static void ValidateDisplayName(string? displayName)
+    {
+        if (displayName is not null) _ = NameEncoding.GetByteCount(displayName);
+    }
 
     public static string? DisplayName(byte[]? appData)
     {

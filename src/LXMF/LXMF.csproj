@@ -15,4 +15,9 @@
     <InternalsVisibleTo Include="LXMF.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="ZXing.Net" Version="0.16.11" />
+    <None Update="ThirdPartyNotices\ZXing.Net.Apache-2.0.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

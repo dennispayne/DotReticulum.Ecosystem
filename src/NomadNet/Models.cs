@@ -14,6 +14,10 @@ public sealed record NomadNetSettings
 {
     public int SchemaVersion { get; init; } = 1;
     public string DisplayName { get; init; } = "NomadNet user";
+    public bool EnableClient { get; set; } = true;
+    public bool ClientAnnounceAtStart { get; set; } = true;
+    public int ClientAnnounceIntervalMinutes { get; set; } = 360;
+    public DateTimeOffset? LastClientAnnounce { get; set; }
     public bool EnableNode { get; set; }
     public string? NodeName { get; set; }
     public int NodeAnnounceIntervalMinutes { get; set; } = 360;
@@ -91,6 +95,8 @@ public sealed record NomadNetSettings
     {
         if (InboundStampCost is < 1 or > 254)
             throw new InvalidDataException("Inbound stamp cost must be null or 1–254; the primary's 255 clamp is unsupported by pinned LXMF 1.2.1.");
+        if (ClientAnnounceIntervalMinutes is < 30 or > 10080)
+            throw new InvalidDataException("Client announce interval must be 30–10080 minutes.");
         if (SchemaVersion != 1 || string.IsNullOrWhiteSpace(DisplayName) ||
             DisplayName.Trim().Length > 80 || DisplayName.Any(char.IsControl) ||
             NodeAnnounceIntervalMinutes is < 1 or > 10080 ||

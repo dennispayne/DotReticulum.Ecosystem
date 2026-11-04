@@ -202,9 +202,19 @@ internal static class Program
             Log = message => Console.Error.WriteLine(message),
         } : null;
         host?.Start();
-        await router.AnnounceAsync(cancellationToken).ConfigureAwait(false);
+        await using var clientAnnounces = new NomadNetClientAnnounces(() => propagationPolicy.Settings,
+            token =>
+            {
+                if (!router.SetInboundStampCost(propagationPolicy.Settings.InboundStampCost))
+                    throw new InvalidOperationException("The configured inbound stamp cost is unsupported.");
+                return router.AnnounceAsync(token);
+            },
+            (timestamp, token) => propagationPolicy.UpdateSettingsAsync(
+                current => current with { LastClientAnnounce = timestamp }, token))
+        { Log = message => Console.Error.WriteLine(message) };
+        clientAnnounces.Start();
         var receiver = PersistIncomingAsync(inbox.Reader, state, options.DataDirectory, cancellationToken);
-        await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host);
+        await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host, clientAnnounces);
 
         Console.WriteLine("NomadNet .NET client (scoped native implementation; type help for commands)");
         Console.WriteLine($"LXMF delivery address: {router.DeliveryHashHex}");
@@ -280,6 +290,10 @@ internal static class Program
             Interactive commands:
               status                         Show identity and Reticulum connectivity
               announce                       Reannounce delivery and hosted destinations
+              client [status|announce]       Inspect or announce only LXMF delivery
+              client startup <on|off>         Save next-start announcement policy
+              client interval <30–10080>     Set periodic announcement minutes
+              client stamp-cost <none|1–254> Set required inbound stamp cost
               peers                          List announced Reticulum destinations
               contact add <hash> <name>      Save a known LXMF destination
               contacts | contact remove <hash>
@@ -361,7 +375,7 @@ internal static class Program
     }
 
     private sealed class TerminalSession(ReticulumNode node, Identity identity, LxmRouter router, NomadNetStore store,
-        string dataDirectory, NomadNetPropagation propagation, NomadNetHost? host) : IAsyncDisposable
+        string dataDirectory, NomadNetPropagation propagation, NomadNetHost? host, NomadNetClientAnnounces clientAnnounces) : IAsyncDisposable
     {
         private readonly NomadNetDelivery _delivery = new(router, identity, store,
             () => propagation.Settings.TryPropagationOnSendFail)
@@ -449,9 +463,43 @@ internal static class Program
             }
             if (command.Equals("announce", StringComparison.OrdinalIgnoreCase))
             {
-                await router.AnnounceAsync(cancellationToken).ConfigureAwait(false);
+                await clientAnnounces.AnnounceNowAsync(cancellationToken).ConfigureAwait(false);
                 if (host is not null) await host.AnnounceAsync(cancellationToken).ConfigureAwait(false);
                 Console.WriteLine("Destinations announced.");
+                return false;
+            }
+            if (command.Equals("client", StringComparison.OrdinalIgnoreCase) || command.StartsWith("client ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 1 || parts is [_, "status"])
+                {
+                    var current = propagation.Settings;
+                    Console.WriteLine($"Client startup announce: {current.ClientAnnounceAtStart}; interval minutes: {current.ClientAnnounceIntervalMinutes}; last successful announce: {current.LastClientAnnounce?.ToString("O") ?? "never"}.");
+                    Console.WriteLine($"Client enable_client metadata: {current.EnableClient} (unused by the primary runtime); stamp cost: {current.InboundStampCost?.ToString() ?? "none"}.");
+                }
+                else if (parts is [_, "announce"])
+                {
+                    await clientAnnounces.AnnounceNowAsync(cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Client destination announced.");
+                }
+                else if (parts is [_, "startup", "on" or "off"])
+                {
+                    await propagation.UpdateSettingsAsync(current => current with { ClientAnnounceAtStart = parts[2] == "on" }, cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Client startup announce policy saved; applies on next restart.");
+                }
+                else if (parts is [_, "interval", _] && int.TryParse(parts[2], out var interval))
+                {
+                    await propagation.UpdateSettingsAsync(current => current with { ClientAnnounceIntervalMinutes = interval }, cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Client announce interval saved.");
+                }
+                else if (parts is [_, "stamp-cost", _])
+                {
+                    var cost = parts[2] == "none" ? (int?)null : int.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture);
+                    await propagation.UpdateSettingsAsync(current => current with { InboundStampCost = cost }, cancellationToken).ConfigureAwait(false);
+                    if (!router.SetInboundStampCost(cost)) throw new InvalidOperationException("The saved inbound stamp cost is unsupported.");
+                    Console.WriteLine("Client stamp cost saved; next announce advertises it.");
+                }
+                else throw new ArgumentException("Usage: client [status|announce|startup <on|off>|interval <30–10080>|stamp-cost <none|1–254>]");
                 return false;
             }
 

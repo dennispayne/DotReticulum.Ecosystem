@@ -118,6 +118,26 @@ def main():
             announce_lock = threading.Lock()
             announce_overflow = threading.Event()
             observing_announces = False
+            client_announces = {}
+            observing_clients = False
+
+            class ClientAnnounceObserver:
+                aspect_filter = "lxmf.delivery"
+                receive_path_responses = False
+
+                def received_announce(self, destination_hash, announced_identity, app_data):
+                    with announce_lock:
+                        previous = client_announces.get(destination_hash)
+                        if ((len(client_announces) >= 256 and previous is None) or
+                                (previous is not None and previous["count"] >= 1024)):
+                            announce_overflow.set()
+                            return
+                        client_announces[destination_hash] = {
+                            "count": previous["count"] + 1 if previous else 1,
+                            "utc": time.time(),
+                            "stamp_cost": LXMF.stamp_cost_from_app_data(app_data),
+                            "name": LXMF.display_name_from_app_data(app_data),
+                        }
 
             class NodeAnnounceObserver:
                 aspect_filter = "nomadnetwork.node"
@@ -220,6 +240,31 @@ def main():
                          interfaces=[{"name": str(item), "id": id(item), "online": getattr(item, "online", None)}
                                      for item in RNS.Transport.interfaces[:32]])
                     continue
+                if parts[0] == "observe-client-announces":
+                    if observing_clients:
+                        raise RuntimeError("Client announce observation already enabled")
+                    RNS.Transport.register_announce_handler(ClientAnnounceObserver())
+                    observing_clients = True
+                    emit("observing-client-announces")
+                    continue
+                if parts[0] == "client-announces" and len(parts) >= 2:
+                    target = bytes.fromhex(parts[1])
+                    minimum = int(parts[2]) if len(parts) == 3 else 0
+                    if not observing_clients or len(target) != 16 or not 0 <= minimum <= 1024:
+                        raise RuntimeError("Enable client observation and select a bounded target/count")
+                    deadline = time.monotonic() + 10
+                    while time.monotonic() < deadline:
+                        if announce_overflow.is_set():
+                            raise RuntimeError("Announce observation overflow; evidence is incomplete")
+                        with announce_lock:
+                            observation = dict(client_announces.get(target, {"count": 0}))
+                        if observation["count"] >= minimum:
+                            break
+                        time.sleep(0.01)
+                    else:
+                        raise RuntimeError("Expected client announce was not observed")
+                    emit("client-announces", delivery=target.hex(), **observation)
+                    continue
                 if parts[0] in ("observe-node-announces", "observe-propagation-announces"):
                     if observing_announces:
                         raise RuntimeError("Node announce observation already enabled")
@@ -280,6 +325,9 @@ def main():
                     continue
                 if parts[0] == "config-stats":
                     emit("configuration", enable_node=app.enable_node, node_name=app.node_name,
+                         enable_client=app.enable_client, client_announce_at_start=app.peer_announce_at_start,
+                         client_announce_interval=app.announce_interval,
+                         client_delivery_registered=app.lxmf_destination is not None,
                          disable_propagation=app.disable_propagation, announce_interval=app.node_announce_interval,
                          periodic_lxmf_sync=app.periodic_lxmf_sync, lxmf_sync_interval=app.lxmf_sync_interval,
                          lxmf_sync_limit=app.lxmf_sync_limit, try_propagation_on_send_fail=app.try_propagation_on_fail,

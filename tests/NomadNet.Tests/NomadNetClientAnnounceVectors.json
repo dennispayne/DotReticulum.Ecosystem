@@ -1,0 +1,87 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sourceSha256": "beda2e618d67200cb14cf7d636efa34f13b4607f99717575f02a1c91fafcf60b",
+  "method": "Actual __jobs/announce_now method bodies. A disclosed module-local clock stops after one iteration; router/save callbacks observe calls instead of performing I/O. Not unmodified live application evidence.",
+  "startupDelaySeconds": 3,
+  "observed": [
+    {
+      "name": "before",
+      "lastBefore": 98201.0,
+      "lastAfter": 98201.0,
+      "sleeps": [
+        90,
+        5
+      ],
+      "calls": [],
+      "error": null
+    },
+    {
+      "name": "exact",
+      "lastBefore": 98200.0,
+      "lastAfter": 98200.0,
+      "sleeps": [
+        90,
+        5
+      ],
+      "calls": [],
+      "error": null
+    },
+    {
+      "name": "due",
+      "lastBefore": 98199.0,
+      "lastAfter": 100000.0,
+      "sleeps": [
+        90,
+        5
+      ],
+      "calls": [
+        [
+          "cost",
+          "11111111111111111111111111111111",
+          13
+        ],
+        [
+          "announce",
+          "11111111111111111111111111111111",
+          "Generated Peer"
+        ],
+        [
+          "saved",
+          100000.0
+        ]
+      ],
+      "error": null
+    },
+    {
+      "name": "never-announced",
+      "lastBefore": null,
+      "lastAfter": null,
+      "sleeps": [
+        90
+      ],
+      "calls": [],
+      "error": "TypeError"
+    },
+    {
+      "name": "announce-failure",
+      "lastBefore": 0.0,
+      "lastAfter": 0.0,
+      "sleeps": [
+        90
+      ],
+      "calls": [
+        [
+          "cost",
+          "11111111111111111111111111111111",
+          13
+        ],
+        [
+          "announce",
+          "11111111111111111111111111111111",
+          "Generated Peer"
+        ]
+      ],
+      "error": "ValueError"
+    }
+  ]
+}

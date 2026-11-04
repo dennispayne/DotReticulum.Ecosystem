@@ -21,6 +21,10 @@ public sealed class NomadNetConfigTests
             Assert.Empty(imported.UnsupportedKeys);
             var actual = imported.Settings;
             var expected = vector.GetProperty("observed");
+            Assert.Equal(expected.GetProperty("enable_client").GetBoolean(), actual.EnableClient);
+            Assert.Equal(expected.GetProperty("client_announce_at_start").GetBoolean(), actual.ClientAnnounceAtStart);
+            Assert.Equal(expected.GetProperty("client_announce_interval").GetInt32(), actual.ClientAnnounceIntervalMinutes * 60);
+            Assert.True(expected.GetProperty("client_delivery_registered").GetBoolean());
             Assert.Equal(expected.GetProperty("enable_node").GetBoolean(), actual.EnableNode);
             Assert.Equal(expected.GetProperty("node_name").GetString(), actual.NodeName);
             Assert.Equal(expected.GetProperty("announce_interval").GetInt32(), actual.NodeAnnounceIntervalMinutes);

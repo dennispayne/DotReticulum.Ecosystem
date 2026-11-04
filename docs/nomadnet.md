@@ -52,6 +52,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Contract and upstream sources | Current status and boundary |
 |---|---|
 | Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`, `--console`, `--textui` accepted. Daemon ignores terminal input and serves until cancellation. `--console` selects the existing console logging; `--textui` selects the original command loop, not Urwid. Extensions: `--help`, `--init`, `--status`, explicit non-overwriting core `--import-config`. |
+| Client announcements; `NomadNetworkApp.START_ANNOUNCE_DELAY`, `__jobs`, `announce_now`, `apply_config` | **implemented bounded subset**: configurable three-second startup, strict periodic interval after90seconds with five-second checks, manual delivery-only or combined announces, durable successful timestamp and live stamp-cost edits through the existing LXMF API. Retains unused `enable_client` metadata rather than inventing delivery-disable semantics. Native safety differences for fresh null timestamps, failed background work, serialization and interval bounds are explicit below. Runtime peer display-name editing remains missing: existing `LxmRouter.DisplayName` is get-only; no replacement destination/protocol is invented. |
 | Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, per-peer direct/propagated/opportunistic preference, unread/failure counters, explicit viewed/read state, latest-activity listing, deletion/failed purge and plain-text export. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. Native opportunistic text is received by the actual primary; direct reply/viewed state and both applications' read counters are exercised. Upstream `.index`/conversation import and full conversation UI remain missing. |
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Encoded image files can be explicitly converted with the local image adapter; automatic conversation-image display remains missing. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
 | Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. Actual primary app ingest/generation tested both ways. QR image generation, QR scan and printer commands are missing. |
@@ -77,6 +78,9 @@ contracts and reports unsupported keys; it is not complete configuration parity.
 | Native setting | Default / behavior |
 |---|---|
 | `displayName` | `NomadNet user`; 1–80 printable characters |
+| `enableClient` | true for legacy native profiles; false when absent from imported primary configuration; metadata only, matching the primary's unused runtime flag; does not disable delivery |
+| `clientAnnounceAtStart`, `clientAnnounceIntervalMinutes` | true /360; three-second startup announce, periodic checks after90seconds and then every5seconds; interval30–10080minutes |
+| `lastClientAnnounce` | absent initially; saved only after successful delivery announce; null suppresses periodic announcements until first manual/startup success |
 | `enableNode`, `nodeName` | false; absent name derives from display name |
 | `nodeAnnounceIntervalMinutes` | 360; validated 1–10080 |
 | `nodeAnnounceAtStart` | true for legacy native profiles; false when absent from imported primary node configuration; controls the six-second hosted node announce and its additional scheduled propagation announcement |
@@ -104,7 +108,8 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   `compact_announce_stream`, `notify_on_new_message`, `compose_in_markdown`,
   `user_interface` — **partial** only where the explicit native settings or
   implemented workflows above apply. Downloads path, required cost, invalid-stamp
-  acceptance and transfer limit are operational/imported; other application
+  acceptance, transfer limit and client startup/periodic announcements are operational/imported;
+  `enable_client` is retained unused metadata as in the actual primary; other application
   options are **missing**.
 - `[node]`: `enable_node`, `node_name`, `disable_propagation`, `announce_at_start`,
   `announce_interval`, `pages_path`, `files_path`, `page_refresh_interval`,
@@ -136,6 +141,117 @@ binary layout, RRC profile layout and JSON/attachment layout are .NET-local pers
 not new wire protocols. Media conversion and authorised executable-page support
 are separate capabilities; one does not prove the other.
 
+### Client announcement policy
+
+`client status` shows startup policy, interval, last successful announce,
+unused `enable_client` metadata and current stamp cost. `client startup on|off`
+saves the next-start policy; `client interval <30–10080>` changes subsequent
+periodic checks. `client stamp-cost <none|1–254>` saves and applies the existing
+LXMF inbound-cost setter; the next announce advertises it. Invalid changes fail
+without altering the saved profile. `client announce` announces only delivery;
+`announce` additionally announces the hosted node as before.
+
+Actual pinned source sets a three-second startup delay,90-second jobs deferral
+and five-second poll. Its strict `now > last_announce + interval` excludes the
+exact boundary. The configured interval is clamped to at least30minutes on
+import; the native maximum10080minutes is an explicit resource/policy bound,
+not an upstream maximum. Timestamps advance only after the network announce
+succeeds, unlike the hosted node's pre-attempt timestamp.
+
+Two observed primary failures are deliberately not reproduced: a fresh profile
+with startup disabled has `last_announce=None`, causing `__jobs` to raise
+`TypeError`; a failed announce raises out of jobs with its old timestamp. Native
+null timestamps remain quiet until a successful manual/startup announce, and
+background failures are reported without disabling later work. Requests are
+serialized and bounded to16pending operations; asynchronous disposal cancels
+and joins all admitted work. Failing log observers do not stop processing.
+`enable_client` has no runtime reader in the pinned application, so false does
+not silently disable native delivery or its separately configured announces.
+
+### Selected client-announcement acceptance
+
+`GenerateNomadNetClientAnnounceVectors.py` executes the actual primary
+`__jobs`/`announce_now` bodies at
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`. The fixture records the loaded
+Windows source-file SHA-256
+`beda2e618d67200cb14cf7d636efa34f13b4607f99717575f02a1c91fafcf60b`.
+Its disclosed module-local clock stops after one iteration; router/save
+observers record calls without network I/O. This is reference-vector evidence,
+not unmodified live application evidence. Actual constructor vectors separately
+verify imported client booleans, defaults, interval clamping and a registered
+delivery destination despite `enable_client=false`. Registration alone does
+not prove that the separately documented invalid 255 stamp-cost profile works.
+
+Native deterministic tests cover strict elapsed boundaries, explicit start,
+three-second startup and independent 90-second maintenance deadlines,
+five-second polling, disabled startup/null timestamp safety, network failure
+without timestamp advancement, continued service, failing log observers,
+16-request admission, cancellation, and shared disposal joining admitted work.
+All scoped tests pass with the selected converter:
+**Windows 110 passed +4 explicit POSIX skips**, **Linux 114/114**.
+
+The exact selected strict NativeAOT binaries are:
+
+- Windows `artifacts\builds\nomadnet-client-announce-win\publish\NomadNet\release_win-x64\nomadnet.exe`;
+  SHA-256 `0d533f089da7376117ae98d66186ea586e46540443004d2343cc99af587f4154`.
+- Linux `artifacts/builds/nomadnet-client-announce-linux/publish/NomadNet/release_linux-x64/nomadnet`;
+  SHA-256 `98f7a35605fd8a9adaa3bb4d481034279df8b3c2a66a5e68dca7a680ff1cf4ed`.
+
+Both `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r <rid>
+--artifacts-path artifacts\builds\nomadnet-client-announce-<host>
+-p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v:q`
+invocations pass. Windows uses the existing MSVC environment in the same
+process; Linux uses the pinned WSL SDK/runtime and native-filesystem test roots.
+The supported platforms and exact reference/converter/runtime prerequisites
+remain those recorded in the other selected acceptance sections; no macOS,
+hardware or audio-device support is inferred.
+
+Frozen recipes, independently repeated against the unchanged binaries:
+
+```powershell
+& artifacts\tests\nomadnet-client-announce-win-acceptance.ps1
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-client-announce-linux-acceptance.ps1
+```
+
+Both recipes pass **Native 4/4**, including `--help`, identity-preserving terminal
+restart and representative hosted/message/attachment/paper flows. The expanded
+actual primary application case passes **1/1** on Windows and Linux
+(independent repeat 112.34/107.61 seconds); Linux additionally passes actual
+RRC/forms/partial/replay **1/1**, 18.90 seconds. The frozen Pester copy
+`artifacts\tests\nomadnet-client-announce-frozen.Tests.ps1` has SHA-256
+`3b79126512ad7e190b6f68d57b54f1c194297f4d8dd9dfb2f814eb15bbc94bed`;
+the recipes reject different test/binary hashes.
+
+`DOTRETICULUM_NOMADNET_CLIENT_ANNOUNCE_LIVE=1` requires the existing explicit
+configuration/hosted-policy/image modes. The actual primary starts its additional
+supported delivery-announce observer before native startup; original application
+handlers remain registered, and path responses are excluded. With disabled
+client/node startup, no unsolicited delivery announce is observed after seven
+seconds. A disclosed old persisted timestamp fixture makes periodic work due;
+the genuine first broadcast still waits the real 90-second startup deferral,
+with no clock acceleration or private scheduler invocation. The primary's LXMF
+decoder observes stamp cost 13, then 14 after a valid manual change and announce.
+Invalid 29-minute and 255-cost changes are rejected without changing saved policy.
+The successful timestamp, disabled startup and cost 14 survive native restart.
+
+The manual witness waits 1.1 seconds between announcements because RNS requires
+a strictly newer whole-second emission timestamp for an equal-hop route.
+There is no extra delivery retry, path expiration, deadline increase or relaxed
+assertion. This new announce witness is direct application interoperability;
+existing transport-hop, impaired 2,200,000-byte transfer and propagation/restart evidence
+remains separately scoped, not inferred from announcement counts.
+
+The isolated `dotnet build DotReticulum.Ecosystem.slnx -c Release
+--artifacts-path artifacts\builds\nomadnet-client-announce-integrated -v:q`
+passes with zero warnings/errors. `dotnet test DotReticulum.Ecosystem.slnx
+-c Release --no-build --artifacts-path artifacts\builds\nomadnet-client-announce-integrated
+--logger trx --results-directory artifacts\tests\nomadnet-client-announce-integrated -v:q`
+passes **2079 tests, 87 explicit skips, zero failures**. Converter-dependent cases
+skipped in this integrated invocation are separately exercised above.
+Runtime peer display-name edits remain required and missing behind the existing
+get-only LXMF API; logging, other configuration/UI contracts, migration,
+inline media and application-level propagation peering are not declared complete.
+
 ## Operation
 
 ```powershell
@@ -162,7 +278,8 @@ removes the staged profile; source configuration is never changed. This imports
 configuration only: no upstream identity, conversations, contacts or private
 peer-settings files are silently selected/copied.
 
-The seventeen translated keys are `[client] periodic_lxmf_sync`,
+The twenty translated keys are `[client] enable_client`, `announce_at_start`,
+`announce_interval`, `periodic_lxmf_sync`,
 `lxmf_sync_interval`, `lxmf_sync_limit`, `try_propagation_on_send_fail`,
 `required_stamp_cost`, `accept_invalid_stamps`, `max_accepted_size`,
 `downloads_path`; `[node] enable_node`, `disable_propagation`, `node_name`,
@@ -611,7 +728,8 @@ wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.
 These ignored recipes select matching frozen managed DLLs/binaries and the
 same pinned primary/RNS/LXMF, converter and runtime prerequisites as directory
 acceptance below. Older recipes explicitly clear the new opt-in. The application
-artifact records `hostPolicy=true`. Client announce settings, logging, node
+artifact records `hostPolicy=true`. Client announcement acceptance is recorded
+separately below; logging, node
 counters and other unsupported configuration remain required gaps.
 
 The isolated integrated checkpoint `dotnet build DotReticulum.Ecosystem.slnx

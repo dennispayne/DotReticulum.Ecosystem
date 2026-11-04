@@ -12,6 +12,9 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
         if ($env:DOTRETICULUM_NOMADNET_HOST_POLICY_LIVE -eq '1' -and $env:DOTRETICULUM_NOMADNET_CONFIG_LIVE -ne '1') {
             throw 'Hosted policy acceptance requires the explicit core configuration mode.'
         }
+        if ($env:DOTRETICULUM_NOMADNET_CLIENT_ANNOUNCE_LIVE -eq '1' -and $env:DOTRETICULUM_NOMADNET_HOST_POLICY_LIVE -ne '1') {
+            throw 'Client announce acceptance requires the explicit hosted-policy/configuration modes.'
+        }
         $work = Join-Path (Get-Location) "artifacts\tests\nomadnet-images-$([Guid]::NewGuid().ToString('N'))"
         $null = New-Item $work -ItemType Directory -Force
         $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
@@ -43,7 +46,7 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
             return $process
         }.GetNewClosure()
         $read = {
-            param($process, [string] $pattern, [int] $seconds = 60)
+            param($process, [string] $pattern, [int] $seconds = 60, [bool] $allowExpectedCommandError = $false)
             $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
             while ([DateTime]::UtcNow -lt $deadline) {
                 if (-not $pending.ContainsKey($process.Id)) { $pending[$process.Id] = $process.StandardOutput.ReadLineAsync() }
@@ -52,7 +55,8 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
                 $pending.Remove($process.Id)
                 if ($null -eq $line) { throw "$($names[$process.Id]) closed stdout before '$pattern'." }
                 Add-Content (Join-Path $work "$($names[$process.Id]).stdout") $line
-                if ($line -match '"event"\s*:\s*"(error|failed|request-failed)"' -or $line -match '(^|nomadnet> )Error:') { throw $line }
+                if ($line -match '"event"\s*:\s*"(error|failed|request-failed)"' -or
+                    ($line -match '(^|nomadnet> )Error:' -and (-not $allowExpectedCommandError -or $line -notmatch $pattern))) { throw $line }
                 if ($line -match $pattern) { return $line }
             }
             throw "$($names[$process.Id]) timed out waiting for '$pattern'; diagnostics: $work"
@@ -181,6 +185,13 @@ image_loading = yes
                 $settings.deliveryTransferLimitBytes | Should -Be 4000000
                 $settings.mediaConverter = $env:DOTRETICULUM_NOMADNET_IMAGE_CONVERTER
             }
+            if ($env:DOTRETICULUM_NOMADNET_CLIENT_ANNOUNCE_LIVE -eq '1') {
+                $settings.enableClient | Should -BeFalse
+                $settings.clientAnnounceAtStart = $false
+                $settings.clientAnnounceIntervalMinutes = 30
+                # Disclosed old persisted-state fixture; real 90-second job deferral is not accelerated.
+                $settings.lastClientAnnounce = [DateTimeOffset]::UtcNow.AddMinutes(-60).ToString('O')
+            }
             $settings | ConvertTo-Json | Set-Content $settingsPath -Encoding utf8
             $nativeArgs = @('--config', (Join-Path $work 'native'), '--rnsconfig', (Join-Path $work 'native-rns'))
             $pythonArgs = @('-u', (Join-Path $root 'tests\Interop\nomadnet_live_node.py'),
@@ -190,6 +201,11 @@ image_loading = yes
                 $ready = ((& $read $python '"event"\s*:\s*"ready"').Substring(2) | ConvertFrom-Json)
                 & $send $python 'observe-node-announces'
                 $null = & $read $python '"event"\s*:\s*"observing-node-announces"'
+                if ($env:DOTRETICULUM_NOMADNET_CLIENT_ANNOUNCE_LIVE -eq '1') {
+                    & $send $python 'observe-client-announces'
+                    $null = & $read $python '"event"\s*:\s*"observing-client-announces"'
+                    $clientStarted = [DateTimeOffset]::UtcNow
+                }
                 $native = & $start 'native' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
                 $nativeNode = [regex]::Match((& $read $native 'Hosted node address:'), '[0-9a-f]{32}').Value
             }
@@ -204,6 +220,13 @@ image_loading = yes
                 & $send $python 'wait-network'
                 $null = & $read $python '"event"\s*:\s*"network-ready"'
                 Start-Sleep -Seconds 7
+                if ($env:DOTRETICULUM_NOMADNET_CLIENT_ANNOUNCE_LIVE -eq '1') {
+                    & $send $native 'status'
+                    $nativeDelivery = [regex]::Match((& $read $native 'LXMF delivery address:'), '[0-9a-f]{32}').Value
+                    & $send $python "client-announces $nativeDelivery"
+                    $clientObservation = ((& $read $python '"event"\s*:\s*"client-announces"').Substring(2) | ConvertFrom-Json)
+                    $clientObservation.count | Should -Be 0 -Because 'disabled client startup must not broadcast, independently of hosted startup'
+                }
                 & $send $python "node-announces $nativeNode"
                 $observation = ((& $read $python '"event"\s*:\s*"node-announces"').Substring(2) | ConvertFrom-Json)
                 $observation.count | Should -Be 0 -Because 'disabled host startup must not broadcast its destination'
@@ -378,6 +401,37 @@ image_loading = yes
             $image.height | Should -Be 600
             $image.source | Should -Be 'WebP'
             $image.format | Should -Be 'PNG'
+            if ($env:DOTRETICULUM_NOMADNET_CLIENT_ANNOUNCE_LIVE -eq '1') {
+                $deadline = $clientStarted.AddSeconds(125)
+                do {
+                    & $send $python "client-announces $nativeDelivery"
+                    $clientObservation = ((& $read $python '"event"\s*:\s*"client-announces"').Substring(2) | ConvertFrom-Json)
+                    if ($clientObservation.count -eq 0) { Start-Sleep -Milliseconds 500 }
+                } while ($clientObservation.count -eq 0 -and [DateTimeOffset]::UtcNow -lt $deadline)
+                $clientObservation.count | Should -Be 1
+                ($clientObservation.utc - $clientStarted.ToUnixTimeMilliseconds() / 1000) |
+                    Should -BeGreaterOrEqual 89 -Because 'the source-required 90-second maintenance deferral is real elapsed time'
+                $clientObservation.stamp_cost | Should -Be 13
+                & $send $native 'client interval 29'
+                $null = & $read $native 'Error: Client announce interval must be 30' 60 $true
+                & $send $native 'client stamp-cost 255'
+                $null = & $read $native 'Error: Inbound stamp cost must be null or 1' 60 $true
+                & $send $native 'client stamp-cost 14'
+                $null = & $read $native 'Client stamp cost saved'
+                # RNS requires a strictly newer whole-second emission for the same-hop route.
+                Start-Sleep -Milliseconds 1100
+                & $send $native 'client announce'
+                $null = & $read $native 'Client destination announced'
+                & $send $python "client-announces $nativeDelivery 2"
+                $clientObservation = ((& $read $python '"event"\s*:\s*"client-announces"').Substring(2) | ConvertFrom-Json)
+                $clientObservation.count | Should -Be 2
+                $clientObservation.stamp_cost | Should -Be 14
+                $savedClientSettings = [IO.File]::ReadAllText($settingsPath) | ConvertFrom-Json
+                $savedClientSettings.clientAnnounceIntervalMinutes | Should -Be 30
+                $savedClientSettings.inboundStampCost | Should -Be 14
+                $savedClientSettings.lastClientAnnounce | Should -Not -BeNullOrEmpty
+                $successfulClientTimestamp = $savedClientSettings.lastClientAnnounce
+            }
             & $send $python 'quit'
             $python.WaitForExit(20000) | Should -BeTrue
             $python = & $start 'python-restarted-cache-only' $env:DOTRETICULUM_PYTHON $pythonArgs 'missing'
@@ -389,11 +443,18 @@ image_loading = yes
             $null = & $read $native 'Image preview complete: 1200x600'
             & $send $native 'quit'
             $native.WaitForExit(20000) | Should -BeTrue
+            $settings = [IO.File]::ReadAllText($settingsPath) | ConvertFrom-Json
             $settings.mediaConverter = 'missing-image-converter'
             $settings | ConvertTo-Json | Set-Content $settingsPath -Encoding utf8
             $native = & $start 'native-restarted-cache-only' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
             $restoredNode = [regex]::Match((& $read $native 'Hosted node address:'), '[0-9a-f]{32}').Value
             $restoredNode | Should -Be $nativeNode
+            if ($env:DOTRETICULUM_NOMADNET_CLIENT_ANNOUNCE_LIVE -eq '1') {
+                & $send $native 'client status'
+                $null = & $read $native 'Client startup announce: False; interval minutes: 30; last successful announce:'
+                $null = & $read $native 'enable_client metadata: False.*stamp cost: 14'
+                ([IO.File]::ReadAllText($settingsPath) | ConvertFrom-Json).lastClientAnnounce | Should -Be $successfulClientTimestamp
+            }
             if ($env:DOTRETICULUM_NOMADNET_HISTORY_LIVE -eq '1') {
                 & $send $native 'history'
                 $null = & $read $native 'History complete: 0/0\.'
@@ -539,6 +600,7 @@ image_loading = yes
                 directory = ($env:DOTRETICULUM_NOMADNET_DIRECTORY_LIVE -eq '1');
                 hostPolicy = ($env:DOTRETICULUM_NOMADNET_HOST_POLICY_LIVE -eq '1');
                 filePicker = ($env:DOTRETICULUM_NOMADNET_FILE_PICKER_LIVE -eq '1');
+                clientAnnounce = ($env:DOTRETICULUM_NOMADNET_CLIENT_ANNOUNCE_LIVE -eq '1');
                 primaryStaticAuthorization = if ([OperatingSystem]::IsWindows()) { 'upstream Windows X_OK defect; actual identity observed instead' } else { 'allowed and denied' } } |
                 ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
         }

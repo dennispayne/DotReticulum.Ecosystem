@@ -20,6 +20,9 @@ def main():
         raise RuntimeError("Modified primary source")
     cases = [
         ("ordinary", """[client]
+enable_client = no
+announce_at_start = off
+announce_interval = 45
 periodic_lxmf_sync = no
 lxmf_sync_interval = 12
 lxmf_sync_limit = 3
@@ -38,6 +41,9 @@ page_refresh_interval = 2
 file_refresh_interval = 3
 """),
         ("clamped", """[client]
+enable_client = yes
+announce_at_start = yes
+announce_interval = -1
 lxmf_sync_interval = 0
 lxmf_sync_limit = -2
 required_stamp_cost = 300

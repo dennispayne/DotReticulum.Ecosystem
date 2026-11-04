@@ -132,6 +132,87 @@ runtime evidence.
 | Repository server | implemented bounded subset | Utilities explicitly starts/stops a public unauthenticated HTTPS static mirror with a package list, persistent private certificate, visible fingerprint and joined window shutdown. Default loopback/4444; reachable LAN exposure requires explicit bind and consent. No bundled upstream assets, automatic content downloads or update execution. Original bounded GET-only service, not RNS/rngit Git hosting; safety differences and acceptance are below; `SidebandRepository*.cs`, `MainWindow.Repository.cs`, `sbapp/sideband/core.py`, `sbapp/ui/layouts.py`. |
 | Native packaging and upgrades | partial | Windows and Linux NativeAOT publishes succeed with trimming/linker warnings treated as errors. Package the full publish directory, including Windows `sideband.exe`, `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, `libSkiaSharp.dll` and desktop/shared third-party notices; Linux `sideband`, `libHarfBuzzSharp.so`, `libSkiaSharp.so`, `libSystem.IO.Ports.Native.so` and the same notices. These include Avalonia/Skia/HarfBuzz MIT texts, ANGLE's BSD license, .NET serial runtime notices and `ThirdPartyNotices/ZXing.Net.Apache-2.0.txt`. Installer/signing, self-upgrade and other upstream package formats remain absent; `src/Sideband.Desktop/Sideband.Desktop.csproj`, `src/Sideband.Desktop/THIRD-PARTY-NOTICES*.txt`, `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
 
+## Manual synchronization limits
+
+`lxmf_sync_limit` defaults to null (unlimited); true uses `lxmf_sync_max`,
+whose default is3. False/null retain the saved count without applying it.
+These settings affect **manual desktop fetch only**. The pinned periodic job
+calls `request_lxmf_sync()` without a limit regardless of this setting.
+`SidebandSynchronizationConfiguration`, atomic settings/profile import/export
+and original Connectivity controls preserve that distinction. Manual
+`SynchronizeConfiguredAsync` snapshots policy under lifecycle ownership and,
+once connected with a selected node, records the manual attempt's current
+`lxmf.lastsync` and clears `lxmf.syncretrying` before requesting transfer.
+Admission/attempt is not successful delivery. Existing explicit
+`SynchronizeAsync(maxMessages: ...)` and periodic fetch semantics are unchanged.
+Active transfers are not interrupted by policy changes.
+
+Native configuration accepts null/boolean for `lxmf_sync_limit` and positive
+Int32 counts, including when inactive. Zero/negative/fractional/string/oversize
+counts and numeric/string boolean truthiness fail transactionally instead of
+activating the primary's permissive but unsafe configuration. The actual
+reference accepts zero as unlimited and passes negative/string counts through
+admission; this is deliberately not copied. Invalid settings never replace the
+old policy. Queued settings changes cancel on disposal; isolated observer
+failures do not disable saves or service, and no observer is required.
+
+`tests/Interop/GenerateSidebandSyncLimits.py` executes nine observations from
+primary Sideband2.2.0 `d069122af14880e43607aed0b71add4c7806fbe0`.
+It verifies and executes the exact `SidebandApp.lxmf_sync_request` AST with
+synthetic dialog/clock/owner dependencies, then the actual `SidebandCore`
+constructor and `request_lxmf_sync` using the real pinned LXMF router.
+An explicitly unreachable zero-hash propagation address and public cancellation
+is used between requests: these rows establish parameter routing/admission,
+not transfer completion or Kivy GUI/timing. The initial no-node experiment
+reproduced primary `RNS.prettyhexrep(None)` failure and remains a failed receipt,
+not a passing reference run; the reference source/algorithms are unchanged.
+
+| Source/evidence | SHA-256 |
+|---|---|
+| Pinned `sbapp/main.py` | `5b962d9ed2ccbc066bb19865d78c77da9ecf4008900f6f0e7e9dd1eb1c4767aa` |
+| Pinned `sbapp/sideband/core.py` | `8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25` |
+| Independently executed Windows/Linux fixture | `a691f2d8374c21b7e73265349bdcaff4c3746cbd055d65d2cd4d0b75327e42cf` |
+| Windows NativeAOT candidate | `6bc8c4f85d5ca531d6218a2821e5d47b5a52e1f34aad870ce2354c77395b0875` |
+| Linux NativeAOT candidate | `a4aa6df1d14d473bb8368f38f5df2186f96e42e269469792736f6ab184a76dc5` |
+
+RNS1.5.7 `a29bfb51c468945c96a1ee22cae0114e993e2391` and LXMF1.2.1
+`e8ba02483217af43be284a72f1c059c730b7d047` remain unchanged.
+Actual primary Sideband applications and a real Python propagation/transport
+node separately exchange five messages per origin on Windows/Linux: manual
+two-message native retrieval, same-identity native restart, another two and
+explicit unlimited remainder; primary retrieval of two followed by its
+unlimited remainder. Empty-inbox completion and disabling the limit retain
+service. This is the named Python propagation-transport topology, not a new
+direct/.NET-hop/loss or prolonged-operation claim.
+
+Reproduction operators are under ignored
+`artifacts\tests\sideband-sync-limits`: `Reference.ps1`, `Acceptance.ps1`,
+`Native.ps1` and `Record.ps1`. The selected command
+`dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release
+--artifacts-path <host-build> --filter
+"FullyQualifiedName~SidebandSynchronization|FullyQualifiedName~ActualPrimaryLimitedRetrieval"
+--logger trx --results-directory <host-results>` passes14/0 per host:
+13 C75 managed cases plus the existing schedule-policy regression.
+Strict `dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release
+-r <win-x64|linux-x64> --artifacts-path <native-build> -o <publish>
+-p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true
+-warnaserror` and `sideband --help` pass. Native settings/process and actual
+primary offline-profile cases in `tests/Pester/SidebandSynchronization.Tests.ps1`
+pass2/0 per host with `DOTRETICULUM_SIDEBAND_SYNC_LIMITS=1`,
+`DOTRETICULUM_SIDEBAND_BINARY` and the generated
+`DOTRETICULUM_SIDEBAND_SYNC_PROFILE`. They do not prove native Python-peer
+network or GUI behavior. Original managed controls are tested separately
+without opening devices.
+
+C75/T280–286 maps15 actual passing cases per host; each native candidate retains
+dirty-source base `718daa84dfaac560d32c8ea6b65deabb14521514`, embedded
+`2.2.0.102+718daa84df`, SDK10.0.403/runtime and ILC10.0.14, not a later
+integration HEAD. Receipts are
+`artifacts\tests\sideband-sync-limits\windows\c75.json` and
+`/home/dennis/fleet-sync-limits-results/c75.json`.
+Hardware, arbitrary impairment, full configuration/plugin migration and other
+platforms remain outside this evidence.
+
 ## Incoming LXMF stamp configuration
 
 The three primary keys have independent meanings:

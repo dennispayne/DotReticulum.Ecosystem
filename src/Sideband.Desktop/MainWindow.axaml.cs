@@ -280,6 +280,7 @@ public sealed partial class MainWindow : Window
             ThemeSelector.SelectedItem = _state.Theme;
             LoadStampSettings();
             LoadDeliverySettings();
+            LoadSynchronizationSettings();
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
             PropagationFallbackBox.IsChecked = _state.TryPropagationOnFail;
@@ -448,7 +449,7 @@ public sealed partial class MainWindow : Window
         SyncStatusText.Text = "Fetching messages from the configured propagation node...";
         try
         {
-            var count = await _client.SynchronizeAsync(cancellationToken: _windowCancellation.Token);
+            var count = await _client.SynchronizeConfiguredAsync(_windowCancellation.Token);
             SyncStatusText.Text = $"Fetch complete: {count} new messages accepted. Conversation persistence continues on the receive worker.";
         }
         catch (OperationCanceledException) { SyncStatusText.Text = "Message fetch cancelled."; }
@@ -484,6 +485,7 @@ public sealed partial class MainWindow : Window
             ThemeSelector.SelectedItem = _state.Theme;
             LoadStampSettings();
             LoadDeliverySettings();
+            LoadSynchronizationSettings();
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
             PropagationFallbackBox.IsChecked = _state.TryPropagationOnFail;

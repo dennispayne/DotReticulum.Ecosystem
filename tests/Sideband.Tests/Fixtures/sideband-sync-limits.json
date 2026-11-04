@@ -1,0 +1,187 @@
+{
+  "upstream": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "coreSha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+  "mainSha256": "5b962d9ed2ccbc066bb19865d78c77da9ecf4008900f6f0e7e9dd1eb1c4767aa",
+  "rnsRevision": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "lxmfRevision": "e8ba02483217af43be284a72f1c059c730b7d047",
+  "method": "Exact lxmf_sync_request AST with synthetic dialog/clock/owner, then actual SidebandCore constructor and request_lxmf_sync with real LXMRouter, an explicitly unreachable zero-hash propagation address and public cancellation between requests. No Kivy GUI or network claim. Default no-argument request observes periodic routing separately.",
+  "rows": [
+    {
+      "name": "default",
+      "changes": {},
+      "requested": null,
+      "persistent": {
+        "lxmf.lastsync": 1700000000,
+        "lxmf.syncretrying": false
+      },
+      "observed": {
+        "event": "sync-limit-observed",
+        "configured": {
+          "lxmf_sync_limit": null,
+          "lxmf_sync_max": 3
+        },
+        "manual": 0,
+        "periodic": 0
+      }
+    },
+    {
+      "name": "limited",
+      "changes": {
+        "lxmf_sync_limit": true
+      },
+      "requested": 3,
+      "persistent": {
+        "lxmf.lastsync": 1700000000,
+        "lxmf.syncretrying": false
+      },
+      "observed": {
+        "event": "sync-limit-observed",
+        "configured": {
+          "lxmf_sync_limit": true,
+          "lxmf_sync_max": 3
+        },
+        "manual": 3,
+        "periodic": 0
+      }
+    },
+    {
+      "name": "changed",
+      "changes": {
+        "lxmf_sync_max": 1
+      },
+      "requested": 1,
+      "persistent": {
+        "lxmf.lastsync": 1700000000,
+        "lxmf.syncretrying": false
+      },
+      "observed": {
+        "event": "sync-limit-observed",
+        "configured": {
+          "lxmf_sync_limit": true,
+          "lxmf_sync_max": 1
+        },
+        "manual": 1,
+        "periodic": 0
+      }
+    },
+    {
+      "name": "disabled",
+      "changes": {
+        "lxmf_sync_limit": false
+      },
+      "requested": null,
+      "persistent": {
+        "lxmf.lastsync": 1700000000,
+        "lxmf.syncretrying": false
+      },
+      "observed": {
+        "event": "sync-limit-observed",
+        "configured": {
+          "lxmf_sync_limit": false,
+          "lxmf_sync_max": 1
+        },
+        "manual": 0,
+        "periodic": 0
+      }
+    },
+    {
+      "name": "retained",
+      "changes": {},
+      "requested": null,
+      "persistent": {
+        "lxmf.lastsync": 1700000000,
+        "lxmf.syncretrying": false
+      },
+      "observed": {
+        "event": "sync-limit-observed",
+        "configured": {
+          "lxmf_sync_limit": false,
+          "lxmf_sync_max": 1
+        },
+        "manual": 0,
+        "periodic": 0
+      }
+    },
+    {
+      "name": "null",
+      "changes": {
+        "lxmf_sync_limit": null
+      },
+      "requested": null,
+      "persistent": {
+        "lxmf.lastsync": 1700000000,
+        "lxmf.syncretrying": false
+      },
+      "observed": {
+        "event": "sync-limit-observed",
+        "configured": {
+          "lxmf_sync_limit": null,
+          "lxmf_sync_max": 1
+        },
+        "manual": 0,
+        "periodic": 0
+      }
+    },
+    {
+      "name": "zero",
+      "changes": {
+        "lxmf_sync_limit": true,
+        "lxmf_sync_max": 0
+      },
+      "requested": 0,
+      "persistent": {
+        "lxmf.lastsync": 1700000000,
+        "lxmf.syncretrying": false
+      },
+      "observed": {
+        "event": "sync-limit-observed",
+        "configured": {
+          "lxmf_sync_limit": true,
+          "lxmf_sync_max": 0
+        },
+        "manual": 0,
+        "periodic": 0
+      }
+    },
+    {
+      "name": "negative",
+      "changes": {
+        "lxmf_sync_max": -1
+      },
+      "requested": -1,
+      "persistent": {
+        "lxmf.lastsync": 1700000000,
+        "lxmf.syncretrying": false
+      },
+      "observed": {
+        "event": "sync-limit-observed",
+        "configured": {
+          "lxmf_sync_limit": true,
+          "lxmf_sync_max": -1
+        },
+        "manual": -1,
+        "periodic": 0
+      }
+    },
+    {
+      "name": "string",
+      "changes": {
+        "lxmf_sync_max": "3"
+      },
+      "requested": "3",
+      "persistent": {
+        "lxmf.lastsync": 1700000000,
+        "lxmf.syncretrying": false
+      },
+      "observed": {
+        "event": "sync-limit-observed",
+        "configured": {
+          "lxmf_sync_limit": true,
+          "lxmf_sync_max": "3"
+        },
+        "manual": "3",
+        "periodic": 0
+      }
+    }
+  ]
+}

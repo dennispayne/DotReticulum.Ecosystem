@@ -125,6 +125,23 @@ def main():
             emit({"event": "delivery-limit", "configured": core.config["lxm_limit_1mb"],
                   "limit_kilobytes": core.message_router.delivery_per_transfer_limit,
                   "default_kilobytes": core.default_lxm_limit})
+        elif parts[0] == "sync-limit-observe" and len(parts) == 2:
+            values = json.loads(base64.b64decode(parts[1], validate=True))
+            changes = values["changes"]
+            if not isinstance(changes, dict) or set(changes) - {"lxmf_sync_limit", "lxmf_sync_max"}:
+                raise ValueError("Unexpected sync-limit observation keys")
+            core.config.update(changes)
+            core.message_router.set_outbound_propagation_node(bytes(16))
+            core.cancel_lxmf_sync()
+            core.request_lxmf_sync(limit=values["manual"])
+            manual = core.message_router.propagation_transfer_max_messages
+            core.cancel_lxmf_sync()
+            core.request_lxmf_sync()
+            periodic = core.message_router.propagation_transfer_max_messages
+            core.cancel_lxmf_sync()
+            emit({"event": "sync-limit-observed",
+                  "configured": {key: core.config[key] for key in ("lxmf_sync_limit", "lxmf_sync_max")},
+                  "manual": manual, "periodic": periodic})
         elif parts[0] == "reset-stamp-cost" and len(parts) == 2:
             # Explicit stale-cache fault injection through the actual public SDK;
             # send_message, packing, stamping and recipient admission remain unchanged.
@@ -159,8 +176,8 @@ def main():
             core.lxmf_destination.set_packet_callback(delivery_packet_callback if enabled else None)
             core.lxmf_destination.set_proof_strategy(delivery_proof_strategy if enabled else RNS.Destination.PROVE_NONE)
             emit({"event": "delivery-packets", "enabled": enabled})
-        elif parts[0] == "retrieve":
-            if not core.request_lxmf_sync():
+        elif parts[0] == "retrieve" and len(parts) in (1, 2):
+            if not core.request_lxmf_sync(limit=int(parts[1]) if len(parts) == 2 else None):
                 raise RuntimeError("The actual application rejected propagation retrieval as busy")
             deadline = time.time() + 60
             while core.message_router.propagation_transfer_state < LXMF.LXMRouter.PR_COMPLETE and time.time() < deadline:

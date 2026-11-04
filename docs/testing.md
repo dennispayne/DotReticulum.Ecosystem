@@ -8,6 +8,30 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Sideband manual synchronization C75/T280–286 records15 actual passing cases
+per host:13 scoped managed cases and2 strict native offline cases.
+The focused command passes14/0 each including the existing schedule-policy
+regression. Nine independently executed primary UI-method/real-core/router
+observations distinguish nullable manual count limits from unlimited scheduled
+retrieval; synthetic dialogs/clock do not establish primary GUI/timing.
+Actual primary applications and a real Python propagation/transport node
+separately verify capped retrieval in both origins, remaining inboxes, native
+identity/policy restart and explicit unlimited remainder. Native process/profile
+acceptance and original managed controls remain separate evidence.
+Receipts are `artifacts\tests\sideband-sync-limits\windows\c75.json` and
+`/home/dennis/fleet-sync-limits-results/c75.json`; exact pins, fixture/native
+digests, commands and safety/evidence boundaries are in
+[Sideband's reference](sideband.md#manual-synchronization-limits).
+The integrated command `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-sync-limits-unified -OutputDirectory
+artifacts\tests\fleet-sync-limits-unified` passes2,588 managed cases/138
+explicit skips,62 Pester tooling cases, strict C75 catalog aggregation and
+merged production coverage. Concurrent Nomad node-migration diagnostics are
+regression inputs, not C74 migration acceptance. Both native candidates retain
+dirty-source base `718daa8`, embedded `2.2.0.102+718daa84df`, SDK10.0.403
+and runtime/ILC10.0.14. Subsequent shared-router changes are not retroactively
+assigned to these native binaries.
+
 Parent independently accepts Nomad client-router migration C72/T240–249:
 eight owned hashes match, and each frozen replay verifies313 compiled
 production/test sources,75 generated receipts, serviced toolchain, converter

@@ -598,9 +598,14 @@ public sealed partial class SidebandClient : IAsyncDisposable
         finally { _lifecycle.Release(); }
     }
 
-    public async Task<int> SynchronizeAsync(int maxMessages = 0, CancellationToken cancellationToken = default)
+    public Task<int> SynchronizeAsync(int maxMessages = 0, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(maxMessages);
+        return SynchronizeCoreAsync(maxMessages, cancellationToken);
+    }
+
+    private async Task<int> SynchronizeCoreAsync(int? maxMessages, CancellationToken cancellationToken)
+    {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -608,7 +613,17 @@ public sealed partial class SidebandClient : IAsyncDisposable
             ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
             var router = _router ?? throw new InvalidOperationException("Connect to Reticulum before synchronizing.");
             using var owned = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _runCancellation!.Token);
-            return await router.RequestMessagesFromPropagationNodeAsync(maxMessages: maxMessages, cancellationToken: owned.Token).ConfigureAwait(false);
+            if (maxMessages is null)
+            {
+                if (router.OutboundPropagationNode is null)
+                    throw new InvalidOperationException("Select or discover a propagation node before synchronizing.");
+                var state = await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false);
+                maxMessages = SidebandSynchronizationConfiguration.FromState(state).ManualMaximumMessages;
+                await _store.SetSynchronizationStateAsync(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000d,
+                    false, owned.Token).ConfigureAwait(false);
+                PublishState(await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false));
+            }
+            return await router.RequestMessagesFromPropagationNodeAsync(maxMessages: maxMessages.Value, cancellationToken: owned.Token).ConfigureAwait(false);
         }
         finally { _lifecycle.Release(); }
     }

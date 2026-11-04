@@ -401,6 +401,13 @@
             <TextBlock x:Name="SyncStatusText" TextWrapping="Wrap"
                        Text="Propagation confirms storage at the node, not delivery to the recipient." />
             <CheckBox x:Name="PeriodicSyncBox" Content="Automatically fetch propagated messages while connected" />
+            <CheckBox x:Name="LimitManualFetchBox" Content="Limit messages per manual fetch" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBox x:Name="MaximumFetchMessagesBox" Width="140" Text="3" PlaceholderText="Maximum messages" />
+              <Button x:Name="SaveSynchronizationSettingsButton" Content="Save manual limit" Click="SaveSynchronizationSettingsClicked" />
+            </StackPanel>
+            <TextBlock x:Name="SynchronizationSettingsStatusText" TextWrapping="Wrap"
+                       Text="This limit affects the Fetch messages button only. Scheduled fetches remain unlimited." />
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBox x:Name="SyncIntervalBox" Width="140" Text="43200" PlaceholderText="Interval in seconds" />
               <Button Content="Save schedule" Click="SaveSyncScheduleClicked" />

@@ -26,6 +26,8 @@ public sealed partial class SidebandProfileImportTests
                 ["map_lat"] = 51.5, ["map_lon"] = -0.125, ["map_zoom"] = 12L,
                 ["map_custom_1_url"] = "https://maps.example.invalid/{z}/{x}/{y}.png",
                 ["map_use_online"] = true, ["map_storage_file"] = Path.Combine(profile.Root, "do-not-read.mbtiles"),
+                ["map_cluster"] = false, ["map_interfaces"] = false, ["map_connection_maps"] = true,
+                ["map_hide_blocked"] = true, ["map_history_limit"] = 120L,
             };
             foreach (var flag in item.GetProperty("enabled").EnumerateObject()) config[flag.Name] = flag.Value.GetBoolean();
             await File.WriteAllBytesAsync(Path.Combine(profile.Source, "sideband_config"), MsgPack.Pack(config), TestContext.Current.CancellationToken);
@@ -41,6 +43,11 @@ public sealed partial class SidebandProfileImportTests
             Assert.Equal(0, maps.ViewSettings.MinimumZoom);
             Assert.Equal(19, maps.ViewSettings.MaximumZoom);
             Assert.False(maps.ViewSettings.UseOffline);
+            Assert.False(maps.ViewSettings.ClusterMarkers);
+            Assert.False(maps.ViewSettings.IncludeInterfaces);
+            Assert.True(maps.ViewSettings.IncludeConnections);
+            Assert.True(maps.ViewSettings.HideBlocked);
+            Assert.Equal(120, maps.ViewSettings.HistoryLimitSeconds);
             Assert.Null(maps.OfflineMetadata);
             Assert.Null(await maps.GetTileAsync(expected.Provider, new(0, 0, 0), cancellationToken: TestContext.Current.CancellationToken));
             Assert.Contains(result.Notices, notice => notice.Contains("Online consent is not imported", StringComparison.Ordinal));
@@ -54,6 +61,11 @@ public sealed partial class SidebandProfileImportTests
     [InlineData("map_zoom")]
     [InlineData("map_layer")]
     [InlineData("map_use_atlas")]
+    [InlineData("map_cluster")]
+    [InlineData("map_interfaces")]
+    [InlineData("map_connection_maps")]
+    [InlineData("map_hide_blocked")]
+    [InlineData("map_history_limit")]
     public async Task MalformedMapProfileRollsBackAtomically(string key)
     {
         using var profile = new Profile();

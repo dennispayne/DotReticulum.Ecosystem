@@ -100,13 +100,27 @@ public sealed partial class MainWindow : Window
             if (_state is null || !_initializationTask.IsCompleted || Volatile.Read(ref _smokeActionInvoked) == 0) return;
             if (Program.SmokeMapMode)
             {
-                if (!MapPage.IsVisible || MapViewport.LoadedTileCount == 0) return;
-                if (MapViewport.RenderedTileCount == 0)
+                if (!MapPage.IsVisible || MapViewport.LoadedTileCount == 0 || _refreshingTelemetry || _refreshTelemetryAgain) return;
+                if (MapViewport.RenderedTileCount == 0 || MapViewport.MarkerCount > 0 && MapViewport.RenderedMarkerCount == 0)
                 {
                     Dispatcher.UIThread.Post(InvalidateVisual);
                     return;
                 }
                 Console.WriteLine("SMOKE_UI_RENDERED_MAP=" + MapViewport.RenderedTileCount);
+                Console.WriteLine("SMOKE_UI_MAP_MARKERS=" + MapViewport.MarkerCount);
+                Console.WriteLine("SMOKE_UI_RENDERED_MAP_CLUSTERS=" + MapViewport.RenderedClusterCount);
+            }
+            if (Program.SmokeObjectsMode)
+            {
+                if (!ObjectsPage.IsVisible) return;
+                if (ObjectList.ItemCount == 0)
+                {
+                    Console.Error.WriteLine("sideband: Objects smoke requires a saved object.");
+                    Volatile.Write(ref _smokeActionInvoked, 0);
+                    _ = CloseAfterCaptureAsync();
+                    return;
+                }
+                Console.WriteLine("SMOKE_UI_RENDERED_OBJECTS=" + ObjectList.ItemCount);
             }
             if (Program.SmokeTelemetryMode)
             {
@@ -136,7 +150,8 @@ public sealed partial class MainWindow : Window
                 if (!RemotePage.IsVisible || !_remoteSmokeVerified) return;
                 Console.WriteLine("SMOKE_UI_RENDERED_REMOTE=commands-replies-cancellation");
             }
-            var hasImage = !Program.SmokePaperMode && _state.Messages.Any(message => message.Image is not null);
+            var hasImage = !Program.SmokePaperMode && !Program.SmokeObjectsMode &&
+                _state.Messages.Any(message => message.Image is not null);
             if (hasImage && MediaPreview.Source is null) return;
             SmokeUiSucceeded = true;
             if (hasImage) Console.WriteLine("SMOKE_UI_RENDERED_MEDIA=1");
@@ -149,6 +164,7 @@ public sealed partial class MainWindow : Window
     {
         ConversationsPage.IsVisible = page == "Conversations";
         ContactsPage.IsVisible = page == "Contacts";
+        ObjectsPage.IsVisible = page == "Objects";
         ConnectivityPage.IsVisible = page == "Connectivity";
         IdentityPage.IsVisible = page == "Identity";
         PreferencesPage.IsVisible = page == "Preferences";
@@ -158,7 +174,7 @@ public sealed partial class MainWindow : Window
         MapPage.IsVisible = page == "Map";
         TelemetryPage.IsVisible = page == "Telemetry";
         RemotePage.IsVisible = page == "Remote";
-        if (page != "Map") _mapCancellation?.Cancel();
+        if (page != "Map") { _mapCancellation?.Cancel(); _mapMarkerRefreshTimer.Stop(); }
         if (page != "Voice") ReleasePushToTalk();
         PageTitle.Text = page switch
         {
@@ -167,9 +183,10 @@ public sealed partial class MainWindow : Window
         };
         if (page == "Connectivity") UpdateConnectivityView();
         if (page == "Contacts") RefreshExpandedContacts();
+        if (page == "Objects") RefreshObjects();
         if (page == "Conversations") MarkVisibleConversationRead();
         if (page == "Voice") { LoadVoiceSettings(); UpdateVoiceView(); }
-        if (page == "Map") { RequestMapRefresh(); RequestTelemetryRefresh(); }
+        if (page == "Map") { _mapMarkerRefreshTimer.Start(); RequestMapRefresh(); RequestTelemetryRefresh(); }
         if (page == "Telemetry") { LoadTelemetrySettings(); RequestTelemetryRefresh(); }
         if (page == "Remote") LoadRemoteSettings();
     }
@@ -252,6 +269,7 @@ public sealed partial class MainWindow : Window
                     }
                     if (Program.SmokeRemotePeer is { } remotePeer)
                         TrackOperation(() => RunRemoteSmokeAsync(remotePeer));
+                    if (Program.SmokeObjectsMode) NavigateTo("Objects");
                     Volatile.Write(ref _smokeActionInvoked, 1);
                     InvalidateVisual();
                 });
@@ -532,15 +550,21 @@ public sealed partial class MainWindow : Window
         return _visibleMessages[index];
     }
 
-    private void MessageSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private void ClearMessagePreview()
     {
         ClearPaperPreview();
-        var version = ++_mediaSelectionVersion;
+        ++_mediaSelectionVersion;
         MediaPreview.Source = null;
         _previewBitmap?.Dispose();
         _previewBitmap = null;
         MediaPreview.IsVisible = false;
         MediaStatusText.Text = string.Empty;
+    }
+
+    private void MessageSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        ClearMessagePreview();
+        var version = _mediaSelectionVersion;
         if (MessageList.SelectedIndex < 0 || MessageList.SelectedIndex >= _visibleMessages.Count) return;
         var message = SelectedMessage();
         MediaStatusText.Text = message.Audio is { } audio ? $"Audio mode {audio.Mode}: {audio.Data.Length} bytes. Playback is explicit." : string.Empty;
@@ -629,10 +653,11 @@ public sealed partial class MainWindow : Window
 
     private async Task ContactSelectionChangedAsync()
     {
-        if (ContactList.SelectedIndex < 0 || _state is null || ContactList.SelectedIndex >= _state.Contacts.Count) return;
-        _selectedContact = _state.Contacts[ContactList.SelectedIndex].DeliveryHash;
-        ConversationPeerText.Text = _state.Contacts[ContactList.SelectedIndex].DisplayName + " · " + _selectedContact;
-        TrustConversationBox.IsChecked = _state.Contacts[ContactList.SelectedIndex].Trusted;
+        if (ContactList.SelectedIndex < 0 || ContactList.SelectedIndex >= _conversationContacts.Count) return;
+        var contact = _conversationContacts[ContactList.SelectedIndex];
+        _selectedContact = contact.DeliveryHash;
+        ConversationPeerText.Text = contact.DisplayName + " · " + _selectedContact;
+        TrustConversationBox.IsChecked = contact.Trusted;
         await RefreshMessagesAsync(_windowCancellation.Token);
     }
 
@@ -891,13 +916,25 @@ public sealed partial class MainWindow : Window
     {
         if (_state is null) return;
         var oldSelection = _selectedContact;
-        ContactList.ItemsSource = _state.Contacts
+        _conversationContacts = _state.Contacts.Where(contact => !contact.IsObject).ToArray();
+        ContactList.ItemsSource = _conversationContacts
             .Select(FormatContact)
             .ToArray();
-        var selectedIndex = _state.Contacts.ToList().FindIndex(contact => contact.DeliveryHash == oldSelection);
+        var selectedIndex = _conversationContacts.ToList().FindIndex(contact => contact.DeliveryHash == oldSelection);
         if (selectedIndex >= 0) ContactList.SelectedIndex = selectedIndex;
-        else if (_state.Contacts.Count > 0) ContactList.SelectedIndex = 0;
+        else if (_conversationContacts.Count > 0) ContactList.SelectedIndex = 0;
+        else
+        {
+            _selectedContact = null;
+            _visibleMessages = [];
+            MessageList.ItemsSource = Array.Empty<string>();
+            MessageList.SelectedIndex = -1;
+            ClearMessagePreview();
+            ConversationPeerText.Text = "Select a conversation";
+            TrustConversationBox.IsChecked = false;
+        }
         RefreshExpandedContacts();
+        RefreshObjects();
     }
 
     private void RefreshExpandedContacts()
@@ -909,7 +946,7 @@ public sealed partial class MainWindow : Window
     }
 
     private static string FormatContact(SidebandContact contact) =>
-        $"{(contact.Unread ? "[Unread] " : string.Empty)}{contact.DisplayName}  ·  {contact.DeliveryHash}{(contact.Trusted ? "  [Trusted]" : string.Empty)}";
+        $"{(contact.IsObject ? "[Object] " : string.Empty)}{(contact.Unread ? "[Unread] " : string.Empty)}{contact.DisplayName}  ·  {contact.DeliveryHash}{(contact.Trusted ? "  [Trusted]" : string.Empty)}";
 
     private async Task RefreshMessagesAsync(CancellationToken cancellationToken = default)
     {
@@ -1030,6 +1067,7 @@ public sealed partial class MainWindow : Window
         e.Cancel = true;
         _closing = true;
         _voiceTimer.Stop();
+        _mapMarkerRefreshTimer.Stop();
         ReleasePushToTalk();
         IsEnabled = false;
         _closeTask ??= CompleteCloseAsync();

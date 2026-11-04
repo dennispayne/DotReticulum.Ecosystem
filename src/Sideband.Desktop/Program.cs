@@ -13,6 +13,7 @@ internal static class Program
     internal static bool SmokeTelemetryMode { get; private set; }
     internal static string? SmokeRepositoryRoot { get; private set; }
     internal static bool SmokePaperMode { get; private set; }
+    internal static bool SmokeObjectsMode { get; private set; }
     internal static string? SmokeRemotePeer { get; private set; }
 
     [STAThread]
@@ -40,6 +41,7 @@ internal static class Program
             SmokeTelemetryMode = options.SmokeTelemetry;
             SmokeRepositoryRoot = options.SmokeRepositoryRoot;
             SmokePaperMode = options.SmokePaper;
+            SmokeObjectsMode = options.SmokeObjects;
             SmokeRemotePeer = options.SmokeRemotePeer;
             if (options.ExportPaperId is { } paperId)
             {
@@ -202,6 +204,7 @@ internal static class Program
         string? importMap = null;
         string? smokeRepositoryRoot = null;
         var smokePaper = false;
+        var smokeObjects = false;
         string? smokeRemotePeer = null;
         Guid? exportPaperId = null;
         string? paperOutput = null;
@@ -217,6 +220,7 @@ internal static class Program
                 case "--smoke-telemetry": smokeTelemetry = true; break;
                 case "--smoke-repository": smokeRepositoryRoot = NextValue(args, ref index); break;
                 case "--smoke-paper": smokePaper = true; break;
+                case "--smoke-objects": smokeObjects = true; break;
                 case "--smoke-remote": smokeRemotePeer = NextValue(args, ref index); break;
                 case "--export-paper":
                     if (!Guid.TryParse(NextValue(args, ref index), out var paperId))
@@ -249,6 +253,11 @@ internal static class Program
             throw new ArgumentException("--daemon cannot be combined with maintenance or UI smoke modes.");
         if ((interactive || syntheticAudio || verbose) && !daemon)
             throw new ArgumentException("--interactive, --synthetic-audio and --verbose require --daemon.");
+        if (smokeObjects && (!smokeUi || string.IsNullOrWhiteSpace(dataDirectory) || rnsConfig is not null ||
+            daemon || smokePaper || smokeMap || smokeTelemetry || smokeRemotePeer is not null || smokeRepositoryRoot is not null ||
+            initialize || check || checkMedia || importSettings is not null || exportSettings is not null ||
+            importProfile is not null || importMap is not null || exportPaperId is not null))
+            throw new ArgumentException("--smoke-objects requires --smoke-ui and an explicit existing --data-dir, without other modes.");
         if (smokeRemotePeer is not null)
         {
             if (!SidebandContact.TryNormalizeDeliveryHash(smokeRemotePeer, out var remotePeer))
@@ -297,7 +306,7 @@ internal static class Program
 
         return new Options(dataDirectory, rnsConfig, initialize, check, help, version, smokeUi, importSettings, exportSettings, importProfile, checkMedia,
             daemon, interactive, syntheticAudio, verbose, importMap, smokeMap, smokeTelemetry, smokeRepositoryRoot,
-            smokePaper, exportPaperId, paperOutput, paperQr, smokeRemotePeer);
+            smokePaper, exportPaperId, paperOutput, paperQr, smokeRemotePeer, smokeObjects);
     }
 
     private static string NextValue(string[] args, ref int index)
@@ -325,6 +334,7 @@ internal static class Program
           sideband --smoke-ui [--smoke-map | --smoke-telemetry] [--data-dir <path>] [--rnsconfig <path>]
           sideband --smoke-ui --smoke-repository <public-directory> --data-dir <path>
           sideband --smoke-ui --smoke-paper --data-dir <existing-directory>
+          sideband --smoke-ui --smoke-objects --data-dir <existing-directory>
           sideband --smoke-ui --smoke-remote <lxmf-address> --data-dir <test-directory> --rnsconfig <isolated-config>
           sideband --export-paper <message-uuid> --paper-output <new-file> [--paper-qr] --data-dir <existing-directory>
           sideband --daemon [--interactive] [--verbose] [--synthetic-audio] [--config <path>] [--rnsconfig <path>]
@@ -345,6 +355,7 @@ internal static class Program
         --smoke-telemetry  With --smoke-ui, prepare a configured manual report and render its desktop preview.
         --smoke-repository  Explicit loopback HTTPS/window acceptance with synthetic public files; requires --smoke-ui and --data-dir.
         --smoke-paper  Render a saved paper URI and QR without connecting; requires --smoke-ui and an existing --data-dir.
+        --smoke-objects  Render saved object classifications offline; requires --smoke-ui and an explicit --data-dir.
         --smoke-remote  Explicit native-window command/reply/cancellation acceptance against a test peer; changes test-profile policy.
         --export-paper  Export a saved outgoing paper URI offline, or its QR PNG with --paper-qr; never overwrite.
         --paper-output  Explicit destination for --export-paper; requires --data-dir.
@@ -357,5 +368,6 @@ internal static class Program
     private sealed record Options(string? DataDirectory, string? ReticulumConfigDirectory, bool Initialize, bool Check, bool Help, bool Version, bool SmokeUi,
         string? ImportSettings, string? ExportSettings, string? ImportProfile, bool CheckMedia,
         bool Daemon, bool Interactive, bool SyntheticAudio, bool Verbose, string? ImportMap, bool SmokeMap, bool SmokeTelemetry,
-        string? SmokeRepositoryRoot, bool SmokePaper, Guid? ExportPaperId, string? PaperOutput, bool PaperQr, string? SmokeRemotePeer);
+        string? SmokeRepositoryRoot, bool SmokePaper, Guid? ExportPaperId, string? PaperOutput, bool PaperQr, string? SmokeRemotePeer,
+        bool SmokeObjects);
 }

@@ -8,6 +8,22 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+The integrated map/object gate
+`& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-map-objects-unified -OutputDirectory
+artifacts\tests\fleet-map-objects-unified` passes **2,312 managed cases,
+106 explicit skips and 62 Pester tooling cases**, with strict compatibility
+aggregation and merged coverage for all eight production assemblies. It includes
+the accepted Nomad node-configuration slice and frozen remote-transport follow-up
+code; its absent live modes are not application acceptance. Parent separately
+reproduces Nomad's exact-source guarded Windows/Linux configured peering/restart
+and Linux mixed propagation/loss flows. Windows/Linux exact-source map/object
+checks pass130 cases plus11 profile-option/rollback cases per host, and strict
+published native/GUI checks pass11/two unrelated profile skips per host.
+Reference hashes, discarded wrong-checkout/zero-selection invocations, exact
+native hashes and topology boundaries remain in the project reference docs.
+This is local evidence, not a new hosted run or full application-parity claim.
+
 The local remote-command, admission and desktop lifecycle gate
 `& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
 artifacts\builds\fleet-remote-ui-unified-final2 -OutputDirectory

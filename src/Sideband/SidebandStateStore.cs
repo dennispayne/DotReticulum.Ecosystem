@@ -52,7 +52,8 @@ public sealed partial class SidebandStateStore
     {
         ArgumentNullException.ThrowIfNull(contact);
         var validated = SidebandContact.Create(contact.DisplayName, contact.DeliveryHash, contact.Trusted, contact.Unread, contact.DirectPushToTalk)
-            with { SendTelemetry = contact.SendTelemetry, AllowTelemetryRequests = contact.AllowTelemetryRequests, Appearance = contact.Appearance };
+            with { SendTelemetry = contact.SendTelemetry, AllowTelemetryRequests = contact.AllowTelemetryRequests,
+                Appearance = contact.Appearance, IsObject = contact.IsObject };
         await MutateAsync(state =>
         {
             var existing = state.Contacts.FirstOrDefault(item => item.DeliveryHash == validated.DeliveryHash);
@@ -60,6 +61,7 @@ public sealed partial class SidebandStateStore
             {
                 Trusted = existing.Trusted, Unread = existing.Unread, DirectPushToTalk = existing.DirectPushToTalk,
                 SendTelemetry = existing.SendTelemetry, AllowTelemetryRequests = existing.AllowTelemetryRequests, Appearance = existing.Appearance,
+                IsObject = existing.IsObject,
             };
             var contacts = state.Contacts.Where(item => item.DeliveryHash != validated.DeliveryHash).Append(updated).ToArray();
             if (contacts.Length > 1_000) throw new InvalidOperationException("The contact list is full.");
@@ -472,6 +474,7 @@ public sealed partial class SidebandStateStore
             throw new InvalidDataException("Sideband state exceeds its contact or message count limit.");
         _ = state.Telemetry.Validate();
         _ = SidebandRemoteCommands.Authorization(state);
+        SidebandFixedLocations.Validate(state.MapFixedLocations ?? []);
         if (state.TelemetryPeers is { Count: > 1_000 }) throw new InvalidDataException("Too many telemetry peers.");
         foreach (var peer in state.TelemetryPeers ?? [])
             if (peer is null || !SidebandContact.TryNormalizeDeliveryHash(peer.DeliveryHash, out _) ||

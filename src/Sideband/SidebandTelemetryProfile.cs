@@ -16,7 +16,10 @@ internal static class SidebandTelemetryProfile
         var result = contact with
         {
             SendTelemetry = value.Get("telemetry") is { } send && (send.Boolean == true || send.Number == 1),
-            AllowTelemetryRequests = value.Get("allow_requests") is { } requests && (requests.Boolean == true || requests.Number == 1)
+            AllowTelemetryRequests = value.Get("allow_requests") is { } requests && (requests.Boolean == true || requests.Number == 1),
+            IsObject = value.Get("is_object") is { } classification
+                ? classification.Boolean ?? throw new InvalidDataException("Imported object classification must be boolean.")
+                : false
         };
         if (value.Get("appearance") is { Kind: SidebandTelemetryValueKind.Array } appearance &&
             appearance.Items.Count == 3 && appearance.Items[0].Text is { } icon &&

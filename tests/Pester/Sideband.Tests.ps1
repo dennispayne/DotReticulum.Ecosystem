@@ -74,6 +74,10 @@ Describe 'sideband native acceptance' -Tag 'Native' {
         $output | Should -Match 'isolated --rnsconfig'
         $output = & $binary --smoke-ui --smoke-map --smoke-remote '00112233445566778899aabbccddeeff' --data-dir $rejectedData --rnsconfig $rns 2>&1 | Out-String
         $LASTEXITCODE | Should -Be 1
+        $output = & $binary --smoke-objects --data-dir $rejectedData 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 1
+        $output = & $binary --smoke-ui --smoke-objects --smoke-telemetry --data-dir $rejectedData 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 1
         Test-Path -LiteralPath $rejectedData | Should -BeFalse
     }
 
@@ -228,6 +232,87 @@ Describe 'sideband native raster map rendering' -Tag 'GUI' {
             if ($started -and -not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
             $process.Dispose()
             if (Test-Path -LiteralPath $mapRoot) { Remove-Item -LiteralPath $mapRoot -Recurse -Force }
+        }
+    }
+}
+
+Describe 'sideband native object and overlay rendering' -Tag 'GUI' {
+    It 'renders persisted objects and clustered namespaced reference sensor shapes offline across native restarts' {
+        $profile = $env:DOTRETICULUM_SIDEBAND_MAP_OBJECT_PROFILE
+        if ([string]::IsNullOrWhiteSpace($profile)) {
+            Set-ItResult -Skipped -Because 'Set DOTRETICULUM_SIDEBAND_MAP_OBJECT_PROFILE to the synthetic profile exported by SidebandMapOverlayUiTests.'
+            return
+        }
+        $binary = $env:DOTRETICULUM_SIDEBAND_BINARY
+        if ([string]::IsNullOrWhiteSpace($binary) -or -not (Test-Path -LiteralPath $binary -PathType Leaf)) {
+            throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
+        }
+        if (-not (Test-Path -LiteralPath (Join-Path $profile 'telemetry\telemetry.sbdb') -PathType Leaf)) {
+            throw 'The explicit synthetic map/object profile has no real native telemetry store.'
+        }
+        $root = Join-Path (Join-Path (Get-Location) 'artifacts\tests') "sideband-objects-map-gui-$PID"
+        try {
+            Copy-Item -LiteralPath $profile -Destination $root -Recurse -ErrorAction Stop
+            foreach ($mode in @('objects', 'objects', 'map', 'empty-objects')) {
+                if ($mode -eq 'map') {
+                    $fixture = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\Sideband.Tests\Fixtures\sideband-map.mbtiles'))
+                    & $binary --import-map $fixture --data-dir $root 2>&1 | Out-Null
+                    $LASTEXITCODE | Should -Be 0
+                    $path = Join-Path $root 'maps\view.json'
+                    $view = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+                    $view.latitude = 0
+                    $view.longitude = 0
+                    $view.zoom = 1
+                    $view.includeInterfaces = $true
+                    $view.includeConnections = $true
+                    $view.clusterMarkers = $true
+                    $view.historyLimitSeconds = 604800
+                    $view | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $path
+                }
+                $process = [Diagnostics.Process]::new()
+                $started = $false
+                try {
+                    $process.StartInfo.FileName = $binary
+                    $process.StartInfo.UseShellExecute = $false
+                    $process.StartInfo.RedirectStandardOutput = $true
+                    $process.StartInfo.RedirectStandardError = $true
+                    $renderRoot = if ($mode -eq 'empty-objects') { Join-Path $root 'empty-profile' } else { $root }
+                    New-Item -ItemType Directory -Path $renderRoot -Force | Out-Null
+                    foreach ($argument in @('--smoke-ui', '--data-dir', $renderRoot)) { $process.StartInfo.ArgumentList.Add($argument) }
+                    if ($mode -eq 'map') { $process.StartInfo.ArgumentList.Add('--smoke-map') }
+                    else { $process.StartInfo.ArgumentList.Add('--smoke-objects') }
+                    $process.Start() | Should -BeTrue
+                    $started = $true
+                    $stdout = $process.StandardOutput.ReadToEndAsync()
+                    $stderr = $process.StandardError.ReadToEndAsync()
+                    if (-not $process.WaitForExit(20000)) {
+                        $process.Kill($true)
+                        $process.WaitForExit()
+                        throw "The published $mode rendering did not finish: $($stdout.GetAwaiter().GetResult()) $($stderr.GetAwaiter().GetResult())"
+                    }
+                    $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+                    $process.ExitCode | Should -Be $(if ($mode -eq 'empty-objects') { 2 } else { 0 }) -Because $output
+                    $output | Should -Match 'SMOKE_UI_RENDERED_INITIAL=1'
+                    if ($mode -eq 'objects') { $output | Should -Match 'SMOKE_UI_RENDERED_OBJECTS=1' }
+                    elseif ($mode -eq 'empty-objects') { $output | Should -Match 'Objects smoke requires a saved object' }
+                    else {
+                        $output | Should -Match 'SMOKE_UI_MAP_MARKERS=7'
+                        $output | Should -Match 'SMOKE_UI_RENDERED_MAP_CLUSTERS=1'
+                        $output | Should -Match 'SMOKE_UI_RENDERED_MAP=[1-9][0-9]*'
+                    }
+                }
+                finally {
+                    if ($started -and -not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+                    $process.Dispose()
+                }
+            }
+            $state = Get-Content -LiteralPath (Join-Path $root 'state.json') -Raw | ConvertFrom-Json
+            @($state.contacts | Where-Object isObject).Count | Should -Be 1
+            @($state.mapFixedLocations).Count | Should -Be 1
+            $state.ownDeliveryHash | Should -BeNullOrEmpty
+        }
+        finally {
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
         }
     }
 }

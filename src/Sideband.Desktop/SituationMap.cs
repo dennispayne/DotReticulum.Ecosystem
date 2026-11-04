@@ -9,15 +9,28 @@ using Sideband;
 namespace Sideband.Desktop;
 
 public sealed record SituationMapMarker(string Label, SidebandGeoCoordinate Coordinate,
-    string Foreground = "000000", string Background = "ffffff");
+    string Foreground = "000000", string Background = "ffffff",
+    string? SourceHash = null, SidebandMapOverlayMarker? Overlay = null);
 
 /// <summary>Original bounded raster viewport. Reported locations are not authenticated physical positions.</summary>
 public sealed class SituationMap : Control
 {
     private IReadOnlyDictionary<SidebandMapTile, Bitmap> _tiles = new Dictionary<SidebandMapTile, Bitmap>();
     private IReadOnlyList<SituationMapMarker> _markers = [];
+    private IReadOnlyList<SidebandMapOverlayMarker> _overlays = [];
+    private IReadOnlyDictionary<string, string> _markerLabels = new Dictionary<string, string>();
+    private readonly List<(Point Point, SidebandMapOverlayCluster Cluster)> _hitTargets = [];
     private Point? _drag;
+    private Point _dragStart;
+    private bool _dragMoved;
+    private bool _clusterMarkers = true;
     public event EventHandler? ViewChanged;
+    public event EventHandler<SidebandMapOverlayMarker>? MarkerActivated;
+    public bool ClusterMarkers
+    {
+        get => _clusterMarkers;
+        set { _clusterMarkers = value; _hitTargets.Clear(); InvalidateVisual(); }
+    }
     public double Latitude { get; private set; }
     public double Longitude { get; private set; }
     public int Zoom { get; private set; } = 1;
@@ -27,6 +40,8 @@ public sealed class SituationMap : Control
     public int LoadedTileCount => _tiles.Count;
     public int RenderedTileCount { get; private set; }
     public int MarkerCount => _markers.Count;
+    public int RenderedMarkerCount { get; private set; }
+    public int RenderedClusterCount { get; private set; }
 
     public void SetZoomRange(int minimum, int maximum)
     {
@@ -47,6 +62,7 @@ public sealed class SituationMap : Control
         Longitude = cartesian ? longitude : Math.Clamp(longitude, -180, 180);
         IsCartesian = cartesian;
         Zoom = Math.Clamp(zoom, MinimumZoom, MaximumZoom);
+        _hitTargets.Clear();
         InvalidateVisual();
         RaiseViewChanged();
     }
@@ -65,9 +81,27 @@ public sealed class SituationMap : Control
                 !marker.Foreground.All(Uri.IsHexDigit) || !marker.Background.All(Uri.IsHexDigit))
                 throw new ArgumentException("Map marker appearance requires two six-digit RGB values.", nameof(markers));
         }
+        var overlays = bounded.Select((marker, index) => marker.Overlay ?? new(
+            index.ToString(CultureInfo.InvariantCulture), marker.SourceHash ?? index.ToString("x32", CultureInfo.InvariantCulture),
+            marker.Coordinate, SidebandMapOverlayAppearance.FromTelemetry(new("map-marker", marker.Foreground, marker.Background)),
+            Name: marker.Label)).ToArray();
+        _ = SidebandMapOverlays.Cluster(overlays, SidebandMapProjection.MaximumZoom);
+        for (var index = 0; index < bounded.Length; index++)
+            if (bounded[index].Coordinate != overlays[index].Coordinate)
+                throw new ArgumentException("Overlay and display marker coordinates must match.", nameof(markers));
+        _overlays = overlays;
+        _markerLabels = overlays.Select((marker, index) => (marker.Key, bounded[index].Label))
+            .ToDictionary(item => item.Key, item => item.Label, StringComparer.Ordinal);
         _markers = bounded;
+        _hitTargets.Clear();
         InvalidateVisual();
     }
+
+    public IReadOnlyList<SidebandMapOverlayCluster> DisplayClusters() => ClusterMarkers
+        ? SidebandMapOverlays.Cluster(_overlays, Zoom)
+        : _overlays.Select(marker => new SidebandMapOverlayCluster(marker.Coordinate,
+            new(marker.Coordinate.Longitude, marker.Coordinate.Latitude, marker.Coordinate.Longitude, marker.Coordinate.Latitude),
+            Array.AsReadOnly(new[] { marker }))).ToArray();
 
     public void ReplaceTiles(IReadOnlyDictionary<SidebandMapTile, Bitmap> tiles)
     {
@@ -110,21 +144,48 @@ public sealed class SituationMap : Control
             }
             else context.DrawRectangle(null, new Pen(Brushes.SlateGray), rectangle);
         }
+        _hitTargets.Clear();
+        RenderedMarkerCount = RenderedClusterCount = 0;
         if (IsCartesian) return;
-        foreach (var marker in _markers)
+        var clusters = DisplayClusters();
+        var singles = clusters.Where(cluster => !cluster.IsCluster).Select(cluster => cluster.Members[0]).ToArray();
+        var positions = singles.Select(marker => Position(marker.Coordinate, center)).ToArray();
+        var offsets = SidebandMapOverlays.Scatter(singles, positions.Select(point => new SidebandMapPoint(point.X, point.Y)).ToArray(), Zoom);
+        var singleIndex = 0;
+        foreach (var cluster in clusters)
         {
-            var world = SidebandMapProjection.ToWorld(Zoom, SidebandMapProjection.ClipDisplayLatitude(marker.Coordinate.Latitude),
-                marker.Coordinate.Longitude);
-            var point = new Point(world.X - center.X + Bounds.Width / 2, center.Y - world.Y + Bounds.Height / 2);
-            var foreground = new SolidColorBrush(Color.Parse("#" + marker.Foreground));
-            var background = new SolidColorBrush(Color.Parse("#" + marker.Background));
-            context.DrawEllipse(background, new Pen(foreground, 2), point, 6, 6);
-            var text = new FormattedText(marker.Label, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            var marker = cluster.Members[0];
+            var point = Position(cluster.Coordinate, center);
+            if (!cluster.IsCluster)
+            {
+                var offset = offsets[singleIndex++];
+                point += new Vector(offset.X, offset.Y);
+            }
+            if (point.X < -100 || point.X > Bounds.Width + 100 || point.Y < -100 || point.Y > Bounds.Height + 100) continue;
+            var foreground = Brush(marker.Appearance.Foreground);
+            var background = Brush(marker.Appearance.Background);
+            var radius = cluster.IsCluster ? 14 : marker.Small ? 4 : 6;
+            context.DrawEllipse(background, new Pen(foreground, 2), point, radius, radius);
+            var label = cluster.IsCluster ? cluster.Count.ToString(CultureInfo.InvariantCulture) : _markerLabels[marker.Key];
+            var text = new FormattedText(label, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                 Typeface.Default, 12, foreground);
             context.FillRectangle(background, new Rect(point + new Vector(8, -9), new Size(text.Width + 2, text.Height)));
             context.DrawText(text, point + new Vector(9, -9));
+            _hitTargets.Add((point, cluster));
+            RenderedMarkerCount++;
+            if (cluster.IsCluster) RenderedClusterCount++;
         }
     }
+
+    private Point Position(SidebandGeoCoordinate coordinate, SidebandMapPoint center)
+    {
+        var world = SidebandMapProjection.ToWorld(Zoom, SidebandMapProjection.ClipDisplayLatitude(coordinate.Latitude), coordinate.Longitude);
+        return new(world.X - center.X + Bounds.Width / 2, center.Y - world.Y + Bounds.Height / 2);
+    }
+
+    private static IBrush Brush(SidebandMapColor color) => new SolidColorBrush(Color.FromArgb(
+        (byte)Math.Round(color.Alpha * 255), (byte)Math.Round(color.Red * 255),
+        (byte)Math.Round(color.Green * 255), (byte)Math.Round(color.Blue * 255)));
 
     private SidebandMapPoint Center() => IsCartesian ? new(Longitude, Latitude) :
         SidebandMapProjection.ToWorld(Zoom, Latitude, Longitude);
@@ -141,6 +202,7 @@ public sealed class SituationMap : Control
             Longitude = coordinate.Longitude;
             Latitude = SidebandMapProjection.ClipDisplayLatitude(coordinate.Latitude);
         }
+        _hitTargets.Clear();
         InvalidateVisual();
     }
 
@@ -149,6 +211,8 @@ public sealed class SituationMap : Control
         base.OnPointerPressed(e);
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         _drag = e.GetPosition(this);
+        _dragStart = _drag.Value;
+        _dragMoved = false;
         e.Pointer.Capture(this);
         e.Handled = true;
     }
@@ -158,6 +222,7 @@ public sealed class SituationMap : Control
         base.OnPointerMoved(e);
         if (_drag is not { } previous) return;
         var current = e.GetPosition(this);
+        if (DistanceSquared(current, _dragStart) > 9) _dragMoved = true;
         Pan(current - previous);
         _drag = current;
         e.Handled = true;
@@ -167,11 +232,34 @@ public sealed class SituationMap : Control
     {
         base.OnPointerReleased(e);
         if (_drag is null) return;
+        var clicked = !_dragMoved;
         _drag = null;
         e.Pointer.Capture(null);
+        if (clicked) ActivateMarker(e.GetPosition(this));
         RaiseViewChanged();
         e.Handled = true;
     }
+
+    private void ActivateMarker(Point point)
+    {
+        var target = _hitTargets.LastOrDefault(target => DistanceSquared(target.Point, point) <= 324).Cluster;
+        if (target is null) return;
+        if (target.IsCluster)
+        {
+            var view = SidebandMapOverlays.FitBounds(target.Bounds, Math.Max(1, Bounds.Width), Math.Max(1, Bounds.Height),
+                MinimumZoom, Math.Min(MaximumZoom, 19));
+            SetView(view.Latitude, view.Longitude, (int)view.Zoom);
+        }
+        else if (MarkerActivated is { } activated)
+            foreach (EventHandler<SidebandMapOverlayMarker> observer in activated.GetInvocationList())
+            {
+                try { observer(this, target.Members[0]); }
+                catch (Exception exception) { System.Diagnostics.Trace.TraceError("Situation map marker observer failed: {0}", exception); }
+            }
+    }
+
+    private static double DistanceSquared(Point first, Point second) =>
+        (first.X - second.X) * (first.X - second.X) + (first.Y - second.Y) * (first.Y - second.Y);
 
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
     {

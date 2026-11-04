@@ -11,6 +11,9 @@ public sealed partial class MainWindow
     private CancellationTokenSource? _mapCancellation;
     private bool _restoredMap;
     private bool _changingMap;
+    private bool _mapOverlayEdited;
+    private readonly Avalonia.Threading.DispatcherTimer _mapMarkerRefreshTimer =
+        new() { Interval = TimeSpan.FromSeconds(SidebandMapOverlays.InterfaceUpdateIntervalSeconds) };
 
     private void InitializeMap()
     {
@@ -18,6 +21,8 @@ public sealed partial class MainWindow
         MapSourceSelector.SelectedIndex = 0;
         MapPresetSelector.ItemsSource = SidebandMapPresets.Ids;
         MapPresetSelector.SelectedIndex = 0;
+        MapViewport.MarkerActivated += (_, marker) => InspectMapMarker(marker);
+        _mapMarkerRefreshTimer.Tick += (_, _) => RequestTelemetryRefresh();
         MapViewport.ViewChanged += (_, _) =>
         {
             MapLatitudeBox.Text = MapViewport.Latitude.ToString("G10", CultureInfo.InvariantCulture);
@@ -42,6 +47,15 @@ public sealed partial class MainWindow
             MapSourceSelector.SelectedIndex = view.UseOffline ? 1 : 0;
             MapProviderBox.Text = view.Provider.UrlTemplate;
             MapAttributionBox.Text = view.Provider.Attribution;
+            if (!_mapOverlayEdited)
+            {
+                MapClusterBox.IsChecked = view.ClusterMarkers;
+                MapInterfacesBox.IsChecked = view.IncludeInterfaces;
+                MapConnectionsBox.IsChecked = view.IncludeConnections;
+                MapHideBlockedBox.IsChecked = view.HideBlocked;
+                MapHistorySecondsBox.Text = view.HistoryLimitSeconds.ToString(CultureInfo.InvariantCulture);
+            }
+            MapViewport.ClusterMarkers = MapClusterBox.IsChecked == true;
             _changingMap = true;
             try
             {
@@ -49,9 +63,45 @@ public sealed partial class MainWindow
                 MapViewport.SetView(view.Latitude, view.Longitude, view.Zoom, view.IsCartesian);
             }
             finally { _changingMap = false; }
+            UpdateMapMarkers();
         }
         return store;
     }
+
+    private void MapOverlaysChanged(object? sender, RoutedEventArgs e)
+    {
+        _mapOverlayEdited = true;
+        if (ReferenceEquals(sender, MapInterfacesBox) && MapInterfacesBox.IsChecked == true ||
+            ReferenceEquals(sender, MapConnectionsBox) && MapConnectionsBox.IsChecked == true)
+            MapClusterBox.IsChecked = true;
+        RunTelemetryOperation(() =>
+        {
+            _ = MapHistorySeconds();
+            MapViewport.ClusterMarkers = MapClusterBox.IsChecked == true;
+            UpdateMapMarkers();
+            MapStatusText.Text = "Saving map overlay and history settings...";
+            RequestMapRefresh();
+            return Task.CompletedTask;
+        });
+    }
+
+    private int MapHistorySeconds() => int.TryParse(MapHistorySecondsBox.Text, NumberStyles.None,
+        CultureInfo.InvariantCulture, out var seconds) && seconds is >= 1 and <= SidebandTelemetryRetention.PrimaryKeepSeconds
+        ? seconds : throw new ArgumentException("Map history requires whole seconds from 1 to the seven-day telemetry retention limit.");
+
+    private void InspectMapMarker(SidebandMapOverlayMarker marker) => RunTelemetryOperation(() =>
+    {
+        var source = marker.ReportingSourceHash ?? marker.SourceHash;
+        var report = _telemetryReports.FirstOrDefault(report => report.SourceHash == source)
+            ?? throw new InvalidOperationException("The selected marker no longer has a visible telemetry report.");
+        TelemetryReportsList.SelectedIndex = -1;
+        _telemetryPreview = "REPORTED MAP POINT (not authenticated physical position)\nReporter: " + source +
+            "\nPoint: " + marker.Key + "\n" + FormatTelemetry(report.Report);
+        NavigateTo("Telemetry");
+        TelemetryPeerBox.Text = source;
+        TelemetryDetailsText.Text = _telemetryPreview;
+        return Task.CompletedTask;
+    });
 
     private void MapGoClicked(object? sender, RoutedEventArgs e)
     {
@@ -72,6 +122,45 @@ public sealed partial class MainWindow
             ShowError(MapStatusText.Text);
         }
     }
+
+    private void ImportFixedLocationsClicked(object? sender, RoutedEventArgs e) => RunFixedLocationsOperation(async () =>
+    {
+        await _client.ImportFixedLocationsAsync(MapFixedLocationsPathBox.Text ?? "", _windowCancellation.Token);
+        MapFixedLocationsStatusText.Text = "Local fixed locations replaced atomically. Invalid files never partially replace existing overrides.";
+    });
+
+    private void ClearFixedLocationsClicked(object? sender, RoutedEventArgs e) => RunFixedLocationsOperation(async () =>
+    {
+        await _client.ClearFixedLocationsAsync(_windowCancellation.Token);
+        MapFixedLocationsStatusText.Text = "Local fixed locations cleared; stored telemetry is unchanged.";
+    });
+
+    private void RunFixedLocationsOperation(Func<Task> operation) => TrackOperation(async () =>
+    {
+        if (!ImportFixedLocationsButton.IsEnabled) { ShowError("Another fixed-location operation is pending."); return; }
+        ImportFixedLocationsButton.IsEnabled = ClearFixedLocationsButton.IsEnabled = false;
+        MapFixedLocationsStatusText.Text = "Fixed-location operation pending.";
+        try
+        {
+            await operation();
+            _state = await _client.LoadAsync(_windowCancellation.Token);
+            UpdateMapMarkers();
+        }
+        catch (OperationCanceledException) when (_windowCancellation.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            if (!_closing)
+            {
+                MapFixedLocationsStatusText.Text = "Fixed-location operation failed: " + exception.Message;
+                ShowError(MapFixedLocationsStatusText.Text);
+            }
+            else System.Diagnostics.Trace.TraceError("Fixed-location operation failed during close: {0}", exception);
+        }
+        finally
+        {
+            if (!_closing) ImportFixedLocationsButton.IsEnabled = ClearFixedLocationsButton.IsEnabled = true;
+        }
+    });
 
     private void MapZoomInClicked(object? sender, RoutedEventArgs e) => ChangeMapZoom(1);
     private void MapZoomOutClicked(object? sender, RoutedEventArgs e) => ChangeMapZoom(-1);
@@ -166,7 +255,12 @@ public sealed partial class MainWindow
                 {
                     Latitude = MapViewport.Latitude, Longitude = MapViewport.Longitude, Zoom = MapViewport.Zoom,
                     IsCartesian = MapViewport.IsCartesian, UseOffline = offline, Provider = provider,
-                    MinimumZoom = MapViewport.MinimumZoom, MaximumZoom = MapViewport.MaximumZoom
+                    MinimumZoom = MapViewport.MinimumZoom, MaximumZoom = MapViewport.MaximumZoom,
+                    ClusterMarkers = MapClusterBox.IsChecked == true,
+                    IncludeInterfaces = MapInterfacesBox.IsChecked == true,
+                    IncludeConnections = MapConnectionsBox.IsChecked == true,
+                    HideBlocked = MapHideBlockedBox.IsChecked == true,
+                    HistoryLimitSeconds = MapHistorySeconds()
                 }, cancellation.Token);
                 MapStatusText.Text = "Loading bounded raster viewport...";
                 var failed = 0;

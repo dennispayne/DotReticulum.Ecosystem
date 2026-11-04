@@ -1,0 +1,164 @@
+{
+    "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+    "source_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+    "method": "Actual is_object, _db_conversation_set_object and _db_conversations; real in-memory SQLite, synthetic connection/row lookup and identity records; actual fixed-location loader/getter with temporary synthetic input; no daemon, GUI or network claim.",
+    "cases": [
+        {
+            "name": "missing",
+            "is_object": false
+        },
+        {
+            "name": "set-0",
+            "is_object": true,
+            "data_hex": "83a974656c656d65747279c3ae616c6c6f775f7265717565737473c2a969735f6f626a656374c3",
+            "telemetry": true,
+            "allow_requests": false,
+            "conversations": [
+                "ffeeddccbbaa99887766554433221100"
+            ],
+            "objects": [
+                "00112233445566778899aabbccddeeff"
+            ],
+            "all": [
+                "ffeeddccbbaa99887766554433221100",
+                "00112233445566778899aabbccddeeff"
+            ]
+        },
+        {
+            "name": "set-1",
+            "is_object": false,
+            "data_hex": "83a974656c656d65747279c3ae616c6c6f775f7265717565737473c2a969735f6f626a656374c2",
+            "telemetry": true,
+            "allow_requests": false,
+            "conversations": [
+                "ffeeddccbbaa99887766554433221100",
+                "00112233445566778899aabbccddeeff"
+            ],
+            "objects": [],
+            "all": [
+                "ffeeddccbbaa99887766554433221100",
+                "00112233445566778899aabbccddeeff"
+            ]
+        },
+        {
+            "name": "set-2",
+            "is_object": true,
+            "data_hex": "83a974656c656d65747279c3ae616c6c6f775f7265717565737473c2a969735f6f626a656374c3",
+            "telemetry": true,
+            "allow_requests": false,
+            "conversations": [
+                "ffeeddccbbaa99887766554433221100"
+            ],
+            "objects": [
+                "00112233445566778899aabbccddeeff"
+            ],
+            "all": [
+                "ffeeddccbbaa99887766554433221100",
+                "00112233445566778899aabbccddeeff"
+            ]
+        },
+        {
+            "name": "unclassified-map",
+            "is_object": false
+        }
+    ],
+    "fixed_locations": [
+        {
+            "name": "normal",
+            "text": "00112233445566778899aabbccddeeff,51.5,-1.25\n",
+            "locations": [
+                {
+                    "address": "00112233445566778899aabbccddeeff",
+                    "latitude": 51.5,
+                    "longitude": -1.25
+                }
+            ]
+        },
+        {
+            "name": "zero",
+            "text": "00112233445566778899aabbccddeeff,0,0\n",
+            "locations": [
+                {
+                    "address": "00112233445566778899aabbccddeeff",
+                    "latitude": 0.0,
+                    "longitude": 0.0
+                }
+            ]
+        },
+        {
+            "name": "boundary",
+            "text": "00112233445566778899aabbccddeeff,-90,180\n",
+            "locations": [
+                {
+                    "address": "00112233445566778899aabbccddeeff",
+                    "latitude": -90.0,
+                    "longitude": 180.0
+                }
+            ]
+        },
+        {
+            "name": "spaces-uppercase",
+            "text": " 00112233445566778899AABBCCDDEEFF , 12.5 , -3.25 \n",
+            "locations": [
+                {
+                    "address": "00112233445566778899aabbccddeeff",
+                    "latitude": 12.5,
+                    "longitude": -3.25
+                }
+            ]
+        },
+        {
+            "name": "duplicate",
+            "text": "00112233445566778899aabbccddeeff,1,2\n00112233445566778899aabbccddeeff,3,4\n",
+            "locations": [
+                {
+                    "address": "00112233445566778899aabbccddeeff",
+                    "latitude": 3.0,
+                    "longitude": 4.0
+                }
+            ]
+        },
+        {
+            "name": "comment-and-blank",
+            "text": "#synthetic locations\n\n00112233445566778899aabbccddeeff,1,2\n",
+            "locations": [
+                {
+                    "address": "00112233445566778899aabbccddeeff",
+                    "latitude": 1.0,
+                    "longitude": 2.0
+                }
+            ]
+        },
+        {
+            "name": "wrong-columns",
+            "text": "not,a,location,record\n",
+            "locations": []
+        },
+        {
+            "name": "bad-hash",
+            "text": "invalid,1,2\n",
+            "locations": []
+        },
+        {
+            "name": "bad-number",
+            "text": "00112233445566778899aabbccddeeff,text,2\n",
+            "locations": []
+        },
+        {
+            "name": "outside-range",
+            "text": "00112233445566778899aabbccddeeff,91,2\n",
+            "locations": []
+        },
+        {
+            "name": "nonfinite",
+            "text": "00112233445566778899aabbccddeeff,nan,nan\n",
+            "locations": [
+                {
+                    "address": "00112233445566778899aabbccddeeff",
+                    "latitude": "nan",
+                    "longitude": "nan"
+                }
+            ]
+        }
+    ]
+}

@@ -12,6 +12,11 @@ public sealed record SidebandMapViewSettings
     public int MaximumZoom { get; init; } = SidebandMapProjection.MaximumZoom;
     public bool UseOffline { get; init; }
     public bool IsCartesian { get; init; }
+    public bool ClusterMarkers { get; init; } = true;
+    public bool IncludeInterfaces { get; init; } = true;
+    public bool IncludeConnections { get; init; }
+    public bool HideBlocked { get; init; }
+    public int HistoryLimitSeconds { get; init; } = SidebandMapOverlays.HistoryLimitSeconds;
     public SidebandMapProvider Provider { get; init; } = SidebandMapProvider.OpenStreetMap;
 
     internal void Validate()
@@ -24,6 +29,8 @@ public sealed record SidebandMapViewSettings
         _ = SidebandMapProjection.WorldSize(MaximumZoom);
         if (MinimumZoom > MaximumZoom || Zoom < MinimumZoom || Zoom > MaximumZoom)
             throw new InvalidDataException("Map view zoom is outside the configured source limits.");
+        if (HistoryLimitSeconds is < 1 or > SidebandTelemetryRetention.PrimaryKeepSeconds)
+            throw new InvalidDataException("Map history must be between one second and the seven-day telemetry retention limit.");
         ArgumentNullException.ThrowIfNull(Provider);
         _ = Provider.TileUri(new(0, 0, 0));
     }

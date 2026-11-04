@@ -34,6 +34,8 @@
                     Content="Conversations" Tag="Conversations" Click="NavigateClicked" />
             <Button x:Name="ContactsNavButton" HorizontalContentAlignment="Left"
                     Content="Contacts" Tag="Contacts" Click="NavigateClicked" />
+            <Button x:Name="ObjectsNavButton" HorizontalContentAlignment="Left"
+                    Content="Objects" Tag="Objects" Click="NavigateClicked" />
             <Button HorizontalContentAlignment="Left" Content="Announce Stream · unavailable"
                     IsEnabled="False" ToolTip.Tip="An announce history screen is not implemented in this build." />
             <TextBlock Margin="8,18,0,4" FontSize="12" FontWeight="Bold"
@@ -140,7 +142,22 @@
             <TextBlock Foreground="{DynamicResource SecondaryTextBrush}"
                        Text="Contacts added here are stored locally. Discovered LXMF delivery announces are added to this list." TextWrapping="Wrap" />
             <ListBox x:Name="ExpandedContactList" MinHeight="320" />
+            <Button x:Name="ClassifyObjectButton" Content="Move selected contact to Objects"
+                    HorizontalAlignment="Left" Click="ClassifyObjectClicked" />
             <TextBlock Text="Add a contact from the Conversations screen using its 32-character delivery address." TextWrapping="Wrap" />
+          </StackPanel>
+        </ScrollViewer>
+        <ScrollViewer x:Name="ObjectsPage" IsVisible="False" Margin="24">
+          <StackPanel Spacing="12">
+            <TextBlock FontSize="26" FontWeight="SemiBold" Text="Objects" />
+            <TextBlock Text="Objects retain the same LXMF address, history, trust and request permissions, but are separate from ordinary conversations. Classification does not authenticate a reported position or grant any permission."
+                       TextWrapping="Wrap" />
+            <ListBox x:Name="ObjectList" MinHeight="280" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="InspectObjectButton" Content="Inspect latest visible telemetry" Click="InspectObjectClicked" />
+              <Button x:Name="RestoreObjectButton" Content="Move back to Conversations" Click="RestoreObjectClicked" />
+            </StackPanel>
+            <TextBlock x:Name="ObjectsStatusText" Text="Classify an existing contact in Contacts." TextWrapping="Wrap" />
           </StackPanel>
         </ScrollViewer>
         <ScrollViewer x:Name="TelemetryPage" IsVisible="False" Margin="24">
@@ -247,6 +264,26 @@
             </Border>
             <TextBlock x:Name="MapAttributionText" TextWrapping="Wrap" />
             <TextBlock x:Name="MapStatusText" Text="Offline: no online requests without explicit consent." TextWrapping="Wrap" />
+            <TextBlock x:Name="MapOverlayStatusText" Text="No reported markers loaded." TextWrapping="Wrap" />
+            <WrapPanel>
+              <CheckBox x:Name="MapClusterBox" Content="Cluster markers" IsChecked="True" Margin="0,0,12,0" Click="MapOverlaysChanged" />
+              <CheckBox x:Name="MapInterfacesBox" Content="Reported interfaces" IsChecked="True" Margin="0,0,12,0" Click="MapOverlaysChanged" />
+              <CheckBox x:Name="MapConnectionsBox" Content="Reported connection points" Margin="0,0,12,0" Click="MapOverlaysChanged" />
+              <CheckBox x:Name="MapHideBlockedBox" Content="Hide blocked points" Margin="0,0,12,0" Click="MapOverlaysChanged" />
+              <CheckBox x:Name="MapOnlyBlockedBox" Content="Only blocked points (this session)" Click="MapOverlaysChanged" />
+            </WrapPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBox x:Name="MapHistorySecondsBox" Width="140" Text="604800" PlaceholderText="History seconds" />
+              <Button x:Name="ApplyMapHistoryButton" Content="Apply bounded history window" Click="MapOverlaysChanged" />
+            </StackPanel>
+            <TextBlock Text="Connection points are reported markers, not measured network links. Click a cluster to zoom or a marker to inspect its reporting peer. Zero coordinates are valid; disabled and stale overlays are removed. Interface discovery is not active."
+                       TextWrapping="Wrap" />
+            <TextBox x:Name="MapFixedLocationsPathBox" PlaceholderText="Explicit fixed_locations file: LXMF hash, latitude, longitude" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="ImportFixedLocationsButton" Content="Replace local fixed locations" Click="ImportFixedLocationsClicked" />
+              <Button x:Name="ClearFixedLocationsButton" Content="Clear local fixed locations" Click="ClearFixedLocationsClicked" />
+            </StackPanel>
+            <TextBlock x:Name="MapFixedLocationsStatusText" Text="Local overrides only; never transmitted as telemetry or read from a plugin directory automatically." TextWrapping="Wrap" />
             <TextBox x:Name="MbTilesPathBox" PlaceholderText="Stopped/checkpointed raster MBTiles file to import" />
             <Button x:Name="ImportMbTilesButton" Content="Import offline raster map" Click="ImportMbTilesClicked" />
             <Button Content="Clear downloaded tiles (keep imported offline map)" Click="ClearMapCacheClicked" />

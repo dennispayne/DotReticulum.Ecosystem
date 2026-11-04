@@ -86,7 +86,7 @@ public static class SidebandProfileImporter
                 finally { File.Delete(settingsPath); }
                 var notices = new List<string>
                 {
-                    "LXMF conversation names, addresses, trust and unread flags, telemetry permissions/appearance, text/media and delivery states are activated. Supported telemetry configuration, reports and cursor state are activated without collecting hardware. Other conversation data, transport/stamp extras, voice objects, announces and unsupported persistent properties remain archive-only.",
+                    "LXMF conversation names, addresses, trust and unread flags, object classification, telemetry permissions/appearance, text/media and delivery states are activated. Supported telemetry configuration, reports and cursor state are activated without collecting hardware. Other conversation data, transport/stamp extras, voice objects, announces and unsupported persistent properties remain archive-only.",
                     "The original binary configuration and SQLite snapshot are retained privately in imported-profile. Unknown binary configuration values use hexadecimal JSON projections; the original MessagePack remains authoritative.",
                     "Reticulum interfaces, plugins and unknown app_storage files are not imported. Configure interfaces in the new private reticulum directory before connecting.",
                     "Historical signatures are verified only when the source is the imported identity; remote sender identities are not available in this profile snapshot. Import is not live interoperability evidence.",

@@ -176,7 +176,7 @@ public sealed partial class MainWindow
     private void ShowTelemetryOnMapClicked(object? sender, RoutedEventArgs e) => RunTelemetryOperation(() =>
     {
         var report = SelectedTelemetry() ?? throw new InvalidOperationException("Select a stored report first.");
-        var location = report.Report.Get(SidebandTelemetrySensorId.Location)?.Location ??
+        var location = MapCoordinate(report) ??
             throw new InvalidOperationException("This selected report contains no location.");
         if (MapViewport.IsCartesian) MapSourceSelector.SelectedIndex = 0;
         _restoredMap = true;
@@ -218,23 +218,65 @@ public sealed partial class MainWindow
 
     private void UpdateMapMarkers()
     {
-        var earliest = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - SidebandTelemetryRetention.PrimaryKeepSeconds;
-        var markers = _telemetryReports.Where(report => report.TimestampUtcSeconds >= earliest &&
+        var earliest = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - MapHistorySeconds();
+        var groups = _telemetryReports.Where(report => report.TimestampUtcSeconds >= earliest &&
             (report.SourceHash != _state?.OwnDeliveryHash || _state.Telemetry.Enabled))
-            .GroupBy(report => report.SourceHash).Select(group => group.FirstOrDefault(report =>
-                report.Report.Get(SidebandTelemetrySensorId.Location)?.Location is not null))
-            .Where(report => report is not null).Select(report =>
+            .GroupBy(report => report.SourceHash).ToArray();
+        var markers = new List<SituationMapMarker>();
+        var diagnostics = new List<string>();
+        var omitted = 0;
+        SidebandTelemetryAppearance Appearance(string source) => source == _state?.OwnDeliveryHash
+            ? _state.Telemetry.Appearance : _state?.Contacts.FirstOrDefault(contact => contact.DeliveryHash == source)?.Appearance ?? new();
+        foreach (var group in groups)
+        {
+            var report = group.FirstOrDefault(report => MapCoordinate(report) is not null);
+            if (report is not null)
             {
-                var location = report!.Report.Get(SidebandTelemetrySensorId.Location)!.Location!;
-                var name = _state?.Contacts.FirstOrDefault(contact => contact.DeliveryHash == report.SourceHash)?.DisplayName;
-                var appearance = report.SourceHash == _state?.OwnDeliveryHash ? _state.Telemetry.Appearance :
-                    _state?.Contacts.FirstOrDefault(contact => contact.DeliveryHash == report.SourceHash)?.Appearance;
+                var location = MapCoordinate(report) ??
+                    throw new InvalidOperationException("The selected map report has no displayable location.");
+                var contact = _state?.Contacts.FirstOrDefault(contact => contact.DeliveryHash == report.SourceHash);
+                var name = contact?.DisplayName;
+                var appearance = Appearance(report.SourceHash);
                 var label = string.IsNullOrWhiteSpace(name) ? report.SourceHash[..8] :
                     name[..Math.Min(name.Length, 60)] + " " + report.SourceHash[..8];
-                return new SituationMapMarker(label, new(location.Latitude, location.Longitude, location.Altitude),
-                    appearance?.Foreground ?? "000000", appearance?.Background ?? "ffffff");
-            }).ToArray();
+                if (contact?.IsObject == true) label = "[Object] " + label;
+                var marker = new SidebandMapOverlayMarker("peer:" + report.SourceHash, report.SourceHash, location,
+                    SidebandMapOverlayAppearance.FromTelemetry(appearance), Name: label);
+                markers.Add(new(label, location, SourceHash: report.SourceHash, Overlay: marker));
+            }
+        }
+        foreach (var group in groups)
+        {
+            var report = group.First();
+            var projection = SidebandMapOverlays.ProjectTelemetry(report.SourceHash, report.Report,
+                SidebandMapOverlayAppearance.FromTelemetry(Appearance(report.SourceHash)),
+                new(MapInterfacesBox.IsChecked == true, MapConnectionsBox.IsChecked == true,
+                    MapHideBlockedBox.IsChecked == true, MapOnlyBlockedBox.IsChecked == true));
+            foreach (var error in projection.Errors)
+                if (diagnostics.Count < 256) diagnostics.Add($"{report.SourceHash[..8]} {error.Scope}: {error.Message}");
+            foreach (var point in projection.Markers)
+            {
+                if (markers.Count == SidebandMapOverlays.MaximumMarkers) { omitted++; continue; }
+                var marker = point with { Key = $"{report.SourceHash}:{point.Kind}:{point.Key}" };
+                var name = point.Name ?? point.Kind.ToString();
+                var label = name[..Math.Min(name.Length, 60)] + " " + report.SourceHash[..8];
+                markers.Add(new(label, marker.Coordinate, SourceHash: marker.SourceHash, Overlay: marker));
+            }
+        }
         MapViewport.SetMarkers(markers);
+        MapOverlayStatusText.Text = $"{markers.Count} reported markers; {omitted} overlays omitted by the 256-marker limit. " +
+            $"History window {MapHistorySeconds()} seconds. " +
+            (_state?.MapFixedLocations?.Count > 0 ? $"{_state.MapFixedLocations.Count} local fixed-location overrides configured. " : "") +
+            (diagnostics.Count > 0 ? $"{diagnostics.Count} projection diagnostics: " + string.Join(" | ", diagnostics.Take(4)) : "");
+    }
+
+    private SidebandGeoCoordinate? MapCoordinate(SidebandTelemetryStoredReport report)
+    {
+        var fixedLocation = report.SourceHash != _state?.OwnDeliveryHash
+            ? _state?.MapFixedLocations?.FirstOrDefault(location => location.DeliveryHash == report.SourceHash) : null;
+        if (fixedLocation is not null) return new(fixedLocation.Latitude, fixedLocation.Longitude, 0);
+        var location = report.Report.Get(SidebandTelemetrySensorId.Location)?.Location;
+        return location is null ? null : new(location.Latitude, location.Longitude, location.Altitude);
     }
 
     private SidebandTelemetryStoredReport? SelectedTelemetry() =>

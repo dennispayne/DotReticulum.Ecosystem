@@ -23,7 +23,7 @@ desktop voice screen reuse the same Reticulum identity/router as messaging.
 Manual telemetry, privacy-aware collector/report exchange, supported telemetry
 migration and an original bounded raster/offline MBTiles map are implemented.
 Actual primary application telemetry passes on Windows/Linux; automatic sensor
-collection, advanced map overlays, plugins, mobile operation, broad upstream configuration, and upstream database
+collection, discovery overlays, plugins, mobile operation, broad upstream configuration, and upstream database
 migration of all profile semantics remain incomplete. A bounded offline importer
 activates identity, supported settings, LXMF conversations, text/file/image/audio history,
 delivery methods, known client-router files, synchronization state and supported telemetry from upstream profiles. Conversation trust/unread flags
@@ -92,21 +92,114 @@ runtime evidence.
 
 | Contract | Status | Upstream contract and source |
 |---|---|---|
-| App shell and interaction | partial | Original Avalonia UI provides Conversations, Contacts, Connectivity, Backup & Keys, Preferences, Utilities, Guide, Voice, Telemetry, Map and Remote screens. Supported screens expose real local state and explicit errors; announce-stream, object and hardware/plugin management remain unavailable rather than simulated. Upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
+| App shell and interaction | partial | Original Avalonia UI provides Conversations, Contacts, Objects, Connectivity, Backup & Keys, Preferences, Utilities, Guide, Voice, Telemetry, Map and Remote screens. Supported screens expose real local state and explicit errors; announce-stream and hardware/plugin management remain unavailable rather than simulated. Upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
 | Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. Appearance values and telemetry permissions persist; voice uses the shared client below. Complete peer settings, groups, broadcasts and announce-stream presentation remain absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
 | LXMF messaging and propagation UI | partial | Text send/receive, automatic/manual node selection, persisted periodic fetches, cancellation, one-shot failed-delivery propagation retry, trusted-conversation reply tickets and restart retrieval reuse `LxmRouter`. Actual primary Sideband daemon-core direct/propagated round trips pass separately from Python LXMF endpoint tests, with trust enabled and disabled in both directions. Full message presentation/settings remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,4811–4828,5156–5227,5634–5644`, `docs/lxmf.md`. |
 | Text, image/file and audio messages | implemented bounded subset | Text/files, WebP image preparation/preview, Ogg Opus and Codec2 composition/decoding, explicit 10-second recording/playback/cancellation, content-addressed persistence and explicit exports. Actual Python Sideband core sends/receives images and both audio families directly/through a Python propagation transport; actual Pillow/audioproc decode native output. Published binaries decode imported media and render images. Device tests use fakes; physical capture/acoustics remain unverified. Unknown audio is retained/exportable but playback fails explicitly; no autoplay. See media limits below; `src/Sideband/SidebandMedia*.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py:message_send_dispatch`, `sbapp/sideband/audioproc.py`, `sbapp/sideband/core.py:5189–5196`. |
 | Paper messages and `lxm://` imports | implemented bounded subset | Connected paper text creation and local duplicate-aware import reuse LXMF; saved URI/QR display and non-overwriting exports work offline and survive restart. Actual primary daemon-core creation/ingestion both ways, trust on/off and process restart pass separately from native desktop/CLI exports. Nonlocal envelopes are unauthenticated and not forwarded. Hardware camera/printer, desktop OS URI registration and complete upstream paper-history migration remain unverified/missing; `SidebandClient.Paper.cs`, `MainWindow.Paper.cs`, `PaperExportCommand.cs`, `sbapp/sideband/core.py:paper_message,lxm_ingest_uri`. |
 | LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI, call-history migration and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
 | Telemetry, location and situational awareness | partial | All 27 sensor wire formats, exact values, bounded atomic storage and reference-executed geometry exist. Original desktop controls configure manual information/location/sensors, privacy/collector/tracking policies, inspect trusted reports, explicitly delete and show reported locations on the map. Actual primary reports/collector streams, requests, restart, supported profile import, schedules and propagation recovery pass separately on Windows/Linux. Automatic sensor collection, hardware and advanced presentation remain absent/unverified; see sections below; `SidebandTelemetry*.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/ui/telemetry.py`. |
-| Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default/provider/layer vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, source zoom limits, persisted provider/view and reported-location markers. Thirteen provider presets and supported offline-profile coordinate/provider activation exist. Clustering, connection/interface overlays and broader map migration/presentation remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
+| Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default/provider/layer and overlay vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, source zoom limits and persisted view. Reported peers/interfaces/connection points, clustering, high-zoom scatter, local fixed overrides and marker inspection are integrated. Thirteen provider presets and supported offline-profile activation exist. Automatic discovery overlays and broader map migration/presentation remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
 | Remote commands, queries and plugins | partial | Authorized telemetry requests and built-in ping/echo/signal requests use the existing bounded client worker. Actual primary daemon cores exchange commands/replies and verify global unknown-conversation admission across direct, Python-hop and .NET-hop paths. Original Remote controls configure shared request permissions, queue/cancel commands and preview persisted replies. Command-specific propagation/fallback remains separately unverified; arbitrary Python command/service/telemetry plugins and custom sensors remain missing. Native helpers are not a Python-plugin ABI; `SidebandClient.Remote.cs`, `SidebandRemoteCommands.cs`, `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`. |
 | Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. Interface editing/discovery and Android interface loading are absent; `src/Sideband/SidebandClient.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
 | Long-lived service and OS integration | partial | The desktop window and headless daemon own the same cancellable client. Linux published daemon/interactive processes stop on SIGTERM with closed/blocked stdin; native console quit and restart pass on both hosts. Days-long Sideband service operation remains unverified. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are deferred mobile contracts; `SidebandDaemon.cs`, `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
-| Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/text/files/images/audio/methods, known client-router tickets/own ratchets/caches, synchronization anchors and bounded supported telemetry/settings/permissions/appearance/cursors. Unimplemented semantics remain archived; source files never change. Voice objects, other fields and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `SidebandTelemetryProfile.cs`, `sbapp/main.py:209–273`. |
+| Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/object classification/text/files/images/audio/methods, known client-router tickets/own ratchets/caches, synchronization anchors and bounded supported telemetry/settings/permissions/appearance/cursors/map-overlay settings. Unimplemented semantics remain archived; source files never change. Voice history, other fields and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `SidebandTelemetryProfile.cs`, `sbapp/main.py:209–273`. |
 | CLI and headless operation | partial | Help/version, init/check, data/config selection, JSON settings exchange, daemon/interactive operation and native extensions `--import-profile`, `--check-media`, `--synthetic-audio` exist. Daemon ignores closed stdin and stops on cancellation; original interactive console bounds input and supports functional voice commands. All twelve pinned upstream voice command handlers execute `Not yet implemented`; native functionality is an extension, not evidence that these primary placeholders work. Native `--interactive`, `--verbose` and synthetic audio require daemon mode; conflicting modes fail before state/UI. Broader upstream console commands remain missing; `Program.cs`, `SidebandDaemon.cs`, `sbapp/main.py`, `sbapp/sideband/cli/cmd_voice.py`. |
 | Repository server | implemented bounded subset | Utilities explicitly starts/stops a public unauthenticated HTTPS static mirror with a package list, persistent private certificate, visible fingerprint and joined window shutdown. Default loopback/4444; reachable LAN exposure requires explicit bind and consent. No bundled upstream assets, automatic content downloads or update execution. Original bounded GET-only service, not RNS/rngit Git hosting; safety differences and acceptance are below; `SidebandRepository*.cs`, `MainWindow.Repository.cs`, `sbapp/sideband/core.py`, `sbapp/ui/layouts.py`. |
 | Native packaging and upgrades | partial | Windows and Linux NativeAOT publishes succeed with trimming/linker warnings treated as errors. Package the full publish directory, including Windows `sideband.exe`, `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, `libSkiaSharp.dll` and desktop/shared third-party notices; Linux `sideband`, `libHarfBuzzSharp.so`, `libSkiaSharp.so`, `libSystem.IO.Ports.Native.so` and the same notices. These include Avalonia/Skia/HarfBuzz MIT texts, ANGLE's BSD license, .NET serial runtime notices and `ThirdPartyNotices/ZXing.Net.Apache-2.0.txt`. Installer/signing, self-upgrade and other upstream package formats remain absent; `src/Sideband.Desktop/Sideband.Desktop.csproj`, `src/Sideband.Desktop/THIRD-PARTY-NOTICES*.txt`, `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
+
+## Reported overlays, objects and local fixed locations
+
+The original Map screen projects the newest admitted report per source inside
+the configured map window, default **604800 seconds (seven days)**. Up to 256
+markers are retained, with omitted/invalid overlays reported explicitly. Peer
+markers precede extras; connection keys are namespaced by reporting peer, so two
+reporters can describe the same point independently. These are reported points,
+not inferred edges, authenticated positions or automatically discovered interfaces.
+Source-trust display policy still applies. Map-visible refresh runs every 60
+seconds and stops on navigation/window close. Clustering uses the observed
+100-pixel radius/512 extent through zoom18; zoom19 scatter separates overlaps.
+Cluster activation zooms; marker activation inspects the reporting peer.
+
+Cluster/interface/connection/hidden-blocked switches and whole-second history
+1–604800 persist; only-blocked is session-local. Saving is visibly pending until
+the existing bounded viewport save completes. `map_cluster`, `map_interfaces`,
+`map_connection_maps`, `map_hide_blocked` and `map_history_limit` activate during
+atomic offline profile import. No online consent or external path is imported.
+Zero coordinates remain valid; disabled/stale overlays are removed rather than
+retained by primary display defects.
+
+Contacts explicitly classifies an existing peer as an object; Objects inspects
+its visible telemetry or restores an ordinary conversation. Objects are excluded
+from the ordinary conversation selector without deleting history, trust,
+unread state or permissions. Legacy contacts default to ordinary; actual primary
+boolean `is_object` activates during import. Malformed classification rolls back
+the entire staged profile. Primary's separate map-object toolbar placeholder is
+not invented as a new network protocol.
+
+Map explicitly replaces/clears local `fixed_locations` overrides. The input is
+strict UTF-8, at most256KiB/256 coordinates, using `LXMF hash,latitude,longitude`.
+Overrides persist atomically and never replace transmitted/stored telemetry,
+create conversations, read a plugin directory automatically or override own
+reported location. Unlike primary's logged per-line skipping and NaN acceptance,
+native malformed/nonfinite input rejects the whole replacement and preserves the
+last good snapshot. An override needs an otherwise visible recent source report.
+
+`GenerateSidebandMapOverlayVectors.py` executes 102 observations from actual
+primary map methods; `GenerateSidebandObjectVectors.py` executes five SQLite
+classification/list observations and eleven fixed-file loader/getter cases.
+Both use revision `d069122af14880e43607aed0b71add4c7806fbe0`; exact core/main
+digests are in the provenance table, and map SHA-256 is
+`cfd65489d5f94ddac3990ebd50c6b346e3cd6d0e0c3bfc1e30880ca983e5bf11`.
+Windows/Linux independent output is byte-identical:
+overlay fixture `347c42b956ff5894d7b3c2667419b18a1879ed9263fe0a6ef1b5c449dd95008b`,
+object/fixed fixture `7e110d6bade6c7bb887a546de236e39e19723ef7d5bbfea0c1205973629bfda5`.
+These execute actual selected methods with disclosed synthetic owners/SQLite/files;
+they are neither upstream GUI nor live-network/device evidence.
+
+Parent Windows/Linux exact-source focused acceptance selects
+`SidebandObject|SidebandFixedLocation|ActualPrimaryObjectDataActivatesAndPreservesTelemetryPermissions|MalformedObjectClassificationRollsBackTheWholeProfile|SidebandMap|SidebandTelemetryUiTests`
+and passes130 cases per host. It includes actual pointer cluster/scatter
+activation, isolated failing observers, shared-point namespacing, blocked filters,
+zero-coordinate overrides, malformed preservation, restart and timer lifecycle.
+The sensor-shape integration rebases only the historical timestamp natively;
+it is not a freshly generated primary telemetry report.
+`DOTRETICULUM_SIDEBAND_MAP_OBJECT_PROFILE` optionally exports an absent synthetic
+acceptance directory from the tested UI flow. Native Pester consumes a private
+copy, renders one persisted object across two processes, then seven markers in
+one cluster over owned offline tiles, without Reticulum/audio/online requests.
+This complements managed workflow tests, not native input automation or new
+application-network interoperability.
+`sideband --smoke-ui --smoke-objects --data-dir <synthetic-profile>` selects
+object rendering explicitly; ordinary/media smoke behavior is unchanged.
+Conflicting modes reject before state creation, and an empty object profile
+reports its error and exits2 rather than claiming a rendered object.
+
+Final strict publishes use
+`dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r <rid>
+--artifacts-path <host-output> -p:ILLinkTreatWarningsAsErrors=true
+-p:IlcTreatWarningsAsErrors=true -v quiet`; both pass with zero warnings/errors.
+`tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1 -Tag Native,GUI`
+with the explicit exported synthetic profile passes **11 cases/two explicit
+unrelated profile skips on each host**. Linux invokes the script through
+PowerShell `-Command`, preserving the tag array rather than passing one
+`Native,GUI` string to `-File`. The latter selects zero cases and fails.
+Eleven additional focused profile-import cases per host verify every supported
+overlay option and whole-profile rollback for malformed values.
+
+| Accepted overlay/object executable | SHA-256 |
+|---|---|
+| `artifacts\builds\fleet-map-objects-native-win-final2\publish\Sideband.Desktop\release_win-x64\sideband.exe` | `1050b61f9ee3fb519588f50e2764d6a61ae1f21f89b0fad66de183379047575d` |
+| `/home/dennis/fleet-map-objects-native-linux-final2/publish/Sideband.Desktop/release_linux-x64/sideband` | `f92dc36b977803ef3d0f61e50ee6848b22fde00ca410149a3d020600708c3ae9` |
+
+An initial history test exposed stale successful map status while saving was
+still pending; explicit pending status now precedes the asynchronous save.
+The first native overlay recipe selected zoom0 where the synthetic MBTiles
+contains no tile; it failed rather than claiming rendering. Zoom1 exercises its
+real tiles with the same exact marker/cluster assertions. A mistaken Linux
+invocation targeted an older CI checkout and selected zero new tests; that
+publish/run is discarded, not evidence. Accepted Linux commands explicitly name
+the current mounted project and native-Linux output directories.
 
 ## Paper application and desktop acceptance
 
@@ -876,7 +969,8 @@ within seven days from the newest-256 report query after source-trust filtering,
 colors and original labels, not licensed symbols. No reported location is proof
 of an authenticated physical position.
 
-Map clustering, interface/connection overlays, broader map-setting migration and
+Clustering and reported interface/connection overlays are implemented in the
+separate acceptance slice above. Discovery overlays, broader map-setting migration and
 full primary map presentation remain required software work. Explicit report
 recentring exists; persistent peer-following is not claimed, and no such API was
 identified in the inspected primary `Map` implementation. Arbitrary primary
@@ -898,7 +992,8 @@ admission/disposal, real SQLite import/TMS/WAL/restart, failing view observers a
 original headless map/report workflows. Separate strict NativeAOT publishes and
 Pester runs exercise actual window rendering of raster tiles and configured manual
 report preview on Windows and Linux/WSLg. Online provider access, upstream Kivy UI,
-physical location/audio and advanced overlays are not exercised.
+physical location/audio and the later reported-overlay slice were not exercised
+by these earlier binaries.
 
 Focused result: **17/17 on Windows and Linux, zero skips**. Strict `win-x64`
 and `linux-x64` NativeAOT publishing passed with both linker/compiler warning

@@ -15,7 +15,8 @@ internal static class SidebandMapProfile
 
     internal static bool IsSupported(string key) =>
         LayerFlags.Values.Contains(key) || key is "map_layer" or "map_lat" or "map_lon" or "map_zoom" or
-            "map_mt_api_key" or "map_st_api_key" or "map_custom_1_url";
+            "map_mt_api_key" or "map_st_api_key" or "map_custom_1_url" or
+            "map_cluster" or "map_interfaces" or "map_connection_maps" or "map_hide_blocked" or "map_history_limit";
 
     internal static async Task<IReadOnlyList<string>> ImportAsync(
         IReadOnlyDictionary<string, JsonElement>? config, string staging, CancellationToken cancellationToken)
@@ -48,11 +49,24 @@ internal static class SidebandMapProfile
             Zoom = (int)Math.Clamp(zoom, preset.MinimumZoom, preset.MaximumZoom),
             MinimumZoom = preset.MinimumZoom, MaximumZoom = preset.MaximumZoom,
             Provider = preset.Provider,
+            ClusterMarkers = Flag("map_cluster", true),
+            IncludeInterfaces = Flag("map_interfaces", true),
+            IncludeConnections = Flag("map_connection_maps", false),
+            HideBlocked = Flag("map_hide_blocked", false),
+            HistoryLimitSeconds = History(),
         };
         await using var maps = await SidebandMapStore.OpenAsync(Path.Combine(staging, "maps"), cancellationToken: cancellationToken).ConfigureAwait(false);
         await maps.SaveViewAsync(view, cancellationToken).ConfigureAwait(false);
         notices.Add("Map coordinates, selected available provider and zoom limits are activated. Online consent is not imported. External/offline map paths are never followed; explicitly import the raster MBTiles snapshot in Map.");
         return notices;
+
+        int History()
+        {
+            var history = Number("map_history_limit", SidebandMapOverlays.HistoryLimitSeconds);
+            if (history != Math.Truncate(history) || history is < 1 or > SidebandTelemetryRetention.PrimaryKeepSeconds)
+                throw new InvalidDataException("Imported map history must contain whole seconds between 1 and the seven-day retention limit.");
+            return (int)history;
+        }
 
         string? Text(string name)
         {

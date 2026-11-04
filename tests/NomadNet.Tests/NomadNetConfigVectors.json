@@ -5,11 +5,14 @@
   "vectors": [
     {
       "name": "ordinary",
-      "input": "[client]\nenable_client = no\nannounce_at_start = off\nannounce_interval = 45\nperiodic_lxmf_sync = no\nlxmf_sync_interval = 12\nlxmf_sync_limit = 3\ntry_propagation_on_send_fail = off\nrequired_stamp_cost = 13\naccept_invalid_stamps = yes\nmax_accepted_size = 432.5\ndownloads_path = ~/Downloads\n[node]\nenable_node = yes\ndisable_propagation = yes\nnode_name = \"Public = # Config\"\nannounce_interval = 19\nannounce_at_start = yes\npage_refresh_interval = 2\nfile_refresh_interval = 3\n",
+      "input": "[client]\nenable_client = no\ncompose_in_markdown = no\nannounce_at_start = off\nannounce_interval = 45\nperiodic_lxmf_sync = no\nlxmf_sync_interval = 12\nlxmf_sync_limit = 3\ntry_propagation_on_send_fail = off\nrequired_stamp_cost = 13\naccept_invalid_stamps = yes\nmax_accepted_size = 432.5\ndownloads_path = ~/Downloads\n[node]\nenable_node = yes\ndisable_propagation = yes\nnode_name = \"Public = # Config\"\nannounce_interval = 19\nannounce_at_start = yes\npage_refresh_interval = 2\nfile_refresh_interval = 3\n[rrc]\nrender_markdown = off\nrender_micron = no\n",
       "observed": {
         "event": "configuration",
         "enable_node": true,
         "node_name": "Public = # Config",
+        "compose_in_markdown": false,
+        "rrc_render_markdown": false,
+        "rrc_render_micron": false,
         "enable_client": false,
         "client_announce_at_start": false,
         "client_announce_interval": 2700,
@@ -33,11 +36,14 @@
     },
     {
       "name": "clamped",
-      "input": "[client]\nenable_client = yes\nannounce_at_start = yes\nannounce_interval = -1\nlxmf_sync_interval = 0\nlxmf_sync_limit = -2\nrequired_stamp_cost = 300\nmax_accepted_size = -5\n[node]\nenable_node = true\ndisable_propagation = on\nnode_name = None\nannounce_interval = 0\nannounce_at_start = no\npage_refresh_interval = -1\nfile_refresh_interval = -4\n",
+      "input": "[client]\nenable_client = yes\ncompose_in_markdown = yes\nannounce_at_start = yes\nannounce_interval = -1\nlxmf_sync_interval = 0\nlxmf_sync_limit = -2\nrequired_stamp_cost = 300\nmax_accepted_size = -5\n[node]\nenable_node = true\ndisable_propagation = on\nnode_name = None\nannounce_interval = 0\nannounce_at_start = no\npage_refresh_interval = -1\nfile_refresh_interval = -4\n[rrc]\nrender_markdown = yes\nrender_micron = yes\n",
       "observed": {
         "event": "configuration",
         "enable_node": true,
         "node_name": null,
+        "compose_in_markdown": true,
+        "rrc_render_markdown": true,
+        "rrc_render_micron": true,
         "enable_client": true,
         "client_announce_at_start": true,
         "client_announce_interval": 1800,
@@ -66,6 +72,9 @@
         "event": "configuration",
         "enable_node": true,
         "node_name": null,
+        "compose_in_markdown": true,
+        "rrc_render_markdown": true,
+        "rrc_render_micron": true,
         "enable_client": false,
         "client_announce_at_start": true,
         "client_announce_interval": 21600,

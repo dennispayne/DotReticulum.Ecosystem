@@ -4,7 +4,7 @@ Experimental, independently authored .NET terminal application targeting primary
 NomadNet **1.4.4**, not an official implementation or a full port. The application
 reuses `ReticulumNode`, `ClientLinks` and `LxmRouter`; it does not duplicate LXMF,
 paper encryption, propagation, Reticulum links or Resource protocols.
-**Required software remains missing**, including remaining RRC presentation,
+**Required software remains missing**, including remaining RRC layout/presentation,
 inline media integration and configuration/UI parity. These are implementation gaps, not
 hardware or optional-platform blockers. Sideband has its own implementation and
 inventory in [sideband.md](sideband.md); this document does not track it.
@@ -52,10 +52,10 @@ Underlying-library acceptance is not automatically application acceptance.
 | Contract and upstream sources | Current status and boundary |
 |---|---|
 | Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`, `--console`, `--textui` accepted. Daemon ignores terminal input and serves until cancellation. `--console` selects the existing console logging; `--textui` selects the original command loop, not Urwid. Extensions: `--help`, `--init`, `--status`, explicit non-overwriting core `--import-config`. |
-| Client announcements; `NomadNetworkApp.START_ANNOUNCE_DELAY`, `__jobs`, `announce_now`, `apply_config` | **implemented bounded subset**: configurable three-second startup, strict periodic interval after90seconds with five-second checks, manual delivery-only or combined announces, durable successful timestamp and live stamp-cost edits through the existing LXMF API. Retains unused `enable_client` metadata rather than inventing delivery-disable semantics. Native safety differences for fresh null timestamps, failed background work, serialization and interval bounds are explicit below. Runtime peer display-name editing remains missing: existing `LxmRouter.DisplayName` is get-only; no replacement destination/protocol is invented. |
+| Client announcements; `NomadNetworkApp.START_ANNOUNCE_DELAY`, `__jobs`, `announce_now`, `apply_config`, `set_display_name` | **implemented bounded subset**: configurable three-second startup, strict periodic interval after90seconds with five-second checks, manual delivery-only or combined announces, durable successful timestamp, runtime display-name and stamp-cost edits through existing LXMF APIs. Display-name changes save without announcing or replacing the identity/destination. Retains unused `enable_client` metadata rather than inventing delivery-disable semantics. Native safety differences for names, fresh null timestamps, failed background work, serialization and interval bounds are explicit below. |
 | Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, per-peer direct/propagated/opportunistic preference, unread/failure counters, explicit viewed/read state, latest-activity listing, deletion/failed purge and plain-text export. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. Native opportunistic text is received by the actual primary; direct reply/viewed state and both applications' read counters are exercised. Upstream `.index`/conversation import and full conversation UI remain missing. |
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Encoded image files can be explicitly converted with the local image adapter; automatic conversation-image display remains missing. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
-| Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. Actual primary app ingest/generation tested both ways. QR image generation, QR scan and printer commands are missing. |
+| Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. `paper-qr`/`paper-save` save PNG/URI and outbound history; `qr` exports an existing URI, `qr-show` renders explicit black-on-white half-blocks. All QR encoding uses shared `LxPaperQr`, not a second codec. Executed primary save-QR vectors and terminal module tests exist; selected application acceptance is recorded below. Image-import/scanner and printer commands remain missing/unverified; no physical scanning/printing claim. |
 | Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; optional hosted propagation node using `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Propagation-node peering and broader configuration remain unverified/incomplete at the application layer. |
 | Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Saved-node listing/opening, primary rank/trust/name ordering, explicit browser identification consent and existing associated-node trust updates are operational. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Complete announce-stream/node-directory presentation and upstream directory import remain missing. |
 | Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **partial**: `nomadnetwork.node`, UTF-8 name app-data, default index, nested static pages, configurable six-second startup announce and periodic node announce; independent configurable page/file rescan intervals, explicit refresh and bounded handler inspection. New/deleted paths update handlers. `.allowed` identity lists enforced. Node announces chain the existing hosted propagation announce rather than duplicate its protocol. Source-specific counters and upstream default assets remain missing. |
@@ -64,7 +64,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Media; `Node.serve_media`, `convert_media_to_webp` | **partial, live-verified core**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` responses and PNG/JPEG/BMP/GIF/TIFF conversion through configured external FFmpeg. Primary quality85/dimension1200 and content-hash cache naming, 256-file/192-MiB quota, corruption regeneration and restart/cache-only serving are exercised. `show-media` decodes browser images to ASCII or explicit ANSI true-colour half-blocks. Actual primary `ImageData` decodes native-served images and native previews primary-served images on Windows/Linux. Animated/multipage, alpha/EXIF behavior, automatic inline loading and Kitty graphics remain unverified/missing. |
 | Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file/media retrieval with explicit identification consent, links/bookmarks, reload, session navigation history with back/forward and submitted-field replay, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Explicit image previews and a local interactive file picker with transactional attachment composition work; automatic inline image widgets remain missing. |
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
-| RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways through a Python transport, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron message rendering and complete Channels UI remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
+| RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron switches render live/history bodies against executed primary widget vectors; JSON string composition preserves multiline/raw content. Complete Channels layout, mention-span styling, colours/gutters and remaining configuration remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop and local attachment picker. Complete menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
 | Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Complete ConfigObj compatibility, directory/peer-settings/conversation/RRC migration, peer-settings backup recovery and full restart policy remain missing. |
 
@@ -77,10 +77,11 @@ contracts and reports unsupported keys; it is not complete configuration parity.
 
 | Native setting | Default / behavior |
 |---|---|
-| `displayName` | `NomadNet user`; 1–80 printable characters |
+| `displayName` | `NomadNet user`; 1–80 non-control UTF-16 code units; runtime editing also requires strict UTF-8 |
 | `enableClient` | true for legacy native profiles; false when absent from imported primary configuration; metadata only, matching the primary's unused runtime flag; does not disable delivery |
 | `clientAnnounceAtStart`, `clientAnnounceIntervalMinutes` | true /360; three-second startup announce, periodic checks after90seconds and then every5seconds; interval30–10080minutes |
 | `lastClientAnnounce` | absent initially; saved only after successful delivery announce; null suppresses periodic announcements until first manual/startup success |
+| `composeInMarkdown`, `rrcRenderMarkdown`, `rrcRenderMicron` | true /true /true, matching actual primary constructor defaults; outgoing ordinary LXMF gets renderer2 only when enabled; paper does not get this field; RRC live/history display uses its independently persisted switches |
 | `enableNode`, `nodeName` | false; absent name derives from display name |
 | `nodeAnnounceIntervalMinutes` | 360; validated 1–10080 |
 | `nodeAnnounceAtStart` | true for legacy native profiles; false when absent from imported primary node configuration; controls the six-second hosted node announce and its additional scheduled propagation announcement |
@@ -109,7 +110,7 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   `user_interface` — **partial** only where the explicit native settings or
   implemented workflows above apply. Downloads path, required cost, invalid-stamp
   acceptance, transfer limit and client startup/periodic announcements are operational/imported;
-  `enable_client` is retained unused metadata as in the actual primary; other application
+  `enable_client` is retained unused metadata as in the actual primary; `compose_in_markdown` is operational/imported; other application
   options are **missing**.
 - `[node]`: `enable_node`, `node_name`, `disable_propagation`, `announce_at_start`,
   `announce_interval`, `pages_path`, `files_path`, `page_refresh_interval`,
@@ -125,7 +126,7 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   `max_accepted_resource_size`, `ephemeral_notices`, `justify_msgs`, `space_msgs`,
   `nick_colors`, `mention_color`, `color_mention_timestamps`, `nick_colors_theme`,
   `render_markdown`, `render_micron`, `show_gutters`, `enable_esoterics`
-  — **partial**: `rrc history-limit` configures per-hub retention; other listed
+  — **partial**: `rrc history-limit` configures per-hub retention; `render_markdown`/`render_micron` are imported and operational for live/history bodies; other listed
   options remain missing as configuration surfaces. The implemented RRC core uses the
   upstream 256 KiB resource default, a local 1,000-item/2 MiB aggregate history
   bound and terminal-safe plain display; these are not configuration parity.
@@ -248,9 +249,167 @@ passes with zero warnings/errors. `dotnet test DotReticulum.Ecosystem.slnx
 --logger trx --results-directory artifacts\tests\nomadnet-client-announce-integrated -v:q`
 passes **2079 tests, 87 explicit skips, zero failures**. Converter-dependent cases
 skipped in this integrated invocation are separately exercised above.
-Runtime peer display-name edits remain required and missing behind the existing
-get-only LXMF API; logging, other configuration/UI contracts, migration,
+Runtime peer display-name edits now use the existing LXMF setter as described
+below; logging, other configuration/UI contracts, migration,
 inline media and application-level propagation peering are not declared complete.
+
+### Message presentation, runtime profile and paper QR
+
+`client name <name>` saves and calls the existing `LxmRouter.SetDisplayName`,
+without an implicit announce, timestamp update or identity/destination replacement.
+An explicit later `client announce` advertises the new name. Native names retain
+the bounded frontend policy:1–80 UTF-16 code units, no controls and valid strict
+UTF-8. Primary `set_display_name` accepts empty/null/control values; native rejects
+them. Native persistence completes before applying a live change, unlike the
+primary's save-after-memory-update order. Failed/cancelled writes leave the running
+name and in-memory settings unchanged.
+
+`client markdown on|off` controls ordinary outbound LXMF renderer2 metadata.
+Stored inbound/outbound content remains original; the optional renderer survives
+history restart. Markdown conversation display reuses the stack's existing
+`MarkdownMicron` at primary width80, followed by the observed primary modifier and
+Micron presentation rules. The existing browser still defaults to width40 for
+dividers. Executed source preserves escaped `¦` Micron markers in this conversation
+pipeline and strips some inner underscores; these are recorded source outputs,
+not treated as literal-rendering bugs. Unknown renderer codes remain literal in
+the native frontend; broader unknown-renderer/UI parity is not claimed.
+
+`rrc render markdown|micron on|off` changes independently persisted live/history
+body presentation. Both switches off is **not** wholly literal upstream: remaining
+raw Micron can still be interpreted. `rrc send-json <room> <JSON-string>` preserves
+multiline/raw content while using the existing session's negotiated limits.
+Notices/system messages remain literal. Colours, gutters, visual justification,
+and styling across split mention spans remain required work.
+
+`GenerateNomadNetPresentationVectors.py` executes the actual primary Markdown
+pipeline and `Channels._message_widget` for14conversation bodies and56RRC cases,
+covering all four rendering policies. The disclosed host provides settings,
+glyphs and an **unstarted actual Urwid palette screen**; formatting methods are
+not replaced. These are source-widget observations, not a Python interactive-UI
+or pixel-identical claim. Source hashes and actual `set_display_name` save/no-announce
+observations are recorded in the fixture.
+
+`paper` corresponds to URI-return without saving history. `paper-qr` and
+`paper-save` save to the configured downloads root as `LXM_<hash>.png`/`.txt`
+(URI has a trailing newline), then persist outbound paper history using the
+message's actual timestamp. Neither adds the compose renderer field.
+`qr <URI> <name.png>` exports an existing encrypted envelope; `qr-show <URI>`
+uses explicit black foreground/white background and half-blocks, preserving
+every shared-codec module and quiet zone. It does not print the URI itself.
+Image-envelope/QR validity is not signature authentication or decryption.
+Printer/image-import/camera workflows are not implemented or physically verified.
+
+`GenerateNomadNetQrVectors.py` executes actual primary
+`Conversation.paper_output(save_qr)` with real RNS identities, LXMF cryptography
+and `as_qr`. OUT destinations avoid unrelated service registration; only the
+conversation-ingest callback observes calls instead of persisting conversations.
+Actual zxing-cpp2.3.0 independently decodes the source PNG; qrcode is never used
+as a decoder. The generated PNG/URI, source SHA, versions, originator observation
+and one appended conversation message are recorded; private identity material
+is not recorded. Creation method5 (`PAPER`) differs intentionally from URI
+ingress callback method3 (`PROPAGATED`): pinned `LXMRouter.py2659–2670` invokes
+`lxmf_propagation(is_paper_message=True)`, whose local delivery at2624 explicitly
+uses `PROPAGATED`. This is not a native wire-method mismatch.
+
+The application consumes the shared managed ZXing.Net0.16.11 QR implementation;
+its Apache2 notice is copied transitively under `ThirdPartyNotices` in native
+publish output. No second QR implementation, drawing runtime, font or native
+codec is bundled by NomadNet.
+
+### Selected presentation/profile/QR acceptance
+
+The source-pinned generators above, genuine primary constructor configuration
+observations and scoped tests pass: **Windows118passed +4explicit POSIX skips**,
+**Linux122/122**. Tests cover exact14/56source body observations, runtime-name
+validation/cancelled or failed persistence, original-content/renderer restart,
+every displayed QR half-block/module (including the odd last row), cancellation
+and foreign-envelope rejection. They are not live/device evidence.
+
+Both strict `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r <rid>
+--artifacts-path artifacts\builds\nomadnet-presentation-<host>
+-p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true
+-warnaserror -v:q` commands pass with zero warnings/errors. Windows uses the
+same-process MSVC setup; Linux uses the existing WSL SDK and native-filesystem
+test roots. Exact selected native SHA-256:
+
+- Windows `artifacts\builds\nomadnet-presentation-win\publish\NomadNet\release_win-x64\nomadnet.exe`:
+  `c3081138e960f6bf6d54ca405ce18fb30d1f4c8aa8715cee200faecda9b7a072`.
+- Linux `artifacts/builds/nomadnet-presentation-linux/publish/NomadNet/release_linux-x64/nomadnet`:
+  `3eeea2a826bd80697178fe0ff96fa2f3cf986516f41d35871838f13cc33eb1ee`.
+
+The SHA-guarded recipes select these exact binaries, frozen managed tests and
+Pester suite `aa37fd39e6f3aa7903ea60cd09cf796c1f7b22d750dc792a60985c8ca32d8cb5`:
+
+```powershell
+& artifacts\tests\nomadnet-presentation-win-acceptance.ps1
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-presentation-linux-acceptance.ps1
+```
+
+Both pass **Native4/4**, actual primary application **1/1**
+(Windows118.58seconds, Linux108.50seconds), and separate actual RRC presentation
+**1/1** (Windows8.55seconds, Linux3.22seconds). Linux additionally passes unchanged
+RRC/forms/partials/replay **1/1**,18.42seconds. The recipes assert the transitive
+Apache2 notice SHA-256
+`cfae7bd1153b81c2fe81517e5122a0a67e9c2478c16cd7b189793a6072fcf6d4`.
+
+`DOTRETICULUM_NOMADNET_PRESENTATION_LIVE=1` requires the existing client-announce
+and conversation modes. The actual primary sends renderer2 and native displays
+the exact source-derived body while preserving raw content/renderer. Native
+compose on/off sends2/null to the primary. With compose **on**, native saves a
+paper PNG; actual zxing-cpp decodes it and the original primary router ingests
+the exact plaintext with renderer absent and the source-correct ingress method.
+Existing-URI export decodes to the identical URI; terminal display, filename
+escape rejection, URI newline, paper history and restart are exercised.
+The native binary and harness explicitly use UTF-8 pipes; default Windows
+OEM encoding had incorrectly encoded `¦` as byte0xdd in the initial witness.
+
+Native runtime `Native café 雨` persists without changing announce count or
+timestamp. An explicit subsequent announce, separated by the existing required
+1.1-second RNS emission interval, advertises that name with the same destination
+and cost14. Invalid81-unit/control inputs fail without mutation. Name, disabled
+startup, timestamp, cost, renderer preferences and message metadata survive restart.
+
+`DOTRETICULUM_NOMADNET_RRC_PRESENTATION_LIVE=1` selects an actual primary client,
+unmodified supplemental rrcd0.3.2 at
+`f6d7e9d72bf83c70d7a9373ae8c5edaa052a7bf2`, and native client. Clients connect
+through separate TCP interfaces to the Python hub/transport process. Sixteen
+primary-to-native cases cover four policies and emphasis/raw/escaped Micron/
+multiline bodies; sixteen native JSON compositions reach the primary unchanged.
+Native identity/history/preferences and continued messaging survive its restart.
+This is not a separate external transport-hop, physical terminal, or complete
+Channels visual-layout claim. Windows supplemental dependencies cbor2
+6.2.0.post2/tomlkit0.15.2 match the existing Linux reference environment;
+the primary/RNS/LXMF source pins are unchanged.
+
+The same final Linux binary additionally passes the unchanged mixed propagation
+gate **1/1**,251.43seconds:
+
+```powershell
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-presentation-propagation-acceptance.ps1
+```
+
+This regresses the default renderer-enabled sender through the existing mixed
+native/Python transport topology, both propagation directions, persisted-node
+restarts/deletion, scheduled/cancelled retrieval,2,200,000-byte Resource transfer
+with a deliberately dropped part, continued service and direct-failure fallback.
+No route expiration, deadline increase or weakened assertion is added.
+
+Parent independent acceptance repeats the Windows and Linux SHA-guarded
+presentation recipes successfully against the unchanged binaries, managed tests
+and assertions. The same parent independently repeats the frozen Linux mixed
+propagation recipe **1/1**,240.82seconds. These are independent repetitions of
+the selected software/topology evidence, not additional platform/hardware claims.
+
+The isolated full-solution `dotnet build DotReticulum.Ecosystem.slnx -c Release
+--artifacts-path artifacts\builds\nomadnet-presentation-integrated -v:q` passes
+with zero warnings/errors. `dotnet test DotReticulum.Ecosystem.slnx -c Release
+--no-build --artifacts-path artifacts\builds\nomadnet-presentation-integrated
+--results-directory artifacts\tests\nomadnet-presentation-integrated
+--logger 'trx;LogFilePrefix=integrated' -v:q` passes **2117tests,89explicit skips,
+zero failures**. Separately selected converter tests above cover the integrated
+run's converter skips. Inline media, remaining UI/configuration, migration,
+printing and application propagation peering remain required software, not
+reclassified as hardware or optional omissions.
 
 ## Operation
 
@@ -278,13 +437,14 @@ removes the staged profile; source configuration is never changed. This imports
 configuration only: no upstream identity, conversations, contacts or private
 peer-settings files are silently selected/copied.
 
-The twenty translated keys are `[client] enable_client`, `announce_at_start`,
+The twenty-three translated keys are `[client] enable_client`, `announce_at_start`,
 `announce_interval`, `periodic_lxmf_sync`,
 `lxmf_sync_interval`, `lxmf_sync_limit`, `try_propagation_on_send_fail`,
 `required_stamp_cost`, `accept_invalid_stamps`, `max_accepted_size`,
-`downloads_path`; `[node] enable_node`, `disable_propagation`, `node_name`,
+`downloads_path`, `compose_in_markdown`; `[node] enable_node`, `disable_propagation`, `node_name`,
 `announce_interval`, `pages_path`, `files_path`, `announce_at_start`,
-`page_refresh_interval`, `file_refresh_interval`. Every other supplied key is
+`page_refresh_interval`, `file_refresh_interval`; `[rrc] render_markdown`,
+`render_micron`. Every other supplied key is
 reported on stderr as unsupported, without printing its value. This does not
 reclassify unimplemented options as optional.
 
@@ -664,7 +824,8 @@ errors. `dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build
 passes **1,799 tests, 87 explicit skips, zero failures**. Converter-dependent
 checks skipped there are separately exercised by the selected scoped runs.
 Required inline media, configuration, migration, editor/notification/clipboard,
-QR/printing and remaining presentation workflows are not declared complete.
+printing and remaining presentation workflows are not declared complete; the
+bounded QR export/display slice is described separately above.
 
 ### Selected hosted-policy acceptance
 

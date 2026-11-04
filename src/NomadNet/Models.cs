@@ -38,6 +38,9 @@ public sealed record NomadNetSettings
     public string MediaConverter { get; set; } = "ffmpeg";
     public int? InboundStampCost { get; set; }
     public bool AcceptInvalidStamps { get; set; }
+    public bool ComposeInMarkdown { get; set; } = true;
+    public bool RrcRenderMarkdown { get; set; } = true;
+    public bool RrcRenderMicron { get; set; } = true;
     public string? PagesPath { get; set; }
     public string? FilesPath { get; set; }
     public string? DownloadsPath { get; set; }
@@ -140,7 +143,10 @@ public sealed record NomadNetMessage(
     DateTimeOffset Timestamp,
     string Title,
     string Content,
-    string Status);
+    string Status)
+{
+    public int? Renderer { get; init; }
+}
 
 public sealed record NomadNetBookmark(string DestinationHash, string Path, string Title);
 

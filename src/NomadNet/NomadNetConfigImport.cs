@@ -21,7 +21,8 @@ public static class NomadNetConfigImport
         var disablePropagation = true;
         foreach (var (key, raw) in values)
         {
-            if (key is not ("client.enable_client" or "client.announce_at_start" or "client.announce_interval" or
+            if (key is not ("client.compose_in_markdown" or "rrc.render_markdown" or "rrc.render_micron" or
+                "client.enable_client" or "client.announce_at_start" or "client.announce_interval" or
                 "client.periodic_lxmf_sync" or "client.lxmf_sync_interval" or "client.lxmf_sync_limit" or
                 "client.try_propagation_on_send_fail" or "client.required_stamp_cost" or "client.accept_invalid_stamps" or
                 "client.max_accepted_size" or "client.downloads_path" or "node.enable_node" or "node.disable_propagation" or
@@ -34,6 +35,9 @@ public static class NomadNetConfigImport
             var value = Scalar(raw);
             switch (key)
             {
+                case "client.compose_in_markdown": settings.ComposeInMarkdown = Boolean(value); break;
+                case "rrc.render_markdown": settings.RrcRenderMarkdown = Boolean(value); break;
+                case "rrc.render_micron": settings.RrcRenderMicron = Boolean(value); break;
                 case "client.enable_client": settings.EnableClient = Boolean(value); break;
                 case "client.announce_at_start": settings.ClientAnnounceAtStart = Boolean(value); break;
                 case "client.announce_interval": settings.ClientAnnounceIntervalMinutes = Math.Max(30, Integer(value)); break;

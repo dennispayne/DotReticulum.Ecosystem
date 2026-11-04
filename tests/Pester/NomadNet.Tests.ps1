@@ -1,3 +1,172 @@
+Describe 'NomadNet actual RRC presentation workflows' -Tag 'Live', 'RrcPresentation' {
+    It 'preserves original group composition and renders all four policies through an actual Python transport hub across restart' {
+        if ($env:DOTRETICULUM_NOMADNET_RRC_PRESENTATION_LIVE -ne '1' -or
+            [string]::IsNullOrWhiteSpace($env:DOTRETICULUM_NOMADNET_BINARY) -or
+            [string]::IsNullOrWhiteSpace($env:DOTRETICULUM_PYTHON) -or
+            [string]::IsNullOrWhiteSpace($env:DOTRETICULUM_NOMADNET_SOURCE) -or
+            [string]::IsNullOrWhiteSpace($env:DOTRETICULUM_NOMADNET_RRCD_SOURCE)) {
+            Set-ItResult -Skipped -Because 'Select actual pinned primary/rrcd/Python and native binaries and enable DOTRETICULUM_NOMADNET_RRC_PRESENTATION_LIVE=1.'
+            return
+        }
+        $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        $work = Join-Path (Get-Location) "artifacts\tests\nomadnet-rrc-presentation-$([Guid]::NewGuid().ToString('N'))"
+        $null = New-Item $work -ItemType Directory -Force
+        $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
+        $pending = @{}
+        $errors = @{}
+        $names = @{}
+        $start = {
+            param([string] $name, [string] $binary, [string[]] $arguments)
+            $info = [Diagnostics.ProcessStartInfo]::new($binary)
+            $info.UseShellExecute = $false
+            $info.RedirectStandardInput = $true
+            $info.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
+            $info.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
+            $info.RedirectStandardOutput = $true
+            $info.RedirectStandardError = $true
+            foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
+            $info.Environment['PYTHONPATH'] = $env:DOTRETICULUM_UPSTREAM + [IO.Path]::PathSeparator + $env:DOTRETICULUM_NOMADNET_SOURCE
+            if (-not [string]::IsNullOrWhiteSpace($env:DOTRETICULUM_LXMF_UPSTREAM)) {
+                $info.Environment['PYTHONPATH'] += [IO.Path]::PathSeparator + $env:DOTRETICULUM_LXMF_UPSTREAM
+            }
+            foreach ($variable in 'TMPDIR', 'TMP', 'TEMP') { $info.Environment[$variable] = $work }
+            $process = [Diagnostics.Process]::new()
+            $process.StartInfo = $info
+            $null = $process.Start()
+            $processes.Add($process)
+            $names[$process.Id] = $name
+            $errors[$process.Id] = $process.StandardError.ReadToEndAsync()
+            return $process
+        }.GetNewClosure()
+        $read = {
+            param($process, [string] $pattern, [int] $seconds = 60)
+            $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+            while ([DateTime]::UtcNow -lt $deadline) {
+                if (-not $pending.ContainsKey($process.Id)) { $pending[$process.Id] = $process.StandardOutput.ReadLineAsync() }
+                try { $line = $pending[$process.Id].WaitAsync([TimeSpan]::FromMilliseconds(500)).GetAwaiter().GetResult() }
+                catch [TimeoutException] { continue }
+                $pending.Remove($process.Id)
+                if ($null -eq $line) { throw "$($names[$process.Id]) closed stdout before '$pattern'." }
+                Add-Content (Join-Path $work "$($names[$process.Id]).stdout") $line
+                if ($line -match '"event"\s*:\s*"(error|failed)"|(^|nomadnet> )Error:') { throw $line }
+                if ($line -match $pattern) { return $line }
+            }
+            throw "$($names[$process.Id]) timed out waiting for '$pattern'; diagnostics: $work"
+        }.GetNewClosure()
+        $send = {
+            param($process, [string] $command)
+            $process.StandardInput.WriteLine($command)
+            $process.StandardInput.Flush()
+        }
+        try {
+            $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+            $listener.Start()
+            $port = $listener.LocalEndpoint.Port
+            $listener.Stop()
+            foreach ($name in 'hub', 'python', 'native') {
+                $null = New-Item (Join-Path $work "$name-rns"), (Join-Path $work $name) -ItemType Directory -Force
+                $config = @('[reticulum]', '  share_instance = No', '  enable_transport = No', '[logging]', '  loglevel = 2', '[interfaces]')
+                if ($name -eq 'hub') {
+                    $config[2] = '  enable_transport = Yes'
+                    $config += @('  [[Server]]', '    type = TCPServerInterface', '    enabled = Yes',
+                        '    listen_ip = 127.0.0.1', "    listen_port = $port")
+                }
+                else {
+                    $config += @('  [[Client]]', '    type = TCPClientInterface', '    enabled = Yes',
+                        '    target_host = 127.0.0.1', "    target_port = $port")
+                }
+                $config | Set-Content (Join-Path $work "$name-rns\config") -Encoding utf8
+            }
+            $bootstrap = & $start 'bootstrap' $env:DOTRETICULUM_PYTHON @('-u', '-m', 'nomadnet.nomadnet',
+                '--daemon', '--console', '--config', (Join-Path $work 'python'), '--rnsconfig', (Join-Path $work 'python-rns'))
+            $configuration = Join-Path $work 'python\config'
+            $deadline = [DateTime]::UtcNow.AddSeconds(60)
+            while (-not (Test-Path $configuration) -and [DateTime]::UtcNow -lt $deadline) {
+                if ($bootstrap.HasExited) { throw 'Actual primary bootstrap failed.' }
+                Start-Sleep -Milliseconds 100
+            }
+            Test-Path $configuration | Should -BeTrue
+            Start-Sleep -Seconds 1
+            $bootstrap.Kill($true)
+            $bootstrap.WaitForExit()
+            [IO.File]::WriteAllText($configuration, [IO.File]::ReadAllText($configuration).Replace('enable_node = no', 'enable_node = yes'),
+                [Text.UTF8Encoding]::new($false))
+            $hub = & $start 'hub' $env:DOTRETICULUM_PYTHON @('-u', (Join-Path $root 'tests\Interop\nomadnet_rrc_hub.py'),
+                '--config', (Join-Path $work 'hub'), '--rnsconfig', (Join-Path $work 'hub-rns'))
+            $ready = ((& $read $hub '"event"\s*:\s*"hub-ready"').Substring(2) | ConvertFrom-Json)
+            $ready.revision | Should -Be 'f6d7e9d72bf83c70d7a9373ae8c5edaa052a7bf2'
+            $python = & $start 'python' $env:DOTRETICULUM_PYTHON @('-u', (Join-Path $root 'tests\Interop\nomadnet_live_node.py'),
+                '--config', (Join-Path $work 'python'), '--rnsconfig', (Join-Path $work 'python-rns'))
+            $appReady = ((& $read $python '"event"\s*:\s*"ready"').Substring(2) | ConvertFrom-Json)
+            $appReady.revision | Should -Be 'f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2'
+            & $send $python "rrc-connect $($ready.hash) Python"
+            $null = & $read $python '"event"\s*:\s*"rrc-connected"'
+            & $send $python 'rrc-join lobby'
+            $null = & $read $python '"event"\s*:\s*"rrc-joined"'
+            $nativeArgs = @('--config', (Join-Path $work 'native'), '--rnsconfig', (Join-Path $work 'native-rns'))
+            $native = & $start 'native' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
+            $address = [regex]::Match((& $read $native 'LXMF delivery address:'), '[0-9a-f]{32}').Value
+            & $send $native "rrc connect $($ready.hash) Native"
+            $null = & $read $native 'RRC command complete'
+            & $send $native 'rrc join lobby'
+            $null = & $read $native 'RRC command complete'
+            $fixture = [IO.File]::ReadAllText((Join-Path $root 'tests\NomadNet.Tests\NomadNetPresentationVectors.json')) | ConvertFrom-Json
+            $index = 0
+            foreach ($vector in @($fixture.rrc | Where-Object name -In 'emphasis', 'escaped-micron', 'raw-micron', 'multiline')) {
+                foreach ($pair in @(@('markdown', $vector.markdown), @('micron', $vector.micron))) {
+                    $value = if ($pair[1]) { 'on' } else { 'off' }
+                    & $send $native "rrc render $($pair[0]) $value"
+                    $null = & $read $native 'RRC rendering policy saved'
+                }
+                $marker = "Presentation$index"
+                $body = $marker + ' ' + $vector.input
+                $json = ConvertTo-Json -InputObject $body -Compress
+                & $send $python "rrc-send-json lobby $json"
+                $expected = ($marker + ' ' + $vector.visible).Split("`n")
+                $line = & $read $native ("Python: " + [regex]::Escape($marker))
+                ($line -replace '^.*Python: ', '') | Should -BeExactly $expected[0]
+                for ($row = 1; $row -lt $expected.Count; $row++) {
+                    $line = & $read $native ('^' + [regex]::Escape($expected[$row]) + '$')
+                    $line | Should -BeExactly $expected[$row]
+                }
+                & $send $native "rrc send-json lobby $json"
+                $received = ((& $read $python ('"event"\s*:\s*"rrc-message".*' + $marker + '.*"nick"\s*:\s*"Native"')).Substring(2) | ConvertFrom-Json)
+                $received.text | Should -BeExactly $body
+                $received.nick | Should -BeExactly 'Native'
+                $index++
+            }
+            $index | Should -Be 16
+            & $send $native 'quit'
+            $native.WaitForExit(20000) | Should -BeTrue
+            $native.ExitCode | Should -Be 0
+            $saved = [IO.File]::ReadAllText((Join-Path $work 'native\settings.json')) | ConvertFrom-Json
+            $native = & $start 'native-restarted' $env:DOTRETICULUM_NOMADNET_BINARY $nativeArgs
+            [regex]::Match((& $read $native 'LXMF delivery address:'), '[0-9a-f]{32}').Value | Should -Be $address
+            $restored = [IO.File]::ReadAllText((Join-Path $work 'native\settings.json')) | ConvertFrom-Json
+            $restored.rrcRenderMarkdown | Should -Be $saved.rrcRenderMarkdown
+            $restored.rrcRenderMicron | Should -Be $saved.rrcRenderMicron
+            & $send $native "rrc connect $($ready.hash)"
+            $null = & $read $native 'RRC command complete'
+            & $send $native 'rrc history lobby'
+            $null = & $read $native 'Presentation15'
+            $null = & $read $native 'RRC command complete'
+            & $send $python 'rrc-send lobby after-presentation-restart'
+            $null = & $read $native 'Python: after-presentation-restart'
+        }
+        finally {
+            foreach ($process in $processes) {
+                if (-not $process.HasExited) {
+                    try { & $send $process 'quit' } catch {}
+                    if (-not $process.WaitForExit(5000)) { $process.Kill($true); $process.WaitForExit() }
+                }
+                [IO.File]::WriteAllText((Join-Path $work "$($names[$process.Id]).stderr"), $errors[$process.Id].GetAwaiter().GetResult())
+                $process.Dispose()
+            }
+            if ($env:DOTRETICULUM_NOMADNET_KEEP_WORK -ne '1') { Remove-Item $work -Recurse -Force }
+        }
+    }
+}
+
 Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
     It 'converts and previews images in both directions with primary ImageData and restores both conversion caches' {
         if ($env:DOTRETICULUM_NOMADNET_IMAGE_LIVE -ne '1' -or
@@ -15,6 +184,10 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
         if ($env:DOTRETICULUM_NOMADNET_CLIENT_ANNOUNCE_LIVE -eq '1' -and $env:DOTRETICULUM_NOMADNET_HOST_POLICY_LIVE -ne '1') {
             throw 'Client announce acceptance requires the explicit hosted-policy/configuration modes.'
         }
+        if ($env:DOTRETICULUM_NOMADNET_PRESENTATION_LIVE -eq '1' -and
+            ($env:DOTRETICULUM_NOMADNET_CLIENT_ANNOUNCE_LIVE -ne '1' -or $env:DOTRETICULUM_NOMADNET_CONVERSATION_LIVE -ne '1')) {
+            throw 'Presentation acceptance requires explicit client-announcement and conversation modes.'
+        }
         $work = Join-Path (Get-Location) "artifacts\tests\nomadnet-images-$([Guid]::NewGuid().ToString('N'))"
         $null = New-Item $work -ItemType Directory -Force
         $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
@@ -26,6 +199,8 @@ Describe 'NomadNet actual application image workflows' -Tag 'Live', 'Images' {
             $info = [Diagnostics.ProcessStartInfo]::new($executable)
             $info.UseShellExecute = $false
             $info.RedirectStandardInput = $true
+            $info.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
+            $info.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
             $info.RedirectStandardOutput = $true
             $info.RedirectStandardError = $true
             foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
@@ -368,6 +543,71 @@ image_loading = yes
                 & $send $python "send $nativeDelivery CONVERSATION_ACTIVE_PRIMARY"
                 $null = & $read $native 'Conversation received:.*CONVERSATION_ACTIVE_PRIMARY'
                 $null = & $read $python '"event"\s*:\s*"delivered"'
+                if ($env:DOTRETICULUM_NOMADNET_PRESENTATION_LIVE -eq '1') {
+                    $presentationFixture = [IO.File]::ReadAllText((Join-Path $root 'tests\NomadNet.Tests\NomadNetPresentationVectors.json')) | ConvertFrom-Json
+                    $presentationVector = @($presentationFixture.conversation | Where-Object name -EQ live-formatted)[0]
+                    $formatted = $presentationVector.input
+                    $payload = @{ text = $formatted; renderer = 2 } | ConvertTo-Json -Compress
+                    & $send $python "send-formatted $nativeDelivery $payload"
+                    $null = & $read $python '"event"\s*:\s*"queued"'
+                    $visible = & $read $native ([regex]::Escape($presentationVector.visible))
+                    ($visible -replace '^.*Conversation received:\s*', '') | Should -BeExactly $presentationVector.visible
+                    $visible | Should -Not -Match '\*\*'
+                    $null = & $read $python '"event"\s*:\s*"delivered"'
+                    $state = & $readState
+                    $stored = @($state.messages | Where-Object content -EQ $formatted)
+                    $stored.Count | Should -Be 1
+                    $stored[0].renderer | Should -Be 2
+                    & $send $native "send $($ready.delivery) **NATIVE_MARKDOWN_COMPOSE**"
+                    $received = ((& $read $python '"event"\s*:\s*"received".*NATIVE_MARKDOWN_COMPOSE').Substring(2) | ConvertFrom-Json)
+                    $received.content | Should -Be '**NATIVE_MARKDOWN_COMPOSE**'
+                    $received.renderer | Should -Be 2
+                    & $send $native 'client markdown off'
+                    $null = & $read $native 'Outgoing Markdown policy saved'
+                    & $send $native "send $($ready.delivery) **NATIVE_LITERAL_COMPOSE**"
+                    $received = ((& $read $python '"event"\s*:\s*"received".*NATIVE_LITERAL_COMPOSE').Substring(2) | ConvertFrom-Json)
+                    $received.content | Should -Be '**NATIVE_LITERAL_COMPOSE**'
+                    $received.renderer | Should -BeNullOrEmpty
+                    & $send $native 'rrc render markdown off'
+                    $null = & $read $native 'RRC rendering policy saved'
+                    & $send $native 'rrc render micron off'
+                    $null = & $read $native 'RRC rendering policy saved'
+                    & $send $native 'client markdown on'
+                    $null = & $read $native 'Outgoing Markdown policy saved'
+                    & $send $native "paper-qr $($ready.delivery) NATIVE_QR_PAPER"
+                    $null = & $read $native 'Paper conversation saved'
+                    $downloadRoot = if ($env:DOTRETICULUM_NOMADNET_CONFIG_LIVE -eq '1') { $customDownloads } else { Join-Path $work 'native\downloads' }
+                    $pngs = @(Get-ChildItem $downloadRoot -Filter 'LXM_*.png')
+                    $pngs.Count | Should -Be 1
+                    $pngs[0].Name | Should -Match '^LXM_[0-9a-f]{64}\.png$'
+                    & $send $python "decode-qr $($pngs[0].FullName)"
+                    $qrDecoded = ((& $read $python '"event"\s*:\s*"qr-decoded"').Substring(2) | ConvertFrom-Json)
+                    & $send $python "ingest $($qrDecoded.uri)"
+                    $received = ((& $read $python '"event"\s*:\s*"received".*NATIVE_QR_PAPER').Substring(2) | ConvertFrom-Json)
+                    $qrFixture = [IO.File]::ReadAllText((Join-Path $root 'tests\NomadNet.Tests\NomadNetQrVectors.json')) | ConvertFrom-Json
+                    $received.method | Should -Be $qrFixture.paperIngressMethod
+                    $received.renderer | Should -BeNullOrEmpty
+                    $ingested = ((& $read $python '"event"\s*:\s*"ingested"').Substring(2) | ConvertFrom-Json)
+                    $ingested.accepted | Should -BeTrue
+                    & $send $native "qr-show $($qrDecoded.uri)"
+                    $null = & $read $native 'QR display complete'
+                    [IO.File]::ReadAllText((Join-Path $work 'native.stdout')) | Should -Match ([regex]::Escape("`e[30;47m"))
+                    & $send $native "qr $($qrDecoded.uri) exported.png"
+                    $null = & $read $native 'Saved .*exported.png'
+                    & $send $python "decode-qr $(Join-Path $downloadRoot 'exported.png')"
+                    $exported = ((& $read $python '"event"\s*:\s*"qr-decoded"').Substring(2) | ConvertFrom-Json)
+                    $exported.uri | Should -BeExactly $qrDecoded.uri
+                    & $send $native "qr $($qrDecoded.uri) ../escape.png"
+                    $null = & $read $native 'Error: Output name must be a plain file name' 60 $true
+                    & $send $native "paper-save $($ready.delivery) NATIVE_URI_PAPER"
+                    $null = & $read $native 'Paper conversation saved'
+                    $uris = @(Get-ChildItem $downloadRoot -Filter 'LXM_*.txt')
+                    $uris.Count | Should -Be 1
+                    [IO.File]::ReadAllText($uris[0].FullName) | Should -Match '^lxm://[A-Za-z0-9_-]+\n$'
+                    @((& $readState).messages | Where-Object status -EQ paper).Count | Should -Be 2
+                    & $send $native 'client markdown off'
+                    $null = & $read $native 'Outgoing Markdown policy saved'
+                }
                 & $send $native "conversation active off"
                 $null = & $read $native 'Conversation command complete'
                 & $send $native "conversation export $($ready.delivery) conversation.txt"
@@ -426,6 +666,29 @@ image_loading = yes
                 $clientObservation = ((& $read $python '"event"\s*:\s*"client-announces"').Substring(2) | ConvertFrom-Json)
                 $clientObservation.count | Should -Be 2
                 $clientObservation.stamp_cost | Should -Be 14
+                if ($env:DOTRETICULUM_NOMADNET_PRESENTATION_LIVE -eq '1') {
+                    $beforeName = ([IO.File]::ReadAllText($settingsPath) | ConvertFrom-Json).lastClientAnnounce
+                    & $send $native 'client name Native café 雨'
+                    $null = & $read $native 'Client display name saved without announce: Native café 雨'
+                    & $send $native ('client name ' + ('x' * 81))
+                    $null = & $read $native 'Error: Client display name must contain 1' 60 $true
+                    & $send $native "client name invalid`ename"
+                    $null = & $read $native 'Error: Client display name must contain 1' 60 $true
+                    $namedSettings = [IO.File]::ReadAllText($settingsPath) | ConvertFrom-Json
+                    $namedSettings.displayName | Should -BeExactly 'Native café 雨'
+                    $namedSettings.lastClientAnnounce | Should -Be $beforeName
+                    & $send $python "client-announces $nativeDelivery"
+                    $unchanged = ((& $read $python '"event"\s*:\s*"client-announces"').Substring(2) | ConvertFrom-Json)
+                    $unchanged.count | Should -Be 2
+                    Start-Sleep -Milliseconds 1100
+                    & $send $native 'client announce'
+                    $null = & $read $native 'Client destination announced'
+                    & $send $python "client-announces $nativeDelivery 3"
+                    $renamed = ((& $read $python '"event"\s*:\s*"client-announces"').Substring(2) | ConvertFrom-Json)
+                    $renamed.count | Should -Be 3
+                    $renamed.name | Should -BeExactly 'Native café 雨'
+                    $renamed.stamp_cost | Should -Be 14
+                }
                 $savedClientSettings = [IO.File]::ReadAllText($settingsPath) | ConvertFrom-Json
                 $savedClientSettings.clientAnnounceIntervalMinutes | Should -Be 30
                 $savedClientSettings.inboundStampCost | Should -Be 14
@@ -454,6 +717,17 @@ image_loading = yes
                 $null = & $read $native 'Client startup announce: False; interval minutes: 30; last successful announce:'
                 $null = & $read $native 'enable_client metadata: False.*stamp cost: 14'
                 ([IO.File]::ReadAllText($settingsPath) | ConvertFrom-Json).lastClientAnnounce | Should -Be $successfulClientTimestamp
+                if ($env:DOTRETICULUM_NOMADNET_PRESENTATION_LIVE -eq '1') {
+                    $null = & $read $native 'Client display name: Native café 雨'
+                    $restored = [IO.File]::ReadAllText($settingsPath) | ConvertFrom-Json
+                    $restored.composeInMarkdown | Should -BeFalse
+                    $restored.rrcRenderMarkdown | Should -BeFalse
+                    $restored.rrcRenderMicron | Should -BeFalse
+                    $formattedState = & $readState
+                    @($formattedState.messages | Where-Object renderer -EQ 2).Count | Should -BeGreaterThan 0
+                    @($formattedState.messages | Where-Object content -EQ $formatted)[0].content | Should -BeExactly $formatted
+                    @($formattedState.messages | Where-Object status -EQ paper).Count | Should -Be 2
+                }
             }
             if ($env:DOTRETICULUM_NOMADNET_HISTORY_LIVE -eq '1') {
                 & $send $native 'history'
@@ -601,6 +875,7 @@ image_loading = yes
                 hostPolicy = ($env:DOTRETICULUM_NOMADNET_HOST_POLICY_LIVE -eq '1');
                 filePicker = ($env:DOTRETICULUM_NOMADNET_FILE_PICKER_LIVE -eq '1');
                 clientAnnounce = ($env:DOTRETICULUM_NOMADNET_CLIENT_ANNOUNCE_LIVE -eq '1');
+                presentation = ($env:DOTRETICULUM_NOMADNET_PRESENTATION_LIVE -eq '1');
                 primaryStaticAuthorization = if ([OperatingSystem]::IsWindows()) { 'upstream Windows X_OK defect; actual identity observed instead' } else { 'allowed and denied' } } |
                 ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
         }

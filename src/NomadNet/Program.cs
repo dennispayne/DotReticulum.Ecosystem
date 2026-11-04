@@ -12,6 +12,7 @@ internal static class Program
 {
     public static async Task<int> Main(string[] args)
     {
+        Console.InputEncoding = new UTF8Encoding(false, true);
         Console.OutputEncoding = new UTF8Encoding(false);
         if (args.Contains("--help", StringComparer.Ordinal) || args.Contains("-h", StringComparer.Ordinal))
         {
@@ -262,10 +263,19 @@ internal static class Program
                         content += "\n[attachments could not be saved]";
                     }
                     await store.SaveMessageAsync(new NomadNetMessage(id, Convert.ToHexStringLower(message.SourceHash), "inbound",
-                        DateTimeOffset.FromUnixTimeMilliseconds((long)(message.Timestamp * 1000)), message.Title, content, "received"),
+                        DateTimeOffset.FromUnixTimeMilliseconds((long)(message.Timestamp * 1000)), message.Title, content, "received")
+                        { Renderer = NomadNetPresentation.Renderer(message.Fields) },
                         cancellationToken).ConfigureAwait(false);
                     if (await store.ActiveConversationAsync(cancellationToken).ConfigureAwait(false) == Convert.ToHexStringLower(message.SourceHash))
-                        Console.WriteLine($"Conversation received: {NomadNetTerminalText.Safe(message.Title)} {NomadNetTerminalText.Safe(content)}");
+                        try
+                        {
+                            Console.WriteLine($"Conversation received: {NomadNetTerminalText.Safe(message.Title)} " +
+                                NomadNetPresentation.Conversation(content, NomadNetPresentation.Renderer(message.Fields)));
+                        }
+                        catch (Exception exception)
+                        {
+                            Console.Error.WriteLine($"Could not render incoming message {id}: {exception.Message}");
+                        }
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException)
                 {
@@ -294,6 +304,8 @@ internal static class Program
               client startup <on|off>         Save next-start announcement policy
               client interval <30–10080>     Set periodic announcement minutes
               client stamp-cost <none|1–254> Set required inbound stamp cost
+              client name <text>              Save display name without announcing
+              client markdown <on|off>        Set outgoing LXMF Markdown renderer
               peers                          List announced Reticulum destinations
               contact add <hash> <name>      Save a known LXMF destination
               contacts | contact remove <hash>
@@ -314,6 +326,10 @@ internal static class Program
               send-files <hash> <message>   Send text and selected attachments
               image|audio <hash> <file>      Send encoded image/audio (no transcoding)
               paper <hash> <message>         Generate an encrypted lxm:// URI
+              paper-qr <hash> <message>      Save encrypted paper PNG and conversation
+              paper-save <hash> <message>    Save encrypted paper URI and conversation
+              qr <lxm://uri> <name.png>       Export an existing paper QR PNG
+              qr-show <lxm://uri>             Display a black-on-white terminal QR
               ingest <lxm://uri>             Ingest a paper URI for this identity
               propagation <hash|auto|off>    Select and persist propagation node
               trust-node <node-hash> <on|off> Trust node identity for automatic selection
@@ -471,11 +487,24 @@ internal static class Program
             if (command.Equals("client", StringComparison.OrdinalIgnoreCase) || command.StartsWith("client ", StringComparison.OrdinalIgnoreCase))
             {
                 var parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length == 1 || parts is [_, "status"])
+                if (parts.Length >= 3 && parts[1] == "name")
+                {
+                    var name = command["client name ".Length..];
+                    await NomadNetClientProfile.SetDisplayNameAsync(propagation, router.SetDisplayName,
+                        name, cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Client display name saved without announce: " + NomadNetTerminalText.Safe(name));
+                }
+                else if (parts is [_, "markdown", "on" or "off"])
+                {
+                    await propagation.UpdateSettingsAsync(current => current with { ComposeInMarkdown = parts[2] == "on" }, cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Outgoing Markdown policy saved.");
+                }
+                else if (parts.Length == 1 || parts is [_, "status"])
                 {
                     var current = propagation.Settings;
                     Console.WriteLine($"Client startup announce: {current.ClientAnnounceAtStart}; interval minutes: {current.ClientAnnounceIntervalMinutes}; last successful announce: {current.LastClientAnnounce?.ToString("O") ?? "never"}.");
                     Console.WriteLine($"Client enable_client metadata: {current.EnableClient} (unused by the primary runtime); stamp cost: {current.InboundStampCost?.ToString() ?? "none"}.");
+                    Console.WriteLine("Client display name: " + NomadNetTerminalText.Safe(current.DisplayName));
                 }
                 else if (parts is [_, "announce"])
                 {
@@ -499,7 +528,7 @@ internal static class Program
                     if (!router.SetInboundStampCost(cost)) throw new InvalidOperationException("The saved inbound stamp cost is unsupported.");
                     Console.WriteLine("Client stamp cost saved; next announce advertises it.");
                 }
-                else throw new ArgumentException("Usage: client [status|announce|startup <on|off>|interval <30–10080>|stamp-cost <none|1–254>]");
+                else throw new ArgumentException("Usage: client [status|announce|name <text>|markdown <on|off>|startup <on|off>|interval <30–10080>|stamp-cost <none|1–254>]");
                 return false;
             }
 
@@ -598,6 +627,41 @@ internal static class Program
                 var message = LxMessage.Create(destination, identity, parts[2], method: LxmMethod.Paper);
                 message.Pack(destinationIdentity: remote);
                 Console.WriteLine(message.AsUri());
+                return false;
+            }
+            if (command.StartsWith("paper-qr ", StringComparison.OrdinalIgnoreCase) ||
+                command.StartsWith("paper-save ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = Split(command, 3);
+                if (parts.Length != 3) throw new ArgumentException("Usage: paper-qr|paper-save <hash> <message>");
+                var destination = Convert.FromHexString(NomadNetAddress.NormalizeHash(parts[1]));
+                var remote = await RecallAsync(destination, cancellationToken).ConfigureAwait(false);
+                var message = LxMessage.Create(destination, identity, parts[2], method: LxmMethod.Paper);
+                message.Pack(destinationIdentity: remote);
+                var uri = message.AsUri();
+                var id = Convert.ToHexStringLower(message.Hash ?? throw new InvalidDataException("Paper message has no hash."));
+                var qr = parts[0].Equals("paper-qr", StringComparison.OrdinalIgnoreCase);
+                await SaveDownloadAsync(qr ? NomadNetPaperQr.Png(uri, cancellationToken) : Encoding.UTF8.GetBytes(uri + "\n"),
+                    "LXM_" + id + (qr ? ".png" : ".txt"), cancellationToken).ConfigureAwait(false);
+                await store.SaveMessageAsync(new NomadNetMessage(id, Convert.ToHexStringLower(destination), "outbound",
+                    DateTimeOffset.FromUnixTimeMilliseconds((long)(message.Timestamp * 1000)), "", parts[2], "paper"),
+                    cancellationToken).ConfigureAwait(false);
+                Console.WriteLine("Paper conversation saved.");
+                return false;
+            }
+            if (command.StartsWith("qr-show ", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.Write(NomadNetPaperQr.Display(command["qr-show ".Length..].Trim(), cancellationToken));
+                Console.WriteLine("QR display complete.");
+                return false;
+            }
+            if (command.StartsWith("qr ", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = Split(command, 3);
+                if (parts.Length != 3 || !parts[2].EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                    throw new ArgumentException("Usage: qr <lxm://uri> <name.png>");
+                await SaveDownloadAsync(NomadNetPaperQr.Png(parts[1], cancellationToken), parts[2],
+                    cancellationToken).ConfigureAwait(false);
                 return false;
             }
             if (command.StartsWith("send-propagated ", StringComparison.OrdinalIgnoreCase))
@@ -934,6 +998,15 @@ internal static class Program
 
         private async Task ExecuteRrcAsync(string command, CancellationToken cancellationToken)
         {
+            var rendering = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (rendering is ["render", "markdown" or "micron", "on" or "off"])
+            {
+                await propagation.UpdateSettingsAsync(current => rendering[1] == "markdown"
+                    ? current with { RrcRenderMarkdown = rendering[2] == "on" }
+                    : current with { RrcRenderMicron = rendering[2] == "on" }, cancellationToken).ConfigureAwait(false);
+                Console.WriteLine("RRC rendering policy saved.");
+                return;
+            }
             var parts = Split(command, 3);
             if (parts.Length == 0) throw new ArgumentException("Use rrc connect <hub> [nick].");
             if (parts[0].Equals("connect", StringComparison.OrdinalIgnoreCase))
@@ -943,7 +1016,8 @@ internal static class Program
                 _rrc = await RrcClient.OpenAsync(node, identity, dataDirectory, parts[1], cancellationToken).ConfigureAwait(false);
                 _rrc.Log = message => Console.WriteLine(NomadNetTerminalText.Safe(message));
                 _rrc.MessageReceived += message => Console.WriteLine($"RRC [{NomadNetTerminalText.Safe(message.Room ?? "hub")}] " +
-                    $"{NomadNetTerminalText.Safe(message.Nick ?? message.Source)}: {NomadNetTerminalText.Safe(message.Text)}");
+                    $"{NomadNetTerminalText.Safe(message.Nick ?? message.Source)}: " + NomadNetPresentation.Rrc(message.Text,
+                        propagation.Settings.RrcRenderMarkdown, propagation.Settings.RrcRenderMicron, message.Kind));
                 if (parts.Length == 3) await _rrc.SetNickAsync(parts[2], cancellationToken).ConfigureAwait(false);
                 await _rrc.ConnectAsync(cancellationToken).ConfigureAwait(false);
             }
@@ -979,6 +1053,15 @@ internal static class Program
                     case "send" or "action" when parts.Length == 3:
                         await client.SendMessageAsync(parts[1], parts[2], parts[0].Equals("action", StringComparison.OrdinalIgnoreCase), cancellationToken)
                             .ConfigureAwait(false); break;
+                    case "send-json" when parts.Length == 3:
+                        using (var json = System.Text.Json.JsonDocument.Parse(parts[2]))
+                        {
+                            if (json.RootElement.ValueKind != System.Text.Json.JsonValueKind.String)
+                                throw new InvalidDataException("RRC JSON composition requires a string.");
+                            await client.SendMessageAsync(parts[1], json.RootElement.GetString()!,
+                                cancellationToken: cancellationToken).ConfigureAwait(false);
+                        }
+                        break;
                     case "list": await client.SendMessageAsync(null, "/list", cancellationToken: cancellationToken).ConfigureAwait(false); break;
                     case "rooms":
                         foreach (var (room, topic) in await client.RoomsAsync(cancellationToken).ConfigureAwait(false))
@@ -994,7 +1077,8 @@ internal static class Program
                     case "history":
                         foreach (var message in await client.HistoryAsync(parts.Length >= 2 ? parts[1] : null, cancellationToken).ConfigureAwait(false))
                             Console.WriteLine($"RRC history [{NomadNetTerminalText.Safe(message.Room ?? "hub")}] " +
-                                $"{NomadNetTerminalText.Safe(message.Nick ?? message.Source)}: {NomadNetTerminalText.Safe(message.Text)}");
+                                $"{NomadNetTerminalText.Safe(message.Nick ?? message.Source)}: " + NomadNetPresentation.Rrc(message.Text,
+                                    propagation.Settings.RrcRenderMarkdown, propagation.Settings.RrcRenderMicron, message.Kind));
                         break;
                     default: throw new ArgumentException("Unknown/incomplete RRC command; use help.");
                 }
@@ -1079,10 +1163,13 @@ internal static class Program
                 if (router.OutboundPropagationNode is null) throw new InvalidOperationException("Select a propagation node first.");
                 _ = await RecallAsync(destination, cancellationToken).ConfigureAwait(false);
             }
+            fields = fields is null ? new() : new(fields);
+            if (propagation.Settings.ComposeInMarkdown) fields[LxmField.Renderer] = NomadNetPresentation.MarkdownRenderer;
             var message = LxMessage.Create(destination, identity, content, "", fields, method.Value);
             var id = Guid.NewGuid().ToString("N");
             await _delivery.QueueAsync(message, new NomadNetMessage(id, Convert.ToHexStringLower(destination), "outbound",
-                DateTimeOffset.UtcNow, "", content, "queued"), cancellationToken).ConfigureAwait(false);
+                DateTimeOffset.UtcNow, "", content, "queued")
+                { Renderer = NomadNetPresentation.Renderer(fields) }, cancellationToken).ConfigureAwait(false);
             Console.WriteLine($"Message queued: {message.State}");
         }
 
@@ -1092,7 +1179,7 @@ internal static class Program
             foreach (var message in messages)
             {
                 Console.WriteLine($"{message.Timestamp:u} {message.Direction} {message.PeerHash} [{message.Status}] {NomadNetTerminalText.Safe(message.Title)}");
-                Console.WriteLine(NomadNetTerminalText.Safe(message.Content));
+                Console.WriteLine(NomadNetPresentation.Conversation(message.Content, message.Renderer));
             }
             if (messages.Count == 0) Console.WriteLine("No stored messages.");
         }

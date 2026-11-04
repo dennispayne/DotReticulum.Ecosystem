@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 import sys
+import traceback
 import threading
 import time
 import subprocess
@@ -106,6 +107,7 @@ def main():
                 files = message.fields.get(LXMF.FIELD_FILE_ATTACHMENTS, [])
                 emit("received", content=message.content.decode("utf-8", errors="replace"),
                      method=message.method,
+                     renderer=message.fields.get(LXMF.FIELD_RENDERER),
                      files=[{"name": item[0].decode("utf-8", errors="replace") if isinstance(item[0], bytes) else str(item[0]),
                              "size": len(item[1]), "sha256": hashlib.sha256(item[1]).hexdigest()}
                             for item in files])
@@ -202,6 +204,13 @@ def main():
                         rrc_hub.send_action(parts[1], parts[2])
                     emit("rrc-sent")
                     continue
+                if parts[0] == "rrc-send-json" and len(parts) == 3:
+                    text = json.loads(parts[2])
+                    if not isinstance(text, str):
+                        raise ValueError("RRC JSON composition requires a string")
+                    rrc_hub.send_message(parts[1], text)
+                    emit("rrc-sent")
+                    continue
                 if parts[0] == "stats":
                     emit(
                         "stats",
@@ -212,6 +221,13 @@ def main():
                         propagation_messages=len(app.message_router.propagation_entries),
                         sync_state=app.message_router.propagation_transfer_state,
                     )
+                    continue
+                if parts[0] == "profile-stats":
+                    emit("profile", name=app.get_display_name(), last_announce=app.peer_settings["last_announce"])
+                    continue
+                if parts[0] == "set-display-name" and len(parts) >= 2:
+                    app.set_display_name(raw_line.rstrip("\r\n").split(" ", 1)[1])
+                    emit("profile", name=app.get_display_name(), last_announce=app.peer_settings["last_announce"])
                     continue
                 if parts[0] == "wait-network":
                     deadline = time.monotonic() + 30
@@ -325,6 +341,8 @@ def main():
                     continue
                 if parts[0] == "config-stats":
                     emit("configuration", enable_node=app.enable_node, node_name=app.node_name,
+                         compose_in_markdown=app.compose_markdown, rrc_render_markdown=app.rrc_ui_render_markdown,
+                         rrc_render_micron=app.rrc_ui_render_micron,
                          enable_client=app.enable_client, client_announce_at_start=app.peer_announce_at_start,
                          client_announce_interval=app.announce_interval,
                          client_delivery_registered=app.lxmf_destination is not None,
@@ -365,7 +383,20 @@ def main():
                     accepted = app.message_router.ingest_lxm_uri(parts[1])
                     emit("ingested", accepted=accepted)
                     continue
-                if parts[0] not in ("send", "send-file", "send-files", "send-propagated", "paper", "request", "request-media") or len(parts) != 3:
+                if parts[0] == "decode-qr" and len(parts) == 2:
+                    import zxingcpp
+                    from PIL import Image
+                    if Path(parts[1]).stat().st_size > 12 * 1024 * 1024:
+                        raise ValueError("QR image exceeds adapter bound")
+                    with Image.open(parts[1]) as image:
+                        if image.width > 2048 or image.height > 2048 or image.width * image.height > 4 * 1024 * 1024:
+                            raise ValueError("QR raster exceeds adapter bound")
+                        decoded = zxingcpp.read_barcode(image)
+                        if decoded is None or not decoded.text.startswith("lxm://"):
+                            raise ValueError("Actual zxing-cpp did not decode an LXMF URI")
+                        emit("qr-decoded", uri=decoded.text, width=image.width, height=image.height)
+                    continue
+                if parts[0] not in ("send", "send-file", "send-files", "send-formatted", "send-propagated", "paper", "request", "request-media") or len(parts) != 3:
                     raise ValueError("expected send, send-file, paper, request, ingest, stats, or quit")
 
                 destination_hash = bytes.fromhex(parts[1])
@@ -433,6 +464,12 @@ def main():
                 )
                 fields = {}
                 content = parts[2]
+                if parts[0] == "send-formatted":
+                    payload = json.loads(parts[2])
+                    if not isinstance(payload, dict) or not isinstance(payload.get("text"), str) or type(payload.get("renderer")) is not int:
+                        raise ValueError("Formatted composition requires text and integer renderer")
+                    content = payload["text"]
+                    fields[LXMF.FIELD_RENDERER] = payload["renderer"]
                 if parts[0] == "send-file":
                     with open(parts[2], "rb") as stream:
                         attachment = stream.read(16000001)
@@ -478,6 +515,7 @@ def main():
                 app.message_router.handle_outbound(message)
                 emit("queued", message_hash=message.hash.hex())
         except Exception as error:
+            traceback.print_exc(file=sys.stderr)
             emit("error", message=str(error))
 
     threading.Thread(target=command_loop, daemon=True).start()

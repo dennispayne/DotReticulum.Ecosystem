@@ -21,6 +21,7 @@ def main():
     cases = [
         ("ordinary", """[client]
 enable_client = no
+compose_in_markdown = no
 announce_at_start = off
 announce_interval = 45
 periodic_lxmf_sync = no
@@ -39,9 +40,13 @@ announce_interval = 19
 announce_at_start = yes
 page_refresh_interval = 2
 file_refresh_interval = 3
+[rrc]
+render_markdown = off
+render_micron = no
 """),
         ("clamped", """[client]
 enable_client = yes
+compose_in_markdown = yes
 announce_at_start = yes
 announce_interval = -1
 lxmf_sync_interval = 0
@@ -56,6 +61,9 @@ announce_interval = 0
 announce_at_start = no
 page_refresh_interval = -1
 file_refresh_interval = -4
+[rrc]
+render_markdown = yes
+render_micron = yes
 """),
         ("no-stamps", """[client]
 required_stamp_cost = -1

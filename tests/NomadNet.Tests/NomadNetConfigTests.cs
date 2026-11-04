@@ -21,6 +21,9 @@ public sealed class NomadNetConfigTests
             Assert.Empty(imported.UnsupportedKeys);
             var actual = imported.Settings;
             var expected = vector.GetProperty("observed");
+            Assert.Equal(expected.GetProperty("compose_in_markdown").GetBoolean(), actual.ComposeInMarkdown);
+            Assert.Equal(expected.GetProperty("rrc_render_markdown").GetBoolean(), actual.RrcRenderMarkdown);
+            Assert.Equal(expected.GetProperty("rrc_render_micron").GetBoolean(), actual.RrcRenderMicron);
             Assert.Equal(expected.GetProperty("enable_client").GetBoolean(), actual.EnableClient);
             Assert.Equal(expected.GetProperty("client_announce_at_start").GetBoolean(), actual.ClientAnnounceAtStart);
             Assert.Equal(expected.GetProperty("client_announce_interval").GetInt32(), actual.ClientAnnounceIntervalMinutes * 60);

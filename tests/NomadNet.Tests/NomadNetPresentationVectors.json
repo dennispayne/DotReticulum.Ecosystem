@@ -1,0 +1,540 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "rnsCommit": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "sourceSha256": {
+    "Channels": "ab91997289c69f80014dc8bd140b6c3bf1d4cffb0f47c72037a772b75ff8fa47",
+    "MicronParser": "9932db8038b6380742e2586250dc77b2509b72d7ed8a6fdfd954f03602cf4e03",
+    "util": "c1c3173e35f15887b470e5cca108aa60687e4b097d4a29254ff5f8f24cc1e61e",
+    "RNSMarkdown": "ac74160c788c62b139866d91113903bc10d18466539a373624737d6d4f4d0ef2",
+    "NomadNetworkApp": "beda2e618d67200cb14cf7d636efa34f13b4607f99717575f02a1c91fafcf60b"
+  },
+  "method": "Actual MarkdownToMicron.format_block, primary util functions/MicronParser, Channels._message_widget and NomadNetworkApp.set_display_name. Only a headless shared UI supplies theme/glyphs/settings; formatting implementations are not replaced. Timestamp/nickname prefix is structurally excluded. No live or pixel-identical UI claim.",
+  "rendererMarkdown": 2,
+  "conversation": [
+    {
+      "name": "empty",
+      "input": "",
+      "micron": "",
+      "visible": ""
+    },
+    {
+      "name": "ordinary",
+      "input": "Plain generated message",
+      "micron": "Plain generated message",
+      "visible": "Plain generated message"
+    },
+    {
+      "name": "emphasis",
+      "input": "**BOLD** and *ITALIC* with `literal_code`",
+      "micron": "`!BOLD`! and `*ITALIC`* with `BT383838`Fdddliteral_code`f`b",
+      "visible": "BOLD and ITALIC with literal_code"
+    },
+    {
+      "name": "escaped-micron",
+      "input": "\u00a6!MICRON_BOLD\u00a6! and \u00a6*MICRON_ITALIC\u00a6*",
+      "micron": "\u00a6!MICRON`*BOLD\u00a6! and \u00a6*MICRON`*ITALIC\u00a6*",
+      "visible": "\u00a6!MICRONBOLD\u00a6! and \u00a6*MICRONITALIC\u00a6*"
+    },
+    {
+      "name": "raw-micron",
+      "input": "`!RAW_BOLD`! and `*RAW_ITALIC`*",
+      "micron": "`BT383838`Fddd!RAW_BOLD`f`b! and `BT383838`Fddd*RAW_ITALIC`f`b*",
+      "visible": "!RAW_BOLD! and *RAW_ITALIC*"
+    },
+    {
+      "name": "heading",
+      "input": "# First heading\n\n## Second heading\nBody",
+      "micron": ">First heading\n\n>>Second heading\nBody",
+      "visible": "First heading\n\n  Second heading\nBody"
+    },
+    {
+      "name": "list",
+      "input": "List:\n- alpha\n- **beta**",
+      "micron": "List:\n \u2022 alpha\n \u2022 `!beta`!",
+      "visible": "List:\n \u2022 alpha\n \u2022 beta"
+    },
+    {
+      "name": "quote",
+      "input": "> first quotation\n> second quotation",
+      "micron": " \u2502 first quotation second quotation",
+      "visible": "\u2502 first quotation second quotation"
+    },
+    {
+      "name": "link",
+      "input": "Read [label](https://example.invalid/test)",
+      "micron": "Read `_`!`[label`https://example.invalid/test]`!`_",
+      "visible": "Read label"
+    },
+    {
+      "name": "code",
+      "input": "```\nconst example = 1;\n```",
+      "micron": "`BT282828`Fddd\n`=\nconst example = 1;\n`=\n`f`b",
+      "visible": "const example = 1;"
+    },
+    {
+      "name": "table",
+      "input": "| Name | Value |\n| --- | --- |\n| A | B |",
+      "micron": "`c\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502 Name \u2502 Value \u2502\n\u251c\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524\n\u2502 A    \u2502 B     \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n`a",
+      "visible": "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502 Name \u2502 Value \u2502\n\u251c\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524\n\u2502 A    \u2502 B     \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518"
+    },
+    {
+      "name": "alignment",
+      "input": "`rRight `cCenter `lLeft",
+      "micron": "`BT383838`FdddrRight `f`bcCenter `lLeft",
+      "visible": "rRight cCenter Left"
+    },
+    {
+      "name": "multiline",
+      "input": "First line\n\nSecond line",
+      "micron": "First line\n\nSecond line",
+      "visible": "First line\n\nSecond line"
+    },
+    {
+      "name": "live-formatted",
+      "input": "**PRIMARY_FORMATTED** and \u00a6!MICRON_FORMATTED\u00a6!",
+      "micron": "`!PRIMARY`*FORMATTED`! and \u00a6!MICRON`*FORMATTED\u00a6!",
+      "visible": "PRIMARYFORMATTED and \u00a6!MICRONFORMATTED\u00a6!"
+    }
+  ],
+  "rrc": [
+    {
+      "name": "empty",
+      "input": "",
+      "markdown": false,
+      "micron": false,
+      "visible": ""
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "markdown": false,
+      "micron": true,
+      "visible": ""
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "markdown": true,
+      "micron": false,
+      "visible": ""
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "markdown": true,
+      "micron": true,
+      "visible": ""
+    },
+    {
+      "name": "ordinary",
+      "input": "Plain generated message",
+      "markdown": false,
+      "micron": false,
+      "visible": "Plain generated message"
+    },
+    {
+      "name": "ordinary",
+      "input": "Plain generated message",
+      "markdown": false,
+      "micron": true,
+      "visible": "Plain generated message"
+    },
+    {
+      "name": "ordinary",
+      "input": "Plain generated message",
+      "markdown": true,
+      "micron": false,
+      "visible": "Plain generated message"
+    },
+    {
+      "name": "ordinary",
+      "input": "Plain generated message",
+      "markdown": true,
+      "micron": true,
+      "visible": "Plain generated message"
+    },
+    {
+      "name": "emphasis",
+      "input": "**BOLD** and *ITALIC* with `literal_code`",
+      "markdown": false,
+      "micron": false,
+      "visible": "**BOLD** and *ITALIC* with iteral_code"
+    },
+    {
+      "name": "emphasis",
+      "input": "**BOLD** and *ITALIC* with `literal_code`",
+      "markdown": false,
+      "micron": true,
+      "visible": "**BOLD** and *ITALIC* with iteral_code"
+    },
+    {
+      "name": "emphasis",
+      "input": "**BOLD** and *ITALIC* with `literal_code`",
+      "markdown": true,
+      "micron": false,
+      "visible": "BOLD and ITALIC with literal_code"
+    },
+    {
+      "name": "emphasis",
+      "input": "**BOLD** and *ITALIC* with `literal_code`",
+      "markdown": true,
+      "micron": true,
+      "visible": "BOLD and ITALIC with literal_code"
+    },
+    {
+      "name": "escaped-micron",
+      "input": "\u00a6!MICRON_BOLD\u00a6! and \u00a6*MICRON_ITALIC\u00a6*",
+      "markdown": false,
+      "micron": false,
+      "visible": "MICRON_BOLD and MICRON_ITALIC"
+    },
+    {
+      "name": "escaped-micron",
+      "input": "\u00a6!MICRON_BOLD\u00a6! and \u00a6*MICRON_ITALIC\u00a6*",
+      "markdown": false,
+      "micron": true,
+      "visible": "MICRON_BOLD and MICRON_ITALIC"
+    },
+    {
+      "name": "escaped-micron",
+      "input": "\u00a6!MICRON_BOLD\u00a6! and \u00a6*MICRON_ITALIC\u00a6*",
+      "markdown": true,
+      "micron": false,
+      "visible": "MICRONBOLD and MICRONITALIC"
+    },
+    {
+      "name": "escaped-micron",
+      "input": "\u00a6!MICRON_BOLD\u00a6! and \u00a6*MICRON_ITALIC\u00a6*",
+      "markdown": true,
+      "micron": true,
+      "visible": "MICRONBOLD and MICRONITALIC"
+    },
+    {
+      "name": "raw-micron",
+      "input": "`!RAW_BOLD`! and `*RAW_ITALIC`*",
+      "markdown": false,
+      "micron": false,
+      "visible": "RAW_BOLD and RAW_ITALIC"
+    },
+    {
+      "name": "raw-micron",
+      "input": "`!RAW_BOLD`! and `*RAW_ITALIC`*",
+      "markdown": false,
+      "micron": true,
+      "visible": "RAW_BOLD and RAW_ITALIC"
+    },
+    {
+      "name": "raw-micron",
+      "input": "`!RAW_BOLD`! and `*RAW_ITALIC`*",
+      "markdown": true,
+      "micron": false,
+      "visible": "!RAW_BOLD! and *RAW_ITALIC*"
+    },
+    {
+      "name": "raw-micron",
+      "input": "`!RAW_BOLD`! and `*RAW_ITALIC`*",
+      "markdown": true,
+      "micron": true,
+      "visible": "!RAW_BOLD! and *RAW_ITALIC*"
+    },
+    {
+      "name": "heading",
+      "input": "# First heading\n\n## Second heading\nBody",
+      "markdown": false,
+      "micron": false,
+      "visible": "# First heading\n\nBody"
+    },
+    {
+      "name": "heading",
+      "input": "# First heading\n\n## Second heading\nBody",
+      "markdown": false,
+      "micron": true,
+      "visible": "# First heading\n\nBody"
+    },
+    {
+      "name": "heading",
+      "input": "# First heading\n\n## Second heading\nBody",
+      "markdown": true,
+      "micron": false,
+      "visible": "# First heading\n\n  Second heading\nBody"
+    },
+    {
+      "name": "heading",
+      "input": "# First heading\n\n## Second heading\nBody",
+      "markdown": true,
+      "micron": true,
+      "visible": "# First heading\n\n  Second heading\nBody"
+    },
+    {
+      "name": "list",
+      "input": "List:\n- alpha\n- **beta**",
+      "markdown": false,
+      "micron": false,
+      "visible": "List:\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+    },
+    {
+      "name": "list",
+      "input": "List:\n- alpha\n- **beta**",
+      "markdown": false,
+      "micron": true,
+      "visible": "List:\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+    },
+    {
+      "name": "list",
+      "input": "List:\n- alpha\n- **beta**",
+      "markdown": true,
+      "micron": false,
+      "visible": "List:\n \u2022 alpha\n \u2022 beta"
+    },
+    {
+      "name": "list",
+      "input": "List:\n- alpha\n- **beta**",
+      "markdown": true,
+      "micron": true,
+      "visible": "List:\n \u2022 alpha\n \u2022 beta"
+    },
+    {
+      "name": "quote",
+      "input": "> first quotation\n> second quotation",
+      "markdown": false,
+      "micron": false,
+      "visible": "> first quotation\n second quotation"
+    },
+    {
+      "name": "quote",
+      "input": "> first quotation\n> second quotation",
+      "markdown": false,
+      "micron": true,
+      "visible": "> first quotation\n second quotation"
+    },
+    {
+      "name": "quote",
+      "input": "> first quotation\n> second quotation",
+      "markdown": true,
+      "micron": false,
+      "visible": "> first quotation\n \u2502 second quotation"
+    },
+    {
+      "name": "quote",
+      "input": "> first quotation\n> second quotation",
+      "markdown": true,
+      "micron": true,
+      "visible": "> first quotation\n \u2502 second quotation"
+    },
+    {
+      "name": "link",
+      "input": "Read [label](https://example.invalid/test)",
+      "markdown": false,
+      "micron": false,
+      "visible": "Read [label](https://example.invalid/test)"
+    },
+    {
+      "name": "link",
+      "input": "Read [label](https://example.invalid/test)",
+      "markdown": false,
+      "micron": true,
+      "visible": "Read [label](https://example.invalid/test)"
+    },
+    {
+      "name": "link",
+      "input": "Read [label](https://example.invalid/test)",
+      "markdown": true,
+      "micron": false,
+      "visible": "Read label"
+    },
+    {
+      "name": "link",
+      "input": "Read [label](https://example.invalid/test)",
+      "markdown": true,
+      "micron": true,
+      "visible": "Read label"
+    },
+    {
+      "name": "code",
+      "input": "```\nconst example = 1;\n```",
+      "markdown": false,
+      "micron": false,
+      "visible": "\nconst example = 1;"
+    },
+    {
+      "name": "code",
+      "input": "```\nconst example = 1;\n```",
+      "markdown": false,
+      "micron": true,
+      "visible": "\nconst example = 1;"
+    },
+    {
+      "name": "code",
+      "input": "```\nconst example = 1;\n```",
+      "markdown": true,
+      "micron": false,
+      "visible": "\nconst example = 1;"
+    },
+    {
+      "name": "code",
+      "input": "```\nconst example = 1;\n```",
+      "markdown": true,
+      "micron": true,
+      "visible": "\nconst example = 1;"
+    },
+    {
+      "name": "table",
+      "input": "| Name | Value |\n| --- | --- |\n| A | B |",
+      "markdown": false,
+      "micron": false,
+      "visible": "| Name | Value |\n| --- | --- |\n| A | B |"
+    },
+    {
+      "name": "table",
+      "input": "| Name | Value |\n| --- | --- |\n| A | B |",
+      "markdown": false,
+      "micron": true,
+      "visible": "| Name | Value |\n| --- | --- |\n| A | B |"
+    },
+    {
+      "name": "table",
+      "input": "| Name | Value |\n| --- | --- |\n| A | B |",
+      "markdown": true,
+      "micron": false,
+      "visible": "\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502 Name \u2502 Value \u2502\n\u251c\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524\n\u2502 A    \u2502 B     \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518"
+    },
+    {
+      "name": "table",
+      "input": "| Name | Value |\n| --- | --- |\n| A | B |",
+      "markdown": true,
+      "micron": true,
+      "visible": "\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502 Name \u2502 Value \u2502\n\u251c\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524\n\u2502 A    \u2502 B     \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518"
+    },
+    {
+      "name": "alignment",
+      "input": "`rRight `cCenter `lLeft",
+      "markdown": false,
+      "micron": false,
+      "visible": "Right Center Left"
+    },
+    {
+      "name": "alignment",
+      "input": "`rRight `cCenter `lLeft",
+      "markdown": false,
+      "micron": true,
+      "visible": "Right Center Left"
+    },
+    {
+      "name": "alignment",
+      "input": "`rRight `cCenter `lLeft",
+      "markdown": true,
+      "micron": false,
+      "visible": "rRight cCenter Left"
+    },
+    {
+      "name": "alignment",
+      "input": "`rRight `cCenter `lLeft",
+      "markdown": true,
+      "micron": true,
+      "visible": "rRight cCenter Left"
+    },
+    {
+      "name": "multiline",
+      "input": "First line\n\nSecond line",
+      "markdown": false,
+      "micron": false,
+      "visible": "First line\n\nSecond line"
+    },
+    {
+      "name": "multiline",
+      "input": "First line\n\nSecond line",
+      "markdown": false,
+      "micron": true,
+      "visible": "First line\n\nSecond line"
+    },
+    {
+      "name": "multiline",
+      "input": "First line\n\nSecond line",
+      "markdown": true,
+      "micron": false,
+      "visible": "First line\n\nSecond line"
+    },
+    {
+      "name": "multiline",
+      "input": "First line\n\nSecond line",
+      "markdown": true,
+      "micron": true,
+      "visible": "First line\n\nSecond line"
+    },
+    {
+      "name": "live-formatted",
+      "input": "**PRIMARY_FORMATTED** and \u00a6!MICRON_FORMATTED\u00a6!",
+      "markdown": false,
+      "micron": false,
+      "visible": "**PRIMARY_FORMATTED** and MICRON_FORMATTED"
+    },
+    {
+      "name": "live-formatted",
+      "input": "**PRIMARY_FORMATTED** and \u00a6!MICRON_FORMATTED\u00a6!",
+      "markdown": false,
+      "micron": true,
+      "visible": "**PRIMARY_FORMATTED** and MICRON_FORMATTED"
+    },
+    {
+      "name": "live-formatted",
+      "input": "**PRIMARY_FORMATTED** and \u00a6!MICRON_FORMATTED\u00a6!",
+      "markdown": true,
+      "micron": false,
+      "visible": "PRIMARYFORMATTED and MICRONFORMATTED"
+    },
+    {
+      "name": "live-formatted",
+      "input": "**PRIMARY_FORMATTED** and \u00a6!MICRON_FORMATTED\u00a6!",
+      "markdown": true,
+      "micron": true,
+      "visible": "PRIMARYFORMATTED and MICRONFORMATTED"
+    }
+  ],
+  "displayNames": [
+    {
+      "input": "Native profile",
+      "stored": "Native profile",
+      "destination": "Native profile",
+      "lastAnnounce": 123.0,
+      "calls": [
+        "save"
+      ]
+    },
+    {
+      "input": "Native caf\u00e9 \u96e8",
+      "stored": "Native caf\u00e9 \u96e8",
+      "destination": "Native caf\u00e9 \u96e8",
+      "lastAnnounce": 123.0,
+      "calls": [
+        "save"
+      ]
+    },
+    {
+      "input": "",
+      "stored": "",
+      "destination": "",
+      "lastAnnounce": 123.0,
+      "calls": [
+        "save"
+      ]
+    },
+    {
+      "input": null,
+      "stored": null,
+      "destination": null,
+      "lastAnnounce": 123.0,
+      "calls": [
+        "save"
+      ]
+    },
+    {
+      "input": "line\nbreak",
+      "stored": "line\nbreak",
+      "destination": "line\nbreak",
+      "lastAnnounce": 123.0,
+      "calls": [
+        "save"
+      ]
+    }
+  ]
+}

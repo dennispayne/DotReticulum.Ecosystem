@@ -1,0 +1,25 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sourceSha256": "38c419564248cc8777669ec77a055f8dcebcdf0e94a71ee4f7970c7d76640df5",
+  "method": "Actual Conversation.paper_output(save_qr), real RNS identities/LXMF crypto/as_qr and PNG. OUT destinations avoid service registration; only Conversation.ingest is an observation callback to avoid unrelated conversation persistence. Actual zxing-cpp independently decodes PNG; qrcode is not a decoder. No live/printer/camera claim; no private identity material recorded.",
+  "uri": "lxm://SScZplH3TGh21CRnCdNR4gRqNwetf9k82WLv_fPGoVhA3dm3iptiTgsEihs2c-kn2Csy7vGmiuOxoCbkt4LNJ3rkykiOMz-gkf3npr2QqmyVbGvDhZrDfvqrs0k3UHyawzHufRTPDbbeOnF6eA1o_zeIYB1tGwxj5v3IJwfLHkMAIFai-J0UKxYpqjvc1Fjftm3cdm3Tm1PDu0xcNcrk1jFGYR3XpKoE2jBW59yw3kcgXgG9uobGFLGXhquNHqHV4KJfcifl5f-CuoKZRgm-rglPK-sVrDNDdpudjDl5-lG5oNMU4rB4niU69FfrUA5Vj-ZG7gn_3MFYbJ3ZOCzi8A",
+  "width": 670,
+  "height": 670,
+  "paperCreationMethod": 5,
+  "paperIngressMethod": 3,
+  "ingressContract": "LXMRouter.py2659-2670 ingest_lxm_uri invokes lxmf_propagation(is_paper_message=True); 2624 explicitly dispatches local delivery as LXMessage.PROPAGATED. Constants executed here; complete ingress separately exercised by actual application acceptance.",
+  "lxmfRouterSha256": "56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9",
+  "rnsVersion": "1.5.7",
+  "lxmfVersion": "1.2.1",
+  "decoderVersion": "2.3.0",
+  "pillowVersion": "12.2.0",
+  "pngSha256": "45c78f86314308fffcf66e58664d43047356f63eaf1591b7eea23b7f540cbd92",
+  "ingested": [
+    {
+      "originator": true,
+      "hash": "df898f8108e8b0251113f4634e2dd3d527b4f2766e7ba382119518437ab1b2a0",
+      "method": 5
+    }
+  ],
+  "messageCount": 1
+}

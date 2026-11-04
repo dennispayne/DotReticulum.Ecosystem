@@ -11,8 +11,9 @@ public static class MicronText
     public const int MaximumPageBytes = 1_000_000;
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
-    public static NomadNetRenderedPage Render(ReadOnlySpan<byte> page)
+    public static NomadNetRenderedPage Render(ReadOnlySpan<byte> page, int dividerWidth = 40)
     {
+        if (dividerWidth is < 1 or > 512) throw new ArgumentOutOfRangeException(nameof(dividerWidth));
         if (page.Length > MaximumPageBytes) throw new InvalidDataException("Nomad Network page exceeds the one-megabyte client limit.");
         var source = new string(StrictUtf8.GetString(page).Where(character =>
             character is '\n' or '\r' or '\t' || (!char.IsControl(character) &&
@@ -90,7 +91,7 @@ public static class MicronText
                     line = new string(' ', Math.Min(depth - 1, 8) * 2) + line[depth..];
                 }
                 else if (line.Length > 0 && line[0] == '<') line = line[1..];
-                else if (!table && line.StartsWith("-", StringComparison.Ordinal)) line = new string(line.Length == 2 ? line[1] : '─', 40);
+                else if (!table && line.StartsWith("-", StringComparison.Ordinal)) line = new string(line.Length == 2 ? line[1] : '─', dividerWidth);
             }
             else if (line == "`=") { literal = false; continue; }
             if (literal && line == "\\`=") line = "`=";

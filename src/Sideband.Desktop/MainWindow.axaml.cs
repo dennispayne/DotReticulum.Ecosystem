@@ -146,8 +146,12 @@ public sealed partial class MainWindow : Window
             }
             if (Program.SmokeTelemetryMode)
             {
-                if (!TelemetryPage.IsVisible || TelemetryDetailsText.Text?.StartsWith("LOCAL MANUAL PREVIEW", StringComparison.Ordinal) != true) return;
-                Console.WriteLine("SMOKE_UI_RENDERED_TELEMETRY=manual-preview");
+                if (!TelemetryPage.IsVisible) return;
+                if (TelemetryDetailsText.Text?.StartsWith("LOCAL MANUAL PREVIEW", StringComparison.Ordinal) == true)
+                    Console.WriteLine("SMOKE_UI_RENDERED_TELEMETRY=manual-preview");
+                else if (TelemetryDetailsText.Text?.StartsWith("LOCAL RUNTIME/MANUAL PREVIEW", StringComparison.Ordinal) == true)
+                    Console.WriteLine("SMOKE_UI_RENDERED_TELEMETRY=" + (_client.IsConnected ? "runtime-connected" : "runtime-unavailable"));
+                else return;
             }
             if (Program.SmokeRepositoryRoot is not null)
             {
@@ -265,7 +269,16 @@ public sealed partial class MainWindow : Window
                     if (Program.SmokeTelemetryMode)
                     {
                         NavigateTo("Telemetry");
-                        RefreshLocalTelemetryButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        TrackOperation(async () =>
+                        {
+                            try
+                            {
+                                if (_state.Telemetry.RnsTransportEnabled && Program.ReticulumConfigDirectory is { } config)
+                                    await _client.ConnectAsync(config, _windowCancellation.Token);
+                                RefreshLocalTelemetryButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            }
+                            catch (Exception ex) { ShowError("Telemetry smoke failed: " + ex.Message); }
+                        });
                     }
                     if (Program.SmokeRepositoryRoot is { } publicRoot)
                     {

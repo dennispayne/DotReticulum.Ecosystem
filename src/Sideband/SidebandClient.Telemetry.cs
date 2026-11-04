@@ -13,6 +13,8 @@ namespace Sideband;
 public sealed partial class SidebandClient
 {
     private readonly SemaphoreSlim _telemetryStoreGate = new(1, 1);
+    private readonly SemaphoreSlim _telemetryRefreshGate = new(1, 1);
+    private SidebandRuntimeTelemetry? _runtimeTelemetry;
     private readonly ConcurrentDictionary<string, byte> _telemetryPending = new(StringComparer.Ordinal);
     private SidebandTelemetryStore? _telemetryStore;
     private Channel<TelemetryWork>? _telemetryOutbound;
@@ -23,9 +25,15 @@ public sealed partial class SidebandClient
     public async Task ConfigureTelemetryAsync(SidebandTelemetryConfiguration config, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-        await _store.ConfigureTelemetryAsync(config, cancellationToken).ConfigureAwait(false);
-        await RefreshLocalTelemetryAsync(cancellationToken).ConfigureAwait(false);
-        PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
+        await _telemetryRefreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+            await _store.ConfigureTelemetryAsync(config, cancellationToken).ConfigureAwait(false);
+            await RefreshLocalTelemetryCoreAsync(cancellationToken).ConfigureAwait(false);
+            PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
+        }
+        finally { _telemetryRefreshGate.Release(); }
     }
 
     public async Task SetConversationTelemetryAsync(string deliveryHash, bool sendTelemetry, bool allowRequests,
@@ -53,8 +61,23 @@ public sealed partial class SidebandClient
     public async Task<SidebandTelemetryReport?> RefreshLocalTelemetryAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _telemetryRefreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+            return await RefreshLocalTelemetryCoreAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally { _telemetryRefreshGate.Release(); }
+    }
+
+    private async Task<SidebandTelemetryReport?> RefreshLocalTelemetryCoreAsync(CancellationToken cancellationToken)
+    {
+        using var operation = RuntimeOperationCancellation(cancellationToken);
+        cancellationToken = operation.Token;
         var state = await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         var config = state.Telemetry;
+        if ((!config.Enabled || !config.RnsTransportEnabled) && _runtimeTelemetry is { } inactive)
+            await inactive.ResetAsync(cancellationToken).ConfigureAwait(false);
         if (!config.Enabled) { _localTelemetry = null; return null; }
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var readings = config.ManualSensors.ToDictionary(s => s.SensorId,
@@ -64,6 +87,12 @@ public sealed partial class SidebandClient
         if (config.FixedLocationEnabled)
             readings[(byte)S.Location] = SidebandTelemetryCodec.FromLocation(new(config.FixedLocation.Latitude,
                 config.FixedLocation.Longitude, config.FixedLocation.Altitude, 0, 0, 0, now));
+        if (config.RnsTransportEnabled)
+            readings[(byte)S.RnsTransport] = _runtimeTelemetry is { } runtime
+                ? SidebandTelemetryCodec.FromData(S.RnsTransport,
+                    await runtime.ReadAsync(config.RnsTransportIncludeTables, cancellationToken).ConfigureAwait(false))
+                : new((byte)S.RnsTransport, "rns_transport", SidebandTelemetryStatus.Unavailable,
+                    V.Nil, V.Nil, [], [], error: "Connect before collecting Reticulum runtime telemetry.");
         var report = SidebandTelemetryCodec.Create(now, readings.Values.ToArray());
         _localTelemetry = report;
         if ((_router?.DeliveryHashHex ?? state.OwnDeliveryHash) is { } own)
@@ -143,6 +172,7 @@ public sealed partial class SidebandClient
 
     private void StartTelemetry(LxmRouter router, ReticulumNode node, Identity identity, CancellationToken token)
     {
+        _runtimeTelemetry = SidebandRuntimeTelemetry.ForNode(node);
         var outbound = System.Threading.Channels.Channel.CreateBounded<TelemetryWork>(new BoundedChannelOptions(64)
         { SingleReader = true, SingleWriter = false, FullMode = BoundedChannelFullMode.Wait });
         _telemetryOutbound = outbound;
@@ -154,10 +184,18 @@ public sealed partial class SidebandClient
     {
         _telemetryOutbound?.Writer.TryComplete();
         _telemetryOutbound = null;
+        var runtime = Interlocked.Exchange(ref _runtimeTelemetry, null);
+        if (runtime is not null) await runtime.DisposeAsync().ConfigureAwait(false);
         if (_telemetryOutboundTask is { } work) await work.ConfigureAwait(false);
         if (_telemetryScheduleTask is { } schedule) await schedule.ConfigureAwait(false);
         _telemetryOutboundTask = null;
         _telemetryScheduleTask = null;
+        await _telemetryRefreshGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            _localTelemetry = null;
+        }
+        finally { _telemetryRefreshGate.Release(); }
         foreach (var key in _telemetryPending.Keys)
             if (_telemetryPending.TryRemove(key, out _) && key.StartsWith("command:", StringComparison.Ordinal)) _commandAdmission.Release();
     }
@@ -411,6 +449,7 @@ public sealed partial class SidebandClient
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         var lastClean = 0d;
+        var lastRuntimeUpdate = 0d;
         try
         {
             while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
@@ -420,6 +459,12 @@ public sealed partial class SidebandClient
                     var state = await _store.LoadAsync(cancellationToken: token).ConfigureAwait(false);
                     var config = state.Telemetry;
                     var now = TelemetryNow;
+                    if (config.Enabled && config.RnsTransportEnabled &&
+                        now > lastRuntimeUpdate + SidebandRuntimeTelemetry.StaleSeconds)
+                    {
+                        await RefreshLocalTelemetryAsync(token).ConfigureAwait(false);
+                        lastRuntimeUpdate = now;
+                    }
                     if (config.Enabled && now - lastClean >= SidebandTelemetryRetention.PrimaryCleanIntervalSeconds)
                     {
                         var storage = await TelemetryStoreAsync(token).ConfigureAwait(false);

@@ -7,10 +7,12 @@ public sealed record SidebandTelemetryPeerState(string DeliveryHash, double Last
     double LastReceivedTimebase = 0, double LastSendAttemptUtcSeconds = 0, double LastRequestAttemptUtcSeconds = 0,
     double LastRequestSuccessTimebase = 0, int ScheduledSendAttempts = 0, double ScheduledSendBlockedUntil = 0);
 
-/// <summary>Manual-only native collection. No option opens a device or external location service.</summary>
+/// <summary>Explicit manual data and opt-in connected runtime collection. No option opens an audio/location device.</summary>
 public sealed record SidebandTelemetryConfiguration
 {
     public bool Enabled { get; init; }
+    public bool RnsTransportEnabled { get; init; }
+    public bool RnsTransportIncludeTables { get; init; }
     public bool SendToTrusted { get; init; }
     public bool SendToCollector { get; init; }
     public bool RequestFromCollector { get; init; }
@@ -65,6 +67,8 @@ public sealed record SidebandTelemetryConfiguration
             if (sensor is null || sensor.SensorId is 1 or 16 || sensor.WireHex is null ||
                 sensor.WireHex.Length > SidebandTelemetryCodec.MaxValueBytes * 2)
                 throw new InvalidDataException("Manual sensors cannot supply time/received provenance or oversized values.");
+            if (RnsTransportEnabled && sensor.SensorId == (byte)SidebandTelemetrySensorId.RnsTransport)
+                throw new InvalidDataException("Automatic and manual Reticulum transport sensors cannot both be enabled.");
             var reading = SidebandTelemetryCodec.FromWireValue(sensor.SensorId, SidebandTelemetryValue.Decode(Convert.FromHexString(sensor.WireHex)));
             if (reading.Status == SidebandTelemetryStatus.Malformed) throw new InvalidDataException("Malformed manual sensor.");
         }

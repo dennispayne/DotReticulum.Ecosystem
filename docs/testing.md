@@ -8,6 +8,30 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+The runtime-telemetry integration gate
+`tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-runtime-unified -OutputDirectory
+artifacts\tests\fleet-runtime-unified` passes **2,433 managed cases,
+127 explicit skips and62 Pester tooling cases**, with strict catalog aggregation
+and merged production coverage. Concurrent Nomad RRC tests are present in this
+shared-worktree run, not independently accepted by it. Separate Windows/Linux
+runtime acceptance passes26/26, no skips per host, including actual primary
+reports both ways direct/Python-hop, rendering and primary sparse repacking.
+C62/T168–172 records19 actual passing cases per host; the published native
+collection/UI/restart case is separate from managed Python network exchange.
+The final published `GUI` selection passes7 with4 explicit missing-profile
+skips per host, retaining the offline manual-preview assertions. Exact source,
+fixture/native hashes and boundaries are in
+[Sideband's reference](sideband.md#automatic-reticulum-runtime-telemetry).
+
+Hosted evidence is unchanged by these local milestones: latest observed
+Test41643993895 succeeds at `0e49bee87c932fdf404949812a8420f83cb49e4a`,
+and Build41502113530 succeeds at `89e948a90e9606bed331b71da6b787cace0bbd81`.
+Neither covers unpushed runtime-telemetry/RRC work. The separate historical
+badge-publishing41505064405 failure and subsequent skipped badge run are not
+relabelled as compiler/test failures or new local acceptance. No workflow was
+dispatched and no commit was pushed.
+
 Parent independently replays `artifacts\tests\lxmf-retry-fidelity\ParentAccept.ps1`
 on Windows/Linux: byte-identical regenerated reference vectors, all 183
 live-enabled LXMF cases, all six published `lxmd` cases and the published

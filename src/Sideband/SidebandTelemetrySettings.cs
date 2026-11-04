@@ -11,7 +11,8 @@ internal static class SidebandTelemetrySettings
         "telemetry_send_appearance" or "telemetry_use_propagation_only" or "telemetry_try_propagation_on_fail" or
         "telemetry_requests_only_send_latest" or "telemetry_collector" or "telemetry_send_interval" or "telemetry_request_interval" or
         "telemetry_s_information" or "telemetry_s_information_text" or "telemetry_s_fixed_location" or "telemetry_s_fixed_latlon" or
-        "telemetry_s_fixed_altitude" or "telemetry_icon" or "telemetry_fg" or "telemetry_bg";
+        "telemetry_s_fixed_altitude" or "telemetry_s_rns_transport" or "dotreticulum_runtime_telemetry_tables" or
+        "telemetry_icon" or "telemetry_fg" or "telemetry_bg";
 
     internal static SidebandTelemetryConfiguration Import(IReadOnlyDictionary<string, JsonElement> settings, SidebandTelemetryConfiguration prior)
     {
@@ -37,6 +38,8 @@ internal static class SidebandTelemetrySettings
         return (prior with
         {
             Enabled = Flag("telemetry_enabled", prior.Enabled), SendToTrusted = Flag("telemetry_send_to_trusted", prior.SendToTrusted),
+            RnsTransportEnabled = Flag("telemetry_s_rns_transport", prior.RnsTransportEnabled),
+            RnsTransportIncludeTables = Flag("dotreticulum_runtime_telemetry_tables", prior.RnsTransportIncludeTables),
             SendToCollector = Flag("telemetry_send_to_collector", prior.SendToCollector),
             RequestFromCollector = Flag("telemetry_request_from_collector", prior.RequestFromCollector),
             CollectorEnabled = Flag("telemetry_collector_enabled", prior.CollectorEnabled),
@@ -67,6 +70,8 @@ internal static class SidebandTelemetrySettings
         void Interval(string key, int value) => settings[key] = JsonSerializer.SerializeToElement(value, SidebandStateJsonContext.Default.Int32);
         void Numbers(string key, double[] value) => settings[key] = JsonSerializer.SerializeToElement(value, SidebandStateJsonContext.Default.DoubleArray);
         Flag("telemetry_enabled", config.Enabled); Flag("telemetry_send_to_trusted", config.SendToTrusted);
+        Flag("telemetry_s_rns_transport", config.RnsTransportEnabled);
+        Flag("dotreticulum_runtime_telemetry_tables", config.RnsTransportIncludeTables);
         Flag("telemetry_send_to_collector", config.SendToCollector); Flag("telemetry_request_from_collector", config.RequestFromCollector);
         Flag("telemetry_collector_enabled", config.CollectorEnabled); Flag("telemetry_send_all_to_collector", config.SendAllToCollector);
         Flag("telemetry_allow_requests_from_anyone", config.AllowRequestsFromAnyone);

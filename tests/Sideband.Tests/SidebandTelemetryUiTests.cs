@@ -13,6 +13,43 @@ public sealed class SidebandTelemetryUiTests
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     [AvaloniaFact]
+    public async Task RuntimeOptInAndTableDisclosurePersistWhileOfflineCollectionIsExplicitlyUnavailable()
+    {
+        var path = TemporaryDirectory();
+        MainWindow? window = null;
+        try
+        {
+            window = new MainWindow(path);
+            window.Show();
+            await ReadyAsync(window);
+            Click(window, "TelemetryNavButton");
+            Assert.False(window.FindControl<CheckBox>("TelemetryRnsTransportBox")!.IsChecked);
+            Assert.False(window.FindControl<CheckBox>("TelemetryRnsTransportTablesBox")!.IsChecked);
+            window.FindControl<CheckBox>("TelemetryEnabledBox")!.IsChecked = true;
+            window.FindControl<CheckBox>("TelemetryRnsTransportBox")!.IsChecked = true;
+            window.FindControl<CheckBox>("TelemetryRnsTransportTablesBox")!.IsChecked = true;
+            Click(window, "SaveTelemetryButton");
+            await WaitForAsync(() => Status(window).StartsWith("Telemetry settings saved.", StringComparison.Ordinal));
+            Click(window, "RefreshLocalTelemetryButton");
+            await WaitForAsync(() => window.FindControl<TextBox>("TelemetryDetailsText")!.Text!.Contains("rns_transport", StringComparison.Ordinal));
+            Assert.Contains("Unavailable", window.FindControl<TextBox>("TelemetryDetailsText")!.Text);
+            Assert.Contains("Connect before collecting", window.FindControl<TextBox>("TelemetryDetailsText")!.Text);
+            await window.CloseAndWaitAsync();
+            window = new MainWindow(path);
+            window.Show();
+            await ReadyAsync(window);
+            Click(window, "TelemetryNavButton");
+            Assert.True(window.FindControl<CheckBox>("TelemetryRnsTransportBox")!.IsChecked);
+            Assert.True(window.FindControl<CheckBox>("TelemetryRnsTransportTablesBox")!.IsChecked);
+        }
+        finally
+        {
+            if (window?.IsVisible == true) await window.CloseAndWaitAsync();
+            Directory.Delete(path, true);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task ManualCollectionPrivacyPermissionsTrackingAndAdmissionPersistWithoutConnecting()
     {
         var path = TemporaryDirectory();

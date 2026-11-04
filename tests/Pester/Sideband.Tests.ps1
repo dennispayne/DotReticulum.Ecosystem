@@ -328,6 +328,88 @@ Describe 'sideband native object and overlay rendering' -Tag 'GUI' {
     }
 }
 
+Describe 'sideband native runtime telemetry' -Tag @('GUI', 'RuntimeTelemetry') {
+    It 'collects explicitly selected actual runtime statistics and renders them across native process restart without physical sensors' {
+        $binary = $env:DOTRETICULUM_SIDEBAND_BINARY
+        if ([string]::IsNullOrWhiteSpace($binary) -or -not (Test-Path -LiteralPath $binary -PathType Leaf)) {
+            Set-ItResult -Skipped -Because 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
+            return
+        }
+        $root = Join-Path (Join-Path (Get-Location) 'artifacts\tests') "sideband-runtime-native-$([Guid]::NewGuid().ToString('N'))"
+        $data = Join-Path $root 'data'
+        $rns = Join-Path $root 'rns'
+        try {
+            $null = New-Item -ItemType Directory -Force -Path $rns
+            "[reticulum]`nenable_transport=yes`nshare_instance=no`n[logging]`nloglevel=0`n" |
+                Set-Content -LiteralPath (Join-Path $rns 'config')
+            $settings = Join-Path $root 'settings.json'
+            '{"telemetry_enabled":true,"telemetry_s_rns_transport":true}' | Set-Content -LiteralPath $settings
+            & $binary --help 2>&1 | Out-Null
+            $LASTEXITCODE | Should -Be 0
+            & $binary --import-settings $settings --data-dir $data 2>&1 | Out-Null
+            $LASTEXITCODE | Should -Be 0
+            $own = $null
+            foreach ($iteration in 0..2) {
+                $process = [Diagnostics.Process]::new()
+                $started = $false
+                try {
+                    $process.StartInfo.FileName = $binary
+                    $process.StartInfo.UseShellExecute = $false
+                    $process.StartInfo.RedirectStandardOutput = $true
+                    $process.StartInfo.RedirectStandardError = $true
+                    $arguments = @('--smoke-ui', '--smoke-telemetry', '--data-dir', $data)
+                    if ($iteration -gt 0) { $arguments += @('--rnsconfig', $rns) }
+                    foreach ($argument in $arguments) {
+                        $process.StartInfo.ArgumentList.Add($argument)
+                    }
+                    $process.Start() | Should -BeTrue
+                    $started = $true
+                    $stdout = $process.StandardOutput.ReadToEndAsync()
+                    $stderr = $process.StandardError.ReadToEndAsync()
+                    if (-not $process.WaitForExit(30000)) {
+                        $process.Kill($true)
+                        $process.WaitForExit()
+                        throw "Runtime window did not finish: $($stdout.GetAwaiter().GetResult()) $($stderr.GetAwaiter().GetResult())"
+                    }
+                    $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+                    $process.ExitCode | Should -Be 0 -Because $output
+                    $output | Should -Match 'SMOKE_UI_PREPARED_TELEMETRY_SENSORS=.*19'
+                    $output | Should -Match 'SMOKE_UI_RUNTIME_TELEMETRY_TABLES=0'
+                    $state = Get-Content -LiteralPath (Join-Path $data 'state.json') -Raw | ConvertFrom-Json
+                    $state.telemetry.rnsTransportEnabled | Should -BeTrue
+                    $state.telemetry.rnsTransportIncludeTables | Should -BeFalse
+                    if ($iteration -eq 0) {
+                        $output | Should -Match 'SMOKE_UI_RUNTIME_TELEMETRY_STATUS=Unavailable'
+                        $output | Should -Match 'SMOKE_UI_RENDERED_TELEMETRY=runtime-unavailable'
+                        $state.ownDeliveryHash | Should -BeNullOrEmpty
+                        Test-Path -LiteralPath (Join-Path $data 'identity') | Should -BeFalse
+                        Test-Path -LiteralPath (Join-Path $rns 'storage') | Should -BeFalse
+                        continue
+                    }
+                    $output | Should -Match 'SMOKE_UI_RUNTIME_TELEMETRY_STATUS=(Available|Partial)'
+                    $output | Should -Match 'SMOKE_UI_RENDERED_TELEMETRY=runtime-connected'
+                    $state.ownDeliveryHash | Should -Match '^[a-f0-9]{32}$'
+                    if ($iteration -eq 1) { $own = $state.ownDeliveryHash }
+                    else { $state.ownDeliveryHash | Should -BeExactly $own }
+                    @($state.messages).Count | Should -Be 0
+                    Test-Path -LiteralPath (Join-Path $data 'telemetry\telemetry.sbdb') -PathType Leaf | Should -BeTrue
+                }
+                finally {
+                    if ($started -and -not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+                    $process.Dispose()
+                }
+            }
+            $export = Join-Path $root 'export.json'
+            & $binary --export-settings $export --data-dir $data 2>&1 | Out-Null
+            $LASTEXITCODE | Should -Be 0
+            (Get-Content -LiteralPath $export -Raw | ConvertFrom-Json).telemetry_s_rns_transport | Should -BeTrue
+        }
+        finally {
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+        }
+    }
+}
+
 Describe 'sideband native manual telemetry preview' -Tag 'GUI' {
     It 'renders an explicitly configured local report without opening the network or audio devices' {
         $telemetryBinary = $env:DOTRETICULUM_SIDEBAND_BINARY

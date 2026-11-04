@@ -69,12 +69,15 @@ public sealed class SidebandTelemetryApplicationTests
                  "telemetry_send_to_trusted":true,"telemetry_allow_requests_from_anyone":true,
                  "telemetry_send_interval":15,"telemetry_request_interval":30,"telemetry_receive_trusted_only":true,
                  "telemetry_collector":"22222222222222222222222222222222","telemetry_icon":"map-marker",
-                 "telemetry_fg":[0,0.2,0.4,1],"telemetry_bg":[1,1,1,1],"telemetry_s_battery":true}
+                 "telemetry_fg":[0,0.2,0.4,1],"telemetry_bg":[1,1,1,1],"telemetry_s_battery":true,
+                 "telemetry_s_rns_transport":true,"dotreticulum_runtime_telemetry_tables":true}
                 """, token);
             var store = new SidebandStateStore(Path.Combine(root, "profile"));
             Assert.Equal(["telemetry_s_battery"], await store.ImportSettingsAsync(path, token));
             var config = (await store.LoadAsync(cancellationToken: token)).Telemetry;
             Assert.True(config.Enabled);
+            Assert.True(config.RnsTransportEnabled);
+            Assert.True(config.RnsTransportIncludeTables);
             Assert.True(config.FixedLocationEnabled);
             Assert.True(config.AllowRequestsFromAnyone);
             Assert.Equal(51.5, config.FixedLocation.Latitude);
@@ -85,6 +88,8 @@ public sealed class SidebandTelemetryApplicationTests
             using var json = JsonDocument.Parse(await File.ReadAllBytesAsync(export, token));
             Assert.Equal(15, json.RootElement.GetProperty("telemetry_send_interval").GetInt32());
             Assert.True(json.RootElement.GetProperty("telemetry_s_fixed_location").GetBoolean());
+            Assert.True(json.RootElement.GetProperty("telemetry_s_rns_transport").GetBoolean());
+            Assert.True(json.RootElement.GetProperty("dotreticulum_runtime_telemetry_tables").GetBoolean());
             Assert.Equal("Manual", json.RootElement.GetProperty("telemetry_s_information_text").GetString());
         }
         finally { Directory.Delete(root, true); }

@@ -69,6 +69,7 @@ def main():
     core.start()
     delivery_packet_callback = core.lxmf_destination.callbacks.packet
     delivery_proof_strategy = core.lxmf_destination.proof_strategy
+    observed_runtime = [None]
     if core.message_router is None:
         raise RuntimeError("The actual Sideband application did not start its LXMF router")
     RNS.Transport.register_announce_handler(Handler())
@@ -140,7 +141,7 @@ def main():
             values = json.loads(base64.b64decode(parts[1], validate=True))
             was_enabled = core.config["telemetry_enabled"]
             hardware = ("location", "battery", "pressure", "temperature", "humidity", "magnetic_field",
-                        "ambient_light", "gravity", "angular_velocity", "acceleration", "proximity", "rns_transport")
+                        "ambient_light", "gravity", "angular_velocity", "acceleration", "proximity")
             for key, value in values.items():
                 if not key.startswith("telemetry_") or key not in core.config:
                     raise ValueError(f"Unknown telemetry configuration key {key}")
@@ -159,6 +160,49 @@ def main():
             core.save_configuration(no_thread=True)
             emit({"event": "telemetry-configured", "enabled": core.config["telemetry_enabled"],
                   "packed": base64.b64encode(core.latest_packed_telemetry).decode() if core.latest_packed_telemetry else None})
+        elif parts[0] == "telemetry-runtime-snapshot":
+            sensor = core.telemeter.sensors.get("rns_transport") if core.telemeter else None
+            if sensor is None or not sensor.active:
+                raise RuntimeError("The actual runtime sensor is not enabled")
+            emit({"event": "telemetry-runtime-snapshot",
+                  "transport_identity": RNS.Transport.identity.hash.hex(),
+                  "packed": base64.b64encode(sensor.packb()).decode()})
+        elif parts[0] == "telemetry-runtime-observe" and len(parts) == 2:
+            observed_source = bytes.fromhex(parts[1])
+            if len(observed_source) != 16:
+                raise ValueError("A delivery source must be 16 bytes")
+
+            def observe_runtime(message):
+                try:
+                    if message.source_hash == observed_source and LXMF.FIELD_TELEMETRY in message.fields:
+                        raw = message.fields[LXMF.FIELD_TELEMETRY]
+                        if not isinstance(raw, bytes) or len(raw) > 262144:
+                            raise ValueError("Observed runtime report exceeds the bridge bound")
+                        observed_runtime[0] = raw
+                finally:
+                    core.lxmf_delivery(message)
+
+            # Public observational callback; the actual application handler always runs unchanged.
+            core.message_router.register_delivery_callback(observe_runtime)
+            emit({"event": "telemetry-runtime-observing"})
+        elif parts[0] == "telemetry-runtime-received":
+            emit({"event": "telemetry-runtime-received",
+                  "packed": base64.b64encode(observed_runtime[0]).decode() if observed_runtime[0] is not None else None})
+        elif parts[0] == "telemetry-runtime-render" and len(parts) == 2:
+            from sbapp.sideband.sense import Telemeter
+            telemeter = Telemeter.from_packed(base64.b64decode(parts[1], validate=True))
+            if telemeter is None or "rns_transport" not in telemeter.sensors:
+                raise RuntimeError("The actual primary did not decode the runtime sensor")
+            rendered = telemeter.sensors["rns_transport"].render()
+            if rendered is None:
+                raise RuntimeError("The actual primary did not render the runtime sensor")
+            values = rendered["values"]
+            emit({"event": "telemetry-runtime-render",
+                  "transport_identity": values["transport_identity"].hex(),
+                  "interface_names": list(values["interfaces"]),
+                  "interface_count": values["interface_count"], "path_count": values["path_count"],
+                  "link_count": values["link_count"],
+                  "repacked": base64.b64encode(telemeter.sensors["rns_transport"].packb()).decode()})
         elif parts[0] == "telemetry-permission" and len(parts) == 4:
             destination = bytes.fromhex(parts[1])
             if not core.has_conversation(destination):

@@ -18,6 +18,8 @@ public sealed partial class MainWindow
         if (_state is null) return;
         var config = _state.Telemetry;
         TelemetryEnabledBox.IsChecked = config.Enabled;
+        TelemetryRnsTransportBox.IsChecked = config.RnsTransportEnabled;
+        TelemetryRnsTransportTablesBox.IsChecked = config.RnsTransportIncludeTables;
         TelemetryInformationEnabledBox.IsChecked = config.InformationEnabled;
         TelemetryInformationBox.Text = config.Information;
         TelemetryFixedLocationBox.IsChecked = config.FixedLocationEnabled;
@@ -59,6 +61,8 @@ public sealed partial class MainWindow
         var config = _state.Telemetry with
         {
             Enabled = TelemetryEnabledBox.IsChecked == true,
+            RnsTransportEnabled = TelemetryRnsTransportBox.IsChecked == true,
+            RnsTransportIncludeTables = TelemetryRnsTransportTablesBox.IsChecked == true,
             InformationEnabled = TelemetryInformationEnabledBox.IsChecked == true,
             Information = TelemetryInformationBox.Text ?? "",
             FixedLocationEnabled = TelemetryFixedLocationBox.IsChecked == true,
@@ -87,7 +91,7 @@ public sealed partial class MainWindow
         await _client.ConfigureTelemetryAsync(config, _windowCancellation.Token);
         _state = await _client.LoadAsync(_windowCancellation.Token);
         _telemetryPreview = null;
-        TelemetryStatusText.Text = "Telemetry settings saved. Automatic policies run only while connected; collection remains manual.";
+        TelemetryStatusText.Text = "Telemetry settings saved. Automatic runtime collection and schedules run only while connected; no physical sensors are opened.";
         RequestTelemetryRefresh();
     });
 
@@ -95,15 +99,21 @@ public sealed partial class MainWindow
     {
         var report = await _client.RefreshLocalTelemetryAsync(_windowCancellation.Token);
         _telemetryPreview = report is null ? "Local telemetry is disabled." :
-            "LOCAL MANUAL PREVIEW (not proof of storage or network delivery)\n" + FormatTelemetry(report);
+            (report.Get(SidebandTelemetrySensorId.RnsTransport) is null ? "LOCAL MANUAL PREVIEW" : "LOCAL RUNTIME/MANUAL PREVIEW") +
+            " (not proof of storage or network delivery)\n" + FormatTelemetry(report);
         TelemetryDetailsText.Text = _telemetryPreview;
         TelemetryStatusText.Text = report is null ? "Local telemetry disabled." :
-            "Local report prepared without hardware or network access. Connect before sending.";
+            "Local report prepared without physical sensors. Optional runtime data uses the connected node/shared owner; disconnected runtime is explicitly unavailable.";
         RequestTelemetryRefresh();
         if (_smokeUi && Program.SmokeTelemetryMode && report is not null)
         {
             Console.WriteLine("SMOKE_UI_PREPARED_TELEMETRY_SENSORS=" +
                 string.Join(",", report.Sensors.Select(sensor => sensor.Id.ToString("x2", CultureInfo.InvariantCulture))));
+            if (report.Get(SidebandTelemetrySensorId.RnsTransport) is { } runtime)
+            {
+                Console.WriteLine("SMOKE_UI_RUNTIME_TELEMETRY_STATUS=" + runtime.Status);
+                Console.WriteLine("SMOKE_UI_RUNTIME_TELEMETRY_TABLES=" + (runtime.Data.Get("ifstats") is { IsNil: false } ? "1" : "0"));
+            }
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 TelemetryPage.ScrollToEnd();

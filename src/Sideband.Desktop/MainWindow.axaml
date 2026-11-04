@@ -182,9 +182,11 @@
         <ScrollViewer x:Name="TelemetryPage" IsVisible="False" Margin="24">
           <StackPanel Spacing="10">
             <TextBlock FontSize="26" FontWeight="SemiBold" Text="Telemetry" />
-            <TextBlock Text="Collection is manual and off by default. Fixed locations and sensor values are operator assertions, not measured positions. Sending or authorizing requests may disclose this data. No setting opens GPS, microphone or other hardware."
+            <TextBlock Text="Telemetry is off by default. Manual positions/values are operator assertions. Optional Reticulum runtime collection reads your connected node or shared owner's statistics and routing tables, not physical sensors. Sending or authorizing requests may disclose this data. No setting opens GPS, microphone or other hardware."
                        TextWrapping="Wrap" />
-            <CheckBox x:Name="TelemetryEnabledBox" Content="Enable manual telemetry" />
+            <CheckBox x:Name="TelemetryEnabledBox" Content="Enable telemetry" />
+            <CheckBox x:Name="TelemetryRnsTransportBox" Content="Collect connected Reticulum runtime telemetry (60-second cache)" />
+            <CheckBox x:Name="TelemetryRnsTransportTablesBox" Content="Include interface names/details and routing tables in outgoing reports (additional disclosure)" />
             <CheckBox x:Name="TelemetryInformationEnabledBox" Content="Include information text" />
             <TextBox x:Name="TelemetryInformationBox" MaxLength="16384" PlaceholderText="Information to disclose" />
             <CheckBox x:Name="TelemetryFixedLocationBox" Content="Include an explicitly supplied fixed location" />
@@ -511,7 +513,7 @@
                        TextWrapping="Wrap" />
             <TextBlock Text="Before connecting, check the selected config path on the Connectivity screen. The default may point to an existing user Reticulum configuration; Sideband never repairs or resets it automatically."
                        TextWrapping="Wrap" />
-            <TextBlock Text="This desktop build supports bounded messaging/media, paper text, URI import and URI/QR exports, optional LXST calls, manual telemetry/report controls, raster/offline MBTiles maps and an explicitly started local HTTPS mirror. Audio needs separately installed native codecs and operating-system devices. Received media never plays or opens automatically. Python plugins, advanced map overlays and remaining inventory contracts are not available."
+            <TextBlock Text="This desktop build supports bounded messaging/media, paper text, URI import and URI/QR exports, optional LXST calls, manual and opted-in Reticulum runtime telemetry, reported/cached-discovery map overlays, raster/offline MBTiles maps and an explicitly started local HTTPS mirror. Audio needs separately installed native codecs and operating-system devices. Received media never plays or opens automatically. Python plugins, physical sensor collection and remaining inventory contracts are not available."
                        TextWrapping="Wrap" />
             <Button Content="Open Connectivity" HorizontalAlignment="Left" Click="OpenConnectivityClicked" />
           </StackPanel>

@@ -305,7 +305,7 @@ internal static class Program
         if (smokeMap && (!smokeUi || initialize || check || checkMedia || importSettings is not null || exportSettings is not null || importProfile is not null || importMap is not null))
             throw new ArgumentException("--smoke-map requires --smoke-ui and an imported offline map.");
         if (smokeTelemetry && (!smokeUi || smokeMap || initialize || check || checkMedia || importSettings is not null || exportSettings is not null || importProfile is not null || importMap is not null))
-            throw new ArgumentException("--smoke-telemetry requires --smoke-ui with enabled manual telemetry and cannot be combined with map or maintenance modes.");
+            throw new ArgumentException("--smoke-telemetry requires --smoke-ui with enabled telemetry and cannot be combined with map or maintenance modes.");
         if (smokeRepositoryRoot is not null && (!smokeUi || string.IsNullOrWhiteSpace(dataDirectory) ||
             smokeMap || smokeTelemetry || initialize || check || checkMedia || importSettings is not null ||
             exportSettings is not null || importProfile is not null || importMap is not null || rnsConfig is not null))
@@ -372,7 +372,7 @@ internal static class Program
         --rnsconfig  Select a Reticulum configuration directory or file.
         --smoke-ui   Open the normal desktop window and report actual render events for GUI acceptance.
         --smoke-map  With --smoke-ui, require rendering an already imported offline map.
-        --smoke-telemetry  With --smoke-ui, prepare a configured manual report and render its desktop preview.
+        --smoke-telemetry  Render configured telemetry; opted-in runtime collection connects only with explicit --rnsconfig.
         --smoke-repository  Explicit loopback HTTPS/window acceptance with synthetic public files; requires --smoke-ui and --data-dir.
         --smoke-paper  Render a saved paper URI and QR without connecting; requires --smoke-ui and an existing --data-dir.
         --smoke-objects  Render saved object classifications offline; requires --smoke-ui and an explicit --data-dir.

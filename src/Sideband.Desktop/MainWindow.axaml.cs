@@ -132,6 +132,18 @@ public sealed partial class MainWindow : Window
                 }
                 Console.WriteLine("SMOKE_UI_RENDERED_DISCOVERY=" + SidebandMapDiscovery.Project(_mapDiscovery).Count);
             }
+            if (Program.SmokeAnnouncesMode)
+            {
+                if (!AnnouncesPage.IsVisible || _announcesBusy || _announcesRefreshAgain) return;
+                if (AnnouncesList.ItemCount == 0 || string.IsNullOrEmpty(AnnounceAddressBox.Text))
+                {
+                    Console.Error.WriteLine("sideband: Announce smoke requires saved announce history.");
+                    Volatile.Write(ref _smokeActionInvoked, 0);
+                    _ = CloseAfterCaptureAsync();
+                    return;
+                }
+                Console.WriteLine("SMOKE_UI_RENDERED_ANNOUNCES=" + AnnouncesList.ItemCount);
+            }
             if (Program.SmokeTelemetryMode)
             {
                 if (!TelemetryPage.IsVisible || TelemetryDetailsText.Text?.StartsWith("LOCAL MANUAL PREVIEW", StringComparison.Ordinal) != true) return;
@@ -160,7 +172,7 @@ public sealed partial class MainWindow : Window
                 if (!RemotePage.IsVisible || !_remoteSmokeVerified) return;
                 Console.WriteLine("SMOKE_UI_RENDERED_REMOTE=commands-replies-cancellation");
             }
-            var hasImage = !Program.SmokePaperMode && !Program.SmokeObjectsMode && !Program.SmokeDiscoveryMode &&
+            var hasImage = !Program.SmokePaperMode && !Program.SmokeObjectsMode && !Program.SmokeDiscoveryMode && !Program.SmokeAnnouncesMode &&
                 _state.Messages.Any(message => message.Image is not null);
             if (hasImage && MediaPreview.Source is null) return;
             SmokeUiSucceeded = true;
@@ -184,6 +196,7 @@ public sealed partial class MainWindow : Window
         MapPage.IsVisible = page == "Map";
         TelemetryPage.IsVisible = page == "Telemetry";
         RemotePage.IsVisible = page == "Remote";
+        AnnouncesPage.IsVisible = page == "Announces";
         if (page != "Map") { _mapCancellation?.Cancel(); _mapMarkerRefreshTimer.Stop(); }
         if (page != "Voice") ReleasePushToTalk();
         PageTitle.Text = page switch
@@ -194,6 +207,7 @@ public sealed partial class MainWindow : Window
         if (page == "Connectivity") UpdateConnectivityView();
         if (page == "Contacts") RefreshExpandedContacts();
         if (page == "Objects") RefreshObjects();
+        if (page == "Announces") RefreshAnnounces();
         if (page == "Conversations") MarkVisibleConversationRead();
         if (page == "Voice") { LoadVoiceSettings(); UpdateVoiceView(); }
         if (page == "Map") { _mapMarkerRefreshTimer.Start(); RequestMapRefresh(); RequestTelemetryRefresh(); }
@@ -281,6 +295,7 @@ public sealed partial class MainWindow : Window
                     if (Program.SmokeRemotePeer is { } remotePeer)
                         TrackOperation(() => RunRemoteSmokeAsync(remotePeer));
                     if (Program.SmokeObjectsMode) NavigateTo("Objects");
+                    if (Program.SmokeAnnouncesMode) NavigateTo("Announces");
                     if (Program.SmokeDiscoveryMode) TrackOperation(RunDiscoverySmokeAsync);
                     Volatile.Write(ref _smokeActionInvoked, 1);
                     InvalidateVisual();
@@ -727,6 +742,7 @@ public sealed partial class MainWindow : Window
             UpdateVoiceView();
             UpdateTelemetryTrackingView();
             UpdateRemoteHistory();
+            if (AnnouncesPage.IsVisible) RefreshAnnounces(reportStatus: false);
             if (TelemetryPage.IsVisible || MapPage.IsVisible) RequestTelemetryRefresh();
         });
     }

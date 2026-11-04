@@ -36,7 +36,8 @@ public sealed record SidebandState(
     IReadOnlyList<SidebandVoicePeer>? VoicePeers = null,
     IReadOnlyList<SidebandVoiceCallEvent>? Calls = null,
     IReadOnlyList<SidebandTelemetryPeerState>? TelemetryPeers = null,
-    IReadOnlyList<SidebandFixedLocation>? MapFixedLocations = null)
+    IReadOnlyList<SidebandFixedLocation>? MapFixedLocations = null,
+    IReadOnlyList<SidebandAnnounce>? Announces = null)
 {
     private readonly SidebandTelemetryConfiguration? _telemetry;
     public SidebandTelemetryConfiguration Telemetry { get => _telemetry ?? new(); init => _telemetry = value; }

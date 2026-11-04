@@ -1,0 +1,1937 @@
+{
+  "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "core_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+  "lxmf_router_sha256": "56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9",
+  "method": "Unmodified primary SQLite/log/list/delete methods; actual LXMF delivery and propagation providers. Offline SQLite, controlled clock, explicit cached-cost/state observers and synthetic router owner; no network, primary GUI or native lifecycle claim. Local database IDs are excluded, not wire identifiers.",
+  "operations": [
+    {
+      "address": "00000000000000000000000000000001",
+      "received": 1700000001,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000002",
+      "received": 1700000002,
+      "app_data": "",
+      "type": "lxmf.delivery",
+      "cached_cost": null
+    },
+    {
+      "address": "00000000000000000000000000000003",
+      "received": 1700000003,
+      "app_data": "4c65676163792070656572",
+      "type": "lxmf.delivery",
+      "cached_cost": 7
+    },
+    {
+      "address": "00000000000000000000000000000004",
+      "received": 1700000004,
+      "app_data": "97c2ce6553f100c3cd0100cd28009310031283ccfea46c786d6400a5312e322e3101c41a53796e7468657469632070726f7061676174696f6e206e6f6465",
+      "type": "lxmf.propagation",
+      "cached_cost": null
+    },
+    {
+      "address": "00000000000000000000000000000001",
+      "received": 1700000005,
+      "app_data": "93c40c52656e616d65642070656572119100",
+      "type": "lxmf.delivery",
+      "cached_cost": 17
+    },
+    {
+      "address": "00000000000000000000000000000001",
+      "received": 1700000006,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000002",
+      "received": 1700000007,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000003",
+      "received": 1700000008,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000004",
+      "received": 1700000009,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000005",
+      "received": 1700000010,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000006",
+      "received": 1700000011,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000007",
+      "received": 1700000012,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000008",
+      "received": 1700000013,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000009",
+      "received": 1700000014,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000000a",
+      "received": 1700000015,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000000b",
+      "received": 1700000016,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000000c",
+      "received": 1700000017,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000000d",
+      "received": 1700000018,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000000e",
+      "received": 1700000019,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000000f",
+      "received": 1700000020,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000010",
+      "received": 1700000021,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000011",
+      "received": 1700000022,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000012",
+      "received": 1700000023,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000013",
+      "received": 1700000024,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000014",
+      "received": 1700000025,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000015",
+      "received": 1700000026,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000016",
+      "received": 1700000027,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000017",
+      "received": 1700000028,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000018",
+      "received": 1700000029,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000019",
+      "received": 1700000030,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000001a",
+      "received": 1700000031,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000001b",
+      "received": 1700000032,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000001c",
+      "received": 1700000033,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000001d",
+      "received": 1700000034,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000001e",
+      "received": 1700000035,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000001f",
+      "received": 1700000036,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000020",
+      "received": 1700000037,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000021",
+      "received": 1700000038,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000022",
+      "received": 1700000039,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000023",
+      "received": 1700000040,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000024",
+      "received": 1700000041,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000025",
+      "received": 1700000042,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000026",
+      "received": 1700000043,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000027",
+      "received": 1700000044,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000028",
+      "received": 1700000045,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000029",
+      "received": 1700000046,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000002a",
+      "received": 1700000047,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000002b",
+      "received": 1700000048,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000002c",
+      "received": 1700000049,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000002d",
+      "received": 1700000050,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000002e",
+      "received": 1700000051,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "0000000000000000000000000000002f",
+      "received": 1700000052,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000030",
+      "received": 1700000053,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000031",
+      "received": 1700000054,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000032",
+      "received": 1700000055,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000033",
+      "received": 1700000056,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000034",
+      "received": 1700000057,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000035",
+      "received": 1700000058,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    },
+    {
+      "address": "00000000000000000000000000000035",
+      "received": 1700000059,
+      "app_data": "93c40e53796e74686574696320706565720d9100",
+      "type": "lxmf.delivery",
+      "cached_cost": 13
+    }
+  ],
+  "snapshots": [
+    {
+      "name": "empty",
+      "records": []
+    },
+    {
+      "name": "delivery-empty-legacy-and-propagation",
+      "records": [
+        {
+          "dest": "00000000000000000000000000000001",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000001.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": {
+              "rssi": -77.0,
+              "snr": 12.5,
+              "q": 94.0
+            }
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000002",
+          "name": null,
+          "cost": null,
+          "time": 1700000002.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000003",
+          "name": "Legacy peer",
+          "cost": 7,
+          "time": 1700000003.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000004",
+          "name": "Synthetic propagation node",
+          "cost": 16,
+          "time": 1700000004.0,
+          "type": "lxmf.propagation",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": "lxmd 1.2.1"
+        }
+      ]
+    },
+    {
+      "name": "same-source-replaces-and-moves",
+      "records": [
+        {
+          "dest": "00000000000000000000000000000002",
+          "name": null,
+          "cost": null,
+          "time": 1700000002.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000003",
+          "name": "Legacy peer",
+          "cost": 7,
+          "time": 1700000003.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000004",
+          "name": "Synthetic propagation node",
+          "cost": 16,
+          "time": 1700000004.0,
+          "type": "lxmf.propagation",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": "lxmd 1.2.1"
+        },
+        {
+          "dest": "00000000000000000000000000000001",
+          "name": "Renamed peer",
+          "cost": 17,
+          "time": 1700000005.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        }
+      ]
+    },
+    {
+      "name": "current-router-cost-is-read-not-stored-cost",
+      "records": [
+        {
+          "dest": "00000000000000000000000000000002",
+          "name": null,
+          "cost": null,
+          "time": 1700000002.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000003",
+          "name": "Legacy peer",
+          "cost": 7,
+          "time": 1700000003.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000004",
+          "name": "Synthetic propagation node",
+          "cost": 16,
+          "time": 1700000004.0,
+          "type": "lxmf.propagation",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": "lxmd 1.2.1"
+        },
+        {
+          "dest": "00000000000000000000000000000001",
+          "name": "Renamed peer",
+          "cost": 23,
+          "time": 1700000005.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        }
+      ]
+    },
+    {
+      "name": "delete-is-idempotent",
+      "records": [
+        {
+          "dest": "00000000000000000000000000000002",
+          "name": null,
+          "cost": null,
+          "time": 1700000002.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000003",
+          "name": "Legacy peer",
+          "cost": 7,
+          "time": 1700000003.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000004",
+          "name": "Synthetic propagation node",
+          "cost": 16,
+          "time": 1700000004.0,
+          "type": "lxmf.propagation",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": "lxmd 1.2.1"
+        }
+      ]
+    },
+    {
+      "name": "primary-prunes-before-insert-retains-49",
+      "records": [
+        {
+          "dest": "00000000000000000000000000000005",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000010.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000006",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000011.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000007",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000012.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000008",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000013.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000009",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000014.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000000a",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000015.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000000b",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000016.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000000c",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000017.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000000d",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000018.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000000e",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000019.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000000f",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000020.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000010",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000021.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000011",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000022.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000012",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000023.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000013",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000024.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000014",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000025.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000015",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000026.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000016",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000027.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000017",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000028.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000018",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000029.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000019",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000030.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000001a",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000031.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000001b",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000032.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000001c",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000033.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000001d",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000034.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000001e",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000035.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000001f",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000036.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000020",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000037.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000021",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000038.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000022",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000039.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000023",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000040.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000024",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000041.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000025",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000042.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000026",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000043.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000027",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000044.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000028",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000045.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000029",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000046.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000002a",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000047.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000002b",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000048.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000002c",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000049.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000002d",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000050.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000002e",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000051.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000002f",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000052.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000030",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000053.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000031",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000054.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000032",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000055.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000033",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000056.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000034",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000057.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000035",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000058.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        }
+      ]
+    },
+    {
+      "name": "duplicate-source-after-limit-retains-48",
+      "records": [
+        {
+          "dest": "00000000000000000000000000000006",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000011.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000007",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000012.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000008",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000013.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000009",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000014.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000000a",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000015.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000000b",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000016.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000000c",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000017.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000000d",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000018.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000000e",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000019.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000000f",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000020.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000010",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000021.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000011",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000022.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000012",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000023.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000013",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000024.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000014",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000025.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000015",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000026.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000016",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000027.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000017",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000028.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000018",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000029.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000019",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000030.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000001a",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000031.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000001b",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000032.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000001c",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000033.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000001d",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000034.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000001e",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000035.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000001f",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000036.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000020",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000037.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000021",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000038.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000022",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000039.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000023",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000040.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000024",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000041.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000025",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000042.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000026",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000043.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000027",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000044.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000028",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000045.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000029",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000046.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000002a",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000047.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000002b",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000048.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000002c",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000049.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000002d",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000050.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000002e",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000051.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "0000000000000000000000000000002f",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000052.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000030",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000053.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000031",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000054.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000032",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000055.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000033",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000056.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000034",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000057.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        },
+        {
+          "dest": "00000000000000000000000000000035",
+          "name": "Synthetic peer",
+          "cost": 13,
+          "time": 1700000059.0,
+          "type": "lxmf.delivery",
+          "extras": {
+            "link_stats": null
+          },
+          "pn_ver": null
+        }
+      ]
+    }
+  ],
+  "state_changes": [
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ],
+    [
+      "app.flags.new_announces",
+      true
+    ]
+  ],
+  "pn_app_data": "97c2ce6553f100c3cd0100cd28009310031283ccfea46c786d6400a5312e322e3101c41a53796e7468657469632070726f7061676174696f6e206e6f6465",
+  "pn_metadata_keys": {
+    "name": 1,
+    "implementation": 254,
+    "version": 0
+  }
+}

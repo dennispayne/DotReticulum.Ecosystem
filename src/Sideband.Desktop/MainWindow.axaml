@@ -36,8 +36,8 @@
                     Content="Contacts" Tag="Contacts" Click="NavigateClicked" />
             <Button x:Name="ObjectsNavButton" HorizontalContentAlignment="Left"
                     Content="Objects" Tag="Objects" Click="NavigateClicked" />
-            <Button HorizontalContentAlignment="Left" Content="Announce Stream · unavailable"
-                    IsEnabled="False" ToolTip.Tip="An announce history screen is not implemented in this build." />
+            <Button x:Name="AnnouncesNavButton" HorizontalContentAlignment="Left" Content="Announce Stream"
+                    Tag="Announces" Click="NavigateClicked" />
             <TextBlock Margin="8,18,0,4" FontSize="12" FontWeight="Bold"
                        Foreground="{DynamicResource SecondaryTextBrush}" Text="RETICULUM" />
             <Button x:Name="ConnectivityNavButton" HorizontalContentAlignment="Left"
@@ -135,6 +135,25 @@
               </StackPanel>
             </Grid>
           </Grid>
+        </ScrollViewer>
+        <ScrollViewer x:Name="AnnouncesPage" IsVisible="False" Margin="24">
+          <StackPanel Spacing="12">
+            <TextBlock FontSize="26" FontWeight="SemiBold" Text="Announce Stream" />
+            <TextBlock Text="The newest 48 unique delivery and propagation announcements, stored locally. Announcing does not create a conversation, confer trust or prove a peer is currently online."
+                       TextWrapping="Wrap" />
+            <Button x:Name="RefreshAnnouncesButton" Content="Refresh history and cached stamp costs" Click="RefreshAnnouncesClicked" />
+            <Button x:Name="AnnounceLocalButton" Content="Announce this identity" Click="AnnounceLocalClicked" />
+            <ListBox x:Name="AnnouncesList" MinHeight="220" MaxHeight="360" SelectionChanged="AnnounceSelectionChanged" />
+            <TextBlock x:Name="AnnounceDetailsText" Text="Select an announcement." TextWrapping="Wrap" />
+            <TextBox x:Name="AnnounceAddressBox" IsReadOnly="True" PlaceholderText="Selected destination address" />
+            <WrapPanel>
+              <Button x:Name="ConverseAnnounceButton" Content="Start conversation" Click="ConverseAnnounceClicked" Margin="0,0,8,6" />
+              <Button x:Name="UseAnnounceNodeButton" Content="Use propagation node" Click="UseAnnounceNodeClicked" Margin="0,0,8,6" />
+              <Button x:Name="CopyAnnounceButton" Content="Copy address" Click="CopyAnnounceClicked" Margin="0,0,8,6" />
+              <Button x:Name="DeleteAnnounceButton" Content="Delete announcement" Click="DeleteAnnounceClicked" Margin="0,0,8,6" />
+            </WrapPanel>
+            <TextBlock x:Name="AnnouncesStatusText" Text="Offline history is available without starting Reticulum." TextWrapping="Wrap" />
+          </StackPanel>
         </ScrollViewer>
         <ScrollViewer x:Name="ContactsPage" IsVisible="False" Margin="24">
           <StackPanel Spacing="12">

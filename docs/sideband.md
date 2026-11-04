@@ -29,6 +29,11 @@ activates identity, supported settings, LXMF conversations, text/file/image/audi
 delivery methods, known client-router files, synchronization state and supported telemetry from upstream profiles. Conversation trust/unread flags
 are active native state, including imported values; trusted sends request LXMF
 reply tickets. Foreground conversation viewing marks messages read.
+The original Announce Stream retains bounded delivery/propagation history,
+including unnamed sources, replacement/deletion, cached stamp costs and
+available owner-cache signal observations. Explicit conversation/node selection
+does not grant trust. Primary SQLite announce-history migration remains
+archive-only, separately from native restart persistence.
 
 ## Reference provenance
 
@@ -92,8 +97,8 @@ runtime evidence.
 
 | Contract | Status | Upstream contract and source |
 |---|---|---|
-| App shell and interaction | partial | Original Avalonia UI provides Conversations, Contacts, Objects, Connectivity, Backup & Keys, Preferences, Utilities, Guide, Voice, Telemetry, Map and Remote screens. Supported screens expose real local state and explicit errors; announce-stream and hardware/plugin management remain unavailable rather than simulated. Upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
-| Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. Appearance values and telemetry permissions persist; voice uses the shared client below. Complete peer settings, groups, broadcasts and announce-stream presentation remain absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
+| App shell and interaction | partial | Original Avalonia UI provides Conversations, Contacts, Objects, Announce Stream, Connectivity, Backup & Keys, Preferences, Utilities, Guide, Voice, Telemetry, Map and Remote screens. Supported screens expose real local state and explicit errors; hardware/plugin management remain unavailable rather than simulated. Upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
+| Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. A bounded persisted delivery/PN stream exposes inspect, converse, copy, node selection and deletion; receipt does not promote a discovered contact to a known conversation. Appearance values and telemetry permissions persist; voice uses the shared client below. Complete peer settings, groups, broadcasts and primary announce-history migration remain absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `src/Sideband/SidebandAnnounce.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
 | LXMF messaging and propagation UI | partial | Text send/receive, automatic/manual node selection, persisted periodic fetches, cancellation, one-shot failed-delivery propagation retry, trusted-conversation reply tickets and restart retrieval reuse `LxmRouter`. Actual primary Sideband daemon-core direct/propagated round trips pass separately from Python LXMF endpoint tests, with trust enabled and disabled in both directions. Full message presentation/settings remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,4811–4828,5156–5227,5634–5644`, `docs/lxmf.md`. |
 | Text, image/file and audio messages | implemented bounded subset | Text/files, WebP image preparation/preview, Ogg Opus and Codec2 composition/decoding, explicit 10-second recording/playback/cancellation, content-addressed persistence and explicit exports. Actual Python Sideband core sends/receives images and both audio families directly/through a Python propagation transport; actual Pillow/audioproc decode native output. Published binaries decode imported media and render images. Device tests use fakes; physical capture/acoustics remain unverified. Unknown audio is retained/exportable but playback fails explicitly; no autoplay. See media limits below; `src/Sideband/SidebandMedia*.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py:message_send_dispatch`, `sbapp/sideband/audioproc.py`, `sbapp/sideband/core.py:5189–5196`. |
 | Paper messages and `lxm://` imports | implemented bounded subset | Connected paper text creation and local duplicate-aware import reuse LXMF; saved URI/QR display and non-overwriting exports work offline and survive restart. Actual primary daemon-core creation/ingestion both ways, trust on/off and process restart pass separately from native desktop/CLI exports. Nonlocal envelopes are unauthenticated and not forwarded. Hardware camera/printer, desktop OS URI registration and complete upstream paper-history migration remain unverified/missing; `SidebandClient.Paper.cs`, `MainWindow.Paper.cs`, `PaperExportCommand.cs`, `sbapp/sideband/core.py:paper_message,lxm_ingest_uri`. |
@@ -107,6 +112,78 @@ runtime evidence.
 | CLI and headless operation | partial | Help/version, init/check, data/config selection, JSON settings exchange, daemon/interactive operation and native extensions `--import-profile`, `--check-media`, `--synthetic-audio` exist. Daemon ignores closed stdin and stops on cancellation; original interactive console bounds input and supports functional voice commands. All twelve pinned upstream voice command handlers execute `Not yet implemented`; native functionality is an extension, not evidence that these primary placeholders work. Native `--interactive`, `--verbose` and synthetic audio require daemon mode; conflicting modes fail before state/UI. Broader upstream console commands remain missing; `Program.cs`, `SidebandDaemon.cs`, `sbapp/main.py`, `sbapp/sideband/cli/cmd_voice.py`. |
 | Repository server | implemented bounded subset | Utilities explicitly starts/stops a public unauthenticated HTTPS static mirror with a package list, persistent private certificate, visible fingerprint and joined window shutdown. Default loopback/4444; reachable LAN exposure requires explicit bind and consent. No bundled upstream assets, automatic content downloads or update execution. Original bounded GET-only service, not RNS/rngit Git hosting; safety differences and acceptance are below; `SidebandRepository*.cs`, `MainWindow.Repository.cs`, `sbapp/sideband/core.py`, `sbapp/ui/layouts.py`. |
 | Native packaging and upgrades | partial | Windows and Linux NativeAOT publishes succeed with trimming/linker warnings treated as errors. Package the full publish directory, including Windows `sideband.exe`, `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, `libSkiaSharp.dll` and desktop/shared third-party notices; Linux `sideband`, `libHarfBuzzSharp.so`, `libSkiaSharp.so`, `libSystem.IO.Ports.Native.so` and the same notices. These include Avalonia/Skia/HarfBuzz MIT texts, ANGLE's BSD license, .NET serial runtime notices and `ThirdPartyNotices/ZXing.Net.Apache-2.0.txt`. Installer/signing, self-upgrade and other upstream package formats remain absent; `src/Sideband.Desktop/Sideband.Desktop.csproj`, `src/Sideband.Desktop/THIRD-PARTY-NOTICES*.txt`, `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
+
+## Announce stream
+
+The original desktop stream retains the newest **48 unique sources** across
+delivery and propagation announcements, ordered by receipt and persisted
+atomically. A fresh observation replaces the source and moves it in the stream;
+unnamed/legacy delivery announcements remain visible. Delivery names and current
+cached stamp costs reuse LXMF; propagation metadata uses its validated seven-item
+format and metadata keys name1, implementation254 and version0. Connected
+refresh consults the current local LXMF cost cache, not a network request;
+offline history shows the saved observation.
+
+Inspect shows source, type, time, cost, optional node version/active flag and
+available RSSI/SNR/quality. Measurements come from the selected Reticulum
+owner's public packet-hash management cache, including authenticated shared-owner
+RPC; missing measurements remain unavailable, not invented. Lookup failure is
+reported separately without dropping the announcement. TCP acceptance does not
+prove physical RF measurement support. Announce records are discovery metadata,
+not authenticated conversation messages or evidence of current reachability.
+Receipt does not grant trust, unread state, request permission or known-conversation
+status. Unsupported contact names remain in history rather than disabling core
+processing; control characters are flattened only for original UI display.
+
+Explicit actions converse, copy the address, select a propagation node or delete
+only that announcement. A local delivery announcement can be sent while connected.
+Node selection does not enable propagation-by-default, and deleting history does
+not remove conversations, permissions or the selected node. The existing bounded
+128-item client worker owns ingress; observer exceptions are isolated and reported,
+and signal lookups use run cancellation during joined disconnect. Native JSON
+supports existing profiles without an announce collection. Importing the primary
+SQLite announce table is still archive-only and is not native restart evidence.
+
+`GenerateSidebandAnnounceVectors.py` executes unchanged primary SQLite/log/list/
+delete methods and actual pinned LXMF providers. Exact primary core SHA-256 is
+`8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25`;
+LXMF router SHA-256 is
+`56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9`.
+Controlled clock/router-cost observers and an offline SQLite connection are
+explicit seams, not live application/GUI evidence. Windows/Linux independently
+generate identical canonical LF fixture SHA-256
+`da57b40e6939abbe90f2a5761255e1153e6fc994f5288c4c2810bdcdc5e9ea57`.
+The observed primary prunes before insertion and reaches49; native deliberately
+enforces48 after every insertion. Four-KiB app-data/one-KiB text limits, finite
+measurements and quality0–100 are native safety bounds, not invented wire fields.
+
+On each host `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release
+-warnaserror --filter "FullyQualifiedName~SidebandAnnounce|FullyQualifiedName~ActualPrimaryAnnouncementStreams"`
+passes **14 cases with no failures/skips**, with the documented live/reference
+environment and isolated build/result directories. Three actual primary daemon-core
+rows exercise delivery both ways, unnamed replacement, explicit actual-router PN
+metadata, delete/reannounce, no initial observer, failing later observers and native
+identity/history restart: direct, one Python transport and one .NET transport.
+The primary router PN role and explicit empty-data RNS emission are disclosed
+public API seams, not claims that Sideband's GUI hosts a PN. Successive source
+emissions are separated by1.1seconds because RNS path freshness uses whole-second
+emission timestamps; same-second replacement dispatch is not asserted. No packet
+loss, propagation synchronization or prolonged-service claim comes from these rows.
+
+Strict NativeAOT publishes use SDK10.0.403/compiler10.0.14,
+`-p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror`.
+The selected Windows binary is
+`artifacts\builds\fleet-announces-native-win\publish\Sideband.Desktop\release_win-x64\sideband.exe`,
+SHA-256 `d0d060f7530ad8c1ba40700b93f3b289320a1b31d88ad0680700dd2006ccefe5`.
+The Linux binary is
+`/home/dennis/fleet-announces-native-linux/publish/Sideband.Desktop/release_linux-x64/sideband`,
+SHA-256 `feee5eeb2ad92d1e504058bbe1cdf956e5952d7fbae33349327d80aaba3a4495`.
+On both hosts `tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1
+-Tag @('Native','Announces')` passes six cases with one unrelated
+missing-map-profile skip. The new GUI case itself passes, rendering four
+actual-reference synthetic records across two real native process starts, checking
+unchanged state bytes and rejecting empty history with exit2. This is separate
+from managed live-network acceptance and physical/hardware evidence.
 
 ## Reported overlays, objects and local fixed locations
 

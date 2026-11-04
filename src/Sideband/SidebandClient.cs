@@ -701,10 +701,23 @@ public sealed partial class SidebandClient : IAsyncDisposable
 
     private void ReceivedDeliveryAnnounce(AnnounceReceived announce)
     {
-        if (LxmfAppData.DisplayName(announce.AppData) is not { Length: > 0 } displayName) return;
-        var contact = new SidebandContact(Convert.ToHexStringLower(announce.DestinationHash), displayName);
-        if (!_inbound.Writer.TryWrite(new ClientUpdate(Contact: contact)))
-            Report("Contact-update queue is full or closed; the discovered contact was not saved.");
+        try
+        {
+            var hash = Convert.ToHexStringLower(announce.DestinationHash);
+            var observed = SidebandAnnounce.FromAppData(hash, SidebandAnnounce.Delivery, DateTimeOffset.UtcNow,
+                announce.AppData, _router?.GetOutboundStampCost(announce.DestinationHash));
+            SidebandContact? contact = null;
+            if (!string.IsNullOrWhiteSpace(observed.Name))
+            {
+                try { contact = SidebandContact.Create(observed.Name, hash); }
+                catch (ArgumentException ex) { Report("Announce name is not a valid contact name; history is retained: " + ex.Message); }
+            }
+            if (!_inbound.Writer.TryWrite(new ClientUpdate(Contact: contact, Announce: observed,
+                AnnouncePacketHash: announce.PacketHash?.ToArray())))
+                Report("Announce queue is full or closed; the delivery announce was not saved.");
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        { Report("Ignored invalid delivery announce: " + ex.Message); }
     }
 
     private async Task ProcessPeriodicAsync(CancellationToken cancellationToken)
@@ -760,9 +773,16 @@ public sealed partial class SidebandClient : IAsyncDisposable
             Report("Ignored propagation-node announce timestamp more than 300 seconds in the future.");
             return;
         }
-        if (!_inbound.Writer.TryWrite(new ClientUpdate(Propagation: new PropagationCandidate(
-            Convert.ToHexStringLower(announce.DestinationHash), announce.Hops, data.Timebase))))
-            Report("Propagation-discovery queue is full or closed; the announce was not processed.");
+        try
+        {
+            var hash = Convert.ToHexStringLower(announce.DestinationHash);
+            var observed = SidebandAnnounce.FromAppData(hash, SidebandAnnounce.Propagation, DateTimeOffset.UtcNow, announce.AppData);
+            if (!_inbound.Writer.TryWrite(new ClientUpdate(Propagation: new PropagationCandidate(hash, announce.Hops, data.Timebase),
+                Announce: observed, AnnouncePacketHash: announce.PacketHash?.ToArray())))
+                Report("Propagation-discovery queue is full or closed; the announce was not processed.");
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        { Report("Ignored invalid propagation announce metadata: " + ex.Message); }
     }
 
     private async Task ProcessPropagationAsync(PropagationCandidate candidate)
@@ -789,6 +809,8 @@ public sealed partial class SidebandClient : IAsyncDisposable
         {
             try
             {
+                if (update.Announce is { } observed)
+                    await ProcessAnnounceAsync(observed, update.AnnouncePacketHash).ConfigureAwait(false);
                 if (update.TelemetryDelivery is { } telemetryDelivery)
                     await CompleteTelemetryAsync(telemetryDelivery).ConfigureAwait(false);
                 if (update.ClearCalls is not null)
@@ -982,7 +1004,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
     private sealed record ClientUpdate(ReceivedMessage? Received = null, SidebandContact? Contact = null,
         Guid MessageId = default, string? DeliveryState = null, PropagationCandidate? Propagation = null,
         LxMessage? FailedMessage = null, SidebandVoiceCallEvent? Call = null, TaskCompletionSource? ClearCalls = null,
-        TelemetryDelivery? TelemetryDelivery = null);
+        TelemetryDelivery? TelemetryDelivery = null, SidebandAnnounce? Announce = null, byte[]? AnnouncePacketHash = null);
 
     private static Channel<ClientUpdate> CreateInboundChannel() =>
         System.Threading.Channels.Channel.CreateBounded<ClientUpdate>(new BoundedChannelOptions(128)

@@ -87,6 +87,22 @@ def main():
         if parts[0] == "announce":
             core.lxmf_announce()
             emit({"event": "announced", "dest": core.lxmf_destination.hash.hex()})
+        elif parts[0] == "announce-empty":
+            # Explicit public RNS emission seam; does not replace Sideband's received handlers.
+            core.lxmf_destination.announce(app_data=b"")
+            emit({"event": "announced-empty"})
+        elif parts[0] == "announces":
+            emit({"event": "announces", "records": [
+                {**entry, "dest": entry["dest"].hex()} for entry in core.list_announces()]})
+        elif parts[0] == "delete-announce" and len(parts) == 2:
+            core.delete_announce(bytes.fromhex(parts[1]))
+            emit({"event": "announce-deleted"})
+        elif parts[0] == "enable-announcement-node":
+            # Explicit actual LXMF router role, not a claim that Sideband's UI hosts a PN.
+            core.message_router.enable_propagation()
+            core.message_router.propagation_destination.announce(
+                app_data=core.message_router.get_propagation_node_app_data())
+            emit({"event": "announce-node", "dest": core.message_router.propagation_destination.hash.hex()})
         elif parts[0] == "use-pn" and len(parts) == 2:
             core.config["lxmf_propagation_node"] = bytes.fromhex(parts[1])
             core.update_active_lxmf_propagation_node()

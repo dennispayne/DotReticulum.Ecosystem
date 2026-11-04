@@ -83,6 +83,12 @@ Describe 'sideband native acceptance' -Tag 'Native' {
         $output | Should -Match 'isolated --rnsconfig'
         $output = & $binary --smoke-ui --smoke-discovery --smoke-map --data-dir $rejectedData --rnsconfig $rns 2>&1 | Out-String
         $LASTEXITCODE | Should -Be 1
+        $output = & $binary --smoke-announces --data-dir $rejectedData 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 1
+        $output = & $binary --smoke-ui --smoke-announces --smoke-objects --data-dir $rejectedData 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 1
+        $output = & $binary --smoke-ui --smoke-announces --data-dir $rejectedData --rnsconfig $rns 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 1
         Test-Path -LiteralPath $rejectedData | Should -BeFalse
     }
 
@@ -446,6 +452,85 @@ Describe 'sideband native repository window acceptance' -Tag 'GUI' {
             }
             if (Test-Path -LiteralPath $repositoryRoot) { Remove-Item -LiteralPath $repositoryRoot -Recurse -Force }
         }
+    }
+}
+
+Describe 'sideband native announce stream' -Tag 'GUI', 'Announces' {
+    It 'renders actual-reference synthetic history across restarts and fails empty-history acceptance offline' {
+        $binary = $env:DOTRETICULUM_SIDEBAND_BINARY
+        if ([string]::IsNullOrWhiteSpace($binary) -or -not (Test-Path -LiteralPath $binary -PathType Leaf)) {
+            throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
+        }
+        $root = Join-Path ([IO.Path]::GetTempPath()) "sideband-announces-$([guid]::NewGuid().ToString('N'))"
+        $data = Join-Path $root 'data'
+        $rns = Join-Path $root 'rns'
+        try {
+            New-Item -ItemType Directory -Path $rns -Force | Out-Null
+            "[reticulum]`n share_instance = no`n enable_transport = no`n[logging]`n loglevel = 0`n[interfaces]`n" |
+                Set-Content -LiteralPath (Join-Path $rns 'config')
+            & $binary --init --data-dir $data --rnsconfig $rns 2>&1 | Out-Null
+            $LASTEXITCODE | Should -Be 0
+            $path = Join-Path $data 'state.json'
+            $state = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+            $fixture = Get-Content (Join-Path $PSScriptRoot '..\Sideband.Tests\Fixtures\sideband-announces.json') -Raw | ConvertFrom-Json
+            $fixture.revision | Should -Be 'd069122af14880e43607aed0b71add4c7806fbe0'
+            $records = @($fixture.snapshots[1].records | ForEach-Object {
+                @{
+                    DestinationHash = $_.dest
+                    DestinationType = $_.type
+                    ReceivedAt = [DateTimeOffset]::FromUnixTimeSeconds([long]$_.time).ToString('O')
+                    Name = $_.name
+                    StampCost = $_.cost
+                    NodeVersion = $_.pn_ver
+                    NodeEnabled = if ($_.type -eq 'lxmf.propagation') { $true } else { $null }
+                    Signal = if ($null -ne $_.extras.link_stats) {
+                        @{ Rssi = $_.extras.link_stats.rssi; Snr = $_.extras.link_stats.snr; Quality = $_.extras.link_stats.q }
+                    } else { $null }
+                }
+            })
+            $state | Add-Member -NotePropertyName Announces -NotePropertyValue $records -Force
+            $state | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $path
+            $before = (Get-FileHash $path).Hash
+            foreach ($mode in 'history', 'history', 'empty') {
+                if ($mode -eq 'empty') {
+                    $state.Announces = @()
+                    $state | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $path
+                }
+                $process = [Diagnostics.Process]::new()
+                $started = $false
+                try {
+                    $process.StartInfo.FileName = $binary
+                    $process.StartInfo.UseShellExecute = $false
+                    $process.StartInfo.RedirectStandardOutput = $true
+                    $process.StartInfo.RedirectStandardError = $true
+                    foreach ($argument in '--smoke-ui', '--smoke-announces', '--data-dir', $data) {
+                        $process.StartInfo.ArgumentList.Add($argument)
+                    }
+                    $process.Start() | Should -BeTrue
+                    $started = $true
+                    $stdout = $process.StandardOutput.ReadToEndAsync()
+                    $stderr = $process.StandardError.ReadToEndAsync()
+                    if (-not $process.WaitForExit(20000)) {
+                        $process.Kill($true)
+                        $process.WaitForExit()
+                        throw 'Published announce rendering did not finish.'
+                    }
+                    $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+                    $process.ExitCode | Should -Be $(if ($mode -eq 'empty') { 2 } else { 0 }) -Because $output
+                    $output | Should -Match 'SMOKE_UI_RENDERED_INITIAL=1'
+                    if ($mode -eq 'history') {
+                        $output | Should -Match 'SMOKE_UI_RENDERED_ANNOUNCES=4'
+                        (Get-FileHash $path).Hash | Should -Be $before
+                    }
+                    else { $output | Should -Match 'Announce smoke requires saved announce history' }
+                }
+                finally {
+                    if ($started -and -not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+                    $process.Dispose()
+                }
+            }
+        }
+        finally { if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force } }
     }
 }
 

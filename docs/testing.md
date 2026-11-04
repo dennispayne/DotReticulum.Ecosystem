@@ -8,6 +8,23 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+The announce-stream integration gate
+`tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-announces-unified -OutputDirectory
+artifacts\tests\fleet-announces-unified` passes **2,380 managed cases,
+122 explicit skips and62 Pester tooling cases**, with strict catalog aggregation
+and merged coverage. This shared-worktree run includes concurrently developed
+LXMF retry and Nomad profile tests; it does not independently accept those
+slices. Separate actual-primary announcement acceptance passes14/14 on each
+host, direct/Python-hop/.NET-hop, and fresh Windows/Linux strict NativeAOT
+announcement rendering passes independently; exact boundaries are in
+[Sideband's reference](sideband.md#announce-stream).
+
+Parallel builds use distinct `-ArtifactsPath` directories. A normal-output
+solution build encountered `MSB3026` while another owner's live `testhost` held
+`LXMF.Tests\bin` DLLs; the isolated gate above succeeds without killing that
+process, disabling tests or suppressing warning-as-error policy.
+
 The integrated directory-import/retry gate
 `& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
 artifacts\builds\fleet-directory-retry-unified -OutputDirectory

@@ -475,6 +475,7 @@ public sealed partial class SidebandStateStore
         _ = state.Telemetry.Validate();
         _ = SidebandRemoteCommands.Authorization(state);
         SidebandFixedLocations.Validate(state.MapFixedLocations ?? []);
+        SidebandAnnounce.ValidateHistory(state.Announces ?? []);
         if (state.TelemetryPeers is { Count: > 1_000 }) throw new InvalidDataException("Too many telemetry peers.");
         foreach (var peer in state.TelemetryPeers ?? [])
             if (peer is null || !SidebandContact.TryNormalizeDeliveryHash(peer.DeliveryHash, out _) ||

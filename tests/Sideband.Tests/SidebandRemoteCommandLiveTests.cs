@@ -258,6 +258,8 @@ public sealed partial class SidebandLiveInteropTests
         private readonly List<Task> _connections = [];
         private readonly Task _accept;
         private readonly int _targetPort;
+        private TaskCompletionSource? _paused;
+        private int _pausedReads;
 
         public RemoteCommandDelayProxy(int targetPort, CancellationToken token)
         {
@@ -269,6 +271,13 @@ public sealed partial class SidebandLiveInteropTests
         }
 
         public int Port { get; }
+        public int PausedReads => Volatile.Read(ref _pausedReads);
+        public void Pause()
+        {
+            if (Interlocked.CompareExchange(ref _paused, new(TaskCreationOptions.RunContinuationsAsynchronously), null) is not null)
+                throw new InvalidOperationException("The transparent proxy is already paused.");
+        }
+        public void Resume() => Interlocked.Exchange(ref _paused, null)?.TrySetResult();
         private async Task AcceptAsync()
         {
             try
@@ -304,12 +313,17 @@ public sealed partial class SidebandLiveInteropTests
             }
         }
 
-        private static async Task PipeAsync(Stream source, Stream destination, CancellationToken token)
+        private async Task PipeAsync(Stream source, Stream destination, CancellationToken token)
         {
             var buffer = new byte[16_384];
             while (await source.ReadAsync(buffer, token) is var length && length != 0)
             {
                 await Task.Delay(100, token);
+                if (Volatile.Read(ref _paused) is { } paused)
+                {
+                    Interlocked.Increment(ref _pausedReads);
+                    await paused.Task.WaitAsync(token);
+                }
                 await destination.WriteAsync(buffer.AsMemory(0, length), token);
             }
         }

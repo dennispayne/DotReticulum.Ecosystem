@@ -274,7 +274,7 @@ public sealed partial class SidebandClient
         var work = delivery.Work;
         if (work.OwnsPending) ReleaseTelemetryPending(work);
         if (work.Remote is { Reply: null } command)
-            await _store.RecordCommandMethodAsync(command.Id, delivery.Message.DesiredMethod).ConfigureAwait(false);
+            await _store.RecordCommandMethodAsync(command.Id, delivery.Message.Method).ConfigureAwait(false);
         if (delivery.Message.State == LxmState.Failed && delivery.Retry && _router?.OutboundPropagationNode is not null)
         {
             EnqueueTelemetry(work with { Retry = delivery.Message, Timebase = delivery.Timebase });

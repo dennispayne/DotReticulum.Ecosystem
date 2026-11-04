@@ -200,6 +200,11 @@
     { "id": "T134", "claimId": "C54", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandFixedLocationTests.*", "evidence": "V/I", "reference": "Sideband" },
     { "id": "T135", "claimId": "C54", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandProfileImportTests.ActualPrimaryObjectDataActivatesAndPreservesTelemetryPermissions*", "evidence": "V/I", "reference": "Sideband" },
     { "id": "T136", "claimId": "C54", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandProfileImportTests.MalformedObjectClassificationRollsBackTheWholeProfile", "evidence": "I" },
-    { "id": "T137", "claimId": "C54", "runner": "pester", "suite": "Sideband.Tests.ps1", "pattern": "sideband native object and overlay rendering.*", "evidence": "P/N/GUI" }
+    { "id": "T137", "claimId": "C54", "runner": "pester", "suite": "Sideband.Tests.ps1", "pattern": "sideband native object and overlay rendering.*", "evidence": "P/N/GUI" },
+    { "id": "T138", "claimId": "C53", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandRemoteCommandTransportReferenceTests.*", "evidence": "V/U", "reference": "Sideband" },
+    { "id": "T139", "claimId": "C53", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandLiveInteropTests.ActualPrimaryRemotePropagatedOriginsRetrievalCancellationAndRestarts*", "evidence": "L", "reference": "Sideband" },
+    { "id": "T140", "claimId": "C53", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandLiveInteropTests.ActualPrimaryRemoteDirectFailureFallbackPolicyAndHealthyPeerRecovery*", "evidence": "L", "reference": "Sideband" },
+    { "id": "T141", "claimId": "C53", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandLiveInteropTests.ActualPrimaryRemoteOfflineRepliesBothOriginsRequirePropagationRetrieval", "evidence": "L", "reference": "Sideband" },
+    { "id": "T142", "claimId": "C53", "runner": "xunit", "suite": "Sideband.Tests", "pattern": "Sideband.Tests.SidebandLiveInteropTests.ActualPrimaryRemoteBoundedCancellationAndSixtyFourHealthyOperationsWithoutObservers", "evidence": "L", "reference": "Sideband" }
   ]
 }

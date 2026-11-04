@@ -100,7 +100,7 @@ runtime evidence.
 | LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI, call-history migration and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
 | Telemetry, location and situational awareness | partial | All 27 sensor wire formats, exact values, bounded atomic storage and reference-executed geometry exist. Original desktop controls configure manual information/location/sensors, privacy/collector/tracking policies, inspect trusted reports, explicitly delete and show reported locations on the map. Actual primary reports/collector streams, requests, restart, supported profile import, schedules and propagation recovery pass separately on Windows/Linux. Automatic sensor collection, hardware and advanced presentation remain absent/unverified; see sections below; `SidebandTelemetry*.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/ui/telemetry.py`. |
 | Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default/provider/layer and overlay vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, source zoom limits and persisted view. Reported peers/interfaces/connection points, clustering, high-zoom scatter, local fixed overrides and marker inspection are integrated. Thirteen provider presets and supported offline-profile activation exist. Automatic discovery overlays and broader map migration/presentation remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
-| Remote commands, queries and plugins | partial | Authorized telemetry requests and built-in ping/echo/signal requests use the existing bounded client worker. Actual primary daemon cores exchange commands/replies and verify global unknown-conversation admission across direct, Python-hop and .NET-hop paths. Original Remote controls configure shared request permissions, queue/cancel commands and preview persisted replies. Command-specific propagation/fallback remains separately unverified; arbitrary Python command/service/telemetry plugins and custom sensors remain missing. Native helpers are not a Python-plugin ABI; `SidebandClient.Remote.cs`, `SidebandRemoteCommands.cs`, `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`. |
+| Remote commands, queries and plugins | partial | Authorized telemetry requests and built-in ping/echo/signal requests use the existing bounded client worker. Actual primary daemon cores exchange commands/replies, propagated requests and offline replies, and verify unknown-conversation admission across direct, Python-hop and .NET-hop paths. Explicit PN storage/retrieval, restart/cancellation and controlled direct-failure recovery are distinct evidence. Original Remote controls configure shared request permissions, queue/cancel commands and preview persisted replies. Initially-propagated failure injection remains unverified; arbitrary Python command/service/telemetry plugins and custom sensors remain missing. Native helpers are not a Python-plugin ABI; `SidebandClient.Remote.cs`, `SidebandRemoteCommands.cs`, `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`. |
 | Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. Interface editing/discovery and Android interface loading are absent; `src/Sideband/SidebandClient.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
 | Long-lived service and OS integration | partial | The desktop window and headless daemon own the same cancellable client. Linux published daemon/interactive processes stop on SIGTERM with closed/blocked stdin; native console quit and restart pass on both hosts. Days-long Sideband service operation remains unverified. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are deferred mobile contracts; `SidebandDaemon.cs`, `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
 | Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/object classification/text/files/images/audio/methods, known client-router tickets/own ratchets/caches, synchronization anchors and bounded supported telemetry/settings/permissions/appearance/cursors/map-overlay settings. Unimplemented semantics remain archived; source files never change. Voice history, other fields and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `SidebandTelemetryProfile.cs`, `sbapp/main.py:209–273`. |
@@ -1181,7 +1181,7 @@ execution produces byte-identical fixtures. Synthetic owners/observers replace
 constructor, storage and GUI boundaries, not the executed methods; vectors alone
 are not cryptographic or live interoperability evidence.
 
-Independent actual-primary acceptance on each host passed 1,475 cases with no
+Independent actual-primary acceptance on each host passes 1,484 cases with no
 skips, including parsing/policy regressions, command origins/replies, ordinary
 unknown filtering, restart, failed-peer recovery, malformed UTF-8/oversized
 batches and bad-signature injection. Direct, Python transport and .NET transport
@@ -1195,15 +1195,58 @@ these cases are not codec/filter acceptance.
 With the reference environment from CONTRIBUTING configured:
 
 ```powershell
-& .\tests\Interop\Invoke-SidebandRemoteAcceptance.ps1 -ArtifactsPath artifacts\builds\fleet-remote-addendum-parent-win -OutputDirectory artifacts\tests\fleet-remote-addendum-parent-win -IncludeRegression
+& .\tests\Interop\Invoke-SidebandRemoteAcceptance.ps1 -ArtifactsPath artifacts\builds\fleet-remote-parent-full-win -OutputDirectory artifacts\tests\fleet-remote-parent-full-win -IncludeRegression
 ```
 
-The Linux run uses `/home/dennis/fleet-remote-addendum-parent-linux` build output
-and `artifacts/tests/fleet-remote-addendum-parent-linux` evidence. Both operators
-verify actual imported modules/pins and regenerate/compare both fixtures.
-Command-specific propagation/fallback, arbitrary random loss, RF measurements,
-arbitrary Python plugins and prolonged command-service operation remain
-unverified or missing; generic message/telemetry acceptance does not prove them.
+The exact-source Linux run uses `/home/dennis/fleet-remote-parent-full-linux`
+build output and
+`/home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/tests/fleet-remote-parent-full-linux`
+evidence. The Windows/Linux operators complete in 10m33s/10m11s respectively.
+They verify actual imported modules/pins, regenerate/compare all three fixtures,
+and require each of the thirteen named application cases to pass without skips.
+The additional `GenerateSidebandRemoteTransportVectors.py` executes 32 actual
+command-selection/packing and twelve reply-send observations. Fixture SHA-256
+is `ef5911e349f9c7dc37521e455cd61f4d937d974195bd0975414ef489f1253713`.
+These use the same primary revision/core hash above, real `LXMessage.pack` and
+disclosed offline storage/router seams, not a live ratchet exchange.
+
+Propagated commands are separately verified with the Python PN also hosting the
+TCP hub, a separate Python transport/PN, and a separate .NET transport/Python PN.
+Sender `Sent` and durable PN storage are asserted before recipient retrieval;
+neither means execution or endpoint delivery. PN/native/primary restarts and
+active retrieval cancellation are exercised. The Python PN disables autopeering
+and uses an 8 MB store, default stamp 16, transfer 256 KB and sync 10240 KB limits.
+Both endpoints explicitly allow requests and know the corresponding conversation;
+automatic inbox synchronization is off.
+
+Controlled direct failure completes the public RNS handshake and immediately
+tears down the link, separately suppressing packet/proof callbacks and restoring
+them for recovery. Default native timeouts/retries are unchanged. Enabled/disabled
+fallback and healthy-peer recovery pass. A separate .NET-hop case takes each
+reply recipient offline, observes actual primary/native automatic-reply
+propagation, restarts it and explicitly retrieves the reply. Cancellation fills
+all 64 admissions, rejects the extra request, cancels/restarts, then completes 32
+commands from each origin with no native observers. This is bounded operation,
+not an hours-long command-service soak.
+
+Outgoing history records actual packed `Method`, including opportunistic
+promotion, rather than `DesiredMethod`. Configured one-shot propagation retry
+also applies to initially propagated commands, as the executed primary policy
+does; a second-attempt PN-failure live fixture remains unverified. Silent
+blackholing is not the accepted controlled-teardown case. A separate investigative
+two-hop default-timing probe observes native/primary terminal failure at
+102.516s/121.991s, six/four link attempts and an 18.0004s outgoing link deadline.
+These are samples, not universal elapsed limits or final-source suite acceptance.
+The earlier alleged five-minute exhaustion was suite elapsed time: the original
+case actually reached failure in 107.277s before failing its history-method
+assertion. No unbounded stack bug was demonstrated. Exact attempt/CLOSED
+rescheduling differs and remains a scheduling-fidelity boundary, not a proven
+upstream defect.
+
+Arbitrary random loss, RF measurements, arbitrary Python plugins, initially
+propagated failure injection and prolonged command-service operation remain
+unverified or missing. These managed application cases do not establish
+published-native propagation execution or upstream GUI behavior.
 
 Original headless desktop/settings/profile-import acceptance passes 55 cases
 and one explicit generated-profile skip per host. The final Windows focused

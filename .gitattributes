@@ -1,3 +1,4 @@
 *.zlib binary
 tests/Sideband.Tests/Fixtures/sideband-map-overlays.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-objects.json text eol=lf
+tests/Sideband.Tests/Fixtures/sideband-remote-transport.json text eol=lf

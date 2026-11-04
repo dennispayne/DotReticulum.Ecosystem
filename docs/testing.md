@@ -8,6 +8,21 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+The remote-transport gate
+`& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-remote-transport-unified -OutputDirectory
+artifacts\tests\fleet-remote-transport-unified` passes **2,326 managed cases,
+108 explicit skips and 62 Pester tooling cases**, including strict catalog
+aggregation. It includes the frozen remote follow-up and unaccepted Nomad
+conversation-image work; it does not accept that work or later discovery changes.
+The separate actual-primary remote operator passes 1,484/no skips on each host,
+including all thirteen required command/admission/propagation/reply/cancellation
+cases. Direct failure uses disclosed public handshake/teardown callbacks, not a
+silent-blackhole acceptance claim. Reference execution, propagation-node storage
+versus endpoint delivery, exact topologies and remaining retry/timing boundaries
+are recorded in [Sideband's reference](sideband.md#built-in-commands-and-incoming-admission).
+No hosted workflow was dispatched.
+
 The integrated map/object gate
 `& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
 artifacts\builds\fleet-map-objects-unified -OutputDirectory

@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import time
 
 import LXMF
 import RNS
@@ -46,13 +47,18 @@ def main():
     core = SidebandCore(None, config_path=str(args.profile or args.config / "profile"),
                         rns_config_path=str(rns), is_daemon=True, quiet=True)
     core.start()
+    delivery_packet_callback = core.lxmf_destination.callbacks.packet
+    delivery_link_callback = core.lxmf_destination.callbacks.link_established
+    delivery_proof_strategy = core.lxmf_destination.proof_strategy
     RNS.loglevel = RNS.LOG_ERROR
 
     def delivered(message):
         # Only observes; the unchanged primary method still owns admission and processing.
         emit({"event": "delivery", "source": message.source_hash.hex(),
+              "hash": message.hash.hex(),
               "content": base64.b64encode(message.content).decode(),
               "signature_valid": message.signature_validated,
+              "signature_reason": message.unverified_reason,
               "method": message.method,
               "commands": LXMF.FIELD_COMMANDS in message.fields,
               "telemetry": LXMF.FIELD_TELEMETRY in message.fields,
@@ -97,10 +103,45 @@ def main():
             core._db_conversation_set_requests(destination, allow_requests=parts[3] == "yes")
             core.save_configuration(no_thread=True)
             emit({"event": "permission", "allowed": core.allow_request_from(destination)})
-        elif command == "command" and len(parts) == 3:
+        elif command in ("command", "command-propagated") and len(parts) == 3:
             content = base64.b64decode(parts[2], validate=True).decode()
-            accepted = core.send_command(content, bytes.fromhex(parts[1]), False)
+            accepted = core.send_command(content, bytes.fromhex(parts[1]), command == "command-propagated")
             emit({"event": "queued", "accepted": accepted})
+        elif command == "use-pn" and len(parts) == 2:
+            core.config["lxmf_propagation_node"] = bytes.fromhex(parts[1])
+            core.update_active_lxmf_propagation_node()
+            core.save_configuration(no_thread=True)
+            emit({"event": "pn-selected", "dest": core.message_router.get_outbound_propagation_node().hex()})
+        elif command == "delivery-links" and len(parts) == 2 and parts[1] in ("on", "off", "teardown"):
+            # Public RNS fault seam: complete the handshake, then reject the link without LXMF ingestion.
+            core.lxmf_destination.set_link_established_callback(
+                (lambda link: link.teardown()) if parts[1] == "teardown" else delivery_link_callback)
+            core.lxmf_destination.accepts_links(parts[1] != "off")
+            emit({"event": "delivery-links", "enabled": core.lxmf_destination.accepts_links(),
+                  "mode": parts[1]})
+        elif command == "delivery-packets" and len(parts) == 2 and parts[1] in ("on", "off"):
+            # Disclosed packet/proof loss through public destination callbacks, not a primary patch.
+            enabled = parts[1] == "on"
+            core.lxmf_destination.set_packet_callback(delivery_packet_callback if enabled else None)
+            core.lxmf_destination.set_proof_strategy(delivery_proof_strategy if enabled else RNS.Destination.PROVE_NONE)
+            emit({"event": "delivery-packets", "enabled": enabled})
+        elif command in ("retrieve", "retrieve-start"):
+            accepted = core.request_lxmf_sync()
+            if command == "retrieve-start":
+                emit({"event": "sync-started", "accepted": accepted})
+                continue
+            if not accepted:
+                raise RuntimeError("Actual primary rejected propagation retrieval as busy")
+            deadline = time.time() + 60
+            while core.message_router.propagation_transfer_state < LXMF.LXMRouter.PR_COMPLETE and time.time() < deadline:
+                time.sleep(0.05)
+            if core.message_router.propagation_transfer_state != LXMF.LXMRouter.PR_COMPLETE:
+                raise RuntimeError(f"Actual primary retrieval failed: {core.message_router.propagation_transfer_state}")
+            emit({"event": "retrieved", "state": core.message_router.propagation_transfer_state,
+                  "count": core.message_router.propagation_transfer_last_result})
+        elif command == "cancel-retrieval":
+            core.cancel_lxmf_sync()
+            emit({"event": "sync-cancelled", "state": core.message_router.propagation_transfer_state})
         elif command == "message" and len(parts) == 3:
             content = base64.b64decode(parts[2], validate=True).decode()
             accepted = core.send_message(content, bytes.fromhex(parts[1]), False, skip_fields=True)
@@ -125,10 +166,14 @@ def main():
             messages = core.list_messages(destination, limit=256) or []
             conversation = core._db_conversation(destination)
             emit({"event": "snapshot", "messages": [{
+                "hash": message["hash"].hex(),
                 "content": base64.b64encode(message["content"]).decode(),
                 "incoming": message["dest"] == core.lxmf_destination.hash,
                 "signature_valid": message["lxm"].signature_validated,
                 "commands": LXMF.FIELD_COMMANDS in message["lxm"].fields,
+                "commands_packed": base64.b64encode(umsgpack.packb(message["lxm"].fields[LXMF.FIELD_COMMANDS])).decode()
+                    if LXMF.FIELD_COMMANDS in message["lxm"].fields else None,
+                "method": message["method"], "state": message["state"],
                 "delivered": message["state"] == LXMF.LXMessage.DELIVERED
             } for message in messages], "conversation_known": conversation is not None})
         else:

@@ -124,7 +124,7 @@ public sealed partial class SidebandClient
         var message = LxMessage.Create(address, identity, remote.Reply ?? "", fields: fields, method: method);
         message.IncludeTicket = state.Contacts.Any(contact => contact.DeliveryHash == work.Hash && contact.Trusted);
         ObserveRemoteCommand(message, work);
-        RegisterTelemetryOutcome(message, work, 0, state.TryPropagationOnFail && router.OutboundPropagationNode is not null && !remote.Propagation);
+        RegisterTelemetryOutcome(message, work, 0, state.TryPropagationOnFail && router.OutboundPropagationNode is not null);
         await router.SendAsync(message, token).ConfigureAwait(false);
     }
 

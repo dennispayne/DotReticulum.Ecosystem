@@ -8,6 +8,38 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Parent independently replays Nomad logging `final-v2` with
+`Invoke-FrozenLoggingAcceptance.ps1 -Manifest <absolute-manifest>`:
+Windows236/7 explicit managed skips and10/2 explicit native Linux-only skips;
+Linux243 managed and12 native passes without skips. Each candidate enforces
+307 compiled production/test and68 generated-source PDB checks, serviced
+compiler/runtime receipts and frozen hashes. All10 owned current files and278
+current compiled production sources match before parent documentation integration.
+Fresh current-source converter-provisioned managed runs independently pass
+236/7 on Windows and243/0 on Linux; the published logging selection passes2/1
+explicit Unix-permission skip on Windows and3/0 on Linux.
+C67/T190–192 records21 actual cases per host: Windows20 passes/1 explicit skip
+with T191 correctly partial, Linux21 passes/no skips. Receipts are
+`artifacts\tests\fleet-nomad-logging\parent-windows\c67.json` and
+`/home/dennis/fleet-nomad-logging-parent/c67.json`. Direct-TCP actual-primary
+messages, routing, failure/recovery and restart are distinct from preserved
+RRC/form/hosting regressions. Native fail-closed log errors intentionally correct
+a bounded-observed pinned RNS logging-lock deadlock; they are not identical
+reference failure behavior. Exact manifests/native hashes, pins and remaining
+software boundaries are in [NomadNet's reference](nomadnet.md#application-logging-configuration).
+The final integrated command `tests\run-tests.ps1 -Coverage -Pester
+-ArtifactsPath artifacts\builds\fleet-nomad-logging-unified -OutputDirectory
+artifacts\tests\fleet-nomad-logging-unified-final` passes2,497 managed cases/129
+explicit skips,62 Pester tooling cases, strict C67 catalog aggregation and merged
+production coverage. The retained failed gate in `fleet-nomad-logging-unified`
+exposes a Sideband fixture clock race, not a changed production future policy:
+flooring the clock plus241 seconds could become valid after a second boundary.
+Commit `ccc9cf3` keeps the240-second policy, asserts its exact fixed-clock cutoff
+and next representable rejected timestamp, and uses an unambiguously future
+atomic-import fixture. Fifteen focused cases and ten4-case rollback/recovery
+repetitions pass independently on each host. No assertions or compatibility
+requirements are disabled; the final full gate includes that correction.
+
 Sideband voice-peer C66/T183–189 independently records22 actual passing cases
 per host:10 Unit,9 ordinary Integration,2 actual-primary live policy cases and1
 published-native profile/GUI case. Receipts are

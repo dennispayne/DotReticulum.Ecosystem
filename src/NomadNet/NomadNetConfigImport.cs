@@ -28,12 +28,20 @@ public static class NomadNetConfigImport
         if (Encoding.UTF8.GetByteCount(text) > MaximumConfigBytes) throw new InvalidDataException("Configuration exceeds 64 KiB.");
         var values = Read(text);
         var settings = new NomadNetSettings { EnableClient = false, NodeAnnounceIntervalMinutes = 720, NodeAnnounceAtStart = false,
-            NodePageRefreshIntervalMinutes = 0, NodeFileRefreshIntervalMinutes = 0 };
+            NodePageRefreshIntervalMinutes = 0, NodeFileRefreshIntervalMinutes = 0, LogLevel = null, LogDestination = null };
+        if (values.TryGetValue("logging.loglevel", out var logLevel))
+            settings.LogLevel = NomadNetLogging.ParseLevel(Scalar(logLevel));
+        if (values.TryGetValue("logging.destination", out var logDestination))
+            settings.LogDestination = Scalar(logDestination).Equals("file", StringComparison.OrdinalIgnoreCase)
+                ? NomadNetLogDestination.File : NomadNetLogDestination.Stdout;
+        if (settings.LogDestination == NomadNetLogDestination.File && values.TryGetValue("logging.logfile", out var logFile))
+            settings.LogFile = Scalar(logFile);
         var unsupported = new List<string>();
         var warnings = new List<string>();
         var disablePropagation = true;
         foreach (var (key, raw) in values)
         {
+            if (key is "logging.loglevel" or "logging.destination" or "logging.logfile") continue;
             if (key is "node.static_peers" or "node.prioritise_destinations")
             {
                 var destinations = Destinations(raw, key, warnings);

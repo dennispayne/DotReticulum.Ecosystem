@@ -14,3 +14,4 @@ tests/NomadNet.Tests/NomadNetRrcImportVectors.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-voice-profile.json text eol=lf
 tests/NomadNet.Tests/NomadNetClientRuntimeVectors.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-voice-peers.json text eol=lf
+tests/NomadNet.Tests/NomadNetLoggingVectors.json text eol=lf

@@ -1,6 +1,6 @@
-Describe 'NomadNet client runtime configuration' -Tag 'ClientRuntime' {
+Describe 'NomadNet client runtime configuration' -Tag 'ClientRuntime', 'Logging' {
     It 'executes primary vectors and native configured text/headless notifications and precedence across restart' {
-        if ($env:DOTRETICULUM_NOMADNET_CLIENT_RUNTIME -ne '1') {
+        if ($env:DOTRETICULUM_NOMADNET_CLIENT_RUNTIME -ne '1' -and $env:DOTRETICULUM_NOMADNET_LOGGING -ne '1') {
             Set-ItResult -Skipped -Because 'Enable DOTRETICULUM_NOMADNET_CLIENT_RUNTIME=1 with selected native binary and pinned primary/Python environment.'
             return
         }
@@ -121,6 +121,16 @@ Describe 'NomadNet client runtime configuration' -Tag 'ClientRuntime' {
             (Get-FileHash $vectors).Hash | Should -Be (Get-FileHash (Join-Path $root 'tests\NomadNet.Tests\NomadNetClientRuntimeVectors.json')).Hash
             [IO.File]::ReadAllBytes($vectors) | Should -Not -Contain 13
             $outcomes.Add(@{ Case='actual-primary-vectors'; Status='passed'; Vectors=6; CliCasesPerVector=7 })
+            if ($env:DOTRETICULUM_NOMADNET_LOGGING -eq '1') {
+                $loggingVectors = Join-Path $work 'logging-vectors.json'
+                $generator = & $start 'logging-vectors' $env:DOTRETICULUM_PYTHON @('-u',
+                    (Join-Path $root 'tests\Interop\GenerateNomadNetLoggingVectors.py'), '--output', $loggingVectors,
+                    '--work', (Join-Path $work 'logging-reference'))
+                $generator.WaitForExit(180000) | Should -BeTrue
+                $generator.ExitCode | Should -Be 0 -Because $errors[$generator.Id].GetAwaiter().GetResult()
+                (Get-FileHash $loggingVectors).Hash | Should -Be (Get-FileHash (Join-Path $root 'tests\NomadNet.Tests\NomadNetLoggingVectors.json')).Hash
+                $outcomes.Add(@{ Case='actual-primary-logging-vectors'; Status='passed'; Vectors=16; CliCasesPerVector=9 })
+            }
             $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
             $listener.Start()
             $port = $listener.LocalEndpoint.Port
@@ -149,13 +159,14 @@ Describe 'NomadNet client runtime configuration' -Tag 'ClientRuntime' {
             $null = & $event $peer 'announced'
             foreach ($case in @(
                 @{ Name='text-notify'; Ui='text'; Notify='yes'; Bell=$true; Headless=$false; Flags=@('-d','-t') },
-                @{ Name='text-muted'; Ui='text'; Notify='no'; Bell=$false; Headless=$false; Flags=@('--textui','--daemon') },
+                @{ Name='text-muted'; Ui='text'; Notify='no'; Bell=$false; Headless=$false; Flags=@('--textui','--daemon','--console') },
                 @{ Name='configured-none'; Ui='none'; Notify='yes'; Bell=$false; Headless=$true; Flags=@('--textui') },
                 @{ Name='cli-daemon'; Ui='text'; Notify='yes'; Bell=$false; Headless=$true; Flags=@('-d','-c') }
             )) {
                 $config = Join-Path $work "$($case.Name).config"
-                "[client]`nuser_interface=$($case.Ui)`nnotify_on_new_message=$($case.Notify)`nannounce_at_start=Yes`nperiodic_lxmf_sync=No`n" |
-                    Set-Content $config
+                $inputConfig = "[client]`nuser_interface=$($case.Ui)`nnotify_on_new_message=$($case.Notify)`nannounce_at_start=Yes`nperiodic_lxmf_sync=No`n"
+                if ($env:DOTRETICULUM_NOMADNET_LOGGING -eq '1') { $inputConfig += "[logging]`nloglevel=4`ndestination=file`n" }
+                $inputConfig | Set-Content $config
                 $sourceHash = (Get-FileHash $config).Hash
                 $profile = Join-Path $work $case.Name
                 $null = & $offline "$($case.Name)-import" @('--import-config', $config, '--config', $profile)
@@ -194,6 +205,23 @@ Describe 'NomadNet client runtime configuration' -Tag 'ClientRuntime' {
                     }
                     & $stop $native $case.Headless
                     $logs[$native.Id].ToString().Contains([char]7) | Should -Be $case.Bell
+                    if ($env:DOTRETICULUM_NOMADNET_LOGGING -eq '1') {
+                        $forceConsole = @($case.Flags | Where-Object { $_ -in '-c', '--console' }).Count -gt 0
+                        $path = Join-Path $profile 'logfile'
+                        if ($forceConsole) {
+                            Test-Path $path | Should -BeFalse
+                            $actualLog = $logs[$native.Id].ToString()
+                        }
+                        else {
+                            Test-Path $path | Should -BeTrue
+                            $actualLog = Get-Content $path -Raw
+                            $logs[$native.Id].ToString() | Should -Not -Match '\[Info\]|\[Notice\]'
+                            @([regex]::Matches($actualLog, 'NomadNet client started')).Count | Should -Be ($restart + 1)
+                        }
+                        $actualLog | Should -Match '\[Info\]\s+LXMF message persisted: [0-9a-f]{64}'
+                        if (-not $case.Headless) { $actualLog | Should -Match '\[Info\]\s+LXMF message queued: [0-9a-f]{64}' }
+                        $actualLog | Should -Match '\[Notice\]\s+NomadNet client started'
+                    }
                     (Get-FileHash $config).Hash | Should -BeExactly $sourceHash
                     $outcomes.Add(@{ Case="$($case.Name)-restart-$restart"; Status='passed'; Bell=$case.Bell;
                         Headless=$case.Headless; InboundPersisted=$true; OutboundExercised=(-not $case.Headless);
@@ -218,9 +246,182 @@ Describe 'NomadNet client runtime configuration' -Tag 'ClientRuntime' {
                 NativeSha256=(Get-FileHash $env:DOTRETICULUM_NOMADNET_BINARY).Hash.ToLowerInvariant();
                 FixtureSha256=(Get-FileHash (Join-Path $root 'tests\NomadNet.Tests\NomadNetClientRuntimeVectors.json')).Hash.ToLowerInvariant();
                 Cases=$outcomes.ToArray(); Topology='Direct TCP actual primary daemon-core and native application; no transport hop or impairment';
-                Boundaries='Original native console, not Urwid; no physical hardware; Windows headless exit is abrupt; CLI logging remains console-only' } |
+                Boundaries='Original native console/BEL separate from configured application logging, not Urwid; no physical hardware; Windows headless exit is abrupt; logging assertions require DOTRETICULUM_NOMADNET_LOGGING=1' } |
                 ConvertTo-Json -Depth 6 | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
         }
+    }
+}
+
+Describe 'NomadNet logging routing and failures' -Tag 'Logging' {
+    It 'routes defaults, relative paths and aliases and refuses unavailable log output without successful fallback' {
+        if ($env:DOTRETICULUM_NOMADNET_LOGGING -ne '1') {
+            Set-ItResult -Skipped -Because 'Enable DOTRETICULUM_NOMADNET_LOGGING=1 with the selected native binary.'
+            return
+        }
+        if (-not $env:DOTRETICULUM_NOMADNET_BINARY) { throw 'DOTRETICULUM_NOMADNET_BINARY is required.' }
+        $work = Join-Path (Get-Location) "artifacts\tests\nomad-logging-cli-$([Guid]::NewGuid().ToString('N'))"
+        $null = New-Item $work -ItemType Directory -Force
+        $rns = Join-Path $work 'rns'
+        $null = New-Item $rns -ItemType Directory
+        "[reticulum]`nshare_instance=No`n[logging]`nloglevel=2`n[interfaces]`n" | Set-Content (Join-Path $rns 'config')
+        $outcomes = [Collections.Generic.List[object]]::new()
+        $invoke = {
+            param([string] $name, [string[]] $arguments, [bool] $running = $false, [bool] $daemon = $false,
+                [scriptblock] $afterReady = $null)
+            $info = [Diagnostics.ProcessStartInfo]::new($env:DOTRETICULUM_NOMADNET_BINARY)
+            $info.WorkingDirectory = $work
+            $info.UseShellExecute = $false
+            $info.RedirectStandardInput = $true
+            $info.RedirectStandardOutput = $true
+            $info.RedirectStandardError = $true
+            foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
+            $process = [Diagnostics.Process]::new()
+            $process.StartInfo = $info
+            $output = [Text.StringBuilder]::new()
+            try {
+                $null = $process.Start()
+                $errors = $process.StandardError.ReadToEndAsync()
+                if ($running) {
+                    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+                    do {
+                        $task = $process.StandardOutput.ReadLineAsync()
+                        $line = $task.WaitAsync([TimeSpan]::FromSeconds(30)).GetAwaiter().GetResult()
+                        if ($null -eq $line) { throw "$name exited before readiness: $($errors.GetAwaiter().GetResult()); $work" }
+                        $null = $output.AppendLine($line)
+                    } while ($line -notmatch 'LXMF delivery address:' -and [DateTime]::UtcNow -lt $deadline)
+                    $line | Should -Match 'LXMF delivery address:'
+                    if ($afterReady) { & $afterReady $process }
+                    elseif ($daemon -and $IsWindows) { $process.Kill($true) }
+                    elseif ($daemon) { & /bin/kill -TERM $process.Id }
+                    else { $process.StandardInput.WriteLine('quit'); $process.StandardInput.Flush() }
+                }
+                $remaining = $process.StandardOutput.ReadToEndAsync()
+                $process.WaitForExit(30000) | Should -BeTrue
+                $null = $output.Append($remaining.GetAwaiter().GetResult())
+                $stderr = $errors.GetAwaiter().GetResult()
+                $result = @{ ExitCode=$process.ExitCode; Stdout=$output.ToString(); Stderr=$stderr }
+                $output.ToString() | Set-Content (Join-Path $work "$name.stdout")
+                $stderr | Set-Content (Join-Path $work "$name.stderr")
+                return $result
+            }
+            finally {
+                if (-not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+                $process.Dispose()
+            }
+        }.GetNewClosure()
+        (& $invoke 'help' @('--help')).Stdout | Should -Match 'Original command/status output'
+        (& $invoke 'version' @('--version')).Stdout | Should -Match '1\.4\.4'
+        foreach ($case in @(
+            @{ Name='default'; Init=$true; Text=''; Flags=@(); File=$true; Level=4; Headless=$false },
+            @{ Name='default-daemon'; Init=$true; Text=''; Flags=@('-d'); File=$true; Level=4; Headless=$true },
+            @{ Name='console-alone-ignored'; Text="[logging]`nloglevel=4`ndestination=file`n"; Flags=@('-c'); File=$true; Level=4; Headless=$false },
+            @{ Name='long-console-alone-ignored'; Text="[logging]`nloglevel=4`ndestination=file`n"; Flags=@('--console'); File=$true; Level=4; Headless=$false },
+            @{ Name='daemon-console'; Text="[logging]`nloglevel=4`ndestination=file`n"; Flags=@('--daemon','--console'); File=$false; Level=4; Headless=$true },
+            @{ Name='text-cancels-daemon-not-console'; Text="[logging]`nloglevel=4`ndestination=file`n"; Flags=@('-c','-d','-t'); File=$false; Level=4; Headless=$false },
+            @{ Name='low-clamp'; Text="[logging]`nloglevel=-999`ndestination=file`n"; Flags=@('-t'); File=$true; Level=0; Headless=$false },
+            @{ Name='high-clamp-relative'; Text="[logging]`nloglevel=9999999999999999999999999`ndestination=FiLe`nlogfile=relative-native.log`n"; Flags=@(); File=$true; Level=7; Path='relative-native.log'; Headless=$false },
+            @{ Name='unknown-is-stdout'; Text="[logging]`nloglevel=4`ndestination=anything`nlogfile=ignored.log`n"; Flags=@(); File=$false; Level=4; Headless=$false },
+            @{ Name='absent-inherits-rns'; Text=''; Flags=@(); File=$false; Level=$null; Headless=$false }
+        )) {
+            $profile = Join-Path $work $case.Name
+            $config = Join-Path $work "$($case.Name).ini"
+            if ($case.Init) {
+                $result = & $invoke "$($case.Name)-init" @('--init', '--config', $profile)
+            }
+            else {
+                ($case.Text + "[client]`nuser_interface=text`nannounce_at_start=no`nperiodic_lxmf_sync=no`n") | Set-Content $config
+                $result = & $invoke "$($case.Name)-import" @('--import-config', $config, '--config', $profile)
+            }
+            $result.ExitCode | Should -Be 0 -Because $result.Stderr
+            $settings = Get-Content (Join-Path $profile 'settings.json') -Raw | ConvertFrom-Json
+            $settings.logLevel | Should -Be $case.Level
+            $path = if ($case.Path) { Join-Path $work $case.Path } else { Join-Path $profile 'logfile' }
+            for ($restart = 0; $restart -lt 2; $restart++) {
+                $result = & $invoke "$($case.Name)-$restart" (@('--config', $profile, '--rnsconfig', $rns) + $case.Flags) $true $case.Headless
+                if (-not ($IsWindows -and $case.Headless)) { $result.ExitCode | Should -Be 0 -Because $result.Stderr }
+                if ($case.File) {
+                    Test-Path $path | Should -BeTrue
+                    if ($case.Level -ge 3) { (Get-Content $path -Raw) | Should -Match '\[Notice\]\s+NomadNet client started' }
+                    else { (Get-Item $path).Length | Should -Be 0 }
+                    $result.Stdout | Should -Not -Match '\[Notice\]'
+                }
+                else {
+                    Test-Path $path | Should -BeFalse
+                    if ($case.Level -ge 3) { $result.Stdout | Should -Match '\[Notice\]\s+NomadNet client started' }
+                    else { $result.Stdout | Should -Not -Match '\[Notice\]' }
+                }
+            }
+            if ($case.Path) { Test-Path (Join-Path $profile $case.Path) | Should -BeFalse }
+            Test-Path (Join-Path $work 'ignored.log') | Should -BeFalse
+            $outcomes.Add(@{ Case=$case.Name; Status='passed'; Starts=2; File=$case.File })
+        }
+        foreach ($case in @(
+            @{ Name='missing-parent'; Path=(Join-Path $work 'absent-parent\log') },
+            @{ Name='directory-target'; Path=$work }
+        )) {
+            $profile = Join-Path $work $case.Name
+            $config = Join-Path $work "$($case.Name).ini"
+            "[logging]`nloglevel=4`ndestination=file`nlogfile=`"$($case.Path)`"`n" | Set-Content $config
+            (& $invoke "$($case.Name)-import" @('--import-config', $config, '--config', $profile)).ExitCode | Should -Be 0
+            $result = & $invoke $case.Name @('--config', $profile, '--rnsconfig', $rns)
+            $result.ExitCode | Should -Be 1
+            $result.Stderr | Should -Match 'nomadnet:'
+            $result.Stdout | Should -Not -Match 'Daemon ready|NomadNet client started|LXMF delivery address'
+            $outcomes.Add(@{ Case=$case.Name; Status='passed'; ExitCode=1; NoFallback=$true })
+        }
+        $profile = Join-Path $work 'late-write-failure'
+        $config = Join-Path $work 'late-write-failure.ini'
+        "[client]`nuser_interface=text`nannounce_at_start=no`n[logging]`nloglevel=4`ndestination=file`n" | Set-Content $config
+        (& $invoke 'late-import' @('--import-config', $config, '--config', $profile)).ExitCode | Should -Be 0
+        $log = Join-Path $profile 'logfile'
+        $failure = {
+            param($process)
+            Remove-Item $log
+            $null = New-Item $log -ItemType Directory
+            $process.StandardInput.WriteLine('node-config impossible')
+            $process.StandardInput.Flush()
+        }.GetNewClosure()
+        $result = & $invoke 'late-write-failure' @('--config', $profile, '--rnsconfig', $rns) $true $false $failure
+        $result.ExitCode | Should -Be 1
+        $result.Stderr | Should -Match 'logging failed.*stopping without fallback'
+        $result.Stdout | Should -Not -Match '\[Error\]'
+        Remove-Item $log
+        $result = & $invoke 'late-recovered' @('--config', $profile, '--rnsconfig', $rns) $true
+        $result.ExitCode | Should -Be 0 -Because $result.Stderr
+        (Get-Content $log -Raw) | Should -Match 'NomadNet client started'
+        $outcomes.Add(@{ Case='runtime-write-failure-and-restart'; Status='passed'; FaultExitCode=1; RecoveredExitCode=0 })
+        @{ Cases=$outcomes.ToArray(); NativeSha256=(Get-FileHash $env:DOTRETICULUM_NOMADNET_BINARY).Hash.ToLowerInvariant() } |
+            ConvertTo-Json -Depth 6 | Set-Content (Join-Path $work 'acceptance.json')
+    }
+
+    It 'rejects a genuinely unwritable native Linux logfile and recovers after permissions are restored' {
+        if ($env:DOTRETICULUM_NOMADNET_LOGGING -ne '1' -or -not $IsLinux) {
+            Set-ItResult -Skipped -Because 'Requires opted-in logging acceptance on native Linux for Unix permissions.'
+            return
+        }
+        $work = Join-Path (Get-Location) "artifacts\tests\nomad-logging-permissions-$([Guid]::NewGuid().ToString('N'))"
+        $null = New-Item $work -ItemType Directory -Force
+        $profile = Join-Path $work 'profile'
+        $rns = Join-Path $work 'rns'
+        $null = New-Item $rns -ItemType Directory
+        "[reticulum]`nshare_instance=No`n[logging]`nloglevel=0`n[interfaces]`n" | Set-Content (Join-Path $rns 'config')
+        & $env:DOTRETICULUM_NOMADNET_BINARY --init --config $profile | Out-Null
+        $LASTEXITCODE | Should -Be 0
+        $path = Join-Path $profile 'logfile'
+        '' | Set-Content $path
+        $original = [IO.File]::GetUnixFileMode($path)
+        try {
+            [IO.File]::SetUnixFileMode($path, [IO.UnixFileMode]::UserRead)
+            $output = & $env:DOTRETICULUM_NOMADNET_BINARY --config $profile --rnsconfig $rns 2>&1 | Out-String
+            $LASTEXITCODE | Should -Be 1
+            $output | Should -Match 'nomadnet:.*denied'
+            $output | Should -Not -Match 'LXMF delivery address|Daemon ready'
+        }
+        finally { [IO.File]::SetUnixFileMode($path, $original) }
+        $output = 'quit' | & $env:DOTRETICULUM_NOMADNET_BINARY --config $profile --rnsconfig $rns 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 0
+        $output | Should -Match 'LXMF delivery address'
+        (Get-Content $path -Raw) | Should -Match 'NomadNet client started'
     }
 }
 

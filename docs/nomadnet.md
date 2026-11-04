@@ -51,7 +51,7 @@ Underlying-library acceptance is not automatically application acceptance.
 
 | Contract and upstream sources | Current status and boundary |
 |---|---|
-| Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`/`-d`, `--console`/`-c`, `--textui`/`-t` accepted. Imported `client.user_interface=none` selects headless operation; `text` selects the original console, not Urwid. As in the primary, `--textui` cancels `--daemon` regardless of argument order but does not override configured `none`. Daemon ignores terminal input and serves until cancellation; controlled SIGTERM/Ctrl+C cancellation exits successfully after disposal. Native terminal/daemon/init/offline directory import hold an exclusive profile lease. `--console` retains existing console logging, not missing configurable file logging. Extensions: `--help`, `--init`, `--status`, explicit non-overwriting core `--import-config`, additive conflict-refusing `--import-directory`, offline non-overwriting `--import-profile` retaining the primary identity with an explicit selected RNS configuration. |
+| Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`/`-d`, `--console`/`-c`, `--textui`/`-t` accepted. Imported `client.user_interface=none` selects headless operation; `text` selects the original console, not Urwid. As in the primary, `--textui` cancels `--daemon` regardless of argument order but does not override configured `none`. Daemon ignores terminal input and serves until cancellation; controlled SIGTERM/Ctrl+C cancellation exits successfully after disposal. Native terminal/daemon/init/offline directory import hold an exclusive profile lease. Application logging supports configured levels/file/stdout and the primary's daemon-gated console override, independently of original terminal output/BEL. Extensions: `--help`, `--init`, `--status`, explicit non-overwriting core `--import-config`, additive conflict-refusing `--import-directory`, offline non-overwriting `--import-profile` retaining the primary identity with an explicit selected RNS configuration. |
 | Client announcements; `NomadNetworkApp.START_ANNOUNCE_DELAY`, `__jobs`, `announce_now`, `apply_config`, `set_display_name` | **implemented bounded subset**: configurable three-second startup, strict periodic interval after90seconds with five-second checks, manual delivery-only or combined announces, durable successful timestamp, runtime display-name and stamp-cost edits through existing LXMF APIs. Display-name changes save without announcing or replacing the identity/destination. Retains unused `enable_client` metadata rather than inventing delivery-disable semantics. Native safety differences for names, fresh null timestamps, failed background work, serialization and interval bounds are explicit below. |
 | Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, per-peer direct/propagated/opportunistic preference, unread/failure counters, explicit viewed/read state, latest-activity listing, deletion/failed purge and plain-text export. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. Native opportunistic text is received by the actual primary; direct reply/viewed state and both applications' read counters are exercised. Primary conversation/container/attachment import and inert `.index` preservation with honest historical authentication are implemented below; full conversation UI remains missing. |
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Typed image references support explicit/automatic original ASCII conversation previews, using the existing converter/cache and never/manual/auto/always controls; this is not primary UI parity. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
@@ -80,6 +80,7 @@ contracts and reports unsupported keys; it is not complete configuration parity.
 | `displayName` | `NomadNet user`; 1–80 non-control UTF-16 code units; runtime editing also requires strict UTF-8 |
 | `enableClient` | true for legacy native profiles; false when absent from imported primary configuration; metadata only, matching the primary's unused runtime flag; does not disable delivery |
 | `userInterface`, `notifyOnNewMessage` | text2 /true; explicit ConfigObj `client.user_interface` supports none0/text2, case-insensitively. Missing UI retains the native text default; it does not reproduce an invalid primary configuration's unset UI. `--daemon` forces headless unless `--textui` is also present; configured none stays headless even with `--textui`. Enabled notifications write/flush BEL only after successful inbound persistence in text mode; daemon and muted profiles emit none. Notification failure is contextual and isolated from persistence/subsequent service. Changes to interface selection require restart; this is not Urwid or audible/hardware acceptance. |
+| `logLevel`, `logDestination`, `logFile` | Fresh/legacy native defaults4 /file1 /null (`<profile>/logfile`), including daemon. Explicit import clamps Python-style decimal log levels0–7, selects file only for case-insensitive `file` and stdout0 for every other destination. Missing level/destination import as null, retaining the selected RNS level/stdout. A logfile without file destination is inert. Custom paths are literal: relative to process CWD, no home/environment expansion or automatic parent-directory creation. Details and intentional failure-policy differences below. |
 | `clientAnnounceAtStart`, `clientAnnounceIntervalMinutes` | true /360; three-second startup announce, periodic checks after90seconds and then every5seconds; interval30–10080minutes |
 | `lastClientAnnounce` | absent initially; saved only after successful delivery announce; null suppresses periodic announcements until first manual/startup success |
 | `composeInMarkdown`, `rrcRenderMarkdown`, `rrcRenderMicron` | true /true /true, matching actual primary constructor defaults; outgoing ordinary LXMF gets renderer2 only when enabled; paper does not get this field; RRC live/history display uses its independently persisted switches |
@@ -103,6 +104,148 @@ contracts and reports unsupported keys; it is not complete configuration parity.
 | `lastLxmfSync` | absent until first attempt; persisted UTC timestamp before retrieval; failure/cancellation do not erase it |
 | `tryPropagationOnSendFail` | true; one propagation attempt after failed direct delivery if a node is selected |
 | `deliveryTransferLimitBytes` | 1,000,000; validated 1 KiB–64 MiB. Independent attachment extraction limit is 16 MiB. |
+
+### Application logging configuration
+
+`logging.loglevel`, `logging.destination`, `logging.logfile` and daemon/console
+precedence are implemented as bounded application-owned logging contracts.
+Authority is `NomadNetworkApp.__init__`/`applyConfig` and `nomadnet.main` at the
+primary revision above, plus `RNS.log` at the pinned RNS1.5.7 revision.
+`GenerateNomadNetLoggingVectors.py` executes actual unchanged constructors,
+ConfigObj/defaults, configuration application and logging calls at severities0–8.
+Its sixteen deterministic cases and nine CLI cases per configuration include
+absent settings,0/7 clamps, default/custom/relative/literal-tilde paths, ignored
+logfile options, unknown destinations, Unicode/large/underscored integers and
+forced stdout. Actual reference writes also establish5MiB rotation/recreation.
+Timestamp-disabled
+reference output establishes exact labels and severity filtering, not invented
+messages. The fixture records primary source Git-blob SHA-256 and RNS logger
+SHA-256 `ed6cd970da6e19a0fdc34aae74897f876917879eb02cf6aacc86eb9ae13ebbd9`.
+Per-host actual imported paths are retained with generated observations.
+
+The CLI computes force-console from the **original presence of both daemon and
+console flags**, before text mode cancels daemon. Consequently `-c` alone does
+not override file logging; `-d -c` does; `-d -c -t` still forces stdout even
+though it selects the text command loop. Order and short/long aliases do not
+change this. Configured `none` UI does not itself enable force-console.
+Default file routing applies in both text and daemon modes: the primary
+does not contain a separate daemon-only destination default.
+
+Both config-only and full offline profile import persist supported logging;
+unrelated settings updates retain it across restart. The native JSON uses
+numeric destination0/stdout and1/file. Logging is established before network
+startup; Reticulum's instance callback, LXMF and application hosting/announcement/
+delivery/image/RRC diagnostics feed the same owned logger. Unlevelled native
+library diagnostics receive explicit native severity (LXMF/RRC/propagation
+notice3, failed work error1); their text/severity is not claimed identical to
+Python's internal logs. Startup/configuration logs are notice3; persisted/queued
+message identifiers are info4. Private message bodies and keys are not logged.
+Reticulum's configured timestamp switch is retained.
+
+Original command/status output, propagation progress presentation, conversation
+rendering and the notification BEL are **not** RNS log records and are not
+silenced or redirected by logging configuration. Help/version, init/status,
+offline-import reports and fatal CLI errors also remain console outputs.
+This is not Urwid's stderr-capture workaround or primary `errors` file parity.
+One cannot establish file logging merely by redirecting console output.
+
+Ownership and intentional safety differences:
+
+- The logger never changes a static/global handler or another application's
+  logger. Synchronous serialized writes provide backpressure without an
+  unbounded queue; each message is limited to16Ki UTF-16 code units and terminal
+  control characters are removed. A failing sink records its fault, reports a
+  contextual stderr error and cancels this application's lifetime.
+- File writes append UTF-8 with native line endings, close each write, and rotate
+  to one replaceable `.1` backup after exceeding RNS's5MiB threshold.
+  Existing oversized user files are not proactively truncated. Writes racing
+  disposal become inert; cancellation is checked before work; disposal is
+  explicit and does not own/close the process console.
+- Bad/unwritable paths fail visibly with exit1 and no success-shaped fallback.
+  The generator also executes upstream's actual file-write failure on a bounded
+  daemon observer thread. Pinned RNS1.5.7 sets its emergency-console flag but
+  deadlocks recursively acquiring its non-reentrant logging lock; the call does
+  not finish or print the intended fallback errors within the one-second join.
+  No RLock shim or primary source patch is used. This native correction is
+  tested, not concealed as identical failure behavior. Healthy restart recovers.
+- Paths must be1–2048 non-control characters; unsupported empty/malformed paths
+  are rejected during migration/save, rather than delaying failure to the first
+  upstream write. Imported custom paths are explicit operator-selected log
+  destinations, not automatically activated hosted/executable/network roots.
+- Invalid integer levels fail rather than succeeding with a default. Complete
+  ConfigObj grammar, hot reload/configuration editing,
+  arbitrary RNS callback destinations and exact Python message wording are not
+  claimed by this bounded contract.
+
+Logging acceptance is opt-in with `DOTRETICULUM_NOMADNET_LOGGING=1`,
+`DOTRETICULUM_NOMADNET_BINARY` and the existing pinned primary/Python variables:
+
+```powershell
+dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --filter "FullyQualifiedName~NomadNetLogging"
+pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\NomadNet.Tests.ps1 -Tag Logging
+```
+
+The native cases execute default/daemon routing, both CLI aliases and
+text/daemon precedence, low/high clamps, relative paths, absent-setting
+inheritance, nonexistent-parent/directory-target failures, runtime sink failure
+with nonzero exit and healthy restart. Linux additionally removes actual Unix
+write permission and restores it before recovery. The messaging case uses the
+actual primary daemon core over direct TCP, not a .NET loopback: four profiles
+start twice, receive eight primary messages, and text profiles originate four
+replies observed by the primary. File/stdout log records and independent BEL
+policy survive restart. Windows headless exit is abrupt; Linux uses clean
+SIGTERM. No new transport-hop/loss, hardware, complete terminal or full dependency
+parity claim is made.
+
+Selected logging candidates are strict NativeAOT builds with
+SDK10.0.403/runtime and ILC10.0.14:
+
+| Validation | Windows | Linux |
+|---|---|---|
+| Complete current NomadNet managed suite, verified converter enabled |236 passed /7 explicit Linux-only skips |243 passed /0 skips |
+| Logging reference/failure/lifecycle cases within that suite |18 passed |18 passed |
+| Parent current-source published logging selection |2 passed /1 explicit Unix-permission skip |3 passed /0 skips |
+| Selected native logging + client/profile/directory/RRC/hosting regression |10 passed /2 explicit Linux-only skips |12 passed /0 skips |
+| Strict trim/ILC publish, help/version and published feature flows |passed |passed |
+
+Native SHA-256: Windows
+`19c56b51bfb14e2ad30db9404b6e337f076ad6075e363f9a03d3fa318d91f43a`;
+Linux
+`c42e95bfeba5c0719c2033913a1b37dac0692a36e68daf3cba679f31d2d300ee`.
+Source/binary/managed-test freezes, production/test portable-PDB source and
+embedded-generated-source checks, actual-import records, compiler/runtime
+receipts, exact commands and bounded no-republish replay operators are retained
+under `artifacts\tests\fleet-nomad-logging\frozen-win-final-v2` and native Linux
+`/home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/tests/fleet-nomad-logging/frozen-linux-final-v2`.
+Build/freeze HEAD is `aab67c01fd901a496075867ff8f775ca35be1fa5`;
+compiled-source hashes, not HEAD alone, identify the uncommitted candidate.
+Parent integration/commit is separate and no release/push is performed here.
+
+Parent independently replays each exact frozen `Invoke-FrozenLoggingAcceptance.ps1
+-Manifest <absolute-final-v2-manifest>` without rebuilding or republishing.
+Windows records236 managed passes/7 explicit skips and10 native passes/2 explicit
+Linux-only skips; Linux243 managed and12 native passes without skips.
+Before integration, all10 owned current files and278 compiled production source
+hashes match per host; each replay verifies307 production/test portable-PDB
+source checks and68 generated-source checks. Manifest SHA-256 values are Windows
+`bae5133d4b27ac3145ab82ce6211314ca65cd3b40993832ea1bf724514cd1d34`
+and Linux
+`91fbf5f6c19151524b18875e2475eb7b6376f9fd5998534e066c5c5556b79641`.
+Serviced runtime/compiler receipts, the converter checksum and all frozen
+file hashes are enforced before execution.
+
+Fresh parent current-source managed runs with the manifest-checksummed converter
+also record236/7 explicit Linux-only skips on Windows and243/0 on Linux.
+C67/T190–192 records21 actual cases per host:18 managed and3 native. Windows
+has20 passes/1 explicit Unix-permission skip, so T191 is correctly partial;
+Linux has21 passes without skips. The existing actual-primary client-runtime
+case is mapped separately as T192 because it now also exercises configured
+application logs independently of status/BEL. Parent receipts are
+`artifacts\tests\fleet-nomad-logging\parent-windows\c67.json` and
+`/home/dennis/fleet-nomad-logging-parent/c67.json`; parent full frozen replay logs
+are `artifacts\tests\fleet-nomad-logging\parent-windows-replay.log` and
+`parent-linux-replay.log`. Source freeze/build HEAD remains the value above,
+not the later parent integration HEAD.
 
 ### Client runtime selection and notification acceptance
 
@@ -709,7 +852,7 @@ reimplementing offers, peering work, resources or storage.
 
 Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
 
-- `[logging]`: `loglevel`, `destination`, `logfile` — **missing** configurable levels/destinations;
+- `[logging]`: `loglevel`, `destination`, `logfile` — **implemented bounded subset**: imported/persisted level filtering, file/stdout selection, literal paths, default file and exact daemon-gated `--console` precedence; fail-closed write failures and original console-output separation are documented above;
   native errors currently go to stderr.
 - `[client]`: `enable_client`, `downloads_path`, `attachment_save_path`,
   `announce_at_start`, `announce_interval`, `try_propagation_on_send_fail`,
@@ -751,7 +894,6 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   the software is missing.
 
 The remaining required configuration surface is not silently deferred:
-logging level/file routing (including daemon default file/`--console` override);
 the two client keys above; every listed TextUI key except `image_loading`;
 every listed global RRC key except the two render switches (history cap/filter
 currently affect offline migration only, not global runtime policy);
@@ -885,7 +1027,7 @@ passes with zero warnings/errors. `dotnet test DotReticulum.Ecosystem.slnx
 passes **2079 tests, 87 explicit skips, zero failures**. Converter-dependent cases
 skipped in this integrated invocation are separately exercised above.
 Runtime peer display-name edits now use the existing LXMF setter as described
-below; logging, other configuration/UI contracts, migration,
+below; other configuration/UI contracts, migration,
 complete image presentation and application-level propagation peering are not declared complete.
 
 ### Message presentation, runtime profile and paper QR
@@ -1974,7 +2116,7 @@ These ignored recipes select matching frozen managed DLLs/binaries and the
 same pinned primary/RNS/LXMF, converter and runtime prerequisites as directory
 acceptance below. Older recipes explicitly clear the new opt-in. The application
 artifact records `hostPolicy=true`. Client announcement acceptance is recorded
-separately below; logging, node
+separately below; node
 counters and other unsupported configuration remain required gaps.
 
 The isolated integrated checkpoint `dotnet build DotReticulum.Ecosystem.slnx

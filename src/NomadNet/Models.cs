@@ -20,6 +20,9 @@ public sealed record NomadNetSettings
     public bool EnableClient { get; set; } = true;
     public NomadNetUserInterface UserInterface { get; set; } = NomadNetUserInterface.Text;
     public bool NotifyOnNewMessage { get; set; } = true;
+    public int? LogLevel { get; set; } = 4;
+    public NomadNetLogDestination? LogDestination { get; set; } = NomadNetLogDestination.File;
+    public string? LogFile { get; set; }
     public bool ClientAnnounceAtStart { get; set; } = true;
     public int ClientAnnounceIntervalMinutes { get; set; } = 360;
     public DateTimeOffset? LastClientAnnounce { get; set; }
@@ -152,10 +155,12 @@ public sealed record NomadNetSettings
             LxmfSyncLimit is < 0 or > 100000 ||
             TrustedNodes is null || TrustedNodes.Count > 128 ||
             DeliveryTransferLimitBytes is < 1024 or > 64 * 1024 * 1024 ||
+            LogLevel is < 0 or > 7 ||
+            LogDestination is { } destination && !Enum.IsDefined(destination) ||
             !Enum.IsDefined(UserInterface) ||
             !Enum.IsDefined(ImageLoading) ||
             string.IsNullOrWhiteSpace(MediaConverter) || MediaConverter.Length > 1024 || MediaConverter.Any(char.IsControl) ||
-            new[] { PagesPath, FilesPath, DownloadsPath, RnsConfigDirectory }.Any(path => path is not null &&
+            new[] { PagesPath, FilesPath, DownloadsPath, RnsConfigDirectory, LogFile }.Any(path => path is not null &&
                 (string.IsNullOrWhiteSpace(path) || path.Length > 2048 || path.Any(char.IsControl))) ||
             NodeName is { } nodeName && (string.IsNullOrWhiteSpace(nodeName) || nodeName.Length > 80 || nodeName.Any(char.IsControl)) ||
             EnablePropagation && !EnableNode)

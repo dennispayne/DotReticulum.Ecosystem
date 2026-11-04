@@ -1,0 +1,1612 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sourceBlobSha256": {
+    "nomadnet/NomadNetworkApp.py": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2",
+    "nomadnet/nomadnet.py": "b35bb029b83fc879111466a183607fa62224fce8f7dd5307412c4ef35d47b902"
+  },
+  "rnsCommit": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "rnsLoggerSha256": "ed6cd970da6e19a0fdc34aae74897f876917879eb02cf6aacc86eb9ae13ebbd9",
+  "method": "Actual unchanged NomadNetworkApp constructor reaches NoneUI; actual ConfigObj/applyConfig then actual RNS.log at severities0\u20138 with timestamps disabled for deterministic text. Process logger reset to RNS-config level2/stdout only before reapplication. Actual RNS.log bad-directory file failure runs on a daemon thread joined for one second: the pinned non-reentrant logging lock prevents its recursive emergency fallback from completing. CLI main executes with setup argument observer. No primary source changes.",
+  "vectors": [
+    {
+      "name": "generated-default",
+      "input": "[logging]\nloglevel = 4\ndestination = file\n",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 4,
+          "destination": "file",
+          "defaultFile": true
+        },
+        "level": 4,
+        "destination": "file",
+        "defaultFile": true,
+        "customFile": null,
+        "stdout": "",
+        "file": "[Critical] probe-0\n[Error]    probe-1\n[Warning]  probe-2\n[Notice]   probe-3\n[Info]     probe-4\n",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "absent",
+      "input": "",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 2,
+          "destination": "stdout",
+          "defaultFile": true
+        },
+        "level": 2,
+        "destination": "stdout",
+        "defaultFile": false,
+        "customFile": null,
+        "stdout": "[Critical] probe-0\n[Error]    probe-1\n[Warning]  probe-2\n",
+        "file": "",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "level-only",
+      "input": "[logging]\nloglevel=6\n",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 6,
+          "destination": "stdout",
+          "defaultFile": true
+        },
+        "level": 6,
+        "destination": "stdout",
+        "defaultFile": false,
+        "customFile": null,
+        "stdout": "[Critical] probe-0\n[Error]    probe-1\n[Warning]  probe-2\n[Notice]   probe-3\n[Info]     probe-4\n[Verbose]  probe-5\n[Debug]    probe-6\n",
+        "file": "",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "low-clamp",
+      "input": "[logging]\nloglevel=-99\ndestination=console\n",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 0,
+          "destination": "stdout",
+          "defaultFile": true
+        },
+        "level": 0,
+        "destination": "stdout",
+        "defaultFile": false,
+        "customFile": null,
+        "stdout": "[Critical] probe-0\n",
+        "file": "",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "high-clamp",
+      "input": "[logging]\nloglevel=99\ndestination=FiLe\n",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 7,
+          "destination": "file",
+          "defaultFile": true
+        },
+        "level": 7,
+        "destination": "file",
+        "defaultFile": true,
+        "customFile": null,
+        "stdout": "",
+        "file": "[Critical] probe-0\n[Error]    probe-1\n[Warning]  probe-2\n[Notice]   probe-3\n[Info]     probe-4\n[Verbose]  probe-5\n[Debug]    probe-6\n[Pathing]  probe-7\n",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "explicit-info",
+      "input": "[logging]\nloglevel=4\ndestination=file\n",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 4,
+          "destination": "file",
+          "defaultFile": true
+        },
+        "level": 4,
+        "destination": "file",
+        "defaultFile": true,
+        "customFile": null,
+        "stdout": "",
+        "file": "[Critical] probe-0\n[Error]    probe-1\n[Warning]  probe-2\n[Notice]   probe-3\n[Info]     probe-4\n",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "console",
+      "input": "[logging]\nloglevel=7\ndestination=console\nlogfile=ignored.log\n",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 7,
+          "destination": "stdout",
+          "defaultFile": true
+        },
+        "level": 7,
+        "destination": "stdout",
+        "defaultFile": false,
+        "customFile": null,
+        "stdout": "[Critical] probe-0\n[Error]    probe-1\n[Warning]  probe-2\n[Notice]   probe-3\n[Info]     probe-4\n[Verbose]  probe-5\n[Debug]    probe-6\n[Pathing]  probe-7\n",
+        "file": "",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "unknown-console",
+      "input": "[logging]\nloglevel=3\ndestination=other\n",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 3,
+          "destination": "stdout",
+          "defaultFile": true
+        },
+        "level": 3,
+        "destination": "stdout",
+        "defaultFile": false,
+        "customFile": null,
+        "stdout": "[Critical] probe-0\n[Error]    probe-1\n[Warning]  probe-2\n[Notice]   probe-3\n",
+        "file": "",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "relative-file",
+      "input": "[logging]\nloglevel=5\ndestination=file\nlogfile=relative.log\n",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 5,
+          "destination": "file",
+          "defaultFile": false
+        },
+        "level": 5,
+        "destination": "file",
+        "defaultFile": false,
+        "customFile": "relative.log",
+        "stdout": "",
+        "file": "[Critical] probe-0\n[Error]    probe-1\n[Warning]  probe-2\n[Notice]   probe-3\n[Info]     probe-4\n[Verbose]  probe-5\n",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "tilde-is-literal",
+      "input": "[logging]\nloglevel=1\ndestination=file\nlogfile=~/literal.log\n",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 1,
+          "destination": "file",
+          "defaultFile": false
+        },
+        "level": 1,
+        "destination": "file",
+        "defaultFile": false,
+        "customFile": "~/literal.log",
+        "stdout": "",
+        "file": "[Critical] probe-0\n[Error]    probe-1\n",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "file-option-alone",
+      "input": "[logging]\nlogfile=ignored.log\n",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 2,
+          "destination": "stdout",
+          "defaultFile": true
+        },
+        "level": 2,
+        "destination": "stdout",
+        "defaultFile": false,
+        "customFile": null,
+        "stdout": "[Critical] probe-0\n[Error]    probe-1\n[Warning]  probe-2\n",
+        "file": "",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "forced",
+      "input": "[logging]\nloglevel=4\ndestination=file\nlogfile=ignored.log\n",
+      "forceConsole": true,
+      "observed": {
+        "constructor": {
+          "level": 4,
+          "destination": "file",
+          "defaultFile": false
+        },
+        "level": 4,
+        "destination": "stdout",
+        "defaultFile": false,
+        "customFile": null,
+        "stdout": "[Critical] probe-0\n[Error]    probe-1\n[Warning]  probe-2\n[Notice]   probe-3\n[Info]     probe-4\n",
+        "file": "",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "huge-level",
+      "input": "[logging]\nloglevel=999999999999999999999999999999\ndestination=console\n",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 7,
+          "destination": "stdout",
+          "defaultFile": true
+        },
+        "level": 7,
+        "destination": "stdout",
+        "defaultFile": false,
+        "customFile": null,
+        "stdout": "[Critical] probe-0\n[Error]    probe-1\n[Warning]  probe-2\n[Notice]   probe-3\n[Info]     probe-4\n[Verbose]  probe-5\n[Debug]    probe-6\n[Pathing]  probe-7\n",
+        "file": "",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "unicode-level",
+      "input": "[logging]\nloglevel=\u0663\ndestination=console\n",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 3,
+          "destination": "stdout",
+          "defaultFile": true
+        },
+        "level": 3,
+        "destination": "stdout",
+        "defaultFile": false,
+        "customFile": null,
+        "stdout": "[Critical] probe-0\n[Error]    probe-1\n[Warning]  probe-2\n[Notice]   probe-3\n",
+        "file": "",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "astral-level",
+      "input": "[logging]\nloglevel=\ud835\udfdf\ndestination=console\n",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 7,
+          "destination": "stdout",
+          "defaultFile": true
+        },
+        "level": 7,
+        "destination": "stdout",
+        "defaultFile": false,
+        "customFile": null,
+        "stdout": "[Critical] probe-0\n[Error]    probe-1\n[Warning]  probe-2\n[Notice]   probe-3\n[Info]     probe-4\n[Verbose]  probe-5\n[Debug]    probe-6\n[Pathing]  probe-7\n",
+        "file": "",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "underscore-level",
+      "input": "[logging]\nloglevel=+0_7\ndestination=console\n",
+      "forceConsole": false,
+      "observed": {
+        "constructor": {
+          "level": 7,
+          "destination": "stdout",
+          "defaultFile": true
+        },
+        "level": 7,
+        "destination": "stdout",
+        "defaultFile": false,
+        "customFile": null,
+        "stdout": "[Critical] probe-0\n[Error]    probe-1\n[Warning]  probe-2\n[Notice]   probe-3\n[Info]     probe-4\n[Verbose]  probe-5\n[Debug]    probe-6\n[Pathing]  probe-7\n",
+        "file": "",
+        "failure": {
+          "visibleWriteError": false,
+          "emergencyConsoleFallback": false,
+          "originalMessageRetried": false,
+          "completed": false,
+          "fallbackFlagSet": true
+        },
+        "rotation": {
+          "maximumBytes": 5242880,
+          "rotatedAfterExceeding": true,
+          "recreated": true
+        },
+        "cli": [
+          {
+            "args": [],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-c"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d"
+            ],
+            "daemon": true,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "-d",
+              "-c"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "--console",
+              "--daemon"
+            ],
+            "daemon": true,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-c",
+              "-d",
+              "-t"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          },
+          {
+            "args": [
+              "-t",
+              "--daemon"
+            ],
+            "daemon": false,
+            "forceConsole": false
+          },
+          {
+            "args": [
+              "--daemon",
+              "--textui",
+              "--console"
+            ],
+            "daemon": false,
+            "forceConsole": true
+          }
+        ]
+      }
+    }
+  ]
+}

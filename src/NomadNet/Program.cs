@@ -107,6 +107,7 @@ internal static class Program
         var initialize = false;
         var showStatus = false;
         var daemon = false;
+        var console = false;
         var textUi = false;
         string? importConfig = null;
         string? importDirectory = null;
@@ -142,6 +143,7 @@ internal static class Program
                     break;
                 case "--console":
                 case "-c":
+                    console = true;
                     break;
                 case "--textui":
                 case "-t":
@@ -160,7 +162,7 @@ internal static class Program
         if (importProfile is not null && (initialize || showStatus || daemon || importConfig is not null ||
             importDirectory is not null || rnsConfig is null))
             throw new ArgumentException("--import-profile requires explicit --rnsconfig and cannot be combined with other modes.");
-        return new Options(dataDirectory, rnsConfig, initialize, showStatus, daemon, textUi, importConfig, importDirectory, importProfile);
+        return new Options(dataDirectory, rnsConfig, initialize, showStatus, daemon, textUi, console, importConfig, importDirectory, importProfile);
     }
 
     private static string ValueAfter(string[] args, ref int index)
@@ -193,10 +195,32 @@ internal static class Program
     {
         using var lease = NomadNetProfileLease.Acquire(options.DataDirectory);
         var settings = await NomadNetSettings.OpenAsync(options.DataDirectory, cancellationToken).ConfigureAwait(false);
+        var rns = DotReticulum.Applications.Rnsd.RnsdApp.LoadConfiguration(options.RnsConfig ?? settings.RnsConfigDirectory);
+        await using var logging = NomadNetLogging.Start(NomadNetLoggingOptions.Resolve(settings, options.DataDirectory,
+            rns.Config.LogLevel, options.Daemon, options.TextUi, options.Console),
+            timestamps: rns.Config.LogTimestamps, cancellationToken: cancellationToken);
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, logging.FailureToken);
+        await using var node = ReticulumNode.Create(rns.Config, rns.Directory,
+            (level, message) => logging.Write(level, "RNS: " + message));
+        try
+        {
+            logging.Write(3, "Configuration loaded from " + Path.Combine(options.DataDirectory, "settings.json"));
+            await RunCoreAsync(options, settings, node, logging, lifetime.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (logging.Fault is not null)
+        {
+            logging.ThrowIfFaulted();
+            throw;
+        }
+        finally { logging.Write(5, "NomadNet client exiting now"); }
+        logging.ThrowIfFaulted();
+    }
+
+    private static async Task RunCoreAsync(Options options, NomadNetSettings settings, ReticulumNode node,
+        NomadNetLogging logging, CancellationToken cancellationToken)
+    {
         var headless = NomadNetClientRuntime.IsHeadless(settings, options.Daemon, options.TextUi);
         var state = await NomadNetStore.OpenAsync(options.DataDirectory, cancellationToken).ConfigureAwait(false);
-        await using var node = ReticulumNode.Open(options.RnsConfig ?? settings.RnsConfigDirectory,
-            (level, message) => Console.Error.WriteLine($"RNS[{level}]: {message}"));
         using var identity = File.Exists(Path.Combine(options.DataDirectory, "identity"))
             ? await NomadNetProfileImport.ReadIdentityAsync(options.DataDirectory, cancellationToken).ConfigureAwait(false)
             : node.LoadOrCreateIdentity("nomadnet_identity");
@@ -210,7 +234,7 @@ internal static class Program
                 EnforceStamps = !settings.AcceptInvalidStamps,
             })
         {
-            Log = message => Console.Error.WriteLine($"LXMF: {message}"),
+            Log = message => logging.Write(3, "LXMF: " + message),
         };
         var inbox = System.Threading.Channels.Channel.CreateBounded<ReceivedMessage>(new BoundedChannelOptions(128)
         {
@@ -232,7 +256,7 @@ internal static class Program
             hash => router.OutboundPropagationNode = hash is null ? null : Convert.FromHexString(hash),
             (limit, token) => router.RequestMessagesFromPropagationNodeAsync(maxMessages: limit, cancellationToken: token),
             router.CancelPropagationNodeRequests)
-        { Log = message => Console.WriteLine(message) };
+        { Log = message => { logging.Write(3, message); Console.WriteLine(message); } };
         await propagationPolicy.RefreshSelectionAsync(cancellationToken).ConfigureAwait(false);
         propagationPolicy.Start();
         var propagation = settings.EnablePropagation ? router.EnablePropagationNode(NomadNetNodeConfiguration.CreateOptions(settings)) : null;
@@ -243,7 +267,7 @@ internal static class Program
                 return ValueTask.CompletedTask;
             })
         {
-            Log = message => Console.Error.WriteLine(message),
+            Log = message => logging.Write(1, message),
         } : null;
         host?.Start();
         await using var clientAnnounces = new NomadNetClientAnnounces(() => propagationPolicy.Settings,
@@ -255,11 +279,12 @@ internal static class Program
             },
             (timestamp, token) => propagationPolicy.UpdateSettingsAsync(
                 current => current with { LastClientAnnounce = timestamp }, token))
-        { Log = message => Console.Error.WriteLine(message) };
+        { Log = message => logging.Write(1, message) };
         clientAnnounces.Start();
-        await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host, clientAnnounces);
+        await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host, clientAnnounces, logging);
         var receiver = PersistIncomingAsync(inbox.Reader, state, options.DataDirectory, session.ObserveConversationImageAsync,
-            () => propagationPolicy.Settings, headless, cancellationToken);
+            () => propagationPolicy.Settings, headless, logging, cancellationToken);
+        logging.Write(3, "NomadNet client started");
 
         Console.WriteLine("NomadNet .NET client (scoped native implementation; type help for commands)");
         Console.WriteLine($"LXMF delivery address: {router.DeliveryHashHex}");
@@ -284,7 +309,7 @@ internal static class Program
 
     private static async Task PersistIncomingAsync(ChannelReader<ReceivedMessage> reader, NomadNetStore store, string directory,
         Func<NomadNetMessage, CancellationToken, Task> observeImage, Func<NomadNetSettings> settings, bool headless,
-        CancellationToken cancellationToken)
+        NomadNetLogging logging, CancellationToken cancellationToken)
     {
         try
         {
@@ -307,15 +332,16 @@ internal static class Program
                     }
                     catch (Exception exception) when (exception is not OperationCanceledException)
                     {
-                        Console.Error.WriteLine($"Could not save incoming attachments for {id}: {exception.Message}");
+                        logging.Write(1, $"Could not save incoming attachments for {id}: {exception.Message}");
                         content += "\n[attachments could not be saved]";
                     }
                     var stored = new NomadNetMessage(id, Convert.ToHexStringLower(message.SourceHash), "inbound",
                         DateTimeOffset.FromUnixTimeMilliseconds((long)(message.Timestamp * 1000)), message.Title, content, "received")
                         { Renderer = NomadNetPresentation.Renderer(message.Fields), ImageAttachmentIndex = imageIndex };
                     await store.SaveMessageAsync(stored, cancellationToken).ConfigureAwait(false);
+                    logging.Write(4, $"LXMF message persisted: {id}");
                     NomadNetClientRuntime.NotifyReceived(settings(), headless, id,
-                        () => { Console.Out.Write('\a'); Console.Out.Flush(); }, Console.Error.WriteLine);
+                        () => { Console.Out.Write('\a'); Console.Out.Flush(); }, message => logging.Write(1, message));
                     if (await store.ActiveConversationAsync(cancellationToken).ConfigureAwait(false) == Convert.ToHexStringLower(message.SourceHash))
                         try
                         {
@@ -325,12 +351,12 @@ internal static class Program
                         }
                         catch (Exception exception)
                         {
-                            Console.Error.WriteLine($"Could not render incoming message {id}: {exception.Message}");
+                            logging.Write(1, $"Could not render incoming message {id}: {exception.Message}");
                         }
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException)
                 {
-                    Console.Error.WriteLine($"Could not persist incoming message: {exception.Message}");
+                    logging.Write(1, $"Could not persist incoming message: {exception.Message}");
                 }
             }
         }
@@ -349,6 +375,12 @@ internal static class Program
                    nomadnet --import-profile <offline-primary-profile> --config <absent-directory> --rnsconfig <selected-RNS-directory>
                    nomadnet [--console|-c] [--textui|-t] [--daemon|-d]
                    nomadnet --help | --version
+
+            Logging: settings logLevel (0–7), logDestination (1=file/0=stdout), logFile.
+            Defaults: level 4, <profile>/logfile. -c/--console overrides file only
+            when -d/--daemon is also supplied, even if -t/--textui cancels daemon.
+            Custom relative logFile is relative to the process working directory.
+            Original command/status output and message BEL are not log records.
 
             Interactive commands:
               status                         Show identity and Reticulum connectivity
@@ -443,7 +475,7 @@ internal static class Program
         Console.WriteLine("Only directory and ignored policy imported; identity, conversations, peer settings and configuration are unchanged.");
     }
 
-    private sealed record Options(string DataDirectory, string? RnsConfig, bool Initialize, bool ShowStatus, bool Daemon, bool TextUi,
+    private sealed record Options(string DataDirectory, string? RnsConfig, bool Initialize, bool ShowStatus, bool Daemon, bool TextUi, bool Console,
         string? ImportConfig, string? ImportDirectory, string? ImportProfile);
 
     private static IEnumerable<NomadNetPropagationCandidate> FindPropagationCandidates(TransportRouter transport)
@@ -464,11 +496,12 @@ internal static class Program
     }
 
     private sealed class TerminalSession(ReticulumNode node, Identity identity, LxmRouter router, NomadNetStore store,
-        string dataDirectory, NomadNetPropagation propagation, NomadNetHost? host, NomadNetClientAnnounces clientAnnounces) : IAsyncDisposable
+        string dataDirectory, NomadNetPropagation propagation, NomadNetHost? host, NomadNetClientAnnounces clientAnnounces,
+        NomadNetLogging logging) : IAsyncDisposable
     {
         private readonly NomadNetDelivery _delivery = new(router, identity, store,
             () => propagation.Settings.TryPropagationOnSendFail)
-        { Log = message => Console.Error.WriteLine(message) };
+        { Log = message => logging.Write(1, message) };
         private readonly NomadNetPageCache _cache = new(dataDirectory);
         private readonly NomadNetRemoteMediaCache _mediaCache = new(dataDirectory);
         private string? _currentNode;
@@ -522,6 +555,7 @@ internal static class Program
                 }
                 catch (Exception exception)
                 {
+                    logging.Write(1, "Terminal command failed: " + exception.Message);
                     Console.WriteLine($"Error: {exception.Message}");
                 }
             }
@@ -1223,7 +1257,7 @@ internal static class Program
                 if (parts.Length < 2) throw new ArgumentException("Use rrc connect <hub> [nick].");
                 if (_rrc is not null) await _rrc.DisposeAsync().ConfigureAwait(false);
                 _rrc = await RrcClient.OpenAsync(node, identity, dataDirectory, parts[1], cancellationToken).ConfigureAwait(false);
-                _rrc.Log = message => Console.WriteLine(NomadNetTerminalText.Safe(message));
+                _rrc.Log = message => { logging.Write(3, message); Console.WriteLine(NomadNetTerminalText.Safe(message)); };
                 _rrc.MessageReceived += message => Console.WriteLine($"RRC [{NomadNetTerminalText.Safe(message.Room ?? "hub")}] " +
                     $"{NomadNetTerminalText.Safe(message.Nick ?? message.Source)}: " + NomadNetPresentation.Rrc(message.Text,
                         propagation.Settings.RrcRenderMarkdown, propagation.Settings.RrcRenderMicron, message.Kind));
@@ -1304,7 +1338,7 @@ internal static class Program
             {
                 if (_filePicker is not null) throw new InvalidOperationException("Complete or cancel the open file selection first.");
                 _filePicker = new(action.Length == 0 ? null : action[7..].Trim(), _selectedAttachments)
-                { Log = message => Console.Error.WriteLine(message) };
+                { Log = message => logging.Write(1, message) };
             }
             else if (action.Equals("selected", StringComparison.OrdinalIgnoreCase))
             {
@@ -1383,6 +1417,7 @@ internal static class Program
                 DateTimeOffset.UtcNow, "", content, "queued")
                 { Renderer = NomadNetPresentation.Renderer(fields), ImageAttachmentIndex = NomadNetAttachments.ImageIndex(fields) };
             await _delivery.QueueAsync(message, stored, cancellationToken).ConfigureAwait(false);
+            logging.Write(4, $"LXMF message queued: {id}");
             Console.WriteLine($"Message queued: {message.State}");
             if (await store.ActiveConversationAsync(cancellationToken).ConfigureAwait(false) == stored.PeerHash)
                 await ObserveConversationImageAsync(stored, cancellationToken).ConfigureAwait(false);
@@ -1436,7 +1471,7 @@ internal static class Program
                         return NomadNetConversationImages.PreviewAsync(dataDirectory, message, _conversationConversions,
                             new NomadNetImages(propagation.Settings.MediaConverter,
                                 Path.Combine(dataDirectory, "storage", "image-work")), token);
-                    }) { Log = message => Console.Error.WriteLine(message) };
+                    }) { Log = message => logging.Write(1, message) };
                     _conversationImages.Changed += (message, preview) =>
                         Console.WriteLine($"--- conversation image {NomadNetTerminalText.Safe(message.Id)} ---\n{preview}\n--- conversation image complete ---");
                 }
@@ -1493,7 +1528,7 @@ internal static class Program
                 var target = NomadNetAddress.ParseUrl(partial.Target, origin);
                 return await RequestAsync(Convert.FromHexString(target.DestinationHash), target.Path, data,
                     MicronText.MaximumPageBytes, token).ConfigureAwait(false);
-            }) { Log = message => Console.Error.WriteLine(message) };
+            }) { Log = message => logging.Write(1, message) };
             _browser = browser;
             browser.Changed += updated =>
             {
@@ -1525,7 +1560,7 @@ internal static class Program
                     reload, token).ConfigureAwait(false);
                 return await new NomadNetImages(propagation.Settings.MediaConverter, Path.Combine(dataDirectory, "storage", "image-work"))
                     .PreviewAsync(bytes, cancellationToken: token).ConfigureAwait(false);
-            }) { Log = message => Console.Error.WriteLine(message) };
+            }) { Log = message => logging.Write(1, message) };
             images.Changed += updated =>
             {
                 if (!ReferenceEquals(_inlineImages, images)) return;

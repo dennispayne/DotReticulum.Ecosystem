@@ -440,8 +440,16 @@
                     Content="Save preferences" Click="SavePreferencesClicked" />
             <TextBlock x:Name="PreferencesStatusText" Foreground="{DynamicResource SecondaryTextBrush}"
                        TextWrapping="Wrap" />
+            <TextBlock FontSize="17" FontWeight="SemiBold" Text="Incoming LXMF stamps" />
+            <CheckBox x:Name="RequireStampsBox" Content="Advertise an inbound stamp cost" />
+            <TextBox x:Name="InboundStampCostBox" MaxLength="11" PlaceholderText="Cost 1–254; empty or below one clears the cost" />
+            <CheckBox x:Name="RejectInvalidStampsBox" Content="Discard incoming messages with invalid or missing required stamps" />
+            <TextBlock Text="Advertising a cost and discarding invalid stamps are independent. Disabling advertisement retains the configured cost. Stamp checks do not replace sender authorization."
+                       TextWrapping="Wrap" />
+            <Button x:Name="SaveStampPolicyButton" Content="Save stamp policy" HorizontalAlignment="Left" Click="SaveStampPolicyClicked" />
+            <TextBlock x:Name="StampPolicyStatusText" TextWrapping="Wrap" />
             <TextBlock FontSize="17" FontWeight="SemiBold" Text="Upstream settings exchange" />
-            <TextBlock Text="JSON settings exchange applies the documented display, propagation, voice and telemetry subset. Other keys are retained and reported, not activated. Identity and SQLite migration use the separate offline --import-profile command. Disconnect before importing settings."
+            <TextBlock Text="JSON settings exchange applies the documented display, propagation, stamp, voice and telemetry subset. Other keys are retained and reported, not activated. Identity and SQLite migration use the separate offline --import-profile command. Disconnect before importing settings."
                        TextWrapping="Wrap" />
             <TextBox x:Name="SettingsExchangePathBox" PlaceholderText="Settings JSON file path" />
             <StackPanel Orientation="Horizontal" Spacing="8">

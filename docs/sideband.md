@@ -12,6 +12,9 @@ messaging passes in both directions, directly and through a Python
 transport/propagation node. Separate RNS/LXMF peer cases exercise larger file fields.
 Manual/automatic propagation-node selection, one-shot failed-delivery retry, inbox retrieval,
 restart persistence and upstream-shaped JSON settings exchange are implemented.
+Inbound stamp-cost advertisement and invalid-stamp rejection are independently
+configurable, including supported settings/profile migration and original
+Preferences controls.
 Periodic inbox synchronization and its retry schedule persist over restart.
 Bounded file, image and audio attachments can be sent, received, persisted and explicitly saved.
 Paper text creation, duplicate-aware URI import, durable offline URI retrieval
@@ -111,6 +114,7 @@ runtime evidence.
 | App shell and interaction | partial | Original Avalonia UI provides Conversations, Contacts, Objects, Announce Stream, Connectivity, Backup & Keys, Preferences, Utilities, Guide, Voice, Telemetry, Map and Remote screens. Supported screens expose real local state and explicit errors; hardware/plugin management remain unavailable rather than simulated. Upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
 | Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. A bounded persisted delivery/PN stream exposes inspect, converse, copy, node selection and deletion; receipt does not promote a discovered contact to a known conversation. Bounded primary SQLite history activates separately without contact creation. Appearance values and telemetry permissions persist; voice uses the shared client below. Complete peer settings, groups and broadcasts remain absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `src/Sideband/SidebandAnnounce.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
 | LXMF messaging and propagation UI | partial | Text send/receive, automatic/manual node selection, persisted periodic fetches, cancellation, one-shot failed-delivery propagation retry, trusted-conversation reply tickets and restart retrieval reuse `LxmRouter`. Actual primary Sideband daemon-core direct/propagated round trips pass separately from Python LXMF endpoint tests, with trust enabled and disabled in both directions. Full message presentation/settings remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,4811–4828,5156–5227,5634–5644`, `docs/lxmf.md`. |
+| Inbound delivery stamp configuration | implemented bounded subset | Independent `lxmf_require_stamps`, `lxmf_inbound_stamp_cost` and `lxmf_ignore_invalid_stamps` activate on startup and explicit runtime save, persist/import/export atomically and have original Preferences controls. Actual primary cost8 announcements, signed stamped delivery, explicit stale-cache rejection/admission and identity-preserving restart pass Windows/Linux direct/Python-hop/.NET-hop. Strict native offline process/profile activation is separate; safety differences, timing and remaining boundaries are below; `SidebandStampConfiguration.cs`, `SidebandClient.Stamps.cs`, `SidebandStateStore.Stamps.cs`, `MainWindow.Stamps.cs`, `sbapp/sideband/core.py:lxmf_announce,update_ignore_invalid_stamps`. |
 | Text, image/file and audio messages | implemented bounded subset | Text/files, WebP image preparation/preview, Ogg Opus and Codec2 composition/decoding, explicit 10-second recording/playback/cancellation, content-addressed persistence and explicit exports. Actual Python Sideband core sends/receives images and both audio families directly/through a Python propagation transport; actual Pillow/audioproc decode native output. Published binaries decode imported media and render images. Device tests use fakes; physical capture/acoustics remain unverified. Unknown audio is retained/exportable but playback fails explicitly; no autoplay. See media limits below; `src/Sideband/SidebandMedia*.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py:message_send_dispatch`, `sbapp/sideband/audioproc.py`, `sbapp/sideband/core.py:5189–5196`. |
 | Paper messages and `lxm://` imports | implemented bounded subset | Connected paper text creation and local duplicate-aware import reuse LXMF; saved URI/QR display and non-overwriting exports work offline and survive restart. Bounded historical outgoing primary envelopes restore exact exports with persisted imported provenance and CLI/UI warnings. Actual primary daemon-core creation/ingestion both ways, trust on/off and process restart pass separately from historical migration/export/recipient-ingestion acceptance. Nonlocal envelopes are unauthenticated and not forwarded. Hardware camera/printer, desktop OS URI registration and other historical paper-field semantics remain unverified/missing; `SidebandClient.Paper.cs`, `SidebandPaperProfile.cs`, `MainWindow.Paper.cs`, `PaperExportCommand.cs`, `sbapp/sideband/core.py:paper_message,lxm_ingest_uri,_db_message`. |
 | LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Voice-only names/trust import, editing and deletion are operational independently of contacts; existing LXMF conversation policy wins, but discovery-only metadata does not. Optional primary call-log migration retains labelled historical assertions separately from authenticated call events. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux; separate actual calls verify voice-only policy removal/recovery and delivery overrides. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
@@ -123,6 +127,93 @@ runtime evidence.
 | CLI and headless operation | partial | Help/version, init/check, data/config selection, JSON settings exchange, daemon/interactive operation and native extensions `--import-profile`, `--check-media`, `--synthetic-audio` exist. Daemon ignores closed stdin and stops on cancellation; original interactive console bounds input and supports functional voice commands. All twelve pinned upstream voice command handlers execute `Not yet implemented`; native functionality is an extension, not evidence that these primary placeholders work. Native `--interactive`, `--verbose` and synthetic audio require daemon mode; conflicting modes fail before state/UI. Broader upstream console commands remain missing; `Program.cs`, `SidebandDaemon.cs`, `sbapp/main.py`, `sbapp/sideband/cli/cmd_voice.py`. |
 | Repository server | implemented bounded subset | Utilities explicitly starts/stops a public unauthenticated HTTPS static mirror with a package list, persistent private certificate, visible fingerprint and joined window shutdown. Default loopback/4444; reachable LAN exposure requires explicit bind and consent. No bundled upstream assets, automatic content downloads or update execution. Original bounded GET-only service, not RNS/rngit Git hosting; safety differences and acceptance are below; `SidebandRepository*.cs`, `MainWindow.Repository.cs`, `sbapp/sideband/core.py`, `sbapp/ui/layouts.py`. |
 | Native packaging and upgrades | partial | Windows and Linux NativeAOT publishes succeed with trimming/linker warnings treated as errors. Package the full publish directory, including Windows `sideband.exe`, `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, `libSkiaSharp.dll` and desktop/shared third-party notices; Linux `sideband`, `libHarfBuzzSharp.so`, `libSkiaSharp.so`, `libSystem.IO.Ports.Native.so` and the same notices. These include Avalonia/Skia/HarfBuzz MIT texts, ANGLE's BSD license, .NET serial runtime notices and `ThirdPartyNotices/ZXing.Net.Apache-2.0.txt`. Installer/signing, self-upgrade and other upstream package formats remain absent; `src/Sideband.Desktop/Sideband.Desktop.csproj`, `src/Sideband.Desktop/THIRD-PARTY-NOTICES*.txt`, `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
+
+## Incoming LXMF stamp configuration
+
+The three primary keys have independent meanings:
+
+| Key | Default | Active behavior |
+|---|---|---|
+| `lxmf_require_stamps` | false | Advertise/apply the configured inbound delivery cost when enabled. Disabling it retains the configured value but clears the effective router cost. |
+| `lxmf_inbound_stamp_cost` | null | Null or an integer below1 clears the effective cost;1–254 sets it when enabled. Native accepts signed32-bit integers only. |
+| `lxmf_ignore_invalid_stamps` | true | Discard messages failing a required stamp. False still advertises the cost but admits failed stamps. This is not sender authorization. |
+
+`GenerateSidebandStampPolicy.py` executes the unchanged pinned Sideband
+constructor, `update_ignore_invalid_stamps` and `lxmf_announce`, reading actual
+router/provider outputs. Its13 successive observations cover defaults,
+advertisement, independent rejection, disabled-cost retention/re-enable, null,
+zero, negative,254 and invalid updates. Reading `_enforce_stamps` is an explicit
+read-only observation, not a replacement implementation. Independent
+Windows/Linux fixture SHA-256 is
+`17bcaf972f53551659aca873def80c07d973b9a0e360686bc7abdf7b87ea3de6`;
+pins are Sideband `d069122af14880e43607aed0b71add4c7806fbe0`,
+RNS `a29bfb51c468945c96a1ee22cae0114e993e2391` and
+LXMF `e8ba02483217af43be284a72f1c059c730b7d047`.
+The fixture records core SHA-256
+`8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25`.
+
+Native settings/profile import, partial settings updates and export use the same
+validated policy. Absent keys retain the previous native policy. Invalid flags,
+non-integer/out-of-range costs and malformed saved state fail explicitly without
+replacing healthy state; a healthy retry succeeds. This deliberately differs
+from primary's setter silently refusing a bad cost while retaining its previous
+effective cost. Even an inactive invalid value is refused. Original Preferences
+save stamps separately from unsaved display/appearance edits. Active saves
+serialize against connection/disposal, update the existing router and explicitly
+announce; an announcement error reports that persistence/application already
+succeeded. No identity replacement or background proof search is started by
+saving the policy.
+
+Windows/Linux actual-primary application acceptance verifies native generated
+32-byte stamps with the primary's actual `validate_stamp(8)`, both message
+origins, advertised costs, missing-stamp rejection, explicit rejection-off
+admission, clearing the effective cost and service after native identity restart.
+Direct TCP, a Python transport and a .NET transport are exercised separately.
+Missing stamps are generated by explicitly clearing the primary outbound cost
+cache through its public SDK before its unchanged `send_message`; this is
+**disclosed stale-cache fault injection**, not observed natural packet loss.
+Restart requires an actually fresh forwarded announcement: the driver deletes
+the primary's application announce record, respects RNS whole-second emission
+freshness, then waits for a new record before sending. A queued earlier announce
+is not restart evidence. Internal application-worker cancellation no longer
+stops the owned node before LXMF/voice link teardown; the stack is unchanged.
+
+C70/T209–218 records21 actual passing cases per host:16 ordinary managed
+reference/persistence/lifecycle/original-UI cases,3 actual-primary live cases and2
+published native cases. Queued policy cancellation during disposal, failing
+observers, malformed-tail rollback/retry and no audio-device activation are
+explicit. Windows affected-client lifecycle regression separately passes32
+cases. Native CLI tests exercise all13 reference transitions, atomic refusal,
+actual primary saved-profile import, source immutability and process restart.
+Native cases are offline, not published-native Python traffic or native GUI
+rendering.
+
+Reproduction operators, run from the repository, are
+`artifacts\tests\sideband-runtime-telemetry\StampPolicyReference.ps1`,
+`StampPolicyAcceptance.ps1`, `StampPolicyNative.ps1` and `StampPolicyRecord.ps1`.
+Managed selection is `dotnet test tests\Sideband.Tests\Sideband.Tests.csproj
+-c Release --filter "FullyQualifiedName~SidebandStamp|FullyQualifiedName~ActualPrimaryStamp"`
+with the documented actual-primary environment. Native selection is
+`tests\run-pester.ps1 -Path tests\Pester\SidebandStamps.Tests.ps1 -Tag StampPolicy`,
+requiring `DOTRETICULUM_SIDEBAND_STAMPS=1`,
+`DOTRETICULUM_SIDEBAND_BINARY` and the generated
+`DOTRETICULUM_SIDEBAND_STAMP_PROFILE`.
+Both strict `dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj
+-c Release -r <rid> -p:ILLinkTreatWarningsAsErrors=true
+-p:IlcTreatWarningsAsErrors=true -warnaserror` builds use
+SDK10.0.403/runtime and NativeAOT compiler10.0.14; help and the two feature flows
+run on the published executables. Exact binary SHA-256 values are Windows
+`8d93203591ef2d9ae606de16d9063d30088a159f8a65af77b2fafa868f6c4453`
+and Linux
+`eb0908bf60798bddf4c6522bbaa20c66126c27f9d165a7420aa6cbe41f2f81d6`.
+Build inputs are dirty source over `d59a781`, not a later integration commit.
+Receipts, actual-case mappings, production input hashes and serviced compiler
+response checks are `artifacts\tests\sideband-stamp-policy\windows\c70.json`
+and `/home/dennis/fleet-stamp-policy-results/c70.json`.
+Failed observer/operator/early restart receipts remain separate; no admission
+assertions are disabled. Long-running/high-cost proof search, new propagation
+topologies, physical devices, other platforms and full configuration parity are
+not established by this slice.
 
 ## Announce stream
 

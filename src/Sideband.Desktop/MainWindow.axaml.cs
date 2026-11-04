@@ -278,6 +278,7 @@ public sealed partial class MainWindow : Window
             ReticulumConfigBox.Text = _state.ReticulumConfigDirectory;
             DisplayNameBox.Text = _state.DisplayName;
             ThemeSelector.SelectedItem = _state.Theme;
+            LoadStampSettings();
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
             PropagationFallbackBox.IsChecked = _state.TryPropagationOnFail;
@@ -480,6 +481,7 @@ public sealed partial class MainWindow : Window
             _state = await _store.LoadAsync(cancellationToken: _windowCancellation.Token);
             DisplayNameBox.Text = _state.DisplayName;
             ThemeSelector.SelectedItem = _state.Theme;
+            LoadStampSettings();
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
             PropagationFallbackBox.IsChecked = _state.TryPropagationOnFail;

@@ -74,6 +74,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
             if (_router is not null) return;
             await _store.PruneCallHistoryAsync(cancellationToken).ConfigureAwait(false);
             var state = await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            var stampPolicy = SidebandStampConfiguration.FromState(state);
             var config = string.IsNullOrWhiteSpace(reticulumConfigDirectory)
                 ? state.ReticulumConfigDirectory
                 : Path.GetFullPath(reticulumConfigDirectory);
@@ -89,13 +90,16 @@ public sealed partial class SidebandClient : IAsyncDisposable
             {
                 identity = node.LoadOrCreateIdentity("sideband");
                 runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                await node.StartAsync(runCancellation.Token).ConfigureAwait(false);
+                // Cancelling application workers must not stop transport before LXMF/voice link teardown.
+                await node.StartAsync(cancellationToken).ConfigureAwait(false);
                 router = new LxmRouter(node.Router, identity, state.DisplayName, new LxmRouterOptions
                 {
                     StoragePath = _store.DataDirectory,
                     InboundQueueCapacity = 128,
                     OutboundQueueCapacity = 128,
                     DeliveryPerTransferLimit = 8 * 1024 * 1024,
+                    InboundStampCost = stampPolicy.EffectiveCost,
+                    EnforceStamps = stampPolicy.RejectInvalidStamps,
                 });
                 router.Log = Report;
                 router.OutboundPropagationNode = (state.PropagationNode ?? state.LastPropagationNode) is { } propagationNode

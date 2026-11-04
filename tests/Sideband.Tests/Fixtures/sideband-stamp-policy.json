@@ -1,0 +1,231 @@
+{
+  "upstream": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "coreSha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+  "rnsRevision": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "lxmfRevision": "e8ba02483217af43be284a72f1c059c730b7d047",
+  "method": "Actual SidebandCore constructor, update_ignore_invalid_stamps and lxmf_announce with actual LXMRouter; no-interface RNS; enforcement is a read-only private-field observation.",
+  "rows": [
+    {
+      "name": "defaults",
+      "changes": {},
+      "observed": {
+        "event": "stamp-policy",
+        "configured": {
+          "lxmf_require_stamps": false,
+          "lxmf_inbound_stamp_cost": null,
+          "lxmf_ignore_invalid_stamps": true
+        },
+        "effective_cost": null,
+        "enforce": true,
+        "app_data": "93c40e416e6f6e796d6f75732050656572c09100"
+      }
+    },
+    {
+      "name": "advertise8",
+      "changes": {
+        "lxmf_require_stamps": true,
+        "lxmf_inbound_stamp_cost": 8
+      },
+      "observed": {
+        "event": "stamp-policy",
+        "configured": {
+          "lxmf_require_stamps": true,
+          "lxmf_inbound_stamp_cost": 8,
+          "lxmf_ignore_invalid_stamps": true
+        },
+        "effective_cost": 8,
+        "enforce": true,
+        "app_data": "93c40e416e6f6e796d6f75732050656572089100"
+      }
+    },
+    {
+      "name": "rejectOff",
+      "changes": {
+        "lxmf_ignore_invalid_stamps": false
+      },
+      "observed": {
+        "event": "stamp-policy",
+        "configured": {
+          "lxmf_require_stamps": true,
+          "lxmf_inbound_stamp_cost": 8,
+          "lxmf_ignore_invalid_stamps": false
+        },
+        "effective_cost": 8,
+        "enforce": false,
+        "app_data": "93c40e416e6f6e796d6f75732050656572089100"
+      }
+    },
+    {
+      "name": "disabledCost",
+      "changes": {
+        "lxmf_require_stamps": false,
+        "lxmf_inbound_stamp_cost": 12
+      },
+      "observed": {
+        "event": "stamp-policy",
+        "configured": {
+          "lxmf_require_stamps": false,
+          "lxmf_inbound_stamp_cost": 12,
+          "lxmf_ignore_invalid_stamps": false
+        },
+        "effective_cost": null,
+        "enforce": false,
+        "app_data": "93c40e416e6f6e796d6f75732050656572c09100"
+      }
+    },
+    {
+      "name": "reenabled",
+      "changes": {
+        "lxmf_require_stamps": true
+      },
+      "observed": {
+        "event": "stamp-policy",
+        "configured": {
+          "lxmf_require_stamps": true,
+          "lxmf_inbound_stamp_cost": 12,
+          "lxmf_ignore_invalid_stamps": false
+        },
+        "effective_cost": 12,
+        "enforce": false,
+        "app_data": "93c40e416e6f6e796d6f757320506565720c9100"
+      }
+    },
+    {
+      "name": "zero",
+      "changes": {
+        "lxmf_inbound_stamp_cost": 0
+      },
+      "observed": {
+        "event": "stamp-policy",
+        "configured": {
+          "lxmf_require_stamps": true,
+          "lxmf_inbound_stamp_cost": 0,
+          "lxmf_ignore_invalid_stamps": false
+        },
+        "effective_cost": null,
+        "enforce": false,
+        "app_data": "93c40e416e6f6e796d6f75732050656572c09100"
+      }
+    },
+    {
+      "name": "negative",
+      "changes": {
+        "lxmf_inbound_stamp_cost": -1
+      },
+      "observed": {
+        "event": "stamp-policy",
+        "configured": {
+          "lxmf_require_stamps": true,
+          "lxmf_inbound_stamp_cost": -1,
+          "lxmf_ignore_invalid_stamps": false
+        },
+        "effective_cost": null,
+        "enforce": false,
+        "app_data": "93c40e416e6f6e796d6f75732050656572c09100"
+      }
+    },
+    {
+      "name": "maximum",
+      "changes": {
+        "lxmf_inbound_stamp_cost": 254
+      },
+      "observed": {
+        "event": "stamp-policy",
+        "configured": {
+          "lxmf_require_stamps": true,
+          "lxmf_inbound_stamp_cost": 254,
+          "lxmf_ignore_invalid_stamps": false
+        },
+        "effective_cost": 254,
+        "enforce": false,
+        "app_data": "93c40e416e6f6e796d6f75732050656572ccfe9100"
+      }
+    },
+    {
+      "name": "tooHigh",
+      "changes": {
+        "lxmf_inbound_stamp_cost": 255
+      },
+      "observed": {
+        "event": "stamp-policy",
+        "configured": {
+          "lxmf_require_stamps": true,
+          "lxmf_inbound_stamp_cost": 255,
+          "lxmf_ignore_invalid_stamps": false
+        },
+        "effective_cost": 254,
+        "enforce": false,
+        "app_data": "93c40e416e6f6e796d6f75732050656572ccfe9100"
+      }
+    },
+    {
+      "name": "boolean",
+      "changes": {
+        "lxmf_inbound_stamp_cost": true
+      },
+      "observed": {
+        "event": "stamp-policy",
+        "configured": {
+          "lxmf_require_stamps": true,
+          "lxmf_inbound_stamp_cost": true,
+          "lxmf_ignore_invalid_stamps": false
+        },
+        "effective_cost": 254,
+        "enforce": false,
+        "app_data": "93c40e416e6f6e796d6f75732050656572ccfe9100"
+      }
+    },
+    {
+      "name": "fractional",
+      "changes": {
+        "lxmf_inbound_stamp_cost": 2.5
+      },
+      "observed": {
+        "event": "stamp-policy",
+        "configured": {
+          "lxmf_require_stamps": true,
+          "lxmf_inbound_stamp_cost": 2.5,
+          "lxmf_ignore_invalid_stamps": false
+        },
+        "effective_cost": 254,
+        "enforce": false,
+        "app_data": "93c40e416e6f6e796d6f75732050656572ccfe9100"
+      }
+    },
+    {
+      "name": "string",
+      "changes": {
+        "lxmf_inbound_stamp_cost": "4"
+      },
+      "observed": {
+        "event": "stamp-policy",
+        "configured": {
+          "lxmf_require_stamps": true,
+          "lxmf_inbound_stamp_cost": "4",
+          "lxmf_ignore_invalid_stamps": false
+        },
+        "effective_cost": 254,
+        "enforce": false,
+        "app_data": "93c40e416e6f6e796d6f75732050656572ccfe9100"
+      }
+    },
+    {
+      "name": "noneAndReject",
+      "changes": {
+        "lxmf_inbound_stamp_cost": null,
+        "lxmf_ignore_invalid_stamps": true
+      },
+      "observed": {
+        "event": "stamp-policy",
+        "configured": {
+          "lxmf_require_stamps": true,
+          "lxmf_inbound_stamp_cost": null,
+          "lxmf_ignore_invalid_stamps": true
+        },
+        "effective_cost": null,
+        "enforce": true,
+        "app_data": "93c40e416e6f6e796d6f75732050656572c09100"
+      }
+    }
+  ]
+}

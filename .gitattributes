@@ -17,3 +17,4 @@ tests/Sideband.Tests/Fixtures/sideband-voice-peers.json text eol=lf
 tests/NomadNet.Tests/NomadNetLoggingVectors.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-paper-profile.json text eol=lf
 tests/NomadNet.Tests/NomadNetAttachmentPathVectors.json text eol=lf
+tests/Sideband.Tests/Fixtures/sideband-stamp-policy.json text eol=lf

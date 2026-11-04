@@ -8,4 +8,5 @@ namespace Sideband;
 [JsonSerializable(typeof(SidebandChatMessage))]
 [JsonSerializable(typeof(Dictionary<string, System.Text.Json.JsonElement>))]
 [JsonSerializable(typeof(double[]))]
+[JsonSerializable(typeof(int?))]
 internal sealed partial class SidebandStateJsonContext : JsonSerializerContext;

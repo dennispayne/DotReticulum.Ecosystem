@@ -95,6 +95,31 @@ def main():
         elif parts[0] == "announces":
             emit({"event": "announces", "records": [
                 {**entry, "dest": entry["dest"].hex()} for entry in core.list_announces()]})
+        elif parts[0] == "stamp-policy" and len(parts) == 2:
+            settings = json.loads(base64.b64decode(parts[1], validate=True))
+            keys = ("lxmf_require_stamps", "lxmf_inbound_stamp_cost", "lxmf_ignore_invalid_stamps")
+            if not isinstance(settings, dict) or set(settings) - set(keys):
+                raise ValueError("Unexpected stamp-policy observation keys")
+            core.config.update(settings)
+            core.update_ignore_invalid_stamps()
+            core.lxmf_announce()
+            emit({"event": "stamp-policy", "configured": {key: core.config[key] for key in keys},
+                  "effective_cost": core.lxmf_destination.stamp_cost,
+                  "enforce": core.message_router._enforce_stamps,
+                  "app_data": core.message_router.get_announce_app_data(core.lxmf_destination.hash).hex()})
+        elif parts[0] == "stamp-cost" and len(parts) == 2:
+            emit({"event": "stamp-cost", "cost": core.message_router.get_outbound_stamp_cost(bytes.fromhex(parts[1]))})
+        elif parts[0] == "reset-stamp-cost" and len(parts) == 2:
+            # Explicit stale-cache fault injection through the actual public SDK;
+            # send_message, packing, stamping and recipient admission remain unchanged.
+            core.message_router.update_stamp_cost(bytes.fromhex(parts[1]), None)
+            emit({"event": "stamp-cost-reset"})
+        elif parts[0] == "inspect-stamp" and len(parts) == 4:
+            messages = core.list_messages(bytes.fromhex(parts[1]), limit=32) or []
+            message = next(item for item in messages if item["hash"].hex() == parts[2])
+            lxm = message["lxm"]
+            emit({"event": "stamp-inspected", "valid": lxm.validate_stamp(int(parts[3])),
+                  "size": len(lxm.stamp) if lxm.stamp is not None else 0})
         elif parts[0] == "delete-announce" and len(parts) == 2:
             core.delete_announce(bytes.fromhex(parts[1]))
             emit({"event": "announce-deleted"})

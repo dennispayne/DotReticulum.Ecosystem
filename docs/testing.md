@@ -8,6 +8,40 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Sideband stamp C70/T209–218 records21 actual passing cases per host:16 ordinary
+managed reference/persistence/lifecycle/original-UI cases,3 actual-primary live
+cases and2 strict published native cases. Actual primary validates native
+32-byte cost8 stamps; both delivery origins, independent invalid-stamp rejection,
+disabled-cost retention and identity restart pass direct/Python-hop/.NET-hop.
+Stale-cache injection uses the actual public SDK, not a reference replacement or
+observed natural loss. Restart requires an actually new whole-second forwarded
+announce, not a queued earlier event. Internal worker cancellation no longer
+stops the node before graceful LXMF/voice teardown; no stack change is made.
+Native offline settings/actual-primary profile restart is separate from original
+managed Preferences and actual-primary network evidence. Invalid settings fail
+atomically rather than reproducing primary silent setter refusal. Receipts are
+`artifacts\tests\sideband-stamp-policy\windows\c70.json` and
+`/home/dennis/fleet-stamp-policy-results/c70.json`; exact pins, fixture/native
+hashes, commands, retained failures and remaining limits are in
+[Sideband's reference](sideband.md#incoming-lxmf-stamp-configuration).
+The integrated command `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-stamp-policy-unified -OutputDirectory
+artifacts\tests\fleet-stamp-policy-unified` passes2,552 managed cases/134
+explicit skips,62 Pester tooling cases, strict C70 catalog aggregation and
+merged production coverage. Concurrent Nomad compact-announcement sources
+are regression inputs, not independent C71 acceptance. Native candidates
+retain their actual dirty-source build base `d59a781`, not integration HEAD.
+
+The resumed ordinary solution test exposed a playback pacing defect: backend
+initialization could consume the first frame's20ms budget. `da8963c` opens the
+fixed-format lease before timing writes and adds an80ms delayed-open regression,
+without relaxing timing assertions. Focused media/repository cases pass45/1
+explicit Unix-permission skip on Windows and46/0 on Linux; the complete resumed
+Release solution test then passes2,553/134. An earlier isolated repository
+handshake failure and the reproduced pacing failure remain recorded as failed
+runs, not passes. This correction postdates the C70 native candidates and
+does not relabel their tested source inputs.
+
 Parent independently replays Nomad attachment `final-v2` without republishing:
 Windows244/9 explicit managed skips and11/2 explicit native Linux-only skips;
 Linux253 managed and13 native passes without skips. Each replay enforces309

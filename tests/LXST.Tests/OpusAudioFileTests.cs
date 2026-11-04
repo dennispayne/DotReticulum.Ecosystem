@@ -9,16 +9,179 @@ namespace LXST.Tests;
 [Trait("Category", "Integration")]
 public sealed class OpusAudioFileTests
 {
+    [NativeCodecFact]
+    public async Task PlayerNotificationMinimumMatchesActualClockAndDisposalCancelsItsWait()
+    {
+        using var completion = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory,
+            "Fixtures", "lxst-file-player-completion.json")));
+        var minimum = TimeSpan.FromSeconds(completion.RootElement.GetProperty("completion")[0]
+            .GetProperty("sleeps")[0].GetDouble());
+        using var fixture = LoadFixture();
+        var root = CreateDirectory();
+        try
+        {
+            var path = Path.Combine(root, "notification.opus");
+            await File.WriteAllBytesAsync(path, Convert.FromBase64String(fixture.RootElement.GetProperty("file_base64").GetString()!));
+            foreach (var cancel in new[] { false, true })
+            {
+                var clock = new CompletionClock();
+                var output = new ControlledSink();
+                await using var player = new FilePlayer(output, path, timeProvider: clock);
+                var callbacks = 0;
+                player.Finished += _ => callbacks++;
+                player.Play();
+                await clock.TimerCreated.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                Assert.False(player.IsPlaying);
+                Assert.Equal(fixture.RootElement.GetProperty("frame_lengths").GetArrayLength(), output.Count);
+                Assert.Equal(minimum, clock.RequestedDelay);
+                Assert.Equal(0, callbacks);
+                if (cancel) await player.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+                else
+                {
+                    clock.Advance(minimum - TimeSpan.FromMilliseconds(1));
+                    Assert.False(player.Completion.IsCompleted);
+                    Assert.Equal(0, callbacks);
+                    clock.Advance(TimeSpan.FromMilliseconds(1));
+                    await player.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+                }
+                Assert.Equal(1, callbacks);
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private sealed class CompletionClock : TimeProvider
+    {
+        private readonly object _gate = new();
+        private long _ticks;
+        private readonly List<Timer> _timers = [];
+        internal TaskCompletionSource TimerCreated { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TimeSpan RequestedDelay;
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => Interlocked.Read(ref _ticks);
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            lock (_gate)
+            {
+                var timer = new Timer(this, callback, state);
+                _timers.Add(timer);
+                timer.Change(dueTime, period);
+                RequestedDelay = dueTime;
+                TimerCreated.TrySetResult();
+                return timer;
+            }
+        }
+        internal void Advance(TimeSpan amount)
+        {
+            Timer[] ready;
+            lock (_gate)
+            {
+                _ticks += amount.Ticks;
+                ready = _timers.Where(timer => timer.Due <= _ticks).ToArray();
+                foreach (var timer in ready) timer.Due = long.MaxValue;
+            }
+            foreach (var timer in ready) timer.Callback(timer.State);
+        }
+        private sealed class Timer(CompletionClock clock, TimerCallback callback, object? state) : ITimer
+        {
+            internal long Due = long.MaxValue;
+            internal TimerCallback Callback { get; } = callback;
+            internal object? State { get; } = state;
+            public bool Change(TimeSpan dueTime, TimeSpan period)
+            {
+                lock (clock._gate) Due = dueTime == Timeout.InfiniteTimeSpan ? long.MaxValue : clock._ticks + dueTime.Ticks;
+                return true;
+            }
+            public void Dispose() { lock (clock._gate) Due = long.MaxValue; }
+            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+        }
+    }
+
+    [NativeCodecFact]
+    public async Task PlayerCompletionMatchesActualQueuedPlaybackBeforeCallbacksAndRelease()
+    {
+        using var completion = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory,
+            "Fixtures", "lxst-file-player-completion.json")));
+        Assert.Equal("eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f",
+            completion.RootElement.GetProperty("revision").GetString());
+        Assert.False(completion.RootElement.GetProperty("source").GetProperty("input_timed").GetBoolean());
+        Assert.True(completion.RootElement.GetProperty("source").GetProperty("old_source_running_after_replacement").GetBoolean());
+        var queuedState = completion.RootElement.GetProperty("states").EnumerateArray().Single(row =>
+            row.GetProperty("source_present").GetBoolean() && !row.GetProperty("source_running").GetBoolean() &&
+            row.GetProperty("queued").GetInt32() == 1);
+        using var fixture = LoadFixture();
+        var root = CreateDirectory();
+        try
+        {
+            var path = Path.Combine(root, "queued.opus");
+            await File.WriteAllBytesAsync(path, Convert.FromBase64String(fixture.RootElement.GetProperty("file_base64").GetString()!));
+            foreach (var row in completion.RootElement.GetProperty("completion").EnumerateArray())
+            {
+                var output = new ControlledSink
+                {
+                    Hold = new(TaskCreationOptions.RunContinuationsAsynchronously), RespectCancellation = true,
+                    HoldFromCount = fixture.RootElement.GetProperty("frame_lengths").GetArrayLength() - 1
+                };
+                await using var buffered = new LXST.Audio.BufferedAudioSink(output, 48000, 2);
+                var probe = new QueuedSinkProbe(buffered);
+                await using var player = new FilePlayer(probe, path, releaseOnFinish: row.GetProperty("release_on_finish").GetBoolean());
+                var callbacks = 0;
+                player.Finished += current =>
+                {
+                    Assert.False(current.IsPlaying);
+                    Assert.Equal(row.GetProperty("events")[0].GetProperty("queued").GetInt32(), buffered.QueuedFrames);
+                    callbacks++;
+                };
+                player.Play();
+                await probe.DrainEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                await output.Blocked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                Assert.Equal(queuedState.GetProperty("queued").GetInt32(), buffered.QueuedFrames);
+                Assert.Equal(queuedState.GetProperty("running").GetBoolean(), player.IsPlaying);
+                Assert.False(player.Completion.IsCompleted);
+                Assert.Equal(0, callbacks);
+                output.Hold.TrySetResult();
+                await player.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+                Assert.Equal(1, callbacks);
+                Assert.Equal(0, buffered.DroppedFrames);
+                if (row.GetProperty("released").GetBoolean()) Assert.Throws<ObjectDisposedException>(() => player.Play());
+                await buffered.WriteBufferedAsync(new(new float[960], 48000, 2));
+                await buffered.DrainAsync();
+            }
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private sealed class QueuedSinkProbe(IQueuedAudioSink sink) : IQueuedAudioSink
+    {
+        internal TaskCompletionSource DrainEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public ValueTask WriteAsync(AudioFrame frame, CancellationToken cancellationToken = default) =>
+            sink.WriteAsync(frame, cancellationToken);
+        public ValueTask WriteBufferedAsync(AudioFrame frame, CancellationToken cancellationToken = default) =>
+            sink.WriteBufferedAsync(frame, cancellationToken);
+        public ValueTask DrainAsync(CancellationToken cancellationToken = default)
+        {
+            DrainEntered.TrySetResult();
+            return sink.DrainAsync(cancellationToken);
+        }
+    }
+
     private sealed class ControlledSink : IAudioSink
     {
         public int Count;
         public TaskCompletionSource? Hold;
+        public bool RespectCancellation;
+        public int HoldFromCount = 1;
         public TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Blocked = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public async ValueTask WriteAsync(AudioFrame frame, CancellationToken cancellationToken = default)
         {
-            Interlocked.Increment(ref Count);
+            var count = Interlocked.Increment(ref Count);
             Entered.TrySetResult();
-            if (Hold is not null) await Hold.Task;
+            if (Hold is not null && count >= HoldFromCount)
+            {
+                Blocked.TrySetResult();
+                await (RespectCancellation ? Hold.Task.WaitAsync(cancellationToken) : Hold.Task);
+            }
         }
     }
 

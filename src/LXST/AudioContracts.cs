@@ -37,6 +37,13 @@ public interface IAudioSink
     ValueTask WriteAsync(AudioFrame frame, CancellationToken cancellationToken = default);
 }
 
+/// <summary>Lossless queue admission and completion for exclusive file-playback producers.</summary>
+public interface IQueuedAudioSink : IAudioSink
+{
+    ValueTask WriteBufferedAsync(AudioFrame frame, CancellationToken cancellationToken = default);
+    ValueTask DrainAsync(CancellationToken cancellationToken = default);
+}
+
 /// <summary>Original codec factory boundary: no device or native codec is required for framing.</summary>
 public interface IAudioCodecFactory
 {

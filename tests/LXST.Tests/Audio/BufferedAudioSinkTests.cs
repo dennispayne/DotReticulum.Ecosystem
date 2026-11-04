@@ -7,6 +7,105 @@ namespace LXST.Tests.Audio;
 public sealed class BufferedAudioSinkTests
 {
     [Fact]
+    public async Task FileAdmissionWaitsForCapacityWithoutDroppingAndCancelledWritersLeaveNoFrame()
+    {
+        var output = new GatedSink();
+        await using var sink = new BufferedAudioSink(output, 8000, 1);
+        await sink.WriteBufferedAsync(new(new float[80], 8000, 1));
+        await output.Entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        for (var index = 0; index < 3; index++)
+            await sink.WriteBufferedAsync(new(new float[80], 8000, 1));
+        Assert.Equal(3, sink.QueuedFrames);
+        using var cancel = new CancellationTokenSource();
+        var rejected = sink.WriteBufferedAsync(new(new float[80], 8000, 1), cancel.Token).AsTask();
+        Assert.False(rejected.IsCompleted);
+        cancel.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => rejected);
+        Assert.Equal(3, sink.QueuedFrames);
+        var next = sink.WriteBufferedAsync(new(new float[80], 8000, 1)).AsTask();
+        Assert.False(next.IsCompleted);
+        output.Release.TrySetResult();
+        await next.WaitAsync(TimeSpan.FromSeconds(2));
+        await sink.DrainAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(5, output.Count);
+        Assert.Equal(0, sink.DroppedFrames);
+        Assert.Equal(0, sink.QueuedFrames);
+    }
+
+    [Fact]
+    public async Task DrainFlushesShortStartupTailsAndWaitsForTheOwnedInFlightWrite()
+    {
+        var output = new GatedSink();
+        await using var sink = new BufferedAudioSink(output, 8000, 1, autoStart: false);
+        sink.ConfigureProfile(TelephoneProfile.MediumQuality);
+        await sink.WriteAsync(new(new float[80], 8000, 1));
+        Assert.False(sink.IsRunning);
+        var first = sink.DrainAsync().AsTask();
+        var second = sink.DrainAsync().AsTask();
+        await output.Entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(0, sink.QueuedFrames);
+        Assert.False(first.IsCompleted);
+        Assert.False(second.IsCompleted);
+        output.Release.TrySetResult();
+        await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(2));
+        await sink.DrainAsync();
+        Assert.Equal(1, output.Count);
+    }
+
+    [Fact]
+    public async Task DrainCancellationDoesNotOwnTheOutputAndDisposalWakesCapacityAndDrainWaiters()
+    {
+        var output = new BlockingSink();
+        var sink = new BufferedAudioSink(output, 8000, 1);
+        await sink.WriteBufferedAsync(new(new float[80], 8000, 1));
+        await output.Entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        using var cancel = new CancellationTokenSource();
+        var cancelled = sink.DrainAsync(cancel.Token).AsTask();
+        cancel.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => cancelled);
+        Assert.False(output.Cancelled);
+        for (var index = 0; index < 3; index++) await sink.WriteBufferedAsync(new(new float[80], 8000, 1));
+        var writer = sink.WriteBufferedAsync(new(new float[80], 8000, 1)).AsTask();
+        var drain = sink.DrainAsync().AsTask();
+        await sink.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => writer);
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => drain);
+        Assert.True(output.Cancelled);
+    }
+
+    [Fact]
+    public async Task DrainCoversItsAcceptedPrefixRatherThanFutureWriters()
+    {
+        var output = new PrefixSink();
+        await using var sink = new BufferedAudioSink(output, 8000, 1);
+        await sink.WriteBufferedAsync(new(new float[80], 8000, 1));
+        await output.FirstEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var drain = sink.DrainAsync().AsTask();
+        await sink.WriteBufferedAsync(new(new float[80], 8000, 1));
+        output.FirstRelease.TrySetResult();
+        await output.SecondEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await drain.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.True(sink.IsRunning);
+    }
+
+    [Fact]
+    public async Task QueuedOutputFailureAndThrowingObserversStillSettleDrainAndPermitRecovery()
+    {
+        var output = new RecordingSink { FailFirst = true };
+        await using var sink = new BufferedAudioSink(output, 8000, 1);
+        sink.Error = (_, _) => throw new InvalidOperationException("observer failed");
+        await sink.WriteBufferedAsync(new(new float[] { .1f }, 8000, 1));
+        await sink.WriteBufferedAsync(new(new float[] { .2f }, 8000, 1));
+        await sink.DrainAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(.2f, Assert.Single(output.Frames).Samples.Span[0]);
+        await Assert.ThrowsAsync<ArgumentException>(() => sink.WriteBufferedAsync(new(new float[] { float.NaN }, 8000, 1)).AsTask());
+        await Assert.ThrowsAsync<ArgumentException>(() => sink.WriteBufferedAsync(new(new float[80], 16000, 1)).AsTask());
+        await sink.WriteBufferedAsync(new(new float[] { .3f }, 8000, 1));
+        await sink.DrainAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(.3f, output.Frames[^1].Samples.Span[0]);
+    }
+
+    [Fact]
     public async Task ProfileBufferTargetsMatchActual054AndWaitForTheConfiguredStartupHeight()
     {
         using var fixture = JsonDocument.Parse(File.ReadAllText(
@@ -149,6 +248,40 @@ public sealed class BufferedAudioSinkTests
             }
             Frames.Add(frame);
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class GatedSink : IAudioSink
+    {
+        internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal int Count;
+        public async ValueTask WriteAsync(AudioFrame frame, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref Count);
+            Entered.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+        }
+    }
+
+    private sealed class PrefixSink : IAudioSink
+    {
+        private int _count;
+        internal TaskCompletionSource FirstEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource FirstRelease { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource SecondEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public async ValueTask WriteAsync(AudioFrame frame, CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Increment(ref _count) == 1)
+            {
+                FirstEntered.TrySetResult();
+                await FirstRelease.Task.WaitAsync(cancellationToken);
+            }
+            else
+            {
+                SecondEntered.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
         }
     }
 

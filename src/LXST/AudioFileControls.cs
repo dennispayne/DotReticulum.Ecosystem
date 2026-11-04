@@ -6,6 +6,7 @@ public sealed class FilePlayer : IAsyncDisposable
     private readonly object _gate = new();
     private readonly IAudioSink _sink;
     private readonly string? _libraryPath;
+    private readonly TimeProvider _clock;
     private string? _path;
     private bool _loop;
     private bool _playing;
@@ -17,10 +18,11 @@ public sealed class FilePlayer : IAsyncDisposable
     private bool _releaseOnFinish;
 
     public FilePlayer(IAudioSink sink, string? path = null, bool loop = false, string? libraryPath = null,
-        double gainDb = 0, bool releaseOnFinish = false)
+        double gainDb = 0, bool releaseOnFinish = false, TimeProvider? timeProvider = null)
     {
         _sink = sink ?? throw new ArgumentNullException(nameof(sink));
         _libraryPath = libraryPath;
+        _clock = timeProvider ?? TimeProvider.System;
         _loop = loop;
         GainDb = gainDb;
         _releaseOnFinish = releaseOnFinish;
@@ -85,20 +87,34 @@ public sealed class FilePlayer : IAsyncDisposable
 
     private async Task RunAsync(string path, CancellationToken stop)
     {
+        var started = _clock.GetTimestamp();
         try
         {
             do
             {
-                await using var source = new OpusFileSource(path, timed: true, libraryPath: _libraryPath);
+                await using var source = new OpusFileSource(path, libraryPath: _libraryPath);
                 await foreach (var frame in source.CaptureAsync(stop).ConfigureAwait(false))
-                    await _sink.WriteAsync(OpusFileSource.ApplyGain(frame, GainDb), stop).ConfigureAwait(false);
+                {
+                    var output = OpusFileSource.ApplyGain(frame, GainDb);
+                    if (_sink is IQueuedAudioSink queued) await queued.WriteBufferedAsync(output, stop).ConfigureAwait(false);
+                    else await _sink.WriteAsync(output, stop).ConfigureAwait(false);
+                }
                 lock (_gate) if (!_loop) break;
             } while (!stop.IsCancellationRequested);
+            if (_sink is IQueuedAudioSink buffered) await buffered.DrainAsync(stop).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
         finally
         {
             lock (_gate) _playing = false;
+            bool notify;
+            lock (_gate) notify = Finished is not null || _releaseOnFinish;
+            var remaining = TimeSpan.FromMilliseconds(200) - _clock.GetElapsedTime(started);
+            if (notify && remaining > TimeSpan.Zero && !stop.IsCancellationRequested)
+            {
+                try { await Task.Delay(remaining, _clock, stop).ConfigureAwait(false); }
+                catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+            }
             if (Finished is { } finished)
                 foreach (Action<FilePlayer> observer in finished.GetInvocationList())
                     try { observer(this); }

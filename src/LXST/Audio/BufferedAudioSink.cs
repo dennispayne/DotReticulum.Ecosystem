@@ -1,7 +1,7 @@
 namespace LXST.Audio;
 
 /// <summary>Bounded, headless playback buffering around a caller-owned sink.</summary>
-public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
+public sealed class BufferedAudioSink : IQueuedAudioSink, IAsyncDisposable
 {
     private readonly object _gate = new();
     private readonly IAudioSink _output;
@@ -9,7 +9,7 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
     private readonly int _channels;
     private readonly bool _autoStart;
     private readonly TimeProvider _clock;
-    private readonly Queue<AudioFrame> _frames = new();
+    private readonly Queue<(AudioFrame Frame, long Sequence)> _frames = new();
     private readonly SemaphoreSlim _available = new(0, 1);
     private CancellationTokenSource? _stop;
     private Task _completion = Task.CompletedTask;
@@ -22,6 +22,10 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
     private int _maximumHeight = 3;
     private int _startFrames = 1;
     private bool _waitingForFrames;
+    private long _sequence;
+    private long _activeSequence;
+    private int _draining;
+    private TaskCompletionSource? _changed;
 
     public BufferedAudioSink(IAudioSink output, int sampleRate, int channels, bool autoStart = true,
         TimeProvider? timeProvider = null)
@@ -57,10 +61,78 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
             if (_maximumHeight != target) _maximumHeight = target + 1;
             _startFrames = Math.Max(1, target - 2);
             _waitingForFrames = _frames.Count < _startFrames;
+            SignalChange();
         }
     }
 
     public ValueTask WriteAsync(AudioFrame frame, CancellationToken cancellationToken = default)
+    {
+        var duration = ValidateFrame(frame, cancellationToken);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            Enqueue(frame, duration);
+        }
+        return ValueTask.CompletedTask;
+    }
+
+    public async ValueTask WriteBufferedAsync(AudioFrame frame, CancellationToken cancellationToken = default)
+    {
+        var duration = ValidateFrame(frame, cancellationToken);
+        while (true)
+        {
+            Task changed;
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (_frames.Count < Math.Min(6, _maximumHeight))
+                {
+                    Enqueue(frame, duration);
+                    if (_frames.Count >= _startFrames) Start();
+                    return;
+                }
+                if (!_running && _stopping is null) Start();
+                changed = (_changed ??= new(TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+            }
+            await changed.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Flushes the accepted prefix, including its owned in-flight write, without disposing the output.</summary>
+    public async ValueTask DrainAsync(CancellationToken cancellationToken = default)
+    {
+        long target;
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            cancellationToken.ThrowIfCancellationRequested();
+            target = _sequence;
+            _draining++;
+        }
+        try
+        {
+            while (true)
+            {
+                Task changed;
+                lock (_gate)
+                {
+                    ObjectDisposedException.ThrowIf(_disposed, this);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if ((_activeSequence == 0 || _activeSequence > target) &&
+                        (_frames.Count == 0 || _frames.Peek().Sequence > target)) return;
+                    _waitingForFrames = false;
+                    if (!_running && _stopping is null) Start();
+                    if (_available.CurrentCount == 0) _available.Release();
+                    changed = (_changed ??= new(TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+                }
+                await changed.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally { lock (_gate) _draining--; }
+    }
+
+    private TimeSpan ValidateFrame(AudioFrame frame, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(frame);
         cancellationToken.ThrowIfCancellationRequested();
@@ -68,23 +140,30 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
             throw new ArgumentException("Supply non-empty frames at the playback sample rate.", nameof(frame));
         foreach (var sample in frame.Samples.Span)
             if (!float.IsFinite(sample)) throw new ArgumentException("Audio samples must be finite.", nameof(frame));
-        lock (_gate)
+        var duration = TimeSpan.FromSeconds((double)frame.SamplesPerChannel / _sampleRate);
+        if (duration < TimeSpan.FromTicks(1) || duration.TotalMilliseconds > (uint.MaxValue - 1) / 8.0)
+            throw new ArgumentException("Frame duration is outside supported timer limits.", nameof(frame));
+        return duration;
+    }
+
+    private void Enqueue(AudioFrame frame, TimeSpan duration)
+    {
+        _frameTime ??= duration;
+        if (_frames.Count == 6)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
-            var duration = TimeSpan.FromSeconds((double)frame.SamplesPerChannel / _sampleRate);
-            if (duration < TimeSpan.FromTicks(1) || duration.TotalMilliseconds > (uint.MaxValue - 1) / 8.0)
-                throw new ArgumentException("Frame duration is outside supported timer limits.", nameof(frame));
-            _frameTime ??= duration;
-            if (_frames.Count == 6)
-            {
-                _frames.Dequeue();
-                Interlocked.Increment(ref _dropped);
-            }
-            _frames.Enqueue(new(frame.Samples.ToArray(), frame.SampleRate, frame.Channels));
-            if (_available.CurrentCount == 0) _available.Release();
-            if (_autoStart && _frames.Count >= _startFrames) Start();
+            _frames.Dequeue();
+            Interlocked.Increment(ref _dropped);
         }
-        return ValueTask.CompletedTask;
+        _frames.Enqueue((new(frame.Samples.ToArray(), frame.SampleRate, frame.Channels), ++_sequence));
+        if (_available.CurrentCount == 0) _available.Release();
+        if (_autoStart && _frames.Count >= _startFrames) Start();
+        SignalChange();
+    }
+
+    private void SignalChange()
+    {
+        _changed?.TrySetResult();
+        _changed = null;
     }
 
     public void Start(CancellationToken cancellationToken = default)
@@ -134,6 +213,7 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
             _waitingForFrames = false;
             OutputLatency = TimeSpan.Zero;
             MaximumLatency = TimeSpan.Zero;
+            SignalChange();
         }
     }
 
@@ -151,6 +231,7 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
             {
                 if (ReferenceEquals(_stop, stop)) _stop = null;
                 _stopping = null;
+                SignalChange();
             }
             stop.Dispose();
         }
@@ -166,14 +247,21 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
                 AudioFrame? frame;
                 lock (_gate)
                 {
-                    if (_waitingForFrames && _frames.Count >= _startFrames) _waitingForFrames = false;
+                    if (_waitingForFrames && (_frames.Count >= _startFrames || _draining != 0)) _waitingForFrames = false;
                     if (_frames.Count != 0)
                     {
                         OutputLatency = _frameTime!.Value * _frames.Count;
                         MaximumLatency = _frameTime.Value * _maximumHeight;
                         _available.Wait(0);
                     }
-                    frame = _frames.Count == 0 || _waitingForFrames ? null : _frames.Dequeue();
+                    if (_frames.Count == 0 || _waitingForFrames) frame = null;
+                    else
+                    {
+                        var queued = _frames.Dequeue();
+                        frame = queued.Frame;
+                        _activeSequence = queued.Sequence;
+                        SignalChange();
+                    }
                 }
                 if (frame is null)
                 {
@@ -216,6 +304,8 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
                         _frames.Dequeue();
                         Interlocked.Increment(ref _dropped);
                     }
+                    _activeSequence = 0;
+                    SignalChange();
                 }
             }
         }
@@ -223,7 +313,14 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
         finally
         {
             lock (_gate)
-                if (_stop is { } stop && stop.Token == cancellationToken) _running = false;
+            {
+                if (_stop is { } stop && stop.Token == cancellationToken)
+                {
+                    _activeSequence = 0;
+                    _running = false;
+                }
+                SignalChange();
+            }
         }
     }
 
@@ -243,6 +340,7 @@ public sealed class BufferedAudioSink : IAudioSink, IAsyncDisposable
         {
             if (_disposing is not null) return new(_disposing);
             _disposed = true;
+            SignalChange();
             _disposing = DisposeCoreAsync();
             return new(_disposing);
         }

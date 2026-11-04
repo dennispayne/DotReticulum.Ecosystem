@@ -1,0 +1,135 @@
+{
+  "revision": "eba5abc77fef7fef3bcb6c9c091c80b7f7492c9f",
+  "source_sha256": "51fddc5102da64569bd9605fc0e7f507a6a1ac9f8afef3558834bcf7a565402c",
+  "method": "Actual FilePlayer.running/playing and __callback_job; only source/queue/pipeline/clock boundary objects substituted. No player method replaced.",
+  "states": [
+    {
+      "source_present": false,
+      "source_running": false,
+      "queued": 0,
+      "running": false,
+      "playing": false
+    },
+    {
+      "source_present": false,
+      "source_running": false,
+      "queued": 1,
+      "running": false,
+      "playing": false
+    },
+    {
+      "source_present": false,
+      "source_running": false,
+      "queued": 3,
+      "running": false,
+      "playing": false
+    },
+    {
+      "source_present": false,
+      "source_running": true,
+      "queued": 0,
+      "running": false,
+      "playing": false
+    },
+    {
+      "source_present": false,
+      "source_running": true,
+      "queued": 1,
+      "running": false,
+      "playing": false
+    },
+    {
+      "source_present": false,
+      "source_running": true,
+      "queued": 3,
+      "running": false,
+      "playing": false
+    },
+    {
+      "source_present": true,
+      "source_running": false,
+      "queued": 0,
+      "running": false,
+      "playing": false
+    },
+    {
+      "source_present": true,
+      "source_running": false,
+      "queued": 1,
+      "running": true,
+      "playing": true
+    },
+    {
+      "source_present": true,
+      "source_running": false,
+      "queued": 3,
+      "running": true,
+      "playing": true
+    },
+    {
+      "source_present": true,
+      "source_running": true,
+      "queued": 0,
+      "running": true,
+      "playing": true
+    },
+    {
+      "source_present": true,
+      "source_running": true,
+      "queued": 1,
+      "running": true,
+      "playing": true
+    },
+    {
+      "source_present": true,
+      "source_running": true,
+      "queued": 3,
+      "running": true,
+      "playing": true
+    }
+  ],
+  "source": {
+    "input_timed": false,
+    "target_frame_ms": 100,
+    "old_source_running_after_replacement": true,
+    "replacement_source_running": false,
+    "player_running_after_replacement": false
+  },
+  "completion": [
+    {
+      "release_on_finish": false,
+      "sleeps": [
+        0.2,
+        0.1,
+        0.1,
+        0.1
+      ],
+      "events": [
+        {
+          "callback_running": false,
+          "queued": 0
+        }
+      ],
+      "released": false
+    },
+    {
+      "release_on_finish": true,
+      "sleeps": [
+        0.2,
+        0.1,
+        0.1,
+        0.1
+      ],
+      "events": [
+        {
+          "callback_running": false,
+          "queued": 0
+        },
+        "source-release",
+        "input-release",
+        "output-release"
+      ],
+      "released": true
+    }
+  ]
+}

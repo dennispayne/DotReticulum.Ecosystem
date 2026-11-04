@@ -156,6 +156,9 @@ def main():
                 elif command == "announce":
                     phone.announce()
                     emit("announced")
+                elif command == "announce-delivery":
+                    core.lxmf_announce()
+                    emit("delivery-announced")
                 elif command == "wait-path":
                     identity = bytes.fromhex(parts[1])
                     if len(identity) != RNS.Reticulum.TRUNCATED_HASHLENGTH // 8:

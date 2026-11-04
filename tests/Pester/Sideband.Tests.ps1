@@ -616,6 +616,126 @@ Describe 'sideband native announce stream' -Tag 'GUI', 'Announces' {
     }
 }
 
+Describe 'sideband primary voice peer migration' -Tag 'GUI', 'VoicePeerImport' {
+    It 'activates primary voice-only names and trust with delivery precedence across offline native restart and atomic rejected-name recovery' {
+        $binary = $env:DOTRETICULUM_SIDEBAND_BINARY
+        if ([string]::IsNullOrWhiteSpace($binary) -or -not (Test-Path -LiteralPath $binary -PathType Leaf)) {
+            throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
+        }
+        $profile = $env:DOTRETICULUM_SIDEBAND_VOICE_PEER_PROFILE
+        $invalidProfile = $env:DOTRETICULUM_SIDEBAND_VOICE_PEER_INVALID_PROFILE
+        if ([string]::IsNullOrWhiteSpace($profile) -or [string]::IsNullOrWhiteSpace($invalidProfile)) {
+            Set-ItResult -Skipped -Because 'Generate actual primary --voice-peers-profile profiles, including --voice-peer-name longer than80 characters, and set both DOTRETICULUM_SIDEBAND_VOICE_PEER_PROFILE and DOTRETICULUM_SIDEBAND_VOICE_PEER_INVALID_PROFILE.'
+            return
+        }
+        $observations = Get-Content -LiteralPath (Join-Path $profile 'observations.json') -Raw | ConvertFrom-Json
+        $observations.upstream | Should -Be 'd069122af14880e43607aed0b71add4c7806fbe0'
+        $observations.voicePeers.coreSha256 | Should -Be '8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25'
+        $observations.voicePeers.trustedOnly | Should -BeTrue
+        @($observations.voicePeers.rows).Count | Should -Be 3
+        $source = Join-Path $profile 'app_storage'
+        $before = @(Get-ChildItem -LiteralPath $source -File | Sort-Object Name | ForEach-Object {
+            "$($_.Name):$((Get-FileHash -LiteralPath $_.FullName).Hash)"
+        }) -join '|'
+        $root = Join-Path ([IO.Path]::GetTempPath()) "sideband-voice-peers-$([guid]::NewGuid().ToString('N'))"
+        $data = Join-Path $root 'native'
+        try {
+            $output = & $binary --import-profile $invalidProfile --data-dir $data 2>&1 | Out-String
+            $LASTEXITCODE | Should -Be 1 -Because $output
+            $output | Should -Match 'Profile import failed \(InvalidDataException\)'
+            $output | Should -Match 'no existing profile was replaced'
+            $output | Should -Not -Match ('x' * 81)
+            Test-Path -LiteralPath $data | Should -BeFalse
+            @(Get-ChildItem -LiteralPath $root -Directory -Filter '.native.import-*').Count | Should -Be 0
+            $output = & $binary --import-profile $profile --data-dir $data 2>&1 | Out-String
+            $LASTEXITCODE | Should -Be 0 -Because $output
+            $output | Should -Match 'Activated 3 voice-only identity objects'
+            $path = Join-Path $data 'state.json'
+            $state = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+            $state.ownDeliveryHash | Should -Be $observations.ownDeliveryHash
+            @($state.voicePeers).Count | Should -Be 3
+            @($state.contacts).Count | Should -Be 2
+            $state.voiceEnabled | Should -BeFalse
+            $state.voice.trustedOnly | Should -BeTrue
+            foreach ($observed in $observations.voicePeers.rows) {
+                $peer = @($state.voicePeers | Where-Object identityHash -EQ $observed.identity)
+                $peer.Count | Should -Be 1
+                $peer[0].voiceTrusted | Should -Be ($observed.trust -eq 1)
+                $peer[0].deliveryTrusted | Should -BeNullOrEmpty
+                $peer[0].deliveryPushToTalk | Should -BeFalse
+                $name = [Text.Encoding]::UTF8.GetString([Convert]::FromHexString($observed.name_hex))
+                if ($name.Length) { $peer[0].displayName | Should -BeExactly $name }
+                else { $peer[0].displayName | Should -BeNullOrEmpty }
+                @($state.contacts | Where-Object deliveryHash -EQ $observed.identity).Count | Should -Be 0
+            }
+            $override = @($state.contacts | Where-Object deliveryHash -EQ $observations.voicePeers.overrideDeliveryHash)
+            $override.Count | Should -Be 1
+            $override[0].trusted | Should -BeFalse
+            $stateHash = (Get-FileHash -LiteralPath $path).Hash
+            foreach ($restart in 1, 2) {
+                $process = [Diagnostics.Process]::new()
+                $started = $false
+                try {
+                    $process.StartInfo.FileName = $binary
+                    $process.StartInfo.UseShellExecute = $false
+                    $process.StartInfo.RedirectStandardOutput = $true
+                    $process.StartInfo.RedirectStandardError = $true
+                    foreach ($argument in '--smoke-ui', '--smoke-voice-peers', '--data-dir', $data) {
+                        $process.StartInfo.ArgumentList.Add($argument)
+                    }
+                    $process.Start() | Should -BeTrue
+                    $started = $true
+                    $stdout = $process.StandardOutput.ReadToEndAsync()
+                    $stderr = $process.StandardError.ReadToEndAsync()
+                    if (-not $process.WaitForExit(20000)) {
+                        $process.Kill($true)
+                        $process.WaitForExit()
+                        throw 'Published voice-only peer rendering did not finish.'
+                    }
+                    $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+                    $process.ExitCode | Should -Be 0 -Because $output
+                    $output | Should -Match 'SMOKE_UI_RENDERED_INITIAL=1'
+                    $output | Should -Match 'SMOKE_UI_RENDERED_VOICE_PEERS=3'
+                    $output | Should -Match 'SMOKE_UI_ALLOWED_VOICE_PEERS=1'
+                    $output | Should -Match 'SMOKE_UI_VOICE_CONNECTED=0'
+                    (Get-FileHash -LiteralPath $path).Hash | Should -Be $stateHash
+                }
+                finally {
+                    if ($started -and -not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+                    $process.Dispose()
+                }
+            }
+            & $binary --import-profile $profile --data-dir $data 2>&1 | Out-Null
+            $LASTEXITCODE | Should -Be 1
+            (Get-FileHash -LiteralPath $path).Hash | Should -Be $stateHash
+            $config = Join-Path $root 'isolated-rns'
+            $null = New-Item -ItemType Directory -Path $config -Force
+            "[reticulum]`n  enable_transport = no`n  share_instance = no`n`n[logging]`n  loglevel = 4`n" |
+                Set-Content -LiteralPath (Join-Path $config 'config') -Encoding utf8NoBOM
+            $output = & $binary --init --data-dir (Join-Path $root 'empty') --rnsconfig $config 2>&1 | Out-String
+            $LASTEXITCODE | Should -Be 0 -Because $output
+            $output = & $binary --smoke-ui --smoke-voice-peers --data-dir (Join-Path $root 'empty') 2>&1 | Out-String
+            $LASTEXITCODE | Should -Be 2 -Because $output
+            $output | Should -Match 'Voice peer smoke requires saved voice-only identities'
+            foreach ($arguments in @(
+                @('--smoke-voice-peers'),
+                @('--smoke-ui', '--smoke-voice-peers', '--rnsconfig', $config),
+                @('--smoke-ui', '--smoke-voice-peers', '--smoke-voice-history')
+            )) {
+                $output = & $binary @arguments --data-dir (Join-Path $root 'invalid') 2>&1 | Out-String
+                $LASTEXITCODE | Should -Be 1 -Because $output
+                $output | Should -Match 'requires --smoke-ui'
+                Test-Path -LiteralPath (Join-Path $root 'invalid') | Should -BeFalse
+            }
+            $after = @(Get-ChildItem -LiteralPath $source -File | Sort-Object Name | ForEach-Object {
+                "$($_.Name):$((Get-FileHash -LiteralPath $_.FullName).Hash)"
+            }) -join '|'
+            $after | Should -Be $before
+        }
+        finally { if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force } }
+    }
+}
+
 Describe 'sideband primary voice history migration' -Tag 'GUI', 'VoiceImport' {
     It 'imports actual primary call assertions and renders them offline across native restart without granting trust or changing the source' {
         $binary = $env:DOTRETICULUM_SIDEBAND_BINARY

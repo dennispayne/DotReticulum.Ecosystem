@@ -28,6 +28,8 @@ public sealed partial class MainWindow : Window
     private int _smokeActionInvoked;
     private string? _selectedContact;
     private SidebandState? _state;
+    private SidebandVoicePolicy? _voiceDisplayPolicy;
+    private SidebandVoicePeer[] _visibleVoicePeers = [];
     private IReadOnlyList<SidebandChatMessage> _visibleMessages = [];
     private bool _navigationVisible = true;
     private bool _closing;
@@ -80,7 +82,8 @@ public sealed partial class MainWindow : Window
         Closing += OnClosing;
         Opened += OnOpened;
         Activated += (_, _) => MarkVisibleConversationRead();
-        NavigateTo(Program.SmokeAnnouncesMode ? "Announces" : Program.SmokeVoiceHistoryMode ? "Voice" : "Conversations");
+        NavigateTo(Program.SmokeAnnouncesMode ? "Announces" :
+            Program.SmokeVoiceHistoryMode || Program.SmokeVoicePeersMode ? "Voice" : "Conversations");
         UpdateConnectivityView();
     }
 
@@ -154,9 +157,26 @@ public sealed partial class MainWindow : Window
                     _ = CloseAfterCaptureAsync();
                     return;
                 }
+                if (!EnsureVoiceControlVisible(VoiceHistoryList)) return;
                 Console.WriteLine("SMOKE_UI_RENDERED_VOICE_HISTORY=" + VoiceHistoryList.ItemCount);
                 Console.WriteLine("SMOKE_UI_IMPORTED_VOICE_ASSERTIONS=" +
                     VoiceHistoryList.Items.Cast<string>().Count(text => text.StartsWith("[IMPORTED ASSERTION]", StringComparison.Ordinal)));
+                Console.WriteLine("SMOKE_UI_VOICE_CONNECTED=" + (_client.IsConnected ? "1" : "0"));
+            }
+            if (Program.SmokeVoicePeersMode)
+            {
+                if (!VoicePage.IsVisible) return;
+                if (VoicePeerList.ItemCount == 0)
+                {
+                    Console.Error.WriteLine("sideband: Voice peer smoke requires saved voice-only identities.");
+                    Volatile.Write(ref _smokeActionInvoked, 0);
+                    _ = CloseAfterCaptureAsync();
+                    return;
+                }
+                if (!EnsureVoiceControlVisible(VoicePeerList)) return;
+                Console.WriteLine("SMOKE_UI_RENDERED_VOICE_PEERS=" + VoicePeerList.ItemCount);
+                Console.WriteLine("SMOKE_UI_ALLOWED_VOICE_PEERS=" +
+                    _visibleVoicePeers.Count(peer => _voiceDisplayPolicy?.IsAllowed(peer.IdentityHash) == true));
                 Console.WriteLine("SMOKE_UI_VOICE_CONNECTED=" + (_client.IsConnected ? "1" : "0"));
             }
             if (Program.SmokeTelemetryMode)
@@ -191,7 +211,8 @@ public sealed partial class MainWindow : Window
                 if (!RemotePage.IsVisible || !_remoteSmokeVerified) return;
                 Console.WriteLine("SMOKE_UI_RENDERED_REMOTE=commands-replies-cancellation");
             }
-            var hasImage = !Program.SmokePaperMode && !Program.SmokeObjectsMode && !Program.SmokeDiscoveryMode && !Program.SmokeAnnouncesMode && !Program.SmokeVoiceHistoryMode &&
+            var hasImage = !Program.SmokePaperMode && !Program.SmokeObjectsMode && !Program.SmokeDiscoveryMode &&
+                !Program.SmokeAnnouncesMode && !Program.SmokeVoiceHistoryMode && !Program.SmokeVoicePeersMode &&
                 _state.Messages.Any(message => message.Image is not null);
             if (hasImage && MediaPreview.Source is null) return;
             SmokeUiSucceeded = true;
@@ -325,6 +346,7 @@ public sealed partial class MainWindow : Window
                     if (Program.SmokeObjectsMode) NavigateTo("Objects");
                     if (Program.SmokeAnnouncesMode) NavigateTo("Announces");
                     if (Program.SmokeVoiceHistoryMode) NavigateTo("Voice");
+                    if (Program.SmokeVoicePeersMode) NavigateTo("Voice");
                     if (Program.SmokeDiscoveryMode) TrackOperation(RunDiscoverySmokeAsync);
                     Volatile.Write(ref _smokeActionInvoked, 1);
                     InvalidateVisual();
@@ -761,6 +783,7 @@ public sealed partial class MainWindow : Window
             if (_closing) return;
             var selected = _selectedContact;
             _state = state;
+            RefreshVoicePeers();
             RefreshContacts();
             RefreshExpandedContacts();
             if (selected is not null) _selectedContact = selected;
@@ -779,6 +802,7 @@ public sealed partial class MainWindow : Window
     private void LoadVoiceSettings()
     {
         if (_state is null) return;
+        RefreshVoicePeers();
         var voice = _state.Voice ?? new();
         VoiceEnabledBox.IsChecked = _state.VoiceEnabled;
         VoiceTrustedOnlyBox.IsChecked = voice.TrustedOnly;
@@ -817,7 +841,8 @@ public sealed partial class MainWindow : Window
             VoiceMuteMicrophoneBox.IsChecked = snapshot.TransmitMuted;
             VoiceMuteSpeakerBox.IsChecked = snapshot.ReceiveMuted;
             VoiceLoudspeakerEnabledBox.IsChecked = snapshot.LoudspeakerEnabled;
-            VoiceStatusText.Text = $"{snapshot.State} · peer {snapshot.RemoteIdentityHash ?? "none"} · telephone {_client.VoiceDestinationHash}";
+            var peerName = snapshot.RemoteIdentityHash is { } remote ? _voiceDisplayPolicy?.GetDisplayName(remote) ?? remote : "none";
+            VoiceStatusText.Text = $"{snapshot.State} · peer {peerName} · identity {snapshot.RemoteIdentityHash ?? "none"} · telephone {_client.VoiceDestinationHash}";
             var elapsed = snapshot.EstablishedAt is { } time ? DateTimeOffset.UtcNow - time : TimeSpan.Zero;
             VoiceFramesText.Text = $"Duration {elapsed:hh\\:mm\\:ss} · RX {snapshot.ReceivedFrames} · TX {snapshot.TransmittedFrames}";
         }
@@ -829,7 +854,44 @@ public sealed partial class MainWindow : Window
         if (!active && _pttPressed) ReleasePushToTalk();
         if (_audioCancellation is null) PlayAudioButton.IsEnabled = RecordAudioButton.IsEnabled = !active;
         VoiceHistoryList.ItemsSource = (_state?.Calls ?? []).OrderByDescending(call => call.Time)
-            .Select(call => $"{(call.Imported ? "[IMPORTED ASSERTION] " : "")}{call.Time.LocalDateTime:g} · {call.Event} · {call.IdentityHash}").ToArray();
+            .Select(call => $"{(call.Imported ? "[IMPORTED ASSERTION] " : "")}{call.Time.LocalDateTime:g} · {call.Event} · {_voiceDisplayPolicy?.GetDisplayName(call.IdentityHash)} · {call.IdentityHash}").ToArray();
+    }
+
+    private void RefreshVoicePeers()
+    {
+        if (_state is null) return;
+        _voiceDisplayPolicy = SidebandVoicePolicy.FromState(_state);
+        var peers = (_state.VoicePeers ?? []).OrderByDescending(peer => peer.VoiceTrusted)
+            .ThenBy(peer => peer.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(peer => peer.IdentityHash, StringComparer.Ordinal).ToArray();
+        if (peers.SequenceEqual(_visibleVoicePeers)) return;
+        var selected = _visibleVoicePeers.ElementAtOrDefault(VoicePeerList.SelectedIndex)?.IdentityHash;
+        _visibleVoicePeers = peers;
+        VoicePeerList.ItemsSource = peers.Select(peer =>
+            $"{peer.DisplayName ?? "(unnamed)"} · {peer.IdentityHash} · voice-only {(peer.VoiceTrusted ? "trusted" : "untrusted")}").ToArray();
+        VoicePeerList.SelectedIndex = Array.FindIndex(peers, peer => peer.IdentityHash == selected);
+    }
+
+    private bool EnsureVoiceControlVisible(Control control)
+    {
+        var center = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), VoicePage);
+        if (control.Bounds.Height > 0 && center is { } point &&
+            point.Y >= 0 && point.Y < VoicePage.Bounds.Height && point.X >= 0 && point.X < VoicePage.Bounds.Width)
+            return true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            control.BringIntoView();
+            InvalidateVisual();
+        }, DispatcherPriority.Loaded);
+        return false;
+    }
+
+    private void VoicePeerSelected(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_visibleVoicePeers.ElementAtOrDefault(VoicePeerList.SelectedIndex) is not { } peer) return;
+        VoiceIdentityBox.Text = peer.IdentityHash;
+        VoicePeerNameBox.Text = peer.DisplayName;
+        VoicePeerTrustedBox.IsChecked = peer.VoiceTrusted;
     }
 
     private void ClearVoiceHistoryClicked(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () =>
@@ -917,6 +979,19 @@ public sealed partial class MainWindow : Window
             ConversationDirectPttBox.IsChecked == true, _windowCancellation.Token));
     private void SaveVoicePeerTrustClicked(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () =>
         await _client.SetVoicePeerTrustAsync(VoiceIdentityBox.Text ?? string.Empty, VoicePeerTrustedBox.IsChecked == true, _windowCancellation.Token));
+
+    private void SaveVoicePeerClicked(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () =>
+        await _client.ConfigureVoicePeerAsync(VoiceIdentityBox.Text ?? string.Empty, VoicePeerNameBox.Text,
+            VoicePeerTrustedBox.IsChecked == true, _windowCancellation.Token));
+
+    private void DeleteVoicePeerClicked(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () =>
+    {
+        var peer = _visibleVoicePeers.ElementAtOrDefault(VoicePeerList.SelectedIndex)
+            ?? throw new InvalidOperationException("Select a saved voice-only identity first.");
+        await _client.DeleteVoicePeerAsync(peer.IdentityHash, _windowCancellation.Token);
+        VoiceIdentityBox.Text = VoicePeerNameBox.Text = string.Empty;
+        VoicePeerTrustedBox.IsChecked = false;
+    });
 
     private void RunVoiceOperation(Func<Task> operation) => TrackOperation(async () =>
     {

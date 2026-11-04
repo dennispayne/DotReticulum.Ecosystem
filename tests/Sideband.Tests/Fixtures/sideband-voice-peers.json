@@ -1,0 +1,37 @@
+{
+  "upstream": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "coreSha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+  "method": "Actual SidebandCore._db_create_voice_object and unchanged name/trust setters, SQLite readback, voice_is_trusted and voice_display_name; synthetic identity hashes, unused core subsystem import stubs.",
+  "rows": [
+    {
+      "identity": "000102030405060708090a0b0c0d0e0f",
+      "type": 4,
+      "unread": 0,
+      "trust": 1,
+      "name_hex": "566f6963652d6f6e6c792074727573746564",
+      "allowed_trusted_only": true,
+      "display_name": "Voice-only trusted"
+    },
+    {
+      "identity": "101112131415161718191a1b1c1d1e1f",
+      "type": 4,
+      "unread": 0,
+      "trust": 1,
+      "name_hex": "4c584d462074727573742074616b657320707265636564656e6365",
+      "allowed_trusted_only": false,
+      "display_name": "Untrusted delivery override <3cc8232d6805a28b9e181f1b310ef074>"
+    },
+    {
+      "identity": "202122232425262728292a2b2c2d2e2f",
+      "type": 4,
+      "unread": 0,
+      "trust": 0,
+      "name_hex": "",
+      "allowed_trusted_only": false,
+      "display_name": "<202122232425262728292a2b2c2d2e2f>"
+    }
+  ],
+  "overrideDeliveryHash": "3cc8232d6805a28b9e181f1b310ef074",
+  "overrideDeliveryTrusted": false,
+  "trustedOnly": true
+}

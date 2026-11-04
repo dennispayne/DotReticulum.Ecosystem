@@ -8,7 +8,7 @@ public sealed partial class SidebandProfileImportTests
     public static bool VoicePipePlatformIsUnavailable => !OperatingSystem.IsLinux();
 
     [Fact(SkipWhen = nameof(VoiceFilePlatformIsUnavailable), Skip = "Voice-log file migration requires Windows or Linux metadata acceptance.")]
-    public async Task PrimaryVoiceEventsImportWithoutGrantingTrustOrEnablingDevicesAndSurviveRestart()
+    public async Task PrimaryVoiceLogEventsImportWithoutGrantingTrustOrEnablingDevicesAndSurviveRestart()
     {
         using var profile = new Profile();
         var path = Path.Combine(profile.Source, "lxst_call_log");

@@ -206,12 +206,14 @@ public sealed partial class SidebandProfileImportTests
         Assert.Empty(Directory.GetDirectories(profile.Root, ".native.import-*"));
     }
 
-    [Fact]
-    public async Task NonLxmfConversationFlagsRemainArchiveOnly()
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task GroupAndBroadcastConversationFlagsRemainArchiveOnly(int type)
     {
         using var profile = new Profile();
         WriteSql(Path.Combine(profile.Source, "sideband.db"),
-            "INSERT INTO conv VALUES(randomblob(16),0,0,-1,4,2,X'566f696365',X'C0')");
+            $"INSERT INTO conv VALUES(randomblob(16),0,0,-1,{type},2,X'47726F7570',X'C0')");
         var result = await SidebandProfileImporter.ImportAsync(profile.Source, profile.Target, TestContext.Current.CancellationToken);
         var state = await new SidebandStateStore(profile.Target).LoadAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Empty(state.Contacts);

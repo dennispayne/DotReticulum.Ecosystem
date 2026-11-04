@@ -220,6 +220,22 @@ public sealed partial class SidebandClient : IAsyncDisposable
         PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
     }
 
+    public async Task ConfigureVoicePeerAsync(string identityHash, string? displayName, bool trusted, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _store.ConfigureVoicePeerAsync(identityHash, displayName, trusted, cancellationToken).ConfigureAwait(false);
+        await RefreshVoicePolicyAsync(cancellationToken).ConfigureAwait(false);
+        PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
+    }
+
+    public async Task DeleteVoicePeerAsync(string identityHash, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _store.DeleteVoicePeerAsync(identityHash, cancellationToken).ConfigureAwait(false);
+        await RefreshVoicePolicyAsync(cancellationToken).ConfigureAwait(false);
+        PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
+    }
+
     public Task CallIdentityAsync(string identityHash, TelephoneProfile profile = TelephoneProfile.MediumQuality,
         TelephoneMode mode = TelephoneMode.FullDuplex, CancellationToken cancellationToken = default)
     {
@@ -398,8 +414,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
             await voice.ConfigureAsync(VoicePolicy(state), token).ConfigureAwait(false);
     }
 
-    private static SidebandVoicePolicy VoicePolicy(SidebandState state) => new(state.Voice, state.VoicePeers,
-        state.Contacts.Select(contact => new SidebandVoiceDeliveryPeer(contact.DeliveryHash, contact.Trusted, contact.DirectPushToTalk)));
+    private static SidebandVoicePolicy VoicePolicy(SidebandState state) => SidebandVoicePolicy.FromState(state);
 
     public Task SendTextAsync(string deliveryHash, string content, CancellationToken cancellationToken = default) =>
         SendMessageAsync(deliveryHash, content, null, null, cancellationToken);

@@ -85,6 +85,19 @@ public sealed partial class SidebandStateStore
     }
 
     public Task SetVoicePeerTrustAsync(string identityHash, bool trusted, CancellationToken cancellationToken = default)
+        => MutateVoicePeerAsync(identityHash, peer => peer with { VoiceTrusted = trusted }, cancellationToken);
+
+    public Task ConfigureVoicePeerAsync(string identityHash, string? displayName, bool trusted, CancellationToken cancellationToken = default)
+    {
+        if (!SidebandVoicePeer.IsValidDisplayName(displayName))
+            throw new ArgumentException("Voice peer names may contain at most80 characters and no control characters.", nameof(displayName));
+        return MutateVoicePeerAsync(identityHash, peer => peer with
+        {
+            DisplayName = displayName is { Length: 0 } ? null : displayName, VoiceTrusted = trusted,
+        }, cancellationToken);
+    }
+
+    private Task MutateVoicePeerAsync(string identityHash, Func<SidebandVoicePeer, SidebandVoicePeer> update, CancellationToken cancellationToken)
     {
         if (!SidebandContact.TryNormalizeDeliveryHash(identityHash, out var normalized))
             throw new ArgumentException("A voice peer must have a 32-character hexadecimal identity hash.", nameof(identityHash));
@@ -95,8 +108,18 @@ public sealed partial class SidebandStateStore
             return state with
             {
                 VoicePeers = peers.Where(item => item.IdentityHash != normalized)
-                    .Append(peer with { VoiceTrusted = trusted }).OrderBy(item => item.IdentityHash, StringComparer.Ordinal).ToArray(),
+                    .Append(update(peer)).OrderBy(item => item.IdentityHash, StringComparer.Ordinal).ToArray(),
             };
+        }, cancellationToken);
+    }
+
+    public Task DeleteVoicePeerAsync(string identityHash, CancellationToken cancellationToken = default)
+    {
+        if (!SidebandContact.TryNormalizeDeliveryHash(identityHash, out var normalized))
+            throw new ArgumentException("A voice peer must have a 32-character hexadecimal identity hash.", nameof(identityHash));
+        return MutateAsync(state => state with
+        {
+            VoicePeers = (state.VoicePeers ?? []).Where(peer => peer.IdentityHash != normalized).ToArray(),
         }, cancellationToken);
     }
 
@@ -517,7 +540,8 @@ public sealed partial class SidebandStateStore
         if (state.VoicePeers is { } peers)
         {
             if (peers.Count > 1_000 || peers.Any(peer => peer is null ||
-                !SidebandContact.TryNormalizeDeliveryHash(peer.IdentityHash, out var normalized) || normalized != peer.IdentityHash) ||
+                !SidebandContact.TryNormalizeDeliveryHash(peer.IdentityHash, out var normalized) || normalized != peer.IdentityHash ||
+                !SidebandVoicePeer.IsValidDisplayName(peer.DisplayName)) ||
                 peers.Select(peer => peer.IdentityHash).Distinct(StringComparer.Ordinal).Count() != peers.Count)
                 throw new InvalidDataException("The saved voice peer collection is invalid or oversized.");
         }

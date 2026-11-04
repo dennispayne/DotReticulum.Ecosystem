@@ -8,6 +8,29 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Sideband voice-peer C66/T183–189 independently records22 actual passing cases
+per host:10 Unit,9 ordinary Integration,2 actual-primary live policy cases and1
+published-native profile/GUI case. Receipts are
+`artifacts\tests\sideband-voice-peers\windows\c66.json` and
+`/home/dennis/fleet-voice-peer-results/c66.json`. The focused managed regression
+passes107/3 explicit platform skips on Windows and108/2 on Linux; the separate
+actual-primary coordinator/shared-client command passes12 cases per host,
+directly and through a .NET transport. Published `VoicePeerImport` passes once
+per host without skips, and separate original GUI regression passes9/4 explicit
+missing-profile skips each. Offline native rendering is not native Python-peer
+calling. Linux uses an owned virtual Pulse server; Windows uses the disclosed
+synthetic reference device backend. Exact pins/hashes, commands, safety limits
+and remaining metadata/migration boundaries are in
+[Sideband's reference](sideband.md#primary-voice-only-identity-migration-and-controls).
+The integrated command `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-voice-peer-unified -OutputDirectory
+artifacts\tests\fleet-voice-peer-unified` passes2,497 managed cases/129 explicit
+skips,62 Pester tooling cases, strict catalog aggregation and merged production
+coverage. It includes concurrent Nomad logging source changes; those are not
+independently accepted by this Sideband gate. Latest hosted Build41502113530
+and Test41643993895 remain successful at their earlier recorded commits, not
+the unpushed local integration.
+
 Parent independently replays Nomad client-runtime `final-v3` with
 `Invoke-FrozenClientRuntimeAcceptance.ps1 -Manifest <absolute-manifest>`:
 Windows9 passes/1 explicit Linux-only RRC skip; Linux10 passes/no skips.
@@ -28,8 +51,8 @@ The final integrated `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
 artifacts\builds\fleet-client-config-unified -OutputDirectory
 artifacts\tests\fleet-client-config-unified` passes2,461 managed cases/128 explicit
 skips,62 Pester tooling cases, strict C65 catalog aggregation and merged
-production coverage. Sideband voice-peer reference generation is separate
-in-progress work, not an accepted implementation in that run.
+production coverage. That run precedes the independently accepted Sideband
+voice-peer evidence above.
 
 The call-history integration gate
 `tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath

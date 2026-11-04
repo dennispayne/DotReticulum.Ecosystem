@@ -25,9 +25,13 @@ public sealed record SidebandVoiceConfiguration
 
 /// <param name="DeliveryTrusted">Null means there is no LXMF conversation; false overrides voice-only trust.</param>
 public sealed record SidebandVoicePeer(string IdentityHash, bool? DeliveryTrusted = null,
-    bool VoiceTrusted = false, bool DeliveryPushToTalk = false);
+    bool VoiceTrusted = false, bool DeliveryPushToTalk = false, string? DisplayName = null)
+{
+    internal static bool IsValidDisplayName(string? name) => name is null ||
+        name.Length <= 80 && !name.Any(char.IsControl);
+}
 
-public sealed record SidebandVoiceDeliveryPeer(string DestinationHash, bool Trusted, bool PushToTalk = false);
+public sealed record SidebandVoiceDeliveryPeer(string DestinationHash, bool Trusted, bool PushToTalk = false, string? DisplayName = null);
 
 /// <summary>Immutable owner policy, keyed by identity, not by an LXMF destination hash.</summary>
 public sealed class SidebandVoicePolicy
@@ -45,6 +49,8 @@ public sealed class SidebandVoicePolicy
             ArgumentNullException.ThrowIfNull(peer);
             if (peer.IdentityHash is not { Length: 32 } || !peer.IdentityHash.All(char.IsAsciiHexDigit))
                 throw new ArgumentException("A voice peer must have a 16-byte identity hash.", nameof(peers));
+            if (!SidebandVoicePeer.IsValidDisplayName(peer.DisplayName))
+                throw new ArgumentException("Voice peer names may contain at most80 characters and no control characters.", nameof(peers));
             if (!copy.TryAdd(peer.IdentityHash, peer))
                 throw new ArgumentException("Duplicate voice peer identity.", nameof(peers));
         }
@@ -62,6 +68,27 @@ public sealed class SidebandVoicePolicy
     }
 
     public SidebandVoiceConfiguration Configuration { get; }
+    public static SidebandVoicePolicy FromState(SidebandState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        return new(state.Voice, state.VoicePeers, state.Contacts.Where(contact => contact.ConversationKnown)
+            .Select(contact => new SidebandVoiceDeliveryPeer(contact.DeliveryHash, contact.Trusted,
+                contact.DirectPushToTalk, contact.DisplayName)));
+    }
+
+    public string GetDisplayName(string identityHash)
+    {
+        if (!SidebandContact.TryNormalizeDeliveryHash(identityHash, out var identity))
+            throw new ArgumentException("A voice peer must have a 32-character hexadecimal identity hash.", nameof(identityHash));
+        if (TryDeliveryPeer(identity, out var delivery))
+            return FormatName(delivery!.DisplayName, delivery.Trusted, delivery.DestinationHash);
+        return _peers.TryGetValue(identity, out var peer)
+            ? FormatName(peer.DisplayName, peer.VoiceTrusted, identity) : $"Anonymous Peer <{identity}>";
+    }
+
+    private static string FormatName(string? name, bool trusted, string hash) =>
+        string.IsNullOrEmpty(name) ? $"<{hash}>" : trusted ? name : $"{name} <{hash}>";
+
     public bool IsAllowed(string identityHash)
     {
         if (!Configuration.TrustedOnly) return true;

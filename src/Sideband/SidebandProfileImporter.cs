@@ -86,7 +86,7 @@ public static class SidebandProfileImporter
                 finally { File.Delete(settingsPath); }
                 var notices = new List<string>
                 {
-                    "LXMF conversation names, addresses, trust and unread flags, object classification, telemetry permissions/appearance, text/media and delivery states are activated. Supported telemetry configuration, reports, cursor state, bounded announce history and retained voice call events are activated without collecting hardware. Other conversation data, transport/stamp extras, voice peer objects and unsupported persistent properties remain archive-only.",
+                    "LXMF conversation names, addresses, trust and unread flags, object classification, telemetry permissions/appearance, text/media and delivery states are activated. Supported telemetry configuration, reports, cursor state, bounded announce history, retained voice call events and voice-only names/trust are activated without collecting hardware. Other conversation data, transport/stamp extras, other voice-object metadata and unsupported persistent properties remain archive-only.",
                     "The original binary configuration and SQLite snapshot are retained privately in imported-profile. Unknown binary configuration values use hexadecimal JSON projections; the original MessagePack remains authoritative.",
                     "Reticulum interfaces, plugins and unknown app_storage files are not imported. Configure interfaces in the new private reticulum directory before connecting.",
                     "Historical signatures are verified only when the source is the imported identity; remote sender identities are not available in this profile snapshot. Import is not live interoperability evidence.",
@@ -94,6 +94,7 @@ public static class SidebandProfileImporter
                 var unsupportedConfiguration = unsupported.Where(key => !SidebandMapProfile.IsSupported(key)).ToArray();
                 if (unsupportedConfiguration.Length > 0) notices.Add("Configuration keys retained without native behavior: " + string.Join(", ", unsupportedConfiguration));
                 var contacts = new List<SidebandContact>();
+                var voicePeers = new List<SidebandVoicePeer>();
                 var messages = new List<SidebandChatMessage>();
                 IReadOnlyList<SidebandTelemetryPeerState> telemetryPeers;
                 IReadOnlyList<SidebandAnnounce> announces;
@@ -106,6 +107,11 @@ public static class SidebandProfileImporter
                         cancellationToken.ThrowIfCancellationRequested();
                         var hash = Bytes(row[0], 16, "conversation address");
                         if (row[1] is not long type) throw new InvalidDataException("Invalid conversation type.");
+                        if (type == 4)
+                        {
+                            voicePeers.Add(SidebandVoicePeerProfile.Read(row));
+                            continue;
+                        }
                         if (type != 1)
                         {
                             notices.Add("A non-LXMF conversation is retained in the archive only.");
@@ -193,6 +199,8 @@ public static class SidebandProfileImporter
                         if (table[0] is string name && name is not ("conv" or "lxm" or "persistent" or "telemetry" or "announce"))
                             notices.Add("Database table retained without native behavior: " + name);
                 }
+                if (voicePeers.Count > 0)
+                    notices.Add($"Activated {voicePeers.Count} voice-only identity objects with saved names and explicit trust; an existing LXMF conversation still takes precedence. Other voice-object metadata remains archived.");
                 var persistent = await SidebandPersistentProfile.ReadAsync(Path.Combine(archive, "sideband.db"), cancellationToken).ConfigureAwait(false);
                 notices.AddRange(persistent.Notices);
                 var settings = await store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -224,6 +232,7 @@ public static class SidebandProfileImporter
                     TelemetryPeers = telemetryPeers,
                     Announces = announces,
                     Calls = calls,
+                    VoicePeers = voicePeers.OrderBy(peer => peer.IdentityHash, StringComparer.Ordinal).ToArray(),
                 }, cancellationToken).ConfigureAwait(false);
                 var storage = Path.Combine(staging, "reticulum", "storage");
                 CreatePrivateDirectory(Path.GetDirectoryName(storage)!);

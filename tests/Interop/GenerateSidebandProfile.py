@@ -32,9 +32,16 @@ def main():
     parser.add_argument("--map-profile", action="store_true")
     parser.add_argument("--announce-profile", action="store_true")
     parser.add_argument("--voice-profile", action="store_true")
+    parser.add_argument("--voice-peers-profile", action="store_true")
+    parser.add_argument("--public-voice-peers-fixture", type=Path)
+    parser.add_argument("--voice-peer-name")
     args = parser.parse_args()
     if args.announce_profile and args.public_fixture:
         parser.error("--announce-profile cannot replace the existing empty public fixture")
+    if args.public_voice_peers_fixture and not args.voice_peers_profile:
+        parser.error("--public-voice-peers-fixture requires --voice-peers-profile")
+    if args.voice_peer_name is not None and not args.voice_peers_profile:
+        parser.error("--voice-peer-name requires --voice-peers-profile")
     source = args.sideband.resolve()
     revision = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
     if revision != "d069122af14880e43607aed0b71add4c7806fbe0":
@@ -115,6 +122,8 @@ def main():
             "map_zoom": 12, "map_use_online": True, "map_use_offline": True,
             "map_storage_file": str(output / "unavailable-external-map.mbtiles"),
         })
+    if args.voice_peers_profile:
+        core.config.update({"voice_trusted_only": True, "voice_enabled": False})
     core._SidebandCore__db_init()
     if args.announce_profile:
         core._db_upgradetables()
@@ -229,6 +238,35 @@ def main():
         announce_observations = [{**item, "dest": item["dest"].hex()} for item in core.list_announces()]
         if len(announce_observations) != 4:
             raise RuntimeError("Actual primary announcement persistence/readback omitted observations")
+    voice_peer_observations = None
+    if args.voice_peers_profile:
+        core.lxmf_destination = own_dest
+        identities = [bytes(range(offset, offset + 16)) for offset in (0, 16, 32)]
+        for identity_hash, name, trust in zip(identities,
+                (args.voice_peer_name if args.voice_peer_name is not None else "Voice-only trusted",
+                 "LXMF trust takes precedence", ""), (True, True, False)):
+            core._db_create_voice_object(identity_hash, name=name, trust=trust)
+        override_destination = RNS.Destination.hash_from_name_and_identity("lxmf.delivery", identities[1])
+        core._db_create_conversation(override_destination, name="Untrusted delivery override", trust=False)
+        voice_peer_observations = {
+            "upstream": revision, "coreSha256": fingerprint,
+            "method": "Actual SidebandCore._db_create_voice_object and unchanged name/trust setters, SQLite readback, voice_is_trusted and voice_display_name; synthetic identity hashes, unused core subsystem import stubs.",
+            "rows": [],
+            "overrideDeliveryHash": override_destination.hex(),
+            "overrideDeliveryTrusted": bool(core._db_conversation(override_destination)["trust"]),
+            "trustedOnly": core.config["voice_trusted_only"],
+        }
+        for identity_hash in identities:
+            row = core._db_conversation(identity_hash)
+            voice_peer_observations["rows"].append({
+                "identity": identity_hash.hex(), "type": row["type"], "unread": row["unread"],
+                "trust": row["trust"], "name_hex": row["name"].encode("utf-8").hex(),
+                "allowed_trusted_only": core.voice_is_trusted(identity_hash),
+                "display_name": core.voice_display_name(identity_hash),
+            })
+        if args.public_voice_peers_fixture:
+            args.public_voice_peers_fixture.write_text(
+                json.dumps(voice_peer_observations, indent=2) + "\n", encoding="utf-8", newline="\n")
     storage = output / "app_storage"
     storage.mkdir(mode=0o700)
     for name in ["primary_identity", "sideband_config", "sideband.db", "sideband.db-wal", "sideband.db-shm"]:
@@ -285,6 +323,7 @@ def main():
         "media": media_observations,
         "mapProfile": {key: value for key, value in core.config.items() if key.startswith("map_")} if args.map_profile else None,
         "voiceLog": voice_observations,
+        "voicePeers": voice_peer_observations,
     }
     (output / "observations.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     if args.public_fixture:

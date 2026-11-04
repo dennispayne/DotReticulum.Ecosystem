@@ -21,10 +21,22 @@ public sealed class SituationMap : Control
     public double Latitude { get; private set; }
     public double Longitude { get; private set; }
     public int Zoom { get; private set; } = 1;
+    public int MinimumZoom { get; private set; }
+    public int MaximumZoom { get; private set; } = SidebandMapProjection.MaximumZoom;
     public bool IsCartesian { get; private set; }
     public int LoadedTileCount => _tiles.Count;
     public int RenderedTileCount { get; private set; }
     public int MarkerCount => _markers.Count;
+
+    public void SetZoomRange(int minimum, int maximum)
+    {
+        _ = SidebandMapProjection.WorldSize(minimum);
+        _ = SidebandMapProjection.WorldSize(maximum);
+        if (minimum > maximum) throw new ArgumentOutOfRangeException(nameof(minimum));
+        MinimumZoom = minimum;
+        MaximumZoom = maximum;
+        SetView(Latitude, Longitude, Zoom, IsCartesian);
+    }
 
     public void SetView(double latitude, double longitude, int zoom, bool cartesian = false)
     {
@@ -34,7 +46,7 @@ public sealed class SituationMap : Control
         Latitude = cartesian ? latitude : SidebandMapProjection.ClipDisplayLatitude(latitude);
         Longitude = cartesian ? longitude : Math.Clamp(longitude, -180, 180);
         IsCartesian = cartesian;
-        Zoom = zoom;
+        Zoom = Math.Clamp(zoom, MinimumZoom, MaximumZoom);
         InvalidateVisual();
         RaiseViewChanged();
     }

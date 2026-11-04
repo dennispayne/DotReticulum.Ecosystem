@@ -113,7 +113,9 @@ internal static class Program
         await maps.SaveViewAsync(new()
         {
             UseOffline = true, IsCartesian = metadata.IsCartesian,
-            Latitude = metadata.Latitude, Longitude = metadata.Longitude, Zoom = metadata.Zoom
+            Latitude = metadata.Latitude, Longitude = metadata.Longitude,
+            Zoom = Math.Clamp(metadata.Zoom, metadata.MinimumZoom, metadata.StoredMaximumZoom),
+            MinimumZoom = metadata.MinimumZoom, MaximumZoom = metadata.MaximumZoom
         }, cancellationToken).ConfigureAwait(false);
         Console.WriteLine($"Imported raster MBTiles, stored zooms {metadata.MinimumZoom}-{metadata.StoredMaximumZoom}; {metadata.Attribution}");
         Console.WriteLine("Owned snapshot and view saved without opening Reticulum, audio devices or online tiles.");

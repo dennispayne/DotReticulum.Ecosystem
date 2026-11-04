@@ -1,0 +1,223 @@
+{
+  "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "source_sha256": {
+    "sbapp/mapview/source.py": "d3162e1acd36c02617842f93e2e7b67f96a582136819c25903c7d631c7790986",
+    "sbapp/ui/map.py": "cfd65489d5f94ddac3990ebd50c6b346e3cd6d0e0c3bfc1e30880ca983e5bf11",
+    "sbapp/sideband/core.py": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25"
+  },
+  "method": "Executed AST-selected actual primary MapSource methods, core map defaults, Map.get_layers/get_source and the six online-source constructor clamp statements. Kivy dp is identity; no complete UI constructor, bundled keys, HTTP or rendering.",
+  "providers": [
+    {
+      "id": "osm",
+      "name": "OpenStreetMap",
+      "url": "http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "attribution": "\u00a9 OpenStreetMap contributors",
+      "minimum_zoom": 0,
+      "maximum_zoom": 19,
+      "quad": false
+    },
+    {
+      "id": "mt_topo",
+      "name": "Topographic",
+      "url": "https://api.maptiler.com/maps/topo-v4/256/{z}/{x}/{y}.png?key=synthetic-maptiler-key",
+      "attribution": "\u00a9 MapTiler \u00a9 OpenStreetMap contributors",
+      "minimum_zoom": 0,
+      "maximum_zoom": 19,
+      "quad": false
+    },
+    {
+      "id": "mt_outdoor",
+      "name": "Outdoor",
+      "url": "https://api.maptiler.com/maps/outdoor-v4/256/{z}/{x}/{y}.png?key=synthetic-maptiler-key",
+      "attribution": "\u00a9 MapTiler \u00a9 OpenStreetMap contributors",
+      "minimum_zoom": 0,
+      "maximum_zoom": 19,
+      "quad": false
+    },
+    {
+      "id": "mt_hybrid",
+      "name": "Hybrid",
+      "url": "https://api.maptiler.com/maps/hybrid-v4/256/{z}/{x}/{y}.jpg?key=synthetic-maptiler-key",
+      "attribution": "\u00a9 MapTiler \u00a9 OpenStreetMap contributors",
+      "minimum_zoom": 0,
+      "maximum_zoom": 19,
+      "quad": false
+    },
+    {
+      "id": "virtualearth",
+      "name": "VirtualEarth",
+      "url": "http://ecn.t3.tiles.virtualearth.net/tiles/a{q}.jpeg?g=1",
+      "attribution": "\u00a9 VirtualEarth",
+      "minimum_zoom": 0,
+      "maximum_zoom": 19,
+      "quad": true
+    },
+    {
+      "id": "opentopo",
+      "name": "OpenTopo",
+      "url": "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+      "attribution": "\u00a9 OpenStreetMap contributors",
+      "minimum_zoom": 0,
+      "maximum_zoom": 19,
+      "quad": false
+    },
+    {
+      "id": "atlas",
+      "name": "Atlas",
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",
+      "attribution": "\u00a9 Esri",
+      "minimum_zoom": 0,
+      "maximum_zoom": 19,
+      "quad": false
+    },
+    {
+      "id": "googlemaps",
+      "name": "Google Maps",
+      "url": "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+      "attribution": "\u00a9 Google",
+      "minimum_zoom": 0,
+      "maximum_zoom": 19,
+      "quad": false
+    },
+    {
+      "id": "st_terrain",
+      "name": "Stadia Terrain",
+      "url": "https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}.png?api_key=synthetic-stadia-key",
+      "attribution": "\u00a9 Stadia \u00a9 OpenMapTiles \u00a9 OpenStreetMap contributors",
+      "minimum_zoom": 0,
+      "maximum_zoom": 19,
+      "quad": false
+    },
+    {
+      "id": "st_dark",
+      "name": "Stadia Dark",
+      "url": "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=synthetic-stadia-key",
+      "attribution": "\u00a9 Stadia \u00a9 OpenMapTiles \u00a9 OpenStreetMap contributors",
+      "minimum_zoom": 0,
+      "maximum_zoom": 19,
+      "quad": false
+    },
+    {
+      "id": "st_bright",
+      "name": "Stadia Bright",
+      "url": "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png?api_key=synthetic-stadia-key",
+      "attribution": "\u00a9 Stadia \u00a9 OpenMapTiles \u00a9 OpenStreetMap contributors",
+      "minimum_zoom": 0,
+      "maximum_zoom": 19,
+      "quad": false
+    },
+    {
+      "id": "st_sat",
+      "name": "Stadia Satellite",
+      "url": "https://tiles.stadiamaps.com/tiles/alidade_satellite/{z}/{x}/{y}.jpg?api_key=synthetic-stadia-key",
+      "attribution": "\u00a9 Stadia \u00a9 OpenMapTiles \u00a9 OpenStreetMap contributors",
+      "minimum_zoom": 0,
+      "maximum_zoom": 19,
+      "quad": false
+    },
+    {
+      "id": "custom_1",
+      "name": "Custom 1",
+      "url": "https://maps.example.invalid/{z}/{x}/{y}.png",
+      "attribution": "Custom Map",
+      "minimum_zoom": 0,
+      "maximum_zoom": 19,
+      "quad": false
+    }
+  ],
+  "selection": [
+    {
+      "selected": null,
+      "enabled": {},
+      "result": "osm"
+    },
+    {
+      "selected": "unknown",
+      "enabled": {},
+      "result": "osm"
+    },
+    {
+      "selected": "atlas",
+      "enabled": {},
+      "result": "osm"
+    },
+    {
+      "selected": "atlas",
+      "enabled": {
+        "map_use_atlas": true
+      },
+      "result": "atlas"
+    },
+    {
+      "selected": "virtualearth",
+      "enabled": {},
+      "result": "virtualearth"
+    },
+    {
+      "selected": "custom_1",
+      "enabled": {
+        "map_use_custom_1": true
+      },
+      "result": "custom_1"
+    }
+  ],
+  "constructor_clamps": [
+    {
+      "latitude": 100,
+      "longitude": -200,
+      "zoom": 100,
+      "result_latitude": 89,
+      "result_longitude": -179,
+      "result_zoom": 19
+    },
+    {
+      "latitude": -100,
+      "longitude": 200,
+      "zoom": -1,
+      "result_latitude": -89,
+      "result_longitude": 179,
+      "result_zoom": 0
+    },
+    {
+      "latitude": 48.8566,
+      "longitude": 2.3522,
+      "zoom": 12,
+      "result_latitude": 48.8566,
+      "result_longitude": 2.3522,
+      "result_zoom": 12
+    }
+  ],
+  "defaults": {
+    "map_history_limit": 604800,
+    "map_lat": 0.0,
+    "map_lon": 0.0,
+    "map_zoom": 3,
+    "map_storage_external": false,
+    "map_use_offline": false,
+    "map_use_online": true,
+    "map_mt_api_key": "",
+    "map_st_api_key": "",
+    "map_layer": null,
+    "map_cluster": true,
+    "map_interfaces": true,
+    "map_connection_maps": false,
+    "map_hide_blocked": false,
+    "map_relaxed_loading": false,
+    "map_use_osm": true,
+    "map_use_topo": false,
+    "map_use_outdoor": false,
+    "map_use_hybrid": false,
+    "map_use_virtualearth": true,
+    "map_use_opentopo": true,
+    "map_use_atlas": false,
+    "map_use_st_terrain": false,
+    "map_use_st_dark": false,
+    "map_use_st_bright": false,
+    "map_use_st_sat": false,
+    "map_use_googlemaps": false,
+    "map_use_custom_1": false,
+    "map_custom_1_url": "",
+    "map_storage_path": null,
+    "map_storage_file": null
+  }
+}

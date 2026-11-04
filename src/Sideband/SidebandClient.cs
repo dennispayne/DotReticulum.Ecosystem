@@ -18,6 +18,9 @@ public sealed partial class SidebandClient : IAsyncDisposable
     private readonly SemaphoreSlim _propagationGate = new(1, 1);
     private readonly object _disposeGate = new();
     private readonly object _cancellationGate = new();
+    private readonly object _voiceDialGate = new();
+    private CancellationTokenSource? _voiceDialCancellation;
+    private Task _voiceDialTask = Task.CompletedTask;
     private Task? _disposeTask;
     private CancellationTokenSource? _runCancellation;
     private Task? _inboundTask;
@@ -226,22 +229,51 @@ public sealed partial class SidebandClient : IAsyncDisposable
         return CallDestinationAsync(Convert.FromHexString(normalized), profile, mode, cancellationToken);
     }
 
-    private async Task CallDestinationAsync(byte[] destination, TelephoneProfile profile, TelephoneMode mode, CancellationToken cancellationToken)
+    private Task CallDestinationAsync(byte[] destination, TelephoneProfile profile, TelephoneMode mode, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-        await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_voiceDialGate)
+        {
+            if (_voiceDialCancellation is not null) throw new InvalidOperationException("A voice call is already being placed.");
+            CancellationTokenSource request;
+            lock (_cancellationGate)
+            {
+                ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+                var run = _runCancellation ?? throw new InvalidOperationException("Connect to Reticulum and enable voice first.");
+                request = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, run.Token);
+            }
+            _voiceDialCancellation = request;
+            // Publish the owned task before callbacks can re-enter hangup from call setup.
+            return _voiceDialTask = Task.Run(() => CallDestinationCoreAsync(destination, profile, mode, request));
+        }
+    }
+
+    private async Task CallDestinationCoreAsync(byte[] destination, TelephoneProfile profile, TelephoneMode mode,
+        CancellationTokenSource cancellation)
+    {
+        using var request = cancellation;
+        var acquired = false;
         try
         {
-            var voice = RequireVoice();
+            await _lifecycle.WaitAsync(request.Token).ConfigureAwait(false);
+            acquired = true;
+            var voice = _voice ?? throw new InvalidOperationException("Connect to Reticulum and enable voice first.");
             if (voice.IsBusy) throw new InvalidOperationException("The voice service is already busy.");
-            using var owned = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _runCancellation!.Token);
-            var remote = await _node!.ResolveIdentityAsync(destination, SidebandVoiceService.PathTimeout, owned.Token).ConfigureAwait(false)
+            var remote = await _node!.ResolveIdentityAsync(destination, SidebandVoiceService.PathTimeout, request.Token).ConfigureAwait(false)
                 ?? throw new TimeoutException("No announced identity was found for the requested peer.");
             _voiceRemoteIdentity?.Dispose();
             _voiceRemoteIdentity = remote;
-            await voice.CallAsync(remote, profile, mode, owned.Token).ConfigureAwait(false);
+            await voice.CallAsync(remote, profile, mode, request.Token).ConfigureAwait(false);
         }
-        finally { _lifecycle.Release(); }
+        finally
+        {
+            if (acquired) _lifecycle.Release();
+            lock (_voiceDialGate)
+            {
+                _voiceDialCancellation = null;
+            }
+        }
     }
 
     public async Task ClearCallHistoryAsync(CancellationToken cancellationToken = default)
@@ -269,7 +301,19 @@ public sealed partial class SidebandClient : IAsyncDisposable
     public ValueTask AnnounceVoiceAsync(CancellationToken cancellationToken = default) => RequireVoice().AnnounceAsync(cancellationToken);
     public ValueTask AnswerCallAsync(CancellationToken cancellationToken = default) => RequireVoice().AnswerAsync(cancellationToken);
     public ValueTask RejectCallAsync(CancellationToken cancellationToken = default) => RequireVoice().RejectAsync(cancellationToken);
-    public ValueTask HangupCallAsync(CancellationToken cancellationToken = default) => RequireVoice().HangupAsync(cancellationToken);
+    public async ValueTask HangupCallAsync(CancellationToken cancellationToken = default)
+    {
+        var voice = RequireVoice();
+        Task pending;
+        lock (_voiceDialGate)
+        {
+            pending = _voiceDialCancellation is null ? Task.CompletedTask : _voiceDialTask;
+            _voiceDialCancellation?.Cancel();
+        }
+        await voice.HangupAsync(cancellationToken).ConfigureAwait(false);
+        try { await pending.WaitAsync(cancellationToken).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (pending.IsCanceled && !cancellationToken.IsCancellationRequested) { }
+    }
     public void MuteVoiceMicrophone(bool muted) => RequireVoice().MuteMicrophone(muted);
     public void MuteVoiceSpeaker(bool muted) => RequireVoice().MuteSpeaker(muted);
     public void SetPushToTalk(bool pressed) => RequireVoice().SetPushToTalk(pressed);

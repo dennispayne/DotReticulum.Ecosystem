@@ -124,6 +124,55 @@ Describe 'sideband native raster map acceptance' -Tag 'Native' {
     }
 }
 
+Describe 'sideband native primary map profile activation' -Tag 'Native' {
+    BeforeAll {
+        $mapProfileRoot = $null
+        $mapProfileBinary = $env:DOTRETICULUM_SIDEBAND_BINARY
+        if ([string]::IsNullOrWhiteSpace($mapProfileBinary) -or -not (Test-Path -LiteralPath $mapProfileBinary -PathType Leaf)) {
+            throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
+        }
+    }
+
+    It 'activates actual primary persisted map settings without following external paths or importing online consent' {
+        $referenceMapProfile = $env:DOTRETICULUM_SIDEBAND_MAP_PROFILE
+        if ([string]::IsNullOrWhiteSpace($referenceMapProfile)) {
+            Set-ItResult -Skipped -Because 'Requires an actual primary profile from GenerateSidebandProfile.py --map-profile.'
+            return
+        }
+        $observations = Get-Content -LiteralPath (Join-Path $referenceMapProfile 'observations.json') -Raw | ConvertFrom-Json
+        $observations.upstream | Should -Be 'd069122af14880e43607aed0b71add4c7806fbe0'
+        $observations.mapProfile.map_layer | Should -Be 'atlas'
+        $referenceStorage = Join-Path $referenceMapProfile 'app_storage'
+        $original = (Get-FileHash -LiteralPath (Join-Path $referenceStorage 'sideband_config')).Hash
+        $mapProfileRoot = Join-Path (Join-Path (Get-Location) 'artifacts\tests') "sideband-map-profile-$PID-$([guid]::NewGuid().ToString('N'))"
+        $imported = & $mapProfileBinary --import-profile $referenceMapProfile --data-dir $mapProfileRoot 2>&1 | Out-String
+        $LASTEXITCODE | Should -Be 0
+        $imported | Should -Match 'Online consent is not imported'
+        $imported | Should -Match 'External/offline map paths are never followed'
+        $viewPath = Join-Path $mapProfileRoot 'maps\view.json'
+        $view = Get-Content -LiteralPath $viewPath -Raw | ConvertFrom-Json
+        $view.latitude | Should -Be $observations.mapProfile.map_lat
+        $view.longitude | Should -Be $observations.mapProfile.map_lon
+        $view.zoom | Should -Be $observations.mapProfile.map_zoom
+        $view.minimumZoom | Should -Be 0
+        $view.maximumZoom | Should -Be 19
+        $view.useOffline | Should -BeFalse
+        $view.provider.urlTemplate | Should -Match '^https://server.arcgisonline.com/'
+        Test-Path -LiteralPath (Join-Path $mapProfileRoot 'maps\offline.mbtiles') | Should -BeFalse
+        $before = (Get-FileHash -LiteralPath $viewPath).Hash
+        & $mapProfileBinary --check --data-dir $mapProfileRoot 2>&1 | Out-Null
+        $LASTEXITCODE | Should -Be 0
+        (Get-FileHash -LiteralPath $viewPath).Hash | Should -Be $before
+        (Get-FileHash -LiteralPath (Join-Path $referenceStorage 'sideband_config')).Hash | Should -Be $original
+    }
+
+    AfterAll {
+        if ($mapProfileRoot -and (Test-Path -LiteralPath $mapProfileRoot)) {
+            Remove-Item -LiteralPath $mapProfileRoot -Recurse -Force
+        }
+    }
+}
+
 Describe 'sideband native raster map rendering' -Tag 'GUI' {
     It 'renders imported raster tiles in the original published viewport with online access disabled' {
         $mapBinary = $env:DOTRETICULUM_SIDEBAND_BINARY

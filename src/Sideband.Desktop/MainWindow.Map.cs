@@ -16,6 +16,8 @@ public sealed partial class MainWindow
     {
         MapSourceSelector.ItemsSource = new[] { "Cached / online raster tiles", "Imported offline MBTiles" };
         MapSourceSelector.SelectedIndex = 0;
+        MapPresetSelector.ItemsSource = SidebandMapPresets.Ids;
+        MapPresetSelector.SelectedIndex = 0;
         MapViewport.ViewChanged += (_, _) =>
         {
             MapLatitudeBox.Text = MapViewport.Latitude.ToString("G10", CultureInfo.InvariantCulture);
@@ -41,7 +43,11 @@ public sealed partial class MainWindow
             MapProviderBox.Text = view.Provider.UrlTemplate;
             MapAttributionBox.Text = view.Provider.Attribution;
             _changingMap = true;
-            try { MapViewport.SetView(view.Latitude, view.Longitude, view.Zoom, view.IsCartesian); }
+            try
+            {
+                MapViewport.SetZoomRange(view.MinimumZoom, view.MaximumZoom);
+                MapViewport.SetView(view.Latitude, view.Longitude, view.Zoom, view.IsCartesian);
+            }
             finally { _changingMap = false; }
         }
         return store;
@@ -72,6 +78,29 @@ public sealed partial class MainWindow
     private void ChangeMapZoom(int delta) => MapViewport.SetView(MapViewport.Latitude, MapViewport.Longitude,
         Math.Clamp(MapViewport.Zoom + delta, 0, SidebandMapProjection.MaximumZoom), MapViewport.IsCartesian);
 
+    private void ApplyMapPresetClicked(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var id = MapPresetSelector.SelectedItem as string ??
+                throw new InvalidOperationException("Select a map provider preset.");
+            var preset = SidebandMapPresets.Create(id, MapApiKeyBox.Text, MapProviderBox.Text);
+            _restoredMap = true;
+            MapOnlineConsentBox.IsChecked = false;
+            MapSourceSelector.SelectedIndex = 0;
+            MapProviderBox.Text = preset.Provider.UrlTemplate;
+            MapAttributionBox.Text = preset.Provider.Attribution;
+            MapApiKeyBox.Text = "";
+            MapViewport.SetZoomRange(preset.MinimumZoom, preset.MaximumZoom);
+            MapViewport.SetView(MapViewport.Latitude, MapViewport.Longitude, MapViewport.Zoom);
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
+        {
+            MapStatusText.Text = "Map preset failed: " + exception.Message;
+            ShowError(MapStatusText.Text);
+        }
+    }
+
     private void ImportMbTilesClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
     {
         ImportMbTilesButton.IsEnabled = false;
@@ -80,7 +109,9 @@ public sealed partial class MainWindow
             var maps = await MapStoreAsync();
             var metadata = await maps.ImportMbTilesAsync(MbTilesPathBox.Text ?? "", _windowCancellation.Token);
             MapSourceSelector.SelectedIndex = 1;
-            MapViewport.SetView(metadata.Latitude, metadata.Longitude, metadata.Zoom, metadata.IsCartesian);
+            MapViewport.SetZoomRange(metadata.MinimumZoom, metadata.MaximumZoom);
+            MapViewport.SetView(metadata.Latitude, metadata.Longitude,
+                Math.Clamp(metadata.Zoom, metadata.MinimumZoom, metadata.StoredMaximumZoom), metadata.IsCartesian);
         }
         catch (OperationCanceledException) when (_windowCancellation.IsCancellationRequested) { }
         catch (Exception exception)
@@ -134,7 +165,8 @@ public sealed partial class MainWindow
                 await maps.SaveViewAsync(new()
                 {
                     Latitude = MapViewport.Latitude, Longitude = MapViewport.Longitude, Zoom = MapViewport.Zoom,
-                    IsCartesian = MapViewport.IsCartesian, UseOffline = offline, Provider = provider
+                    IsCartesian = MapViewport.IsCartesian, UseOffline = offline, Provider = provider,
+                    MinimumZoom = MapViewport.MinimumZoom, MaximumZoom = MapViewport.MaximumZoom
                 }, cancellation.Token);
                 MapStatusText.Text = "Loading bounded raster viewport...";
                 var failed = 0;

@@ -427,7 +427,10 @@ public sealed partial class SidebandHeadlessUiTests
             await WaitForAsync(() => window.FindControl<Button>("HangupCallButton")!.IsEnabled);
             var elapsed = System.Diagnostics.Stopwatch.StartNew();
             window.FindControl<Button>("HangupCallButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await WaitForAsync(() => window.FindControl<Button>("CallIdentityButton")!.IsEnabled);
+            await WaitForAsync(() => window.FindControl<Button>("CallIdentityButton")!.IsEnabled, () =>
+                $"After hangup: voice={window.FindControl<TextBlock>("VoiceStatusText")!.Text}; " +
+                $"hangupEnabled={window.FindControl<Button>("HangupCallButton")!.IsEnabled}; " +
+                $"status={window.FindControl<TextBlock>("StatusText")!.Text}");
             Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(2));
             Assert.Equal(0, devices.Captures);
             var persisted = await new SidebandStateStore(root).LoadAsync(cancellationToken: token);
@@ -458,7 +461,7 @@ public sealed partial class SidebandHeadlessUiTests
         while (!await condition()) await Task.Delay(20, timeout.Token);
     }
 
-    private static async Task WaitForAsync(Func<bool> condition)
+    private static async Task WaitForAsync(Func<bool> condition, Func<string>? diagnostics = null)
     {
         var deadline = DateTime.UtcNow.AddSeconds(5);
         while (!condition() && DateTime.UtcNow < deadline)
@@ -467,6 +470,6 @@ public sealed partial class SidebandHeadlessUiTests
             await Dispatcher.UIThread.InvokeAsync(() => { });
         }
 
-        Assert.True(condition(), "The expected UI state was not reached.");
+        Assert.True(condition(), diagnostics?.Invoke() ?? "The expected UI state was not reached.");
     }
 }

@@ -65,6 +65,56 @@ public sealed class SidebandMapUiTests
     }
 
     [AvaloniaFact]
+    public async Task PresetsRequireOwnKeysRevokeConsentClampZoomAndPersistWithoutOpeningNetwork()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "sideband-map-presets-ui-" + Guid.NewGuid().ToString("N"));
+        MainWindow? window = null;
+        try
+        {
+            window = new MainWindow(path);
+            window.Show();
+            await ReadyAsync(window);
+            window.FindControl<Button>("MapNavButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => window.FindControl<TextBlock>("MapStatusText")!.Text!.Contains("Cache only", StringComparison.Ordinal));
+            var selector = window.FindControl<ComboBox>("MapPresetSelector")!;
+            var provider = window.FindControl<TextBox>("MapProviderBox")!;
+            var viewport = window.FindControl<SituationMap>("MapViewport")!;
+            selector.SelectedItem = "mt_topo";
+            var before = provider.Text;
+            window.FindControl<Button>("ApplyMapPresetButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.StartsWith("Map preset failed:", window.FindControl<TextBlock>("MapStatusText")!.Text);
+            Assert.Equal(before, provider.Text);
+            viewport.SetView(10, 20, 24);
+            window.FindControl<CheckBox>("MapOnlineConsentBox")!.IsChecked = true;
+            selector.SelectedItem = "virtualearth";
+            window.FindControl<Button>("ApplyMapPresetButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.False(window.FindControl<CheckBox>("MapOnlineConsentBox")!.IsChecked);
+            Assert.Equal(19, viewport.Zoom);
+            Assert.Equal(19, viewport.MaximumZoom);
+            Assert.Contains("{q}", provider.Text);
+            Assert.StartsWith("https://", provider.Text);
+            viewport.SetView(10, 20, 24);
+            Assert.Equal(19, viewport.Zoom);
+            await WaitForAsync(() => window.FindControl<TextBlock>("MapStatusText")!.Text!.Contains("Cache only", StringComparison.Ordinal));
+            await window.CloseAndWaitAsync();
+            window = new MainWindow(path);
+            window.Show();
+            await ReadyAsync(window);
+            window.FindControl<Button>("MapNavButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => window.FindControl<TextBlock>("MapStatusText")!.Text!.Contains("Cache only", StringComparison.Ordinal));
+            Assert.Equal(19, window.FindControl<SituationMap>("MapViewport")!.MaximumZoom);
+            Assert.Contains("{q}", window.FindControl<TextBox>("MapProviderBox")!.Text);
+            Assert.False(window.FindControl<CheckBox>("MapOnlineConsentBox")!.IsChecked);
+            await window.CloseAndWaitAsync();
+        }
+        finally
+        {
+            if (window?.IsVisible == true) await window.CloseAndWaitAsync();
+            if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
     public void ViewportClipsPolesBoundsVisibleTilesAndSupportsCartesianSnapshots()
     {
         var viewport = new SituationMap();
@@ -80,6 +130,14 @@ public sealed class SidebandMapUiTests
         Assert.Equal(128, viewport.Longitude);
         Assert.True(viewport.IsCartesian);
         Assert.Throws<ArgumentOutOfRangeException>(() => viewport.SetView(double.NaN, 0, 1));
+        viewport.SetZoomRange(2, 5);
+        viewport.SetView(0, 0, 24);
+        Assert.Equal(5, viewport.Zoom);
+        viewport.SetView(0, 0, 0);
+        Assert.Equal(2, viewport.Zoom);
+        Assert.Throws<ArgumentOutOfRangeException>(() => viewport.SetZoomRange(5, 2));
+        Assert.Equal(2, viewport.MinimumZoom);
+        Assert.Equal(5, viewport.MaximumZoom);
     }
 
     [AvaloniaFact]

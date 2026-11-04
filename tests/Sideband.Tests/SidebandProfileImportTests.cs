@@ -13,7 +13,7 @@ namespace Sideband.Tests;
 // 8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25.
 // The committed fixture contains an empty upstream-created database, synthetic config and conversation observations.
 [Trait("Category", "Integration")]
-public sealed class SidebandProfileImportTests
+public sealed partial class SidebandProfileImportTests
 {
     public static bool ReferenceProfileIsUnavailable => string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DOTRETICULUM_SIDEBAND_PROFILE"));
 

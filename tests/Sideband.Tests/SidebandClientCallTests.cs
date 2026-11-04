@@ -6,6 +6,91 @@ namespace Sideband.Tests;
 [Trait("Category", "Integration")]
 public sealed class SidebandClientCallTests
 {
+    [Theory]
+    [InlineData("caller")]
+    [InlineData("disconnect")]
+    [InlineData("dispose")]
+    public async Task PendingDialCancellationReleasesAdmissionAndDeviceOwnership(string termination)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "sideband-cancel-call-" + Guid.NewGuid().ToString("N"));
+        var token = TestContext.Current.CancellationToken;
+        try
+        {
+            var config = Path.Combine(root, "rns");
+            Directory.CreateDirectory(config);
+            await File.WriteAllTextAsync(Path.Combine(config, "config"),
+                "[reticulum]\n  enable_transport = no\n  share_instance = no\n\n[logging]\n  loglevel = 4\n", token);
+            var devices = new SidebandVoiceLifecycleTests.Devices();
+            var store = new SidebandStateStore(Path.Combine(root, "profile"));
+            await store.ConfigureVoiceAsync(true, new(), token);
+            for (var attempt = 0; attempt < 4; attempt++)
+            {
+                await using var client = new SidebandClient(store, devices);
+                await client.ConnectAsync(config, token);
+                using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
+                var dial = client.CallIdentityAsync(new string('a', 32), cancellationToken: cancellation.Token);
+                switch (termination)
+                {
+                    case "caller": await cancellation.CancelAsync(); break;
+                    case "disconnect": await client.DisconnectAsync().WaitAsync(TimeSpan.FromSeconds(2), token); break;
+                    case "dispose": await client.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2), token); break;
+                    default: throw new InvalidOperationException("Unknown test termination.");
+                }
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => dial.WaitAsync(TimeSpan.FromSeconds(2), token));
+                if (termination == "dispose")
+                    await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+                        client.CallIdentityAsync(new string('a', 32), cancellationToken: token));
+                else
+                {
+                    await client.ConnectAsync(config, token);
+                    await client.HangupCallAsync(token);
+                    var replacement = client.CallIdentityAsync(new string('b', 32), cancellationToken: token);
+                    await client.HangupCallAsync(token).AsTask().WaitAsync(TimeSpan.FromSeconds(2), token);
+                    await Assert.ThrowsAnyAsync<OperationCanceledException>(() => replacement);
+                    Assert.Equal(SidebandVoiceState.Available, client.VoiceSnapshot!.State);
+                }
+            }
+            Assert.Empty((await store.LoadAsync(cancellationToken: token)).Calls ?? []);
+            Assert.Equal(0, devices.Captures);
+            Assert.Equal(0, devices.Playbacks);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task HangupCancelsAndJoinsPendingIdentityLookupAndRejectsConcurrentDials()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "sideband-pending-call-" + Guid.NewGuid().ToString("N"));
+        var token = TestContext.Current.CancellationToken;
+        try
+        {
+            var config = Path.Combine(root, "rns");
+            Directory.CreateDirectory(config);
+            await File.WriteAllTextAsync(Path.Combine(config, "config"),
+                "[reticulum]\n  enable_transport = no\n  share_instance = no\n\n[logging]\n  loglevel = 4\n", token);
+            var devices = new SidebandVoiceLifecycleTests.Devices();
+            var store = new SidebandStateStore(Path.Combine(root, "profile"));
+            await store.ConfigureVoiceAsync(true, new(), token);
+            await using var client = new SidebandClient(store, devices);
+            await client.ConnectAsync(config, token);
+            for (var attempt = 0; attempt < 12; attempt++)
+            {
+                var dial = client.CallIdentityAsync(new string('a', 32), cancellationToken: token);
+                Assert.False(dial.IsCompleted);
+                await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                    client.CallIdentityAsync(new string('b', 32), cancellationToken: token).WaitAsync(TimeSpan.FromSeconds(2), token));
+                await client.HangupCallAsync(token).AsTask().WaitAsync(TimeSpan.FromSeconds(2), token);
+                Assert.True(dial.IsCompleted, "Hangup must join the pending lookup, not merely close an unattached telephone.");
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => dial);
+                Assert.Equal(SidebandVoiceState.Available, client.VoiceSnapshot!.State);
+            }
+            Assert.Empty((await store.LoadAsync(cancellationToken: token)).Calls ?? []);
+            Assert.Equal(0, devices.Captures);
+            Assert.Equal(0, devices.Playbacks);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
     [Fact]
     public async Task SharedClientIdentityCallsPersistAndDisconnectReleasesOwnedDevices()
     {

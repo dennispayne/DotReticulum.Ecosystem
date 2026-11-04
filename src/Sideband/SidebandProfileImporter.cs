@@ -91,7 +91,8 @@ public static class SidebandProfileImporter
                     "Reticulum interfaces, plugins and unknown app_storage files are not imported. Configure interfaces in the new private reticulum directory before connecting.",
                     "Historical signatures are verified only when the source is the imported identity; remote sender identities are not available in this profile snapshot. Import is not live interoperability evidence.",
                 };
-                if (unsupported.Count > 0) notices.Add("Configuration keys retained without native behavior: " + string.Join(", ", unsupported));
+                var unsupportedConfiguration = unsupported.Where(key => !SidebandMapProfile.IsSupported(key)).ToArray();
+                if (unsupportedConfiguration.Length > 0) notices.Add("Configuration keys retained without native behavior: " + string.Join(", ", unsupportedConfiguration));
                 var contacts = new List<SidebandContact>();
                 var messages = new List<SidebandChatMessage>();
                 IReadOnlyList<SidebandTelemetryPeerState> telemetryPeers;
@@ -193,6 +194,7 @@ public static class SidebandProfileImporter
                 var persistent = await SidebandPersistentProfile.ReadAsync(Path.Combine(archive, "sideband.db"), cancellationToken).ConfigureAwait(false);
                 notices.AddRange(persistent.Notices);
                 var settings = await store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                notices.AddRange(await SidebandMapProfile.ImportAsync(settings.ImportedSettings, staging, cancellationToken).ConfigureAwait(false));
                 var exclusionPath = Path.Combine(archive, "collector_response_excluded");
                 if (File.Exists(exclusionPath))
                 {

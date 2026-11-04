@@ -29,6 +29,7 @@ def main():
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--public-fixture", type=Path)
     parser.add_argument("--media-fixture", type=Path)
+    parser.add_argument("--map-profile", action="store_true")
     args = parser.parse_args()
     source = args.sideband.resolve()
     revision = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
@@ -104,6 +105,12 @@ def main():
         "telemetry_receive_trusted_only": False,
         "profile_fixture_unknown": {"binary": b"\x00\x01", "enabled": True},
     }
+    if args.map_profile:
+        core.config.update({
+            "map_layer": "atlas", "map_use_atlas": True, "map_lat": 48.8566, "map_lon": 2.3522,
+            "map_zoom": 12, "map_use_online": True, "map_use_offline": True,
+            "map_storage_file": str(output / "unavailable-external-map.mbtiles"),
+        })
     core._SidebandCore__db_init()
     core._SidebandCore__save_config(no_thread=True)
     if args.public_fixture:
@@ -232,6 +239,7 @@ def main():
         "walBytes": (storage / "sideband.db-wal").stat().st_size,
         "disclosure": "Actual unchanged persistence methods with inert unused GUI/telemetry/plugin/resource imports",
         "media": media_observations,
+        "mapProfile": {key: value for key, value in core.config.items() if key.startswith("map_")} if args.map_profile else None,
     }
     (output / "observations.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     if args.public_fixture:

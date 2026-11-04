@@ -8,6 +8,39 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+The local map/profile and pending-dial lifecycle gate
+`& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-map-dial-unified-final -OutputDirectory
+artifacts\tests\fleet-map-dial-unified-final` passed **2,159 managed cases,
+95 explicit skips and 62 Pester tooling cases**, with merged coverage for all
+eight production assemblies. It includes the then-frozen uncommitted LXST
+file-drain, Nomad inline-media and remote-command backend sources. It does not
+establish their complete application acceptance: the new Nomad binary's separate
+mixed propagation restart regression remains unresolved, and remote desktop
+integration is separate required work.
+
+Earlier `fleet-map-profile-unified` failed the original desktop voice test's
+post-hangup five-second wait. The subsequent
+`nomadnet-inline-integrated-final` gate also failed the new bounded-dial
+regression's immediate concurrent-admission requirement. Both failures are
+retained, not converted to passes by rerunning. The corrected client owns one
+pending dial from admission, links cancellation before lifecycle acquisition,
+and lets hangup cancel/join the caller-visible task. An additional regression
+reproduced disposal-before-setup as `ObjectDisposedException` rather than
+cancellation; the corrected run-token ownership passes caller/disconnect/disposal
+cases. Original two-second cancellation assertions remain intact. Failure-only
+desktop diagnostics remain; the precise cause of the earlier intermittent UI
+timeout is not proven.
+
+Independent map/voice acceptance passes 70 focused managed cases/one explicit
+generated-profile skip per host, four actual-primary Sideband shared-client call
+cases per host, and strict published Windows/Linux native/GUI flows
+(12/four skips and 14/two skips respectively). Linux reference calls use an owned
+isolated virtual PulseAudio server; Windows uses the disclosed synthetic device
+factories. Exact binaries, commands and unavailable modes are recorded in
+[Sideband's reference](sideband.md). These are local results, not new hosted
+evidence or physical-audio acceptance.
+
 At `daa304d680d67cf6a8fa330f65f83b2be2b0fc2c`, local
 `git submodule update --init`, Release solution build and full non-opt-in test
 run passed; the build had zero warnings/errors. The xUnit 3.2.2 pin in

@@ -99,7 +99,7 @@ runtime evidence.
 | Paper messages and `lxm://` imports | implemented bounded subset | Connected paper text creation and local duplicate-aware import reuse LXMF; saved URI/QR display and non-overwriting exports work offline and survive restart. Actual primary daemon-core creation/ingestion both ways, trust on/off and process restart pass separately from native desktop/CLI exports. Nonlocal envelopes are unauthenticated and not forwarded. Hardware camera/printer, desktop OS URI registration and complete upstream paper-history migration remain unverified/missing; `SidebandClient.Paper.cs`, `MainWindow.Paper.cs`, `PaperExportCommand.cs`, `sbapp/sideband/core.py:paper_message,lxm_ingest_uri`. |
 | LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI, call-history migration and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
 | Telemetry, location and situational awareness | partial | All 27 sensor wire formats, exact values, bounded atomic storage and reference-executed geometry exist. Original desktop controls configure manual information/location/sensors, privacy/collector/tracking policies, inspect trusted reports, explicitly delete and show reported locations on the map. Actual primary reports/collector streams, requests, restart, supported profile import, schedules and propagation recovery pass separately on Windows/Linux. Automatic sensor collection, hardware and advanced presentation remain absent/unverified; see sections below; `SidebandTelemetry*.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/ui/telemetry.py`. |
-| Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, persisted view/provider and reported-location markers. Clustering, connection/interface overlays, following peers, primary provider presets and map-setting migration remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
+| Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default/provider/layer vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, source zoom limits, persisted provider/view and reported-location markers. Thirteen provider presets and supported offline-profile coordinate/provider activation exist. Clustering, connection/interface overlays and broader map migration/presentation remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
 | Remote commands, queries and plugins | partial | Authorized telemetry requests are implemented and live-tested below. Built-in ping/echo/signal, general command/service/telemetry plugin execution, Python custom sensor plugins and configurable plugin loading remain missing. Manual wire readings are not a Python-plugin ABI. This is an application extension contract, not part of the existing .NET `Telemetry` tool; `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`, `README.md`. |
 | Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. Interface editing/discovery and Android interface loading are absent; `src/Sideband/SidebandClient.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
 | Long-lived service and OS integration | partial | The desktop window and headless daemon own the same cancellable client. Linux published daemon/interactive processes stop on SIGTERM with closed/blocked stdin; native console quit and restart pass on both hosts. Days-long Sideband service operation remains unverified. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are deferred mobile contracts; `SidebandDaemon.cs`, `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
@@ -540,6 +540,31 @@ disconnect cancels lookups/calls before releasing the router or identity.
 Windows voice selects WASAPI, Linux voice selects PulseAudio. The separate
 audio-message recorder still uses the Windows waveform provider.
 
+Outgoing identity/contact dialing admits one pending operation, including path
+lookup, before acquiring the lifecycle semaphore. Concurrent attempts fail
+immediately instead of queueing behind the lookup. The accepted operation owns
+its caller/run cancellation from admission, including disposal before setup
+starts. Hangup cancels and joins that same caller-visible task even when no
+telephone link exists yet. Deterministic regressions exercise twelve consecutive
+hangups and four iterations each of caller cancellation, disconnect and disposal,
+then verify fresh admission, no history and no device acquisition. Cancellation
+and hangup deadlines remain two seconds; the original desktop assertion is not
+relaxed.
+
+The combined client-call, original voice UI, map and profile corpus passes
+70 cases/one generated-profile skip on Windows and Linux. Separate
+`SidebandClientCallInteropTests` passes all four actual-primary cases per host:
+both call origins, direct and through a .NET transport, Opus/Codec2/PTT,
+trust/history and identity restart. Windows uses the disclosed synthetic device
+factories; Linux uses an explicitly isolated virtual PulseAudio server, not
+physical audio. The first Linux invocation omitted the required
+`DOTRETICULUM_SIDEBAND_VOICE_PULSE` and failed all four startups; supplying a
+responsive owned virtual server restored the unchanged assertions. Retained
+results are `fleet-pending-dial-owned-final`, `fleet-pending-dial-live-win-final`
+and Linux `/home/dennis/fleet-pending-dial-live-pulse-results`. This fixes
+reproduced pending-dial admission/disposal defects; it does not prove the cause
+of the separately recorded intermittent full-suite desktop timeout.
+
 Reference-executed policy preserves LXMF-conversation trust precedence, including
 an explicit untrusted conversation overriding voice-only trust. Trusted-only
 authorization defaults false; enabling voice alone does not restrict callers to
@@ -851,9 +876,11 @@ within seven days from the newest-256 report query after source-trust filtering,
 colors and original labels, not licensed symbols. No reported location is proof
 of an authenticated physical position.
 
-Map clustering, interface/connection overlays, peer following, primary provider
-presets, map-setting migration and full primary map presentation remain required
-software work. Arbitrary primary Python plugins are not supported by these APIs.
+Map clustering, interface/connection overlays, broader map-setting migration and
+full primary map presentation remain required software work. Explicit report
+recentring exists; persistent peer-following is not claimed, and no such API was
+identified in the inspected primary `Map` implementation. Arbitrary primary
+Python plugins are not supported by these APIs.
 Manual preview and synthetic maps are not physical sensor or live telemetry evidence.
 
 Focused acceptance:
@@ -888,6 +915,94 @@ It did not convert that absent profile into a pass.
 snapshot without Reticulum or audio. `--smoke-ui --smoke-map` and
 `--smoke-ui --smoke-telemetry` are explicit acceptance modes, not normal startup
 behavior; the latter needs enabled manual telemetry settings.
+
+### Provider presets and supported profile view activation
+
+The original Map screen exposes all thirteen observed provider identifiers,
+including custom HTTPS templates and quadkey VirtualEarth requests. MapTiler
+and Stadia require the user's own key; no upstream bundled keys are copied.
+Applying a preset explicitly revokes online consent and clears the key-entry
+control. The private view file retains the configured template (including a
+user-supplied key), attribution and source zoom range over restart. Protect that
+profile; exporting/copying it can disclose provider credentials. Public provider
+availability, terms, quotas and account authorization have not been tested.
+Native presets upgrade the primary's HTTP URLs to HTTPS and accept only bounded
+query-safe key characters; custom insecure HTTP remains rejected in this UI.
+These are intentional safety differences, not identical primary defaults.
+
+Offline `--import-profile` activates finite coordinates, whole-number zoom and
+the selected enabled provider. Layer selection/fallback and initial online-source
+coordinate clamps execute the primary contracts. Missing private provider keys
+produce an explicit notice and safe OpenStreetMap fallback, without importing
+online consent. Offline/external file paths are never followed; explicitly
+import the owned raster MBTiles snapshot instead. All remaining config keys stay
+in the private archive. This is not complete map-setting migration or activation
+by the generic JSON-settings import command. Malformed supported settings fail
+the entire staged profile transaction, preserving source and absent destination.
+Legacy view files default to the prior 0-24 zoom range; presets use the observed
+0-19 range. Offline import starts within stored raster zooms and permits the
+primary metadata maximum thereafter. Rendering still clips at Mercator's finite
+latitude limit rather than reproducing the primary pole defect.
+
+`GenerateSidebandMapProfileVectors.py` executes actual AST-selected methods at
+`d069122af14880e43607aed0b71add4c7806fbe0`: 13 providers, six layer decisions
+and three constructor-clamp observations. The fixture records source SHA-256:
+`source.py` `d3162e1acd36c02617842f93e2e7b67f96a582136819c25903c7d631c7790986`,
+`ui/map.py` `cfd65489d5f94ddac3990ebd50c6b346e3cd6d0e0c3bfc1e30880ca983e5bf11`.
+Kivy density is fixed to identity; the full UI constructor, bundled keys,
+HTTP and rendering are not executed. Separate `GenerateSidebandProfile.py
+--map-profile` executes actual primary persistence with synthetic map settings
+and the existing disclosed unused-import stubs, not a live map peer.
+
+Focused Windows/Linux command:
+`dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release
+--filter "FullyQualifiedName~SidebandMap|FullyQualifiedName~SidebandProfileImportTests"`
+passes 64 cases with one explicit unavailable generated-profile skip per host.
+It includes original desktop preset/rejection/restart and actual imported-view
+display, bounded source zooms, atomic failure and source preservation. Strict
+warning-as-error NativeAOT publication and selected native/GUI acceptance are
+separate from these managed cases and from public-provider or physical location
+evidence. The new native profile case requires
+`DOTRETICULUM_SIDEBAND_MAP_PROFILE` pointing to the generated primary profile;
+without it the case explicitly skips.
+
+Selected `tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1 -Tag Native,GUI`
+passes 9 cases/one unrelated generated-media rendering skip on each host,
+including actual primary map-profile activation, source preservation, native
+restart and original raster drawing. Windows used Pester 6.2.0; Linux used 5.7.1.
+The first Linux operator invocation failed before testing because `DOTNET_ROOT`
+was not supplied to the PowerShell launcher; setting the documented runtime
+environment before launch restored the unchanged suite. No dependency was
+installed and no assertion was weakened.
+
+| Frozen provider/profile acceptance executable | SHA-256 |
+|---|---|
+| `artifacts\builds\fleet-map-profile-native-win\publish\Sideband.Desktop\release_win-x64\sideband.exe` | `961eabdd288aacd6d3b553449a0272d5fc69a398228a35576c5bc12fb08536d7` |
+| `/home/dennis/fleet-map-profile-native-linux/publish/Sideband.Desktop/release_linux-x64/sideband` | `ac7e5bba4702316b16d438a9e82c106434667f726f1f4fe40a4596fe13b99092` |
+
+These binaries precede unrelated subsequent LXST/remote-command development;
+their selected map acceptance does not validate those mutable workstreams.
+
+After the bounded pending-dial lifecycle fix, strict NativeAOT publishing with
+`-p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true` passes
+again on Windows/Linux. Selecting the binaries below and
+`DOTRETICULUM_SIDEBAND_MAP_PROFILE`, then running
+`tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1,tests\Pester\SidebandVoice.Tests.ps1 -Tag Native,GUI`
+passes 12 cases/four skips on Windows and 14 cases/two skips on Linux.
+These exercise actual persisted primary map settings, native raster/manual
+telemetry/HTTPS rendering, synthetic Opus/Codec2 calls both origins and restart.
+Linux additionally exercises SIGTERM with blocked/closed stdin. Generated-media
+rendering and the separate one-hour mode remain explicit skips; earlier retained
+one-hour evidence is not relabelled as a rerun. `--help` also passes.
+
+| Frozen map/dial lifecycle acceptance executable | SHA-256 |
+|---|---|
+| `artifacts\builds\fleet-map-dial-native-win\publish\Sideband.Desktop\release_win-x64\sideband.exe` | `dc8cdbb1f61a9d68f8b796368b311fe6a40e2674c864f778478ecc0b0b1a7954` |
+| `/home/dennis/fleet-map-dial-native-linux/publish/Sideband.Desktop/release_linux-x64/sideband` | `c5cbf7a57ac185091471a30f358c1f83ab95fd04369425ad1a42516ea04f5bb8` |
+
+These binaries include the then-frozen LXST file-drain and remote backend
+sources. Selected map/voice acceptance does not establish remote-command UI,
+published remote execution or later AGC changes.
 
 ## Python-plugin and remote-command boundary
 

@@ -80,7 +80,7 @@ public sealed partial class MainWindow : Window
         Closing += OnClosing;
         Opened += OnOpened;
         Activated += (_, _) => MarkVisibleConversationRead();
-        NavigateTo(Program.SmokeAnnouncesMode ? "Announces" : "Conversations");
+        NavigateTo(Program.SmokeAnnouncesMode ? "Announces" : Program.SmokeVoiceHistoryMode ? "Voice" : "Conversations");
         UpdateConnectivityView();
     }
 
@@ -144,6 +144,21 @@ public sealed partial class MainWindow : Window
                 }
                 Console.WriteLine("SMOKE_UI_RENDERED_ANNOUNCES=" + AnnouncesList.ItemCount);
             }
+            if (Program.SmokeVoiceHistoryMode)
+            {
+                if (!VoicePage.IsVisible) return;
+                if (VoiceHistoryList.ItemCount == 0)
+                {
+                    Console.Error.WriteLine("sideband: Voice history smoke requires saved call history.");
+                    Volatile.Write(ref _smokeActionInvoked, 0);
+                    _ = CloseAfterCaptureAsync();
+                    return;
+                }
+                Console.WriteLine("SMOKE_UI_RENDERED_VOICE_HISTORY=" + VoiceHistoryList.ItemCount);
+                Console.WriteLine("SMOKE_UI_IMPORTED_VOICE_ASSERTIONS=" +
+                    VoiceHistoryList.Items.Cast<string>().Count(text => text.StartsWith("[IMPORTED ASSERTION]", StringComparison.Ordinal)));
+                Console.WriteLine("SMOKE_UI_VOICE_CONNECTED=" + (_client.IsConnected ? "1" : "0"));
+            }
             if (Program.SmokeTelemetryMode)
             {
                 if (!TelemetryPage.IsVisible) return;
@@ -176,7 +191,7 @@ public sealed partial class MainWindow : Window
                 if (!RemotePage.IsVisible || !_remoteSmokeVerified) return;
                 Console.WriteLine("SMOKE_UI_RENDERED_REMOTE=commands-replies-cancellation");
             }
-            var hasImage = !Program.SmokePaperMode && !Program.SmokeObjectsMode && !Program.SmokeDiscoveryMode && !Program.SmokeAnnouncesMode &&
+            var hasImage = !Program.SmokePaperMode && !Program.SmokeObjectsMode && !Program.SmokeDiscoveryMode && !Program.SmokeAnnouncesMode && !Program.SmokeVoiceHistoryMode &&
                 _state.Messages.Any(message => message.Image is not null);
             if (hasImage && MediaPreview.Source is null) return;
             SmokeUiSucceeded = true;
@@ -309,6 +324,7 @@ public sealed partial class MainWindow : Window
                         TrackOperation(() => RunRemoteSmokeAsync(remotePeer));
                     if (Program.SmokeObjectsMode) NavigateTo("Objects");
                     if (Program.SmokeAnnouncesMode) NavigateTo("Announces");
+                    if (Program.SmokeVoiceHistoryMode) NavigateTo("Voice");
                     if (Program.SmokeDiscoveryMode) TrackOperation(RunDiscoverySmokeAsync);
                     Volatile.Write(ref _smokeActionInvoked, 1);
                     InvalidateVisual();
@@ -813,7 +829,7 @@ public sealed partial class MainWindow : Window
         if (!active && _pttPressed) ReleasePushToTalk();
         if (_audioCancellation is null) PlayAudioButton.IsEnabled = RecordAudioButton.IsEnabled = !active;
         VoiceHistoryList.ItemsSource = (_state?.Calls ?? []).OrderByDescending(call => call.Time)
-            .Select(call => $"{call.Time.LocalDateTime:g} · {call.Event} · {call.IdentityHash}").ToArray();
+            .Select(call => $"{(call.Imported ? "[IMPORTED ASSERTION] " : "")}{call.Time.LocalDateTime:g} · {call.Event} · {call.IdentityHash}").ToArray();
     }
 
     private void ClearVoiceHistoryClicked(object? sender, RoutedEventArgs e) => RunVoiceOperation(async () =>

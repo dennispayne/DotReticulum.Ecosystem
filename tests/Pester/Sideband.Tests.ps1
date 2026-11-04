@@ -616,6 +616,112 @@ Describe 'sideband native announce stream' -Tag 'GUI', 'Announces' {
     }
 }
 
+Describe 'sideband primary voice history migration' -Tag 'GUI', 'VoiceImport' {
+    It 'imports actual primary call assertions and renders them offline across native restart without granting trust or changing the source' {
+        $binary = $env:DOTRETICULUM_SIDEBAND_BINARY
+        if ([string]::IsNullOrWhiteSpace($binary) -or -not (Test-Path -LiteralPath $binary -PathType Leaf)) {
+            throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
+        }
+        $profile = $env:DOTRETICULUM_SIDEBAND_VOICE_PROFILE
+        if ([string]::IsNullOrWhiteSpace($profile)) {
+            Set-ItResult -Skipped -Because 'Generate a private actual primary profile with GenerateSidebandProfile.py --voice-profile and set DOTRETICULUM_SIDEBAND_VOICE_PROFILE.'
+            return
+        }
+        $observations = Get-Content -LiteralPath (Join-Path $profile 'observations.json') -Raw | ConvertFrom-Json
+        $observations.upstream | Should -Be 'd069122af14880e43607aed0b71add4c7806fbe0'
+        $observations.voiceLog.voiceSha256 | Should -Be '51e61510ea5eee832e7b9ad452459998c76561d970e0e773a253fe17cc7f2ab8'
+        @($observations.voiceLog.entries).Count | Should -Be 6
+        $source = Join-Path $profile 'app_storage'
+        (Get-FileHash -LiteralPath (Join-Path $source 'lxst_call_log')).Hash.ToLowerInvariant() |
+            Should -Be $observations.voiceLog.sha256
+        $before = @(Get-ChildItem -LiteralPath $source -File | Sort-Object Name | ForEach-Object {
+            "$($_.Name):$((Get-FileHash -LiteralPath $_.FullName).Hash)"
+        }) -join '|'
+        $root = Join-Path ([IO.Path]::GetTempPath()) "sideband-voice-import-$([guid]::NewGuid().ToString('N'))"
+        $data = Join-Path $root 'native'
+        try {
+            $output = & $binary --import-profile $profile --data-dir $data 2>&1 | Out-String
+            $LASTEXITCODE | Should -Be 0 -Because $output
+            $output | Should -Match 'historical assertions'
+            $path = Join-Path $data 'state.json'
+            $state = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+            $state.ownDeliveryHash | Should -Be $observations.ownDeliveryHash
+            @($state.calls).Count | Should -Be 6
+            @($state.contacts).Count | Should -Be 1
+            @($state.voicePeers).Where({ $null -ne $_ }).Count | Should -Be 0
+            $state.voiceEnabled | Should -BeFalse
+            for ($index = 0; $index -lt 6; $index++) {
+                $state.calls[$index].event | Should -Be $observations.voiceLog.entries[$index].event
+                $state.calls[$index].identityHash | Should -Be $observations.voiceLog.entries[$index].identity
+                $state.calls[$index].imported | Should -BeTrue
+                $actualTime = ([DateTimeOffset]$state.calls[$index].time).ToUnixTimeMilliseconds() / 1000.0
+                [Math]::Abs($actualTime - $observations.voiceLog.entries[$index].time) | Should -BeLessThan 0.002
+            }
+            $stateHash = (Get-FileHash -LiteralPath $path).Hash
+            foreach ($restart in 1, 2) {
+                $process = [Diagnostics.Process]::new()
+                $started = $false
+                try {
+                    $process.StartInfo.FileName = $binary
+                    $process.StartInfo.UseShellExecute = $false
+                    $process.StartInfo.RedirectStandardOutput = $true
+                    $process.StartInfo.RedirectStandardError = $true
+                    foreach ($argument in '--smoke-ui', '--smoke-voice-history', '--data-dir', $data) {
+                        $process.StartInfo.ArgumentList.Add($argument)
+                    }
+                    $process.Start() | Should -BeTrue
+                    $started = $true
+                    $stdout = $process.StandardOutput.ReadToEndAsync()
+                    $stderr = $process.StandardError.ReadToEndAsync()
+                    if (-not $process.WaitForExit(20000)) {
+                        $process.Kill($true)
+                        $process.WaitForExit()
+                        throw 'Published imported voice-history rendering did not finish.'
+                    }
+                    $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+                    $process.ExitCode | Should -Be 0 -Because $output
+                    $output | Should -Match 'SMOKE_UI_RENDERED_INITIAL=1'
+                    $output | Should -Match 'SMOKE_UI_RENDERED_VOICE_HISTORY=6'
+                    $output | Should -Match 'SMOKE_UI_IMPORTED_VOICE_ASSERTIONS=6'
+                    $output | Should -Match 'SMOKE_UI_VOICE_CONNECTED=0'
+                    (Get-FileHash -LiteralPath $path).Hash | Should -Be $stateHash
+                }
+                finally {
+                    if ($started -and -not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }
+                    $process.Dispose()
+                }
+            }
+            & $binary --import-profile $profile --data-dir $data 2>&1 | Out-Null
+            $LASTEXITCODE | Should -Be 1
+            (Get-FileHash -LiteralPath $path).Hash | Should -Be $stateHash
+            $config = Join-Path $root 'isolated-rns'
+            $null = New-Item -ItemType Directory -Path $config -Force
+            "[reticulum]`n  enable_transport = no`n  share_instance = no`n`n[logging]`n  loglevel = 4`n" |
+                Set-Content -LiteralPath (Join-Path $config 'config') -Encoding utf8NoBOM
+            $output = & $binary --init --data-dir (Join-Path $root 'empty') --rnsconfig $config 2>&1 | Out-String
+            $LASTEXITCODE | Should -Be 0 -Because $output
+            $output = & $binary --smoke-ui --smoke-voice-history --data-dir (Join-Path $root 'empty') 2>&1 | Out-String
+            $LASTEXITCODE | Should -Be 2 -Because $output
+            $output | Should -Match 'Voice history smoke requires saved call history'
+            foreach ($arguments in @(
+                @('--smoke-voice-history'),
+                @('--smoke-ui', '--smoke-voice-history', '--rnsconfig', $config),
+                @('--smoke-ui', '--smoke-voice-history', '--smoke-announces')
+            )) {
+                $output = & $binary @arguments --data-dir (Join-Path $root 'invalid') 2>&1 | Out-String
+                $LASTEXITCODE | Should -Be 1 -Because $output
+                $output | Should -Match 'requires --smoke-ui'
+                Test-Path -LiteralPath (Join-Path $root 'invalid') | Should -BeFalse
+            }
+            $after = @(Get-ChildItem -LiteralPath $source -File | Sort-Object Name | ForEach-Object {
+                "$($_.Name):$((Get-FileHash -LiteralPath $_.FullName).Hash)"
+            }) -join '|'
+            $after | Should -Be $before
+        }
+        finally { if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force } }
+    }
+}
+
 Describe 'sideband primary announce profile migration' -Tag 'GUI', 'AnnounceImport' {
     It 'imports actual primary WAL announcements and renders persisted history after native restart without changing the source' {
         $binary = $env:DOTRETICULUM_SIDEBAND_BINARY

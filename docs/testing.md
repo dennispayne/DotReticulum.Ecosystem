@@ -8,6 +8,22 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+The call-history integration gate
+`tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-voice-profile-unified -OutputDirectory
+artifacts\tests\fleet-voice-profile-unified` passes2,461 managed cases/128 explicit
+skips,62 Pester tooling cases, strict catalog aggregation and merged production
+coverage. Concurrent Nomad client-configuration work is present but is not
+independently accepted by this run. Sideband profile regressions separately
+pass83/3 explicit skips on Windows and84/2 on Linux; the actual-primary published
+`VoiceImport` case passes once per host without skips, and the published GUI
+selection passes8/4 explicit missing-profile skips each. C64/T176–180 records19
+passes/1 explicit Linux-only metadata skip on Windows and20 passes on Linux.
+Windows T177 remains partial; offline historical assertions do not establish
+authentication, audio or live calling. Exact reference/native hashes, safety
+differences and private-artifact paths are in
+[Sideband's reference](sideband.md#primary-voice-history-migration).
+
 Parent independently replays frozen Nomad RRC v5 on Windows/Linux with
 `Invoke-FrozenRrcAcceptance.ps1 -Manifest <absolute-frozen-v5-manifest>`:
 Windows7 passes/1 explicit Linux-only skip; Linux8 passes/no skips.

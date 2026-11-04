@@ -1,0 +1,99 @@
+{
+  "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "voice_sha256": "51e61510ea5eee832e7b9ad452459998c76561d970e0e773a253fe17cc7f2ab8",
+  "retention_seconds": 1209600,
+  "method": "Actual ReticulumTelephone.clear_call_log/log_call/get_call_log and owned files. Fresh __new__ instances avoid audio/network construction; fixed clock and hash-only identity descriptor are disclosed synthetic inputs. No source or method is replaced.",
+  "observations": [
+    {
+      "name": "empty",
+      "now": 1800000000.0,
+      "packed_hex": "90",
+      "loaded": []
+    },
+    {
+      "name": "all-primary-event-types",
+      "now": 1800000000.0,
+      "packed_hex": "9583a474696d65cb41dad27480000000a56576656e74b06f7574676f696e672d73756363657373a86964656e74697479c410000102030405060708090a0b0c0d0e0f83a474696d65cb41dad27480000000a56576656e74ad6f6e676f696e672d656e646564a86964656e74697479c410000102030405060708090a0b0c0d0e0f83a474696d65cb41dad27480000000a56576656e74b0696e636f6d696e672d73756363657373a86964656e74697479c410000102030405060708090a0b0c0d0e0f83a474696d65cb41dad27480000000a56576656e74b06f7574676f696e672d6661696c757265a86964656e74697479c410000102030405060708090a0b0c0d0e0f83a474696d65cb41dad27480000000a56576656e74af696e636f6d696e672d6d6973736564a86964656e74697479c410000102030405060708090a0b0c0d0e0f",
+      "loaded": [
+        {
+          "time": 1800000000.0,
+          "event": "outgoing-success",
+          "identity": "000102030405060708090a0b0c0d0e0f"
+        },
+        {
+          "time": 1800000000.0,
+          "event": "ongoing-ended",
+          "identity": "000102030405060708090a0b0c0d0e0f"
+        },
+        {
+          "time": 1800000000.0,
+          "event": "incoming-success",
+          "identity": "000102030405060708090a0b0c0d0e0f"
+        },
+        {
+          "time": 1800000000.0,
+          "event": "outgoing-failure",
+          "identity": "000102030405060708090a0b0c0d0e0f"
+        },
+        {
+          "time": 1800000000.0,
+          "event": "incoming-missed",
+          "identity": "000102030405060708090a0b0c0d0e0f"
+        }
+      ]
+    },
+    {
+      "name": "expired",
+      "now": 1800000000.0,
+      "packed_hex": "9183a474696d65cb41dacdd73fc00000a56576656e74af696e636f6d696e672d6d6973736564a86964656e74697479c410000102030405060708090a0b0c0d0e0f",
+      "loaded": []
+    },
+    {
+      "name": "strict-retention-boundary",
+      "now": 1800000000.0,
+      "packed_hex": "9183a474696d65cb41dacdd740000000a56576656e74af696e636f6d696e672d6d6973736564a86964656e74697479c410000102030405060708090a0b0c0d0e0f",
+      "loaded": []
+    },
+    {
+      "name": "inside-retention-boundary",
+      "now": 1800000000.0,
+      "packed_hex": "9183a474696d65cb41dacdd740100000a56576656e74b0696e636f6d696e672d73756363657373a86964656e74697479c410000102030405060708090a0b0c0d0e0f",
+      "loaded": [
+        {
+          "time": 1798790400.25,
+          "event": "incoming-success",
+          "identity": "000102030405060708090a0b0c0d0e0f"
+        }
+      ]
+    },
+    {
+      "name": "future-is-retained-by-primary",
+      "now": 1800000000.0,
+      "packed_hex": "9183a474696d65cb41dad27482800000a56576656e74b06f7574676f696e672d73756363657373a86964656e74697479c410000102030405060708090a0b0c0d0e0f",
+      "loaded": [
+        {
+          "time": 1800000010.0,
+          "event": "outgoing-success",
+          "identity": "000102030405060708090a0b0c0d0e0f"
+        }
+      ]
+    },
+    {
+      "name": "duplicate-events-are-not-deduplicated",
+      "now": 1800000000.0,
+      "packed_hex": "9283a474696d65cb41dad27480000000a56576656e74af696e636f6d696e672d6d6973736564a86964656e74697479c410000102030405060708090a0b0c0d0e0f83a474696d65cb41dad27480000000a56576656e74af696e636f6d696e672d6d6973736564a86964656e74697479c410000102030405060708090a0b0c0d0e0f",
+      "loaded": [
+        {
+          "time": 1800000000.0,
+          "event": "incoming-missed",
+          "identity": "000102030405060708090a0b0c0d0e0f"
+        },
+        {
+          "time": 1800000000.0,
+          "event": "incoming-missed",
+          "identity": "000102030405060708090a0b0c0d0e0f"
+        }
+      ]
+    }
+  ]
+}

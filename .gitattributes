@@ -11,3 +11,4 @@ tests/NomadNet.Tests/NomadNetProfileImportVectors.json text eol=lf
 tests/LXMF.Tests/Fixtures/lxmf-retry-vectors.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-runtime-telemetry.json text eol=lf
 tests/NomadNet.Tests/NomadNetRrcImportVectors.json text eol=lf
+tests/Sideband.Tests/Fixtures/sideband-voice-profile.json text eol=lf

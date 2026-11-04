@@ -43,7 +43,7 @@ public static class SidebandProfileImporter
             CreatePrivateDirectory(archive);
             // A stable copy includes committed frames still in WAL. Two complete fingerprints detect
             // concurrent writes on platforms where FileShare.Read does not exclude other writers.
-            var files = new[] { "primary_identity", "sideband_config", "sideband.db", "sideband.db-wal", "sideband.db-shm", "collector_response_excluded" };
+            var files = new[] { "primary_identity", "sideband_config", "sideband.db", "sideband.db-wal", "sideband.db-shm", "collector_response_excluded", "lxst_call_log" };
             var before = await FingerprintAsync(source, files, cancellationToken).ConfigureAwait(false);
             foreach (var pair in before)
             {
@@ -86,7 +86,7 @@ public static class SidebandProfileImporter
                 finally { File.Delete(settingsPath); }
                 var notices = new List<string>
                 {
-                    "LXMF conversation names, addresses, trust and unread flags, object classification, telemetry permissions/appearance, text/media and delivery states are activated. Supported telemetry configuration, reports, cursor state and bounded announce history are activated without collecting hardware. Other conversation data, transport/stamp extras, voice objects and unsupported persistent properties remain archive-only.",
+                    "LXMF conversation names, addresses, trust and unread flags, object classification, telemetry permissions/appearance, text/media and delivery states are activated. Supported telemetry configuration, reports, cursor state, bounded announce history and retained voice call events are activated without collecting hardware. Other conversation data, transport/stamp extras, voice peer objects and unsupported persistent properties remain archive-only.",
                     "The original binary configuration and SQLite snapshot are retained privately in imported-profile. Unknown binary configuration values use hexadecimal JSON projections; the original MessagePack remains authoritative.",
                     "Reticulum interfaces, plugins and unknown app_storage files are not imported. Configure interfaces in the new private reticulum directory before connecting.",
                     "Historical signatures are verified only when the source is the imported identity; remote sender identities are not available in this profile snapshot. Import is not live interoperability evidence.",
@@ -196,6 +196,13 @@ public static class SidebandProfileImporter
                 var persistent = await SidebandPersistentProfile.ReadAsync(Path.Combine(archive, "sideband.db"), cancellationToken).ConfigureAwait(false);
                 notices.AddRange(persistent.Notices);
                 var settings = await store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                var callLog = Path.Combine(archive, "lxst_call_log");
+                var calls = File.Exists(callLog)
+                    ? SidebandVoiceProfile.Read(await ReadBoundedAsync(callLog, SidebandVoiceProfile.MaximumEncodedBytes, cancellationToken).ConfigureAwait(false),
+                        DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000d)
+                    : [];
+                if (File.Exists(callLog))
+                    notices.Add("Retained voice call events are historical assertions, not authenticated identity, trust, contact or call authorization. The private original log is archived unchanged.");
                 notices.AddRange(await SidebandMapProfile.ImportAsync(settings.ImportedSettings, staging, cancellationToken).ConfigureAwait(false));
                 var exclusionPath = Path.Combine(archive, "collector_response_excluded");
                 if (File.Exists(exclusionPath))
@@ -216,6 +223,7 @@ public static class SidebandProfileImporter
                     SynchronizationRetrying = persistent.SynchronizationRetrying,
                     TelemetryPeers = telemetryPeers,
                     Announces = announces,
+                    Calls = calls,
                 }, cancellationToken).ConfigureAwait(false);
                 var storage = Path.Combine(staging, "reticulum", "storage");
                 CreatePrivateDirectory(Path.GetDirectoryName(storage)!);
@@ -304,6 +312,7 @@ public static class SidebandProfileImporter
         "sideband_config" => MaximumConfigBytes,
         "sideband.db-shm" => 8 * 1024 * 1024,
         "collector_response_excluded" => 65_536,
+        "lxst_call_log" => SidebandVoiceProfile.MaximumEncodedBytes,
         _ => (int)MaximumDatabaseBytes,
     };
 
@@ -313,7 +322,12 @@ public static class SidebandProfileImporter
         foreach (var name in files)
         {
             var path = Path.Combine(source, name);
-            if (!File.Exists(path) && name is "sideband.db-wal" or "sideband.db-shm" or "collector_response_excluded") continue;
+            if (name == "lxst_call_log")
+            {
+                try { SidebandVoiceProfileFile.Validate(path); }
+                catch (FileNotFoundException) { continue; }
+            }
+            else if (!File.Exists(path) && name is "sideband.db-wal" or "sideband.db-shm" or "collector_response_excluded") continue;
             result[name] = await HashFileAsync(path, LimitFor(name), token).ConfigureAwait(false);
         }
         return result;

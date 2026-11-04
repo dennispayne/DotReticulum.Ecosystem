@@ -4,6 +4,7 @@
     <AssemblyName>Sideband.Core</AssemblyName>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Sideband</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>

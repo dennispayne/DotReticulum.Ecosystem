@@ -31,6 +31,7 @@ def main():
     parser.add_argument("--media-fixture", type=Path)
     parser.add_argument("--map-profile", action="store_true")
     parser.add_argument("--announce-profile", action="store_true")
+    parser.add_argument("--voice-profile", action="store_true")
     args = parser.parse_args()
     if args.announce_profile and args.public_fixture:
         parser.error("--announce-profile cannot replace the existing empty public fixture")
@@ -234,6 +235,29 @@ def main():
         if (work / name).exists():
             shutil.copyfile(work / name, storage / name)
             os.chmod(storage / name, 0o600)
+    voice_observations = None
+    if args.voice_profile:
+        verify_reference(require_lxst=True)
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Sideband.Tests"))
+        from SidebandVoiceGenerateVectors import load_reference
+        voice, voice_digests = load_reference(source)
+        phone = voice.ReticulumTelephone.__new__(voice.ReticulumTelephone)
+        phone.logpath = str(storage / "lxst_call_log")
+        phone.call_log = None
+        phone.clear_call_log()
+        for event in ("outgoing-success", "ongoing-ended", "incoming-success",
+                      "outgoing-failure", "incoming-missed", "incoming-missed"):
+            phone.log_call(event, peer)
+        fresh = voice.ReticulumTelephone.__new__(voice.ReticulumTelephone)
+        fresh.logpath = phone.logpath
+        fresh.call_log = None
+        voice_observations = {
+            "voiceSha256": voice_digests["sbapp/sideband/voice.py"],
+            "method": "Actual ReticulumTelephone.clear_call_log/log_call/get_call_log with current time and a generated peer identity; fresh __new__ instances avoid audio/network construction.",
+            "entries": [{**entry, "identity": entry["identity"].hex()} for entry in fresh.get_call_log()],
+            "sha256": hashlib.sha256(Path(phone.logpath).read_bytes()).hexdigest(),
+        }
+        os.chmod(phone.logpath, 0o600)
     observed = core._db_message(incoming.hash)
     if observed["content"] != incoming.content:
         raise RuntimeError("Upstream persistence readback failed")
@@ -260,6 +284,7 @@ def main():
         "disclosure": "Actual unchanged persistence methods with inert unused GUI/telemetry/plugin/resource imports",
         "media": media_observations,
         "mapProfile": {key: value for key, value in core.config.items() if key.startswith("map_")} if args.map_profile else None,
+        "voiceLog": voice_observations,
     }
     (output / "observations.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     if args.public_fixture:

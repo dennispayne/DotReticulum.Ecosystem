@@ -91,6 +91,6 @@ public sealed record SidebandVoiceSnapshot(SidebandVoiceState State, bool Starte
     bool TransmitMuted, bool ReceiveMuted, bool TransmitSquelched, bool LoudspeakerEnabled,
     DateTimeOffset? EstablishedAt, long ReceivedFrames, long TransmittedFrames);
 
-public sealed record SidebandVoiceCallEvent(DateTimeOffset Time, string Event, string IdentityHash);
+public sealed record SidebandVoiceCallEvent(DateTimeOffset Time, string Event, string IdentityHash, bool Imported = false);
 
 public sealed record SidebandVoiceError(string Context, Exception? Exception);

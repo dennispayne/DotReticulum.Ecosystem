@@ -35,7 +35,9 @@ including unnamed sources, replacement/deletion, cached stamp costs and
 available owner-cache signal observations. Explicit conversation/node selection
 does not grant trust. Bounded primary SQLite announce-history migration activates
 supported delivery/node metadata and historical signal observations without
-inventing the absent live delivery-cost cache.
+inventing the absent live delivery-cost cache. Optional primary MessagePack call
+history activates as visibly labelled imported assertions, without new contacts,
+voice trust, authorization or device activation.
 
 ## Reference provenance
 
@@ -104,13 +106,13 @@ runtime evidence.
 | LXMF messaging and propagation UI | partial | Text send/receive, automatic/manual node selection, persisted periodic fetches, cancellation, one-shot failed-delivery propagation retry, trusted-conversation reply tickets and restart retrieval reuse `LxmRouter`. Actual primary Sideband daemon-core direct/propagated round trips pass separately from Python LXMF endpoint tests, with trust enabled and disabled in both directions. Full message presentation/settings remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,4811–4828,5156–5227,5634–5644`, `docs/lxmf.md`. |
 | Text, image/file and audio messages | implemented bounded subset | Text/files, WebP image preparation/preview, Ogg Opus and Codec2 composition/decoding, explicit 10-second recording/playback/cancellation, content-addressed persistence and explicit exports. Actual Python Sideband core sends/receives images and both audio families directly/through a Python propagation transport; actual Pillow/audioproc decode native output. Published binaries decode imported media and render images. Device tests use fakes; physical capture/acoustics remain unverified. Unknown audio is retained/exportable but playback fails explicitly; no autoplay. See media limits below; `src/Sideband/SidebandMedia*.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py:message_send_dispatch`, `sbapp/sideband/audioproc.py`, `sbapp/sideband/core.py:5189–5196`. |
 | Paper messages and `lxm://` imports | implemented bounded subset | Connected paper text creation and local duplicate-aware import reuse LXMF; saved URI/QR display and non-overwriting exports work offline and survive restart. Actual primary daemon-core creation/ingestion both ways, trust on/off and process restart pass separately from native desktop/CLI exports. Nonlocal envelopes are unauthenticated and not forwarded. Hardware camera/printer, desktop OS URI registration and complete upstream paper-history migration remain unverified/missing; `SidebandClient.Paper.cs`, `MainWindow.Paper.cs`, `PaperExportCommand.cs`, `sbapp/sideband/core.py:paper_message,lxm_ingest_uri`. |
-| LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI, call-history migration and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
+| LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Optional primary call-log migration retains labelled historical assertions separately from authenticated call events. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
 | Telemetry, location and situational awareness | partial | All 27 sensor wire formats, exact values, bounded atomic storage and reference-executed geometry exist. Original desktop controls configure manual information/location/sensors, opted-in Reticulum runtime collection, privacy/collector/tracking policies, inspect trusted reports, explicitly delete and show reported locations on the map. Actual primary reports/collector streams, requests, restart, supported profile import, schedules and propagation recovery pass separately on Windows/Linux. Runtime collection/rendering/receive normalization is independently verified below; other automatic sensors, hardware and advanced presentation remain absent/unverified; `SidebandTelemetry*.cs`, `SidebandRuntimeTelemetry.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/ui/telemetry.py`. |
 | Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default/provider/layer, overlay and passive discovery vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, source zoom limits and persisted view. Reported peers/interfaces/connection points, bounded selected-cache discovery advertisements, clustering, high-zoom scatter, local fixed overrides and marker inspection are integrated. Thirteen provider presets and supported offline-profile activation exist. Broader map migration/presentation remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
 | Remote commands, queries and plugins | partial | Authorized telemetry requests and built-in ping/echo/signal requests use the existing bounded client worker. Actual primary daemon cores exchange commands/replies, propagated requests and offline replies, and verify unknown-conversation admission across direct, Python-hop and .NET-hop paths. Explicit PN storage/retrieval, restart/cancellation and controlled direct-failure recovery are distinct evidence. Initially-propagated native-origin failure/recovery passes separately; enabled primary retry remains blocked by the reproduced pinned callback-lock cycle below. Original Remote controls configure shared request permissions, queue/cancel commands and preview persisted replies. Arbitrary Python command/service/telemetry plugins and custom sensors remain missing; native helpers are not a Python-plugin ABI; `SidebandClient.Remote.cs`, `SidebandRemoteCommands.cs`, `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`. |
 | Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. The map passively inspects the selected configuration's discovery cache without autoconnect; shared-owner blackhole policy is queried through actual management RPC. Interface editing, remote shared-owner discovery-cache access and Android interface loading remain absent; `SidebandClient.Discovery.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
 | Long-lived service and OS integration | partial | The desktop window and headless daemon own the same cancellable client. Linux published daemon/interactive processes stop on SIGTERM with closed/blocked stdin; native console quit and restart pass on both hosts. Days-long Sideband service operation remains unverified. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are deferred mobile contracts; `SidebandDaemon.cs`, `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
-| Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/object classification/text/files/images/audio/methods, known client-router tickets/own ratchets/caches, synchronization anchors, bounded delivery/PN announce history and supported telemetry/settings/permissions/appearance/cursors/map-overlay settings. Unimplemented semantics remain archived; source files never change. Voice history, other fields and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `SidebandTelemetryProfile.cs`, `SidebandAnnounceProfile.cs`, `sbapp/main.py:209–273`. |
+| Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/object classification/text/files/images/audio/methods, known client-router tickets/own ratchets/caches, synchronization anchors, bounded delivery/PN announce history, retained call assertions and supported telemetry/settings/permissions/appearance/cursors/map-overlay settings. Unimplemented semantics remain archived; source files never change. Voice peer objects, other fields and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `SidebandTelemetryProfile.cs`, `SidebandAnnounceProfile.cs`, `SidebandVoiceProfile.cs`, `sbapp/main.py:209–273`. |
 | CLI and headless operation | partial | Help/version, init/check, data/config selection, JSON settings exchange, daemon/interactive operation and native extensions `--import-profile`, `--check-media`, `--synthetic-audio` exist. Daemon ignores closed stdin and stops on cancellation; original interactive console bounds input and supports functional voice commands. All twelve pinned upstream voice command handlers execute `Not yet implemented`; native functionality is an extension, not evidence that these primary placeholders work. Native `--interactive`, `--verbose` and synthetic audio require daemon mode; conflicting modes fail before state/UI. Broader upstream console commands remain missing; `Program.cs`, `SidebandDaemon.cs`, `sbapp/main.py`, `sbapp/sideband/cli/cmd_voice.py`. |
 | Repository server | implemented bounded subset | Utilities explicitly starts/stops a public unauthenticated HTTPS static mirror with a package list, persistent private certificate, visible fingerprint and joined window shutdown. Default loopback/4444; reachable LAN exposure requires explicit bind and consent. No bundled upstream assets, automatic content downloads or update execution. Original bounded GET-only service, not RNS/rngit Git hosting; safety differences and acceptance are below; `SidebandRepository*.cs`, `MainWindow.Repository.cs`, `sbapp/sideband/core.py`, `sbapp/ui/layouts.py`. |
 | Native packaging and upgrades | partial | Windows and Linux NativeAOT publishes succeed with trimming/linker warnings treated as errors. Package the full publish directory, including Windows `sideband.exe`, `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, `libSkiaSharp.dll` and desktop/shared third-party notices; Linux `sideband`, `libHarfBuzzSharp.so`, `libSkiaSharp.so`, `libSystem.IO.Ports.Native.so` and the same notices. These include Avalonia/Skia/HarfBuzz MIT texts, ANGLE's BSD license, .NET serial runtime notices and `ThirdPartyNotices/ZXing.Net.Apache-2.0.txt`. Installer/signing, self-upgrade and other upstream package formats remain absent; `src/Sideband.Desktop/Sideband.Desktop.csproj`, `src/Sideband.Desktop/THIRD-PARTY-NOTICES*.txt`, `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
@@ -814,12 +816,89 @@ calls. Caller failures and observer exceptions likewise do not disable service.
 Ringing, waiting and path deadlines are 30, 60 and 10 seconds. Native call history
 retains at most 1,000 events for 14 days and supports explicit durable clearing;
 clear runs in the same bounded persistence worker so accepted earlier events
-cannot reappear afterward. These native JSON events are not an import of the
-primary's separate MessagePack call-log file. Device identifiers, history and
+cannot reappear afterward. Optional migration of the primary's separate
+MessagePack file is described below. Device identifiers, history and
 policy survive restart. `voice_output` and `voice_low_latency` remain preserved
 unsupported settings, not silently active controls. The inspected primary's
 low-latency activation is Android-only; its desktop UI disables that control.
 Removing the native jitter buffer would not reproduce that hardware API.
+
+### Primary voice-history migration
+
+The optional `app_storage\lxst_call_log` belongs to Sideband's
+`ReticulumTelephone`, not LXST Telephony. The unchanged primary
+`voice.py:170–219` saves a MessagePack array of maps containing `time`, `event`
+and a **16-byte identity hash**, not an LXMF destination. Its retention rule is
+strictly `now - time < 14 days`; ordering and duplicate events survive a fresh
+instance reading the file. The native importer preserves those semantics and
+archives the original bytes privately within the existing atomic, absent-target
+profile transaction. Missing files remain optional; malformed present files
+fail the entire transaction and leave a healthy retry possible.
+
+Imported events persist `Imported=true` and display `[IMPORTED ASSERTION]` in
+the original Voice screen across restart. They do not authenticate the recorded
+identity or create contacts, voice peers, trust, unread state, call authorization
+or audio sessions. Ordinary native call events default to non-imported. Explicit
+durable history clearing remains available offline.
+
+Native safety differences are explicit: at most256KiB,1,000 entries,64-byte
+scalar values,8,001 total values and depth4; excessive inputs fail rather than
+silently truncate. Non-finite/invalid times and times more than240 seconds ahead
+fail, although the primary retains arbitrary future timestamps. Primary file
+errors can become empty history; native errors remain explicit and transactional.
+Windows/Linux require regular files without linked/reparse ancestors; Linux
+`statx` additionally rejects FIFO/socket/device types before opening. This
+validates a **stopped snapshot**, not an adversarial TOCTOU-proof file jail.
+An existing voice log on another OS fails explicitly; no macOS claim is inferred.
+
+`GenerateSidebandVoiceProfileVectors.py` executes actual clear/log/load methods
+with owned files, fresh `__new__` instances, a fixed clock and a hash-only
+synthetic identity. Seven observations cover empty/all five events, expiry,
+exact/inside retention boundaries, future time and duplicates. Independently
+executed Windows/Linux fixture bytes match SHA-256
+`f21b46d53bbba36d8059b735a9650798eba5f3e5deb7e749f1d10969e3adfbb8`;
+the exact pinned `voice.py` SHA-256 is
+`51e61510ea5eee832e7b9ad452459998c76561d970e0e773a253fe17cc7f2ab8`.
+Windows imports report unavailable native filters and the primary's Python
+fallback; log methods execute neither DSP nor device construction. These
+observations are persistence vectors, not codec/audio/network acceptance.
+
+`tests\Interop\GenerateSidebandProfile.py --sideband SOURCE --rns RNS
+--output NEW_PRIVATE_PROFILE --voice-profile` separately executes actual primary
+core persistence and call-log methods with current time and a generated peer
+identity. Existing disclosed unused core import stubs remain; actual LXST
+imports/pins are verified and no voice persistence method is replaced.
+`DOTRETICULUM_SIDEBAND_VOICE_PROFILE` selects that profile for the published
+`VoiceImport` Pester case. It compares all six events including a duplicate,
+source and state hashes, non-overwriting conflict rejection, two fresh native
+Voice renders, empty-history failure and invalid-mode rejection.
+`--smoke-ui --smoke-voice-history --data-dir PROFILE` is offline and rejects
+Reticulum/other-mode combinations. It selects Voice before loading contacts,
+so inspection does not accidentally mark an imported conversation read.
+
+The focused command is:
+
+```powershell
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release -warnaserror --filter "FullyQualifiedName~SidebandVoiceProfileTests|FullyQualifiedName~SidebandProfileImportTests|FullyQualifiedName~ImportedVoiceHistory"
+```
+
+Windows passes83 with3 explicit platform skips; Linux passes84 with2.
+This includes wider existing profile regressions; C64/T176–180 separately
+identifies the call-history cases. Native publication uses the serviced
+10.0.403 SDK/10.0.14 compiler with both trim/AOT warning-as-error properties.
+The published `VoiceImport` case passes once per host with no skips. Binary
+SHA-256 values are Windows
+`635a198e148a6b43dedae201824dbb7d6c41378b5ae0c3bf9449c17f1529891a`
+and Linux
+`919e8e377a9ab82efbf3ba0a6dd30828a41afaf56def1692f6ea4a4c97ec01c7`.
+They were built from dirty source over `aa2e3ed`, not their later integration
+commit. Actual C64 receipts are
+`artifacts\tests\sideband-voice-profile\windows\c64.json` and
+`/home/dennis/fleet-voice-profile-results/c64.json`: Windows19 passes/1 explicit
+Linux-only FIFO/device skip, Linux20 passes/no skips. Windows T177 is correctly
+partial, not relabelled as complete metadata-platform acceptance.
+Private profiles and retained initial failures stay in ignored acceptance
+artifacts, never committed keys or captured private traffic.
 
 `SidebandVoiceGenerateVectors.py` executes actual primary policy/callback/log
 methods and the unchanged `voice_is_trusted` method with disclosed fake

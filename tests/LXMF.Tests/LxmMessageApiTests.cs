@@ -125,6 +125,42 @@ public class LxmMessageApiTests
     }
 
     [Fact]
+    public void PaperDestination_ReadsExecutedReferenceEnvelopeAndReturnsDetachedHash()
+    {
+        using var vectors = Vectors();
+        var root = vectors.RootElement;
+        using var destination = Identity.FromPrivateKey(Convert.FromHexString(root.GetProperty("destination_private_key").GetString()!));
+        var uri = root.GetProperty("paper").GetProperty("uri").GetString()!;
+        var expected = LxMessage.DeliveryDestinationHash(destination);
+        Assert.Equal(expected, LxMessage.GetPaperDestinationHash(uri));
+        var copy = LxMessage.GetPaperDestinationHash(uri);
+        copy[0] ^= 0xff;
+        Assert.Equal(expected, LxMessage.GetPaperDestinationHash(uri));
+    }
+
+    [Fact]
+    public void PaperDestination_DoesNotAuthenticateCiphertext()
+    {
+        var uri = "lxm://" + Convert.ToBase64String(new byte[17]);
+        Assert.Equal(new byte[16], LxMessage.GetPaperDestinationHash(uri));
+        using var destination = Identity.Generate();
+        Assert.Throws<FormatException>(() => LxMessage.FromPaperUri(uri, destination, _ => null));
+    }
+
+    [Fact]
+    public void PaperDestination_RejectsMalformedAndOversizedEnvelopes()
+    {
+        Assert.Throws<ArgumentNullException>(() => LxMessage.GetPaperDestinationHash(null!));
+        foreach (var uri in new[] { "", "https://example.test", "lxm://", "lxm://%", "lxm://A",
+            "lxm://" + Convert.ToBase64String(new byte[16]),
+            "lxm://" + Convert.ToBase64String(new byte[LxMessage.PaperMdu + 1]),
+            "lxm://" + new string('A', 100_000) })
+            Assert.Throws<FormatException>(() => LxMessage.GetPaperDestinationHash(uri));
+        Assert.Equal(new byte[16], LxMessage.GetPaperDestinationHash(
+            "LXM://" + Convert.ToBase64String(new byte[LxMessage.PaperMdu]).TrimEnd('=')));
+    }
+
+    [Fact]
     public void ExplicitEpochTimestamp_IsNotReplacedDuringHashingOrPacking()
     {
         using var vectors = Vectors();

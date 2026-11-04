@@ -522,6 +522,9 @@ public sealed partial class LxMessage
         return uri;
     }
 
+    /// <summary>Reads the destination from a bounded paper URI envelope without decrypting or authenticating its contents.</summary>
+    public static byte[] GetPaperDestinationHash(string uri) => DecodePaperUri(uri)[..DestinationLength];
+
     /// <summary>Decrypts a paper URI for this identity. Ratcheted messages require the caller's ratchet-aware decryptor.</summary>
     public static LxMessage FromPaperUri(string uri, Identity destination, Func<byte[], Identity?> recallSource,
         Func<byte[], byte[]?>? decrypt = null)
@@ -557,8 +560,8 @@ public sealed partial class LxMessage
     {
         ArgumentNullException.ThrowIfNull(uri);
         if (!uri.StartsWith("lxm://", StringComparison.OrdinalIgnoreCase)) throw new FormatException("Invalid LXMF URI scheme.");
+        if (uri.Length - 6 > ((PaperMdu + 2) / 3) * 4) throw new FormatException("Paper message exceeds the maximum size.");
         var encoded = uri[6..].Replace('-', '+').Replace('_', '/');
-        if (encoded.Length > ((PaperMdu + 2) / 3) * 4) throw new FormatException("Paper message exceeds the maximum size.");
         byte[] paper;
         try { paper = Convert.FromBase64String(encoded.PadRight((encoded.Length + 3) / 4 * 4, '=')); }
         catch (FormatException) { throw new FormatException("Invalid LXMF URI encoding."); }

@@ -1,3 +1,222 @@
+Describe 'NomadNet primary directory migration' -Tag 'DirectoryImport' {
+    It 'imports actual current/legacy policy atomically and preserves it through terminal and daemon ownership/restarts' {
+        if ($env:DOTRETICULUM_NOMADNET_DIRECTORY_IMPORT -ne '1') {
+            Set-ItResult -Skipped -Because 'Enable DOTRETICULUM_NOMADNET_DIRECTORY_IMPORT=1 with native binary and pinned primary Python environment.'
+            return
+        }
+        foreach ($variable in 'DOTRETICULUM_NOMADNET_BINARY', 'DOTRETICULUM_PYTHON',
+            'DOTRETICULUM_UPSTREAM', 'DOTRETICULUM_NOMADNET_SOURCE') {
+            if (-not [Environment]::GetEnvironmentVariable($variable)) { throw "$variable is required." }
+        }
+        $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        if ($env:DOTRETICULUM_TEST_REPOSITORY) { $root = $env:DOTRETICULUM_TEST_REPOSITORY }
+        $work = Join-Path (Get-Location) "artifacts\tests\nomadnet-directory-import-$([Guid]::NewGuid().ToString('N'))"
+        $null = New-Item $work -ItemType Directory -Force
+        $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
+        $pending = @{}
+        $errors = @{}
+        $names = @{}
+        $start = {
+            param([string] $name, [string] $binary, [string[]] $arguments)
+            $info = [Diagnostics.ProcessStartInfo]::new($binary)
+            $info.UseShellExecute = $false
+            $info.RedirectStandardInput = $true
+            $info.RedirectStandardOutput = $true
+            $info.RedirectStandardError = $true
+            $info.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
+            $info.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
+            foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
+            $paths = @($env:DOTRETICULUM_UPSTREAM, $env:DOTRETICULUM_NOMADNET_SOURCE, (Join-Path $root 'tests\Interop'))
+            if ($env:DOTRETICULUM_LXMF_UPSTREAM) { $paths += $env:DOTRETICULUM_LXMF_UPSTREAM }
+            $info.Environment['PYTHONPATH'] = $paths -join [IO.Path]::PathSeparator
+            $info.Environment['PYTHON_CPU_COUNT'] = '2'
+            foreach ($variable in 'TMP', 'TEMP', 'TMPDIR') { $info.Environment[$variable] = $work }
+            $process = [Diagnostics.Process]::new()
+            $process.StartInfo = $info
+            $null = $process.Start()
+            $processes.Add($process)
+            $names[$process.Id] = $name
+            $errors[$process.Id] = $process.StandardError.ReadToEndAsync()
+            return $process
+        }.GetNewClosure()
+        $send = {
+            param($process, [string] $text)
+            $process.StandardInput.WriteLine($text)
+            $process.StandardInput.Flush()
+        }
+        $read = {
+            param($process, [string] $pattern, [int] $seconds = 45)
+            $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+            while ([DateTime]::UtcNow -lt $deadline) {
+                if (-not $pending.ContainsKey($process.Id)) { $pending[$process.Id] = $process.StandardOutput.ReadLineAsync() }
+                try { $line = $pending[$process.Id].WaitAsync([TimeSpan]::FromMilliseconds(250)).GetAwaiter().GetResult() }
+                catch [TimeoutException] { continue }
+                $pending.Remove($process.Id)
+                if ($null -eq $line) { throw "$($names[$process.Id]) closed stdout before '$pattern'; diagnostics $work" }
+                Add-Content (Join-Path $work "$($names[$process.Id]).stdout") $line
+                if ($line -match '"event"\s*:\s*"(error|failed)"') { throw $line }
+                if ($line -match $pattern) { return $line }
+            }
+            throw "$($names[$process.Id]) timed out before '$pattern'; diagnostics $work"
+        }.GetNewClosure()
+        $offline = {
+            param([string] $name, [string] $binary, [string[]] $arguments)
+            $process = & $start $name $binary $arguments
+            $output = $process.StandardOutput.ReadToEndAsync()
+            $process.WaitForExit(60000) | Should -BeTrue
+            $text = $output.GetAwaiter().GetResult()
+            $diagnostics = $errors[$process.Id].GetAwaiter().GetResult()
+            $text | Set-Content (Join-Path $work "$name.stdout") -Encoding utf8
+            $diagnostics | Set-Content (Join-Path $work "$name.stderr") -Encoding utf8
+            @{ Code=$process.ExitCode; Text=$text; Error=$diagnostics }
+        }.GetNewClosure()
+        $stop = {
+            param($process)
+            & $send $process 'quit'
+            $process.WaitForExit(20000) | Should -BeTrue
+            $process.ExitCode | Should -Be 0
+        }.GetNewClosure()
+        try {
+            $fixturePath = Join-Path $work 'executed-primary.json'
+            $primaryProfiles = Join-Path $work 'primary'
+            $generation = & $offline 'generator' $env:DOTRETICULUM_PYTHON @(
+                (Join-Path $root 'tests\Interop\GenerateNomadNetDirectoryImportVectors.py'), $fixturePath, $primaryProfiles)
+            $generation.Code | Should -Be 0 -Because $generation.Error
+            $fixture = Get-Content $fixturePath -Raw | ConvertFrom-Json
+            $fixture.commit | Should -Be 'f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2'
+            $fixture.sources.'nomadnet/Directory.py'.blobSha256 | Should -Be '29467f537a64feda32a1c6fe075b3836bccbeeecee1a84628075e0e8fa3c723a'
+            foreach ($vector in $fixture.vectors) {
+                $source = Join-Path $primaryProfiles $vector.name
+                $target = Join-Path $work "native-$($vector.name)"
+                $sourcePath = Join-Path $source 'storage\directory'
+                $sourceHash = (Get-FileHash $sourcePath).Hash
+                $arguments = @('--import-directory', $source, '--config', $target)
+                $imported = & $offline "import-$($vector.name)" $env:DOTRETICULUM_NOMADNET_BINARY $arguments
+                $imported.Code | Should -Be 0 -Because $imported.Error
+                $imported.Text | Should -Match "$($vector.observed.Count) contacts added; 2 ignored destinations added"
+                $imported.Text | Should -Match "$($vector.announceCount) transient announces not imported"
+                (Get-FileHash $sourcePath).Hash | Should -Be $sourceHash
+                $statePath = Join-Path $target 'state.json'
+                $state = Get-Content $statePath -Raw | ConvertFrom-Json
+                $state.contacts.Count | Should -Be $vector.observed.Count
+                foreach ($expected in $vector.observed) {
+                    $actual = @($state.contacts | Where-Object destinationHash -EQ $expected.hash)[0]
+                    $actual.name | Should -BeExactly $expected.name
+                    $actual.trustLevel | Should -Be $expected.trust
+                    $actual.hostsNode | Should -Be $expected.node
+                    $actual.preferredDelivery | Should -Be $expected.delivery
+                    $actual.identifyOnConnect | Should -Be $expected.identify
+                    $actual.sortRank | Should -Be $expected.rank
+                    $actual.notes | Should -BeExactly $expected.notes
+                }
+                foreach ($hash in $vector.ignoredHashes) { $state.ignoredDestinations | Should -Contain $hash }
+                $repeat = & $offline "repeat-$($vector.name)" $env:DOTRETICULUM_NOMADNET_BINARY $arguments
+                $repeat.Code | Should -Be 0
+                $repeat.Text | Should -Match '0 contacts added; 0 ignored destinations added'
+                # Execute the entire unchanged primary constructor as an independent reader,
+                # not just the generator's direct Directory methods.
+                @('[client]', 'user_interface=text', 'announce_at_start=no', 'periodic_lxmf_sync=no',
+                    '[node]', 'enable_node=yes', 'disable_propagation=yes', 'announce_at_start=no',
+                    '[textui]', 'colormode=256', '[logging]', 'loglevel=2', 'destination=console') |
+                    Set-Content (Join-Path $source 'config') -Encoding utf8
+                $rns = Join-Path $work "rns-$($vector.name)"
+                $null = New-Item $rns -ItemType Directory -Force
+                @('[reticulum]', 'share_instance=no', 'enable_transport=no', '[logging]', 'loglevel=0', '[interfaces]') |
+                    Set-Content (Join-Path $rns 'config') -Encoding utf8
+                $primary = & $start "primary-$($vector.name)" $env:DOTRETICULUM_PYTHON @(
+                    '-u', (Join-Path $root 'tests\Interop\nomadnet_live_node.py'), '--config', $source, '--rnsconfig', $rns)
+                $null = & $read $primary '"event"\s*:\s*"ready"'
+                & $send $primary 'directory-stats'
+                $line = & $read $primary '"event"\s*:\s*"directory"'
+                $observed = $line.Substring($line.IndexOf('@@') + 2) | ConvertFrom-Json
+                $observed.contacts.Count | Should -Be $state.contacts.Count
+                foreach ($expected in $vector.observed) {
+                    $actual = @($observed.contacts | Where-Object hash -EQ $expected.hash)[0]
+                    ($actual | ConvertTo-Json -Compress) | Should -BeExactly ($expected | ConvertTo-Json -Compress)
+                }
+                foreach ($hash in $vector.ignoredHashes) { $observed.ignored | Should -Contain $hash }
+                & $stop $primary
+            }
+            $source = Join-Path $primaryProfiles 'current'
+            $target = Join-Path $work 'native-current'
+            $rns = Join-Path $work 'native-rns'
+            $null = New-Item $rns -ItemType Directory -Force
+            @('[reticulum]', 'share_instance=no', 'enable_transport=no', '[logging]', 'loglevel=0', '[interfaces]') |
+                Set-Content (Join-Path $rns 'config') -Encoding utf8
+            @{ schemaVersion=1; displayName='Directory acceptance'; clientAnnounceAtStart=$false;
+                periodicLxmfSync=$false } | ConvertTo-Json | Set-Content (Join-Path $target 'settings.json') -Encoding utf8
+            $arguments = @('--config', $target, '--rnsconfig', $rns)
+            $native = & $start 'native-terminal1' $env:DOTRETICULUM_NOMADNET_BINARY $arguments
+            $address = [regex]::Match((& $read $native 'LXMF delivery address:'), '[0-9a-f]{32}').Value
+            & $send $native "directory-import $source"
+            $null = & $read $native '0 contacts added; 0 ignored destinations added'
+            & $send $native 'contacts'
+            $null = & $read $native '01010101010101010101010101010101.*Trusted node trust=255 ignored=True delivery=2'
+            $null = & $read $native 'Contacts complete'
+            & $send $native 'nodes'
+            foreach ($node in @($fixture.vectors[0].observed | Where-Object node -EQ $true)) {
+                $null = & $read $native "$($node.hash).*"
+            }
+            $null = & $read $native 'Nodes complete'
+            $locked = & $offline 'locked-import' $env:DOTRETICULUM_NOMADNET_BINARY @(
+                '--import-directory', $source, '--config', $target)
+            $locked.Code | Should -Be 1
+            $locked.Error | Should -Match 'already in use'
+            & $send $native 'contact notes 01010101010101010101010101010101 native override'
+            $null = & $read $native 'Contact policy saved'
+            $before = (Get-FileHash (Join-Path $target 'state.json')).Hash
+            & $send $native "directory-import $source"
+            $null = & $read $native 'Error:.*conflicts with saved contact'
+            (Get-FileHash (Join-Path $target 'state.json')).Hash | Should -Be $before
+            & $send $native "directory-import $(Join-Path $work 'missing-primary')"
+            $null = & $read $native 'Error:'
+            & $send $native 'status'
+            $null = & $read $native 'LXMF delivery address:'
+            & $stop $native
+            $daemon = & $start 'native-daemon' $env:DOTRETICULUM_NOMADNET_BINARY ($arguments + '--daemon')
+            (& $read $daemon 'LXMF delivery address:') | Should -Match $address
+            $locked = & $offline 'daemon-locked-import' $env:DOTRETICULUM_NOMADNET_BINARY @(
+                '--import-directory', $source, '--config', $target)
+            $locked.Code | Should -Be 1
+            if ($IsWindows) { Stop-Process -Id $daemon.Id -Force }
+            else { & /bin/kill -TERM $daemon.Id; $LASTEXITCODE | Should -Be 0 }
+            $daemon.WaitForExit(20000) | Should -BeTrue
+            if (-not $IsWindows) { $daemon.ExitCode | Should -Be 0 }
+            $native = & $start 'native-terminal2' $env:DOTRETICULUM_NOMADNET_BINARY $arguments
+            (& $read $native 'LXMF delivery address:') | Should -Match $address
+            & $send $native 'contacts'
+            $null = & $read $native '01010101010101010101010101010101.*ignored=True delivery=2 notes=native override'
+            $null = & $read $native 'Contacts complete'
+            & $stop $native
+            $status = & $offline 'stored-status' $env:DOTRETICULUM_NOMADNET_BINARY @('--status', '--config', $target)
+            $status.Code | Should -Be 0
+            $status.Text | Should -Match 'Contacts: 4'
+            $invalid = & $offline 'invalid-options' $env:DOTRETICULUM_NOMADNET_BINARY @(
+                '--import-directory', $source, '--config', $target, '--daemon')
+            $invalid.Code | Should -Be 1
+            $invalid.Error | Should -Match 'cannot be combined'
+            $untouched = Join-Path $work 'invalid-source-target'
+            $invalid = & $offline 'missing-source' $env:DOTRETICULUM_NOMADNET_BINARY @(
+                '--import-directory', (Join-Path $work 'missing-primary'), '--config', $untouched)
+            $invalid.Code | Should -Be 1
+            Test-Path $untouched | Should -BeFalse
+            @('actual-primary constructors: current, legacy, duplicate-last-wins',
+                'native offline import, idempotence, terminal policy, conflict, failed-source recovery',
+                'exclusive terminal/daemon ownership, daemon shutdown, identity/policy restart') |
+                ConvertTo-Json | Set-Content (Join-Path $work 'acceptance.json') -Encoding utf8
+        }
+        finally {
+            foreach ($process in $processes) {
+                if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force; $process.WaitForExit() }
+                $errors[$process.Id].GetAwaiter().GetResult() |
+                    Set-Content (Join-Path $work "$($names[$process.Id]).stderr") -Encoding utf8
+                $process.Dispose()
+            }
+            if ($env:DOTRETICULUM_NOMADNET_KEEP_WORK -ne '1') { Remove-Item $work -Recurse -Force }
+        }
+    }
+}
+
 Describe 'NomadNet conversation image presentation' -Tag 'Live', 'ConversationImages' {
     It 'exchanges actual primary image messages and presents bounded local ASCII under policy, restart, cancellation and converter failure' {
         if ($env:DOTRETICULUM_NOMADNET_CONVERSATION_IMAGES_LIVE -ne '1') {

@@ -3,3 +3,5 @@ tests/Sideband.Tests/Fixtures/sideband-map-overlays.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-objects.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-remote-transport.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-discovery.json text eol=lf
+tests/Sideband.Tests/Fixtures/sideband-propagation-retry.json text eol=lf
+tests/NomadNet.Tests/NomadNetDirectoryImportVectors.json text eol=lf

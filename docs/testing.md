@@ -8,6 +8,27 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+The integrated directory-import/retry gate
+`& .\tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath
+artifacts\builds\fleet-directory-retry-unified -OutputDirectory
+artifacts\tests\fleet-directory-retry-unified` passes **2,341 managed cases,
+117 explicit skips and62 Pester tooling cases**, including strict catalog
+aggregation and merged production coverage. Parent independently replays both
+frozen Nomad directory recipes: Windows166/10 managed skips, Linux172/4,
+Native4/4 and actual-primary offline DirectoryImport1/1 on each host. This
+accepts atomic saved-directory/ignore-policy import, ownership/conflicts and
+restart, not other profile migration or a new network topology.
+
+The separate strict initially-propagated retry operator remains **failed** on
+both hosts: six passes/two enabled-primary failures/no skips out of eight
+required unique cases. All three native-origin rows and the primary disabled
+row pass. Independent lock/restart probes reproduce the pinned LXMF/Sideband
+callback-lock cycle; the tests retain their failure assertions and deadlines.
+Disabled live cases in the default gate are not accepted retry interoperability.
+Exact topology, reference digests, native-origin versus published-native limits
+and the separate finite attempt-accounting discrepancy are in
+[Sideband's reference](sideband.md#initially-propagated-retry-and-pinned-callback-lock-defect).
+
 The serviced baseline selects SDK **10.0.403**, runtime and NativeAOT compiler
 **10.0.14**. A fresh Linux retry restore exposed `NU1903` on compiler10.0.13
 ([GHSA-p3jp-9v83-76w9](https://github.com/advisories/GHSA-p3jp-9v83-76w9),

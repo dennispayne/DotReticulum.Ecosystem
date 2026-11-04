@@ -1,0 +1,162 @@
+{
+  "commit": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sources": {
+    "nomadnet/Directory.py": {
+      "workingSha256": "2c1e333044d0417573eef7c280737a849d34f5942303142891770aed05cf8744",
+      "blobSha256": "29467f537a64feda32a1c6fe075b3836bccbeeecee1a84628075e0e8fa3c723a"
+    },
+    "nomadnet/NomadNetworkApp.py": {
+      "workingSha256": "beda2e618d67200cb14cf7d636efa34f13b4607f99717575f02a1c91fafcf60b",
+      "blobSha256": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2"
+    }
+  },
+  "method": "Actual Directory constructor/load_from_disk/save_to_disk and DirectoryEntry; legacy public inputs packed by actual RNS.vendor.umsgpack and loaded by primary. Actual NomadNetworkApp._persist_ignored_list produces ignored bytes. Only the app's filesystem paths are supplied by SimpleNamespace; no replacement parser or persistence implementation. No identities/private material.",
+  "vectors": [
+    {
+      "name": "current",
+      "directory": "gqplbnRyeV9saXN0lJjEEAEBAQEBAQEBAQEBAQEBAQGsVHJ1c3RlZCBub2RlzP/DAsP3vWZpcnN0IGxpbmUKc2Vjb25kIGxpbmUJVGFiYmVkmMQQAgICAgICAgICAgICAgICAq5VbnRydXN0ZWQgcGVlcgHCA8LAs0RlbGl2ZXJ5IHByZWZlcmVuY2WYxBADAwMDAwMDAwMDAwMDAwMDsVVua25vd24g5pel5pys6KqeAsIBwiKgmMQQBAQEBAQEBAQEBAQEBAQEBKxXYXJuaW5nIG5vZGUAwwHCALFOb3QgYXV0aGVudGljYXRlZK9hbm5vdW5jZV9zdHJlYW2RlMtB2VT8QBAAAMQQBgYGBgYGBgYGBgYGBgYGBsQLcHVibGljIG5vZGWkbm9kZQ==",
+      "ignored": "MDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEKNGQ0ZDRkNGQ0ZDRkNGQ0ZDRkNGQ0ZDRkNGQ0ZDRkNGQK",
+      "observed": [
+        {
+          "hash": "01010101010101010101010101010101",
+          "name": "Trusted node",
+          "trust": 255,
+          "node": true,
+          "delivery": 2,
+          "identify": true,
+          "rank": -9,
+          "notes": "first line\nsecond line\tTabbed"
+        },
+        {
+          "hash": "02020202020202020202020202020202",
+          "name": "Untrusted peer",
+          "trust": 1,
+          "node": false,
+          "delivery": 3,
+          "identify": false,
+          "rank": null,
+          "notes": "Delivery preference"
+        },
+        {
+          "hash": "03030303030303030303030303030303",
+          "name": "Unknown \u65e5\u672c\u8a9e",
+          "trust": 2,
+          "node": false,
+          "delivery": 1,
+          "identify": false,
+          "rank": 34,
+          "notes": ""
+        },
+        {
+          "hash": "04040404040404040404040404040404",
+          "name": "Warning node",
+          "trust": 0,
+          "node": true,
+          "delivery": 1,
+          "identify": false,
+          "rank": 0,
+          "notes": "Not authenticated"
+        }
+      ],
+      "ignoredHashes": [
+        "01010101010101010101010101010101",
+        "4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d"
+      ],
+      "announceCount": 1
+    },
+    {
+      "name": "legacy",
+      "directory": "gqplbnRyeV9saXN0lpPEEAsLCwsLCwsLCwsLCwsLCwvAApTEEAwMDAwMDAwMDAwMDAwMDAyrRm91ciBmaWVsZHPM/8OVxBANDQ0NDQ0NDQ0NDQ0NDQ0Nq0ZpdmUgZmllbGRzAcLAlsQQDg4ODg4ODg4ODg4ODg4ODqpTaXggZmllbGRzAMMDw5fEEA8PDw8PDw8PDw8PDw8PDw+sU2V2ZW4gZmllbGRzAsMCwtDWmMQQEBAQEBAQEBAQEBAQEBAQEKxFaWdodCBmaWVsZHPM/8IBwwDAr2Fubm91bmNlX3N0cmVhbZA=",
+      "ignored": "MDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEKNGQ0ZDRkNGQ0ZDRkNGQ0ZDRkNGQ0ZDRkNGQ0ZDRkNGQK",
+      "observed": [
+        {
+          "hash": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+          "name": "Undefined",
+          "trust": 2,
+          "node": false,
+          "delivery": 1,
+          "identify": false,
+          "rank": null,
+          "notes": ""
+        },
+        {
+          "hash": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+          "name": "Four fields",
+          "trust": 255,
+          "node": true,
+          "delivery": 1,
+          "identify": false,
+          "rank": null,
+          "notes": ""
+        },
+        {
+          "hash": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+          "name": "Five fields",
+          "trust": 1,
+          "node": false,
+          "delivery": 1,
+          "identify": false,
+          "rank": null,
+          "notes": ""
+        },
+        {
+          "hash": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+          "name": "Six fields",
+          "trust": 0,
+          "node": true,
+          "delivery": 3,
+          "identify": true,
+          "rank": null,
+          "notes": ""
+        },
+        {
+          "hash": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+          "name": "Seven fields",
+          "trust": 2,
+          "node": true,
+          "delivery": 2,
+          "identify": false,
+          "rank": -42,
+          "notes": ""
+        },
+        {
+          "hash": "10101010101010101010101010101010",
+          "name": "Eight fields",
+          "trust": 255,
+          "node": false,
+          "delivery": 1,
+          "identify": true,
+          "rank": 0,
+          "notes": ""
+        }
+      ],
+      "ignoredHashes": [
+        "01010101010101010101010101010101",
+        "4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d"
+      ],
+      "announceCount": 0
+    },
+    {
+      "name": "duplicate-last-wins",
+      "directory": "gqplbnRyeV9saXN0kpPEEBQUFBQUFBQUFBQUFBQUFBSmQmVmb3JlzP+YxBAUFBQUFBQUFBQUFBQUFBQUpUFmdGVyAcMDwxOwbGFzdCBzYXZlZCBlbnRyea9hbm5vdW5jZV9zdHJlYW2Q",
+      "ignored": "MDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEwMTAxMDEKNGQ0ZDRkNGQ0ZDRkNGQ0ZDRkNGQ0ZDRkNGQ0ZDRkNGQK",
+      "observed": [
+        {
+          "hash": "14141414141414141414141414141414",
+          "name": "After",
+          "trust": 1,
+          "node": true,
+          "delivery": 3,
+          "identify": true,
+          "rank": 19,
+          "notes": "last saved entry"
+        }
+      ],
+      "ignoredHashes": [
+        "01010101010101010101010101010101",
+        "4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d"
+      ],
+      "announceCount": 0
+    }
+  ]
+}

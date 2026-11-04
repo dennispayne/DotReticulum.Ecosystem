@@ -27,6 +27,9 @@
     <None Include="..\Interop\sideband_paper_node.py" Link="Interop\sideband_paper_node.py" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Interop\sideband_remote_node.py" Link="Interop\sideband_remote_node.py" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Interop\sideband_remote_pn.py" Link="Interop\sideband_remote_pn.py" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Interop\sideband_retry_pn.py" Link="Interop\sideband_retry_pn.py" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Interop\sideband_retry_primary.py" Link="Interop\sideband_retry_primary.py" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Interop\sideband_retry_diagnostic.py" Link="Interop\sideband_retry_diagnostic.py" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Interop\sideband_discovery_node.py" Link="Interop\sideband_discovery_node.py" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Interop\sideband_attachment_node.py" Link="Interop\sideband_attachment_node.py" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Interop\reference_environment.py" Link="Interop\reference_environment.py" CopyToOutputDirectory="PreserveNewest" />

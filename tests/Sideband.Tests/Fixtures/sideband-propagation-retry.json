@@ -1,0 +1,382 @@
+{
+  "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "core_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+  "method": "Actual imported SidebandCore.message_notification; explicit offline router/DB/history observers and synthetic message state. No live-failure or stamp-generation claim.",
+  "cases": [
+    {
+      "state": 255,
+      "eligible": false,
+      "stamp_failure": false,
+      "no_display": false,
+      "queued": [],
+      "history": [
+        true
+      ],
+      "mutations": [],
+      "eligible_after": false,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 255,
+      "eligible": false,
+      "stamp_failure": false,
+      "no_display": true,
+      "queued": [],
+      "history": [],
+      "mutations": [],
+      "eligible_after": false,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 255,
+      "eligible": false,
+      "stamp_failure": true,
+      "no_display": false,
+      "queued": [],
+      "history": [
+        true
+      ],
+      "mutations": [],
+      "eligible_after": false,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 255,
+      "eligible": false,
+      "stamp_failure": true,
+      "no_display": true,
+      "queued": [],
+      "history": [],
+      "mutations": [],
+      "eligible_after": false,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 255,
+      "eligible": true,
+      "stamp_failure": false,
+      "no_display": false,
+      "queued": [
+        3
+      ],
+      "history": [],
+      "mutations": [
+        [
+          "method",
+          3
+        ],
+        [
+          "state",
+          1
+        ]
+      ],
+      "eligible_after": false,
+      "attempts_after": 0,
+      "next_attempt_present": false,
+      "packed_cleared": true
+    },
+    {
+      "state": 255,
+      "eligible": true,
+      "stamp_failure": false,
+      "no_display": true,
+      "queued": [
+        3
+      ],
+      "history": [],
+      "mutations": [
+        [
+          "method",
+          3
+        ],
+        [
+          "state",
+          1
+        ]
+      ],
+      "eligible_after": false,
+      "attempts_after": 0,
+      "next_attempt_present": false,
+      "packed_cleared": true
+    },
+    {
+      "state": 255,
+      "eligible": true,
+      "stamp_failure": true,
+      "no_display": false,
+      "queued": [],
+      "history": [
+        true
+      ],
+      "mutations": [],
+      "eligible_after": true,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 255,
+      "eligible": true,
+      "stamp_failure": true,
+      "no_display": true,
+      "queued": [],
+      "history": [],
+      "mutations": [],
+      "eligible_after": true,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 253,
+      "eligible": false,
+      "stamp_failure": false,
+      "no_display": false,
+      "queued": [],
+      "history": [
+        true
+      ],
+      "mutations": [],
+      "eligible_after": false,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 253,
+      "eligible": false,
+      "stamp_failure": false,
+      "no_display": true,
+      "queued": [],
+      "history": [],
+      "mutations": [],
+      "eligible_after": false,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 253,
+      "eligible": false,
+      "stamp_failure": true,
+      "no_display": false,
+      "queued": [],
+      "history": [
+        true
+      ],
+      "mutations": [],
+      "eligible_after": false,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 253,
+      "eligible": false,
+      "stamp_failure": true,
+      "no_display": true,
+      "queued": [],
+      "history": [],
+      "mutations": [],
+      "eligible_after": false,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 253,
+      "eligible": true,
+      "stamp_failure": false,
+      "no_display": false,
+      "queued": [],
+      "history": [
+        true
+      ],
+      "mutations": [],
+      "eligible_after": true,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 253,
+      "eligible": true,
+      "stamp_failure": false,
+      "no_display": true,
+      "queued": [],
+      "history": [],
+      "mutations": [],
+      "eligible_after": true,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 253,
+      "eligible": true,
+      "stamp_failure": true,
+      "no_display": false,
+      "queued": [],
+      "history": [
+        true
+      ],
+      "mutations": [],
+      "eligible_after": true,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 253,
+      "eligible": true,
+      "stamp_failure": true,
+      "no_display": true,
+      "queued": [],
+      "history": [],
+      "mutations": [],
+      "eligible_after": true,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 254,
+      "eligible": false,
+      "stamp_failure": false,
+      "no_display": false,
+      "queued": [],
+      "history": [
+        true
+      ],
+      "mutations": [],
+      "eligible_after": false,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 254,
+      "eligible": false,
+      "stamp_failure": false,
+      "no_display": true,
+      "queued": [],
+      "history": [],
+      "mutations": [],
+      "eligible_after": false,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 254,
+      "eligible": false,
+      "stamp_failure": true,
+      "no_display": false,
+      "queued": [],
+      "history": [
+        true
+      ],
+      "mutations": [],
+      "eligible_after": false,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 254,
+      "eligible": false,
+      "stamp_failure": true,
+      "no_display": true,
+      "queued": [],
+      "history": [],
+      "mutations": [],
+      "eligible_after": false,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 254,
+      "eligible": true,
+      "stamp_failure": false,
+      "no_display": false,
+      "queued": [],
+      "history": [
+        true
+      ],
+      "mutations": [],
+      "eligible_after": true,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 254,
+      "eligible": true,
+      "stamp_failure": false,
+      "no_display": true,
+      "queued": [],
+      "history": [],
+      "mutations": [],
+      "eligible_after": true,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 254,
+      "eligible": true,
+      "stamp_failure": true,
+      "no_display": false,
+      "queued": [],
+      "history": [
+        true
+      ],
+      "mutations": [],
+      "eligible_after": true,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    },
+    {
+      "state": 254,
+      "eligible": true,
+      "stamp_failure": true,
+      "no_display": true,
+      "queued": [],
+      "history": [],
+      "mutations": [],
+      "eligible_after": true,
+      "attempts_after": 4,
+      "next_attempt_present": true,
+      "packed_cleared": false
+    }
+  ],
+  "one_shot": {
+    "queued": [
+      3
+    ],
+    "history": [
+      true
+    ],
+    "mutations": [
+      [
+        "method",
+        3
+      ],
+      [
+        "state",
+        1
+      ]
+    ],
+    "eligible_after": false
+  }
+}

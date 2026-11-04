@@ -227,6 +227,17 @@ def main():
                         sync_state=app.message_router.propagation_transfer_state,
                     )
                     continue
+                if parts[0] == "directory-stats":
+                    emit("directory",
+                         contacts=[{"hash": e.source_hash.hex(), "name": e.display_name,
+                                    "trust": e.trust_level, "node": e.hosts_node,
+                                    "delivery": e.preferred_delivery, "identify": e.identify,
+                                    "rank": e.sort_rank, "notes": e.notes}
+                                   for e in app.directory.directory_entries.values()],
+                         ignored=[h.hex() for h in app.ignored_list],
+                         known_nodes=[e.source_hash.hex() for e in app.directory.known_nodes()],
+                         announce_count=len(app.directory.announce_stream))
+                    continue
                 if parts[0] == "node-config-stats":
                     router = app.message_router
                     emit("node-configuration",

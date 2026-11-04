@@ -28,6 +28,14 @@ internal static class Program
         try
         {
             var options = ParseOptions(args);
+            if (options.ImportDirectory is { } primaryProfile)
+            {
+                var import = await NomadNetDirectoryImport.ReadAsync(primaryProfile).ConfigureAwait(false);
+                using var lease = NomadNetProfileLease.Acquire(options.DataDirectory);
+                var store = await NomadNetStore.OpenAsync(options.DataDirectory).ConfigureAwait(false);
+                PrintDirectoryImport(await store.ImportDirectoryAsync(import).ConfigureAwait(false));
+                return 0;
+            }
             if (options.ImportConfig is { } configuration)
             {
                 var imported = await NomadNetConfigImport.ImportAsync(configuration, options.DataDirectory).ConfigureAwait(false);
@@ -64,6 +72,10 @@ internal static class Program
                 await RunAsync(options, shutdown.Token).ConfigureAwait(false);
                 return 0;
             }
+            catch (OperationCanceledException) when (shutdown.IsCancellationRequested)
+            {
+                return 0;
+            }
             finally
             {
                 Console.CancelKeyPress -= CancelOnCtrlC;
@@ -88,6 +100,7 @@ internal static class Program
         var showStatus = false;
         var daemon = false;
         string? importConfig = null;
+        string? importDirectory = null;
         for (var index = 0; index < args.Length; index++)
         {
             switch (args[index])
@@ -100,6 +113,9 @@ internal static class Program
                     break;
                 case "--import-config":
                     importConfig = ValueAfter(args, ref index);
+                    break;
+                case "--import-directory":
+                    importDirectory = ValueAfter(args, ref index);
                     break;
                 case "--init":
                     initialize = true;
@@ -121,7 +137,9 @@ internal static class Program
         dataDirectory = Path.GetFullPath(dataDirectory);
         if (importConfig is not null && (initialize || showStatus || daemon))
             throw new ArgumentException("--import-config cannot be combined with --init, --status or --daemon.");
-        return new Options(dataDirectory, rnsConfig, initialize, showStatus, daemon, importConfig);
+        if (importDirectory is not null && (initialize || showStatus || daemon || importConfig is not null))
+            throw new ArgumentException("--import-directory cannot be combined with --import-config, --init, --status or --daemon.");
+        return new Options(dataDirectory, rnsConfig, initialize, showStatus, daemon, importConfig, importDirectory);
     }
 
     private static string ValueAfter(string[] args, ref int index)
@@ -133,7 +151,7 @@ internal static class Program
 
     private static async Task InitializeAsync(string directory)
     {
-        Directory.CreateDirectory(directory);
+        using var lease = NomadNetProfileLease.Acquire(directory);
         _ = await NomadNetSettings.OpenAsync(directory).ConfigureAwait(false);
         _ = await NomadNetStore.OpenAsync(directory).ConfigureAwait(false);
     }
@@ -152,7 +170,7 @@ internal static class Program
 
     private static async Task RunAsync(Options options, CancellationToken cancellationToken)
     {
-        Directory.CreateDirectory(options.DataDirectory);
+        using var lease = NomadNetProfileLease.Acquire(options.DataDirectory);
         var settings = await NomadNetSettings.OpenAsync(options.DataDirectory, cancellationToken).ConfigureAwait(false);
         var state = await NomadNetStore.OpenAsync(options.DataDirectory, cancellationToken).ConfigureAwait(false);
         await using var node = ReticulumNode.Open(options.RnsConfig,
@@ -299,6 +317,7 @@ internal static class Program
             NomadNet .NET client 1.4.4
             Usage: nomadnet [--config <directory>] [--rnsconfig <directory>] [--init | --status | --daemon]
                    nomadnet --import-config <upstream-INI> --config <new-directory>
+                   nomadnet --import-directory <upstream-profile> --config <native-directory>
                    nomadnet [--console] [--textui]
                    nomadnet --help | --version
 
@@ -314,6 +333,7 @@ internal static class Program
               peers                          List announced Reticulum destinations
               contact add <hash> <name>      Save a known LXMF destination
               contacts | contact remove <hash>
+              directory-import <profile>     Add primary directory/ignored policy; refuse conflicts
               contact trust <hash> <unknown|trusted|untrusted|warning>
               contact ignore <hash> <on|off>  Persist and apply LXMF blacklist
               contact delivery <hash> <direct|propagated|opportunistic>
@@ -385,7 +405,15 @@ internal static class Program
             """);
     }
 
-    private sealed record Options(string DataDirectory, string? RnsConfig, bool Initialize, bool ShowStatus, bool Daemon, string? ImportConfig);
+    private static void PrintDirectoryImport(NomadNetDirectoryImportResult imported)
+    {
+        foreach (var warning in imported.Warnings) Console.Error.WriteLine(warning);
+        Console.WriteLine($"Directory import complete: {imported.AddedContacts} contacts added; {imported.AddedIgnoredDestinations} ignored destinations added; {imported.SkippedAnnounces} transient announces not imported.");
+        Console.WriteLine("Only directory and ignored policy imported; identity, conversations, peer settings and configuration are unchanged.");
+    }
+
+    private sealed record Options(string DataDirectory, string? RnsConfig, bool Initialize, bool ShowStatus, bool Daemon,
+        string? ImportConfig, string? ImportDirectory);
 
     private static IEnumerable<NomadNetPropagationCandidate> FindPropagationCandidates(TransportRouter transport)
     {
@@ -757,6 +785,15 @@ internal static class Program
                     Console.WriteLine($"{contact.DestinationHash}  {NomadNetTerminalText.Safe(contact.Name)} trust={contact.TrustLevel} ignored={contact.Ignored} delivery={contact.PreferredDelivery}" +
                         (contact.Notes.Length == 0 ? "" : $" notes={NomadNetTerminalText.Safe(contact.Notes)}"));
                 Console.WriteLine("Contacts complete.");
+                return false;
+            }
+            if (command.StartsWith("directory-import ", StringComparison.OrdinalIgnoreCase))
+            {
+                var imported = await NomadNetDirectoryImport.ReadAsync(command["directory-import ".Length..].Trim(),
+                    cancellationToken).ConfigureAwait(false);
+                var result = await store.ImportDirectoryAsync(imported, cancellationToken).ConfigureAwait(false);
+                foreach (var hash in imported.IgnoredDestinations) router.IgnoreDestination(Convert.FromHexString(hash));
+                PrintDirectoryImport(result);
                 return false;
             }
             if (command.StartsWith("contact trust ", StringComparison.OrdinalIgnoreCase) ||

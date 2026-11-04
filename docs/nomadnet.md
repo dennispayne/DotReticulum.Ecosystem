@@ -51,13 +51,13 @@ Underlying-library acceptance is not automatically application acceptance.
 
 | Contract and upstream sources | Current status and boundary |
 |---|---|
-| Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`, `--console`, `--textui` accepted. Daemon ignores terminal input and serves until cancellation. `--console` selects the existing console logging; `--textui` selects the original command loop, not Urwid. Extensions: `--help`, `--init`, `--status`, explicit non-overwriting core `--import-config`. |
+| Entry point, identity, delivery; `nomadnet.py`, `NomadNetworkApp.py` | **partial**: persistent identity and LXMF destination; `--config`, `--rnsconfig`, `--version`, `--daemon`, `--console`, `--textui` accepted. Daemon ignores terminal input and serves until cancellation; controlled SIGTERM/Ctrl+C cancellation exits successfully after disposal. Native terminal/daemon/init/offline directory import hold an exclusive profile lease. `--console` selects the existing console logging; `--textui` selects the original command loop, not Urwid. Extensions: `--help`, `--init`, `--status`, explicit non-overwriting core `--import-config`, additive conflict-refusing `--import-directory`. |
 | Client announcements; `NomadNetworkApp.START_ANNOUNCE_DELAY`, `__jobs`, `announce_now`, `apply_config`, `set_display_name` | **implemented bounded subset**: configurable three-second startup, strict periodic interval after90seconds with five-second checks, manual delivery-only or combined announces, durable successful timestamp, runtime display-name and stamp-cost edits through existing LXMF APIs. Display-name changes save without announcing or replacing the identity/destination. Retains unused `enable_client` metadata rather than inventing delivery-disable semantics. Native safety differences for names, fresh null timestamps, failed background work, serialization and interval bounds are explicit below. |
 | Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, per-peer direct/propagated/opportunistic preference, unread/failure counters, explicit viewed/read state, latest-activity listing, deletion/failed purge and plain-text export. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. Native opportunistic text is received by the actual primary; direct reply/viewed state and both applications' read counters are exercised. Upstream `.index`/conversation import and full conversation UI remain missing. |
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Typed image references support explicit/automatic original ASCII conversation previews, using the existing converter/cache and never/manual/auto/always controls; this is not primary UI parity. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
 | Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. `paper-qr`/`paper-save` save PNG/URI and outbound history; `qr` exports an existing URI, `qr-show` renders explicit black-on-white half-blocks. All QR encoding uses shared `LxPaperQr`, not a second codec. Executed primary save-QR vectors and terminal module tests exist; selected application acceptance is recorded below. Image-import/scanner and printer commands remain missing/unverified; no physical scanning/printing claim. |
 | Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; hosted propagation uses `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Configured static-peer transfers are now application-verified both ways on Windows/Linux through a separate Python transport, with restart, real loss and2.2MB attachment assertions. Storage/limit/cost/static/priority settings are imported/persisted through existing LXMF options. Full peer management, storage-pressure eviction-order acceptance and additional peer failure/topology cases remain missing/unverified. |
-| Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Saved-node listing/opening, primary rank/trust/name ordering, explicit browser identification consent and existing associated-node trust updates are operational. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Complete announce-stream/node-directory presentation and upstream directory import remain missing. |
+| Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Saved-node listing/opening, primary rank/trust/name ordering, explicit browser identification consent and existing associated-node trust updates are operational. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Current and legacy primary saved-directory/ignored-list import is operational through offline CLI and terminal, with atomic additive merging, idempotence and conflict rejection. Transient announce migration and complete announce-stream/node-directory presentation remain missing. |
 | Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **partial**: `nomadnetwork.node`, UTF-8 name app-data, default index, nested static pages, configurable six-second startup announce and periodic node announce; independent configurable page/file rescan intervals, explicit refresh and bounded handler inspection. New/deleted paths update handlers. `.allowed` identity lists enforced. Node announces chain the existing hosted propagation announce rather than duplicate its protocol. Source-specific counters and upstream default assets remain missing. |
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
 | Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. OS-process tests cover native execution; selected Linux native browser also submits real forms to unmodified Python executable pages across a Python transport. Python-to-native executable-form browser acceptance remains unverified. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
@@ -66,7 +66,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron switches render live/history bodies against executed primary widget vectors; JSON string composition preserves multiline/raw content. Complete Channels layout, mention-span styling, colours/gutters and remaining configuration remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop and local attachment picker. Complete menus, editor, notifications, clipboard, utilities and guide workflows are missing. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
-| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Complete ConfigObj compatibility, directory/peer-settings/conversation/RRC migration, peer-settings backup recovery and full restart policy remain missing. |
+| Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Saved-directory/ignored-policy import preserves existing native history/settings/identity, rejects conflicting contacts atomically and persists through terminal/daemon restarts. Complete ConfigObj compatibility, identity/peer-settings/conversation/RRC migration, peer-settings backup recovery and full restart policy remain missing. |
 
 ### Configuration audit
 
@@ -102,6 +102,161 @@ contracts and reports unsupported keys; it is not complete configuration parity.
 | `lastLxmfSync` | absent until first attempt; persisted UTC timestamp before retrieval; failure/cancellation do not erase it |
 | `tryPropagationOnSendFail` | true; one propagation attempt after failed direct delivery if a node is selected |
 | `deliveryTransferLimitBytes` | 1,000,000; validated 1 KiB–64 MiB. Independent attachment extraction limit is 16 MiB. |
+
+### Primary saved-directory and ignored-list import
+
+```powershell
+nomadnet --import-directory <upstream-profile-directory> --config <native-directory>
+# Or, while the native terminal owns the profile:
+directory-import <upstream-profile-directory>
+contacts
+nodes
+```
+
+This explicitly reads **only** `<source>\storage\directory` and optional
+`<source>\ignored`, without modifying either. It does not import identity,
+conversations, ConfigObj settings, peer settings/backups, RRC history, transient
+announces, pages, files or RNS state. A separate `--import-config` remains available
+for supported INI settings. Run that first if both imports target a new profile.
+The directory command can add policy to a new or existing native profile; it is
+not a full-profile migration or a way to retain the upstream delivery address.
+
+The factual persistence contract is `Directory.py:91–166,412–442` at primary
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`: a MessagePack dictionary containing
+`entry_list` and `announce_stream`. Saved entries contain source hash, name,
+trust, hosted-node flag, preferred delivery, identify flag, rank and notes.
+Legacy entries with three through seven fields receive the actual primary
+defaults; a null name becomes `"Undefined"`, null preferred delivery becomes
+direct, absent flags become false, absent rank stays null, and null/absent notes
+become empty. Duplicate source hashes use the last complete entry, as the primary
+loader does. `NomadNetworkApp.py:332–352,583–589` reads/writes the independent
+newline-delimited ignored hashes; native import deduplicates valid hashes and
+reports malformed lines without echoing their contents. An ignored hash need not
+be a saved contact. Imported suppression is applied to the existing LXMF router
+immediately in terminal mode and at subsequent starts.
+Directory trust classification does not rewrite the separate native
+`trustedNodes` automatic-propagation allowlist; use `trust-node` explicitly for
+that policy. This is directory import, not propagation-selection migration.
+
+Imports are **additive**: an identical saved contact is idempotent, a different
+saved contact at the same hash is an explicit conflict and aborts the entire
+import, and existing ignored destinations are never removed. Notes, trust,
+identification consent, node flags, delivery preferences and rank are compared,
+not silently overwritten. No native messages, alerts, bookmarks, settings or
+identity are replaced. Serialization checks the complete proposed state before
+atomic replacement, refusing to evict history to make an import fit. Cancellation,
+malformed source, conflicting policy, oversized state and failed replacement
+leave existing in-memory and on-disk policy unchanged.
+
+Native safety differences are explicit: maximum directory5MiB, ignored512KiB,
+10,000 entries/ignored lines, bounded MessagePack depth/work, existing80-character
+printable names and4096-character notes, known trust/delivery values and typed
+boolean/rank fields. Unsupported/future entry fields, unknown root keys, unsafe
+names or lossy normalization fail rather than silently discard policy.
+Transient announce entries are counted and reported as not imported; they are
+not treated as fresh network observations. This does not migrate global RNS
+blackholes. Complete directory presentation and the other migrations listed
+above remain required software, not silently deferred as optional.
+
+Native terminal/daemon/init/offline directory-import processes now hold an
+exclusive `.nomadnet.lock` file handle for the profile. A second owner fails
+before opening state; terminal import uses its existing owner. The empty lock
+file remains after shutdown to avoid unlink/inode races. This protects cooperating
+native CLI processes, not manual external edits or multiple independent store
+objects used by library callers. SIGTERM is gracefully joined on Linux; the
+Windows acceptance case terminates only its owned daemon PID and verifies restart
+and lease release, not delivery of Windows console signals.
+
+`tests\Interop\GenerateNomadNetDirectoryImportVectors.py` was executed before
+implementation. Its three current/legacy/duplicate fixtures execute actual
+`DirectoryEntry`, `Directory` construction/load/save and
+`NomadNetworkApp._persist_ignored_list`; only application filesystem paths are
+supplied by a minimal object, with no replacement parser. The fixture records
+both working-file and Git-blob SHA-256:
+
+| Primary source | Git-blob SHA-256 |
+|---|---|
+| `nomadnet/Directory.py` | `29467f537a64feda32a1c6fe075b3836bccbeeecee1a84628075e0e8fa3c723a` |
+| `nomadnet/NomadNetworkApp.py` | `c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2` |
+
+The `DirectoryImport` Pester case independently regenerates public fixtures and
+executes all three **complete unchanged primary application constructors**, then
+observes their loaded directory/ignored policies through the thin adapter.
+The same case runs published native offline import and idempotence, terminal
+policy/node listing, active-profile rejection, conflict and missing-source
+recovery, daemon restart and persisted identity/policy on Windows and Linux.
+These are local persistence/CLI contracts with no network interfaces; they are
+not a new Reticulum topology, live message exchange, primary Urwid UI or complete
+migration claim. The older primary minimum-dependency discrepancy above still
+applies. Malformed/boundary/concurrent/cancelled/disk-failure cases are additional
+managed tests, not primary-live observations.
+
+#### Directory-import acceptance and frozen reproduction
+
+The selected Windows/Linux artifacts use **SDK10.0.403 and
+Microsoft.DotNet.ILCompiler10.0.14**. The Linux binary was rebuilt into a fresh
+serviced output after the parent upgraded the SDK; the earlier10.0.13 compiler
+artifact is not selected by these recipes. No audit, trimming or AOT warnings
+were suppressed; both final strict publishes succeeded without warnings.
+
+| Acceptance | Windows | Linux |
+|---|---:|---:|
+| New reference/parser/transaction/failure managed cases |7 passed|7 passed|
+| Full solution, default opt-ins disabled |2341 passed /117 skipped|2346 passed /112 skipped|
+| Existing `Native` published executable workflows |4/4|4/4|
+| `DirectoryImport`, independently executed primary plus native workflows |1/1|1/1|
+| Portable PDB checksums against exact changed C# source |5/5|5/5|
+
+The unchanged Native cases exercise actual published hosting, pages/resources,
+attachments, paper and restart, not just `--help`. Existing ConversationImages,
+Images and Propagation Pester cases remain unchanged; their earlier evidence is
+not relabelled as a new run by this migration slice. Full-suite skip boundaries
+remain explicit; passing software persistence does not establish hardware or UI
+parity. No new DotReticulum API gap was encountered.
+
+Final build/test commands (Windows uses the existing MSVC environment;
+Linux sets both `DOTNET_ROOT` and the leading SDK `PATH`, runs from its native
+filesystem and addresses the current source under `/mnt/c/Git/dennispayne/DotReticulum.Ecosystem`):
+
+```powershell
+dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64 --artifacts-path artifacts\builds\nomad-directory-import-native-win -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v:q
+dotnet test DotReticulum.Ecosystem.slnx -c Release --artifacts-path artifacts\builds\nomad-directory-import-final-win --logger trx --results-directory artifacts\tests\nomad-directory-import-final-win -v:q
+# Linux shell, with the documented SDK environment:
+dotnet publish /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/src/NomadNet/NomadNet.csproj -c Release -r linux-x64 --artifacts-path /home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/builds/nomad-directory-import-native-linux-serviced -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v:q
+dotnet test /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/DotReticulum.Ecosystem.slnx -c Release --artifacts-path /home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/builds/nomad-directory-import-final-linux-serviced --logger trx --results-directory /home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/tests/nomad-directory-import-final-linux-serviced -v:q
+```
+
+All commands above passed; published selected binaries also ran `--help`,
+`Invoke-Pester -Tag Native` and `Invoke-Pester -Tag DirectoryImport` with the
+results above. The latter runs actual primary constructors through
+`nomadnet_live_node.py` and reference generation through the committed thin
+generator, not a local replacement for the reference.
+
+Selected executable SHA-256:
+
+- Windows
+  `artifacts\builds\nomad-directory-import-native-win\publish\NomadNet\release_win-x64\nomadnet.exe`:
+  `55A9C5303728020E5476F89C929C338A183096940A68A05E78802CFD1F866FDB`.
+- Linux
+  `/home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/builds/nomad-directory-import-native-linux-serviced/publish/NomadNet/release_linux-x64/nomadnet`:
+  `A2C5F6186426EBF07666C72236FC1DA316E0CD2FF228E87BCC7D11322119A71D`.
+
+Ignored `artifacts\tests\nomadnet-directory-import-frozen\manifest.json`
+records the exact eleven owned files, literal source snapshots, all selected
+native/test dependencies, compiler package versions and Windows/Linux PDB source
+checksums. Operational SHA-guarded recipes run those exact artifacts without
+rebuilding, verify both current source and frozen snapshots, regenerate actual
+primary data, and retain fresh receipts:
+
+```powershell
+pwsh -NoProfile -File artifacts\tests\nomadnet-directory-import-win-acceptance.ps1
+wsl.exe -- env DOTNET_ROOT=/home/dennis/.dotreticulum-dotnet PATH=/home/dennis/.dotreticulum-dotnet:/usr/local/bin:/usr/bin:/bin /home/dennis/.dotreticulum-powershell/pwsh -NoLogo -NoProfile -File /mnt/c/Git/dennispayne/DotReticulum.Ecosystem/artifacts/tests/nomadnet-directory-import-linux-acceptance.ps1
+```
+
+These are environment-specific replay recipes; committed tests define the
+portable contract. Source snapshots and binary hashes, not a test-count-only
+report, identify the accepted candidate. Identity/peer-settings/conversation/RRC
+migration, remaining configuration and terminal workflows remain required work.
 
 ### Node limits and peer policy
 

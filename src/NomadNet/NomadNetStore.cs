@@ -67,6 +67,60 @@ public sealed class NomadNetStore
         finally { _gate.Release(); }
     }
 
+    public async Task<NomadNetDirectoryImportResult> ImportDirectoryAsync(NomadNetDirectoryImportData import,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(import);
+        if (import.Contacts is null || import.IgnoredDestinations is null ||
+            import.Contacts.Count > NomadNetDirectoryImport.MaximumEntries ||
+            import.IgnoredDestinations.Count > NomadNetDirectoryImport.MaximumEntries)
+            throw new InvalidDataException("Directory import exceeds the record limit.");
+        var importedContacts = import.Contacts.ToArray();
+        var importedIgnored = import.IgnoredDestinations.Select(NomadNetAddress.NormalizeHash).ToArray();
+        foreach (var contact in importedContacts) ValidateImportedContact(contact);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var previous = _state;
+        try
+        {
+            var contacts = previous.Contacts.ToDictionary(contact => contact.DestinationHash, StringComparer.Ordinal);
+            var ignored = previous.IgnoredDestinations.ToHashSet(StringComparer.Ordinal);
+            var added = 0;
+            foreach (var contact in importedContacts)
+            {
+                if (contacts.TryGetValue(contact.DestinationHash, out var existing))
+                {
+                    if (existing with { Ignored = false } != contact with { Ignored = false })
+                        throw new InvalidDataException($"Directory import conflicts with saved contact {contact.DestinationHash}; no policy was changed.");
+                }
+                else { contacts.Add(contact.DestinationHash, contact with { Ignored = false }); added++; }
+            }
+            var addedIgnored = importedIgnored.Count(hash => ignored.Add(hash));
+            if (contacts.Count > NomadNetDirectoryImport.MaximumEntries || ignored.Count > NomadNetDirectoryImport.MaximumEntries)
+                throw new InvalidDataException("Merged directory exceeds the native record limit.");
+            _state = new NomadNetState
+            {
+                Contacts = contacts.Values.ToList(),
+                IgnoredDestinations = ignored.Order(StringComparer.Ordinal).ToList(),
+                Messages = [.. previous.Messages],
+                Bookmarks = [.. previous.Bookmarks],
+                ConversationAlerts = [.. previous.ConversationAlerts],
+            };
+            if (JsonSerializer.SerializeToUtf8Bytes(_state, NomadNetJsonContext.Default.NomadNetState).Length > MaximumStateBytes)
+                throw new InvalidDataException("Directory import exceeds the state size limit; history was not evicted.");
+            await PersistAsync(cancellationToken).ConfigureAwait(false);
+            return new(added, addedIgnored, import.SkippedAnnounces, import.Warnings);
+        }
+        catch { _state = previous; throw; }
+        finally { _gate.Release(); }
+    }
+
+    internal static void ValidateImportedContact(NomadNetContact contact)
+    {
+        var normalized = NormalizeContact(contact);
+        if (normalized != contact)
+            throw new InvalidDataException("Imported contact names and hashes must already be canonical; no values were silently changed.");
+    }
+
     public async Task AddContactAsync(string hash, string name, CancellationToken cancellationToken = default)
     {
         hash = NomadNetAddress.NormalizeHash(hash);

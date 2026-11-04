@@ -100,7 +100,7 @@ runtime evidence.
 | LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI, call-history migration and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
 | Telemetry, location and situational awareness | partial | All 27 sensor wire formats, exact values, bounded atomic storage and reference-executed geometry exist. Original desktop controls configure manual information/location/sensors, privacy/collector/tracking policies, inspect trusted reports, explicitly delete and show reported locations on the map. Actual primary reports/collector streams, requests, restart, supported profile import, schedules and propagation recovery pass separately on Windows/Linux. Automatic sensor collection, hardware and advanced presentation remain absent/unverified; see sections below; `SidebandTelemetry*.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/ui/telemetry.py`. |
 | Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default/provider/layer, overlay and passive discovery vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, source zoom limits and persisted view. Reported peers/interfaces/connection points, bounded selected-cache discovery advertisements, clustering, high-zoom scatter, local fixed overrides and marker inspection are integrated. Thirteen provider presets and supported offline-profile activation exist. Broader map migration/presentation remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
-| Remote commands, queries and plugins | partial | Authorized telemetry requests and built-in ping/echo/signal requests use the existing bounded client worker. Actual primary daemon cores exchange commands/replies, propagated requests and offline replies, and verify unknown-conversation admission across direct, Python-hop and .NET-hop paths. Explicit PN storage/retrieval, restart/cancellation and controlled direct-failure recovery are distinct evidence. Original Remote controls configure shared request permissions, queue/cancel commands and preview persisted replies. Initially-propagated failure injection remains unverified; arbitrary Python command/service/telemetry plugins and custom sensors remain missing. Native helpers are not a Python-plugin ABI; `SidebandClient.Remote.cs`, `SidebandRemoteCommands.cs`, `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`. |
+| Remote commands, queries and plugins | partial | Authorized telemetry requests and built-in ping/echo/signal requests use the existing bounded client worker. Actual primary daemon cores exchange commands/replies, propagated requests and offline replies, and verify unknown-conversation admission across direct, Python-hop and .NET-hop paths. Explicit PN storage/retrieval, restart/cancellation and controlled direct-failure recovery are distinct evidence. Initially-propagated native-origin failure/recovery passes separately; enabled primary retry remains blocked by the reproduced pinned callback-lock cycle below. Original Remote controls configure shared request permissions, queue/cancel commands and preview persisted replies. Arbitrary Python command/service/telemetry plugins and custom sensors remain missing; native helpers are not a Python-plugin ABI; `SidebandClient.Remote.cs`, `SidebandRemoteCommands.cs`, `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`. |
 | Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. The map passively inspects the selected configuration's discovery cache without autoconnect; shared-owner blackhole policy is queried through actual management RPC. Interface editing, remote shared-owner discovery-cache access and Android interface loading remain absent; `SidebandClient.Discovery.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
 | Long-lived service and OS integration | partial | The desktop window and headless daemon own the same cancellable client. Linux published daemon/interactive processes stop on SIGTERM with closed/blocked stdin; native console quit and restart pass on both hosts. Days-long Sideband service operation remains unverified. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are deferred mobile contracts; `SidebandDaemon.cs`, `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
 | Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/object classification/text/files/images/audio/methods, known client-router tickets/own ratchets/caches, synchronization anchors and bounded supported telemetry/settings/permissions/appearance/cursors/map-overlay settings. Unimplemented semantics remain archived; source files never change. Voice history, other fields and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `SidebandTelemetryProfile.cs`, `sbapp/main.py:209–273`. |
@@ -1352,7 +1352,7 @@ not an hours-long command-service soak.
 Outgoing history records actual packed `Method`, including opportunistic
 promotion, rather than `DesiredMethod`. Configured one-shot propagation retry
 also applies to initially propagated commands, as the executed primary policy
-does; a second-attempt PN-failure live fixture remains unverified. Silent
+does; native-origin second-group failure and recovery are now exercised below. Silent
 blackholing is not the accepted controlled-teardown case. A separate investigative
 two-hop default-timing probe observes native/primary terminal failure at
 102.516s/121.991s, six/four link attempts and an 18.0004s outgoing link deadline.
@@ -1363,8 +1363,8 @@ assertion. No unbounded stack bug was demonstrated. Exact attempt/CLOSED
 rescheduling differs and remains a scheduling-fidelity boundary, not a proven
 upstream defect.
 
-Arbitrary random loss, RF measurements, arbitrary Python plugins, initially
-propagated failure injection and prolonged command-service operation remain
+Arbitrary random loss, RF measurements, arbitrary Python plugins and
+prolonged command-service operation remain
 unverified or missing. These managed application cases do not establish
 published-native propagation execution or upstream GUI behavior.
 
@@ -1415,6 +1415,86 @@ This is not physical audio or published-native Python-command interoperability.
 extension requiring a test data directory and isolated RNS configuration. It
 changes test-profile request settings and performs real network requests; it
 does not run implicitly in normal desktop operation.
+
+### Initially propagated retry and pinned callback-lock defect
+
+`GenerateSidebandPropagationRetryVectors.py` executes the actual imported
+primary `message_notification` at `d069122af14880e43607aed0b71add4c7806fbe0`,
+core SHA-256 `8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25`.
+Its24 combinations distinguish Failed/Rejected/Cancelled, eligibility, stamp
+failure and no-display policy; an actual second notification observes consumed
+one-shot eligibility. These are explicit offline router/DB observers, not a
+runtime queue substitute. Windows/Linux independent execution byte-matches
+fixture SHA-256 `509bc2bc06f0e27fab57baa2b0803c68f84df5f4697691af951299762ce8d7e9`.
+
+The strict operator
+`tests\Interop\Invoke-SidebandPropagationRetryAcceptance.ps1 -ArtifactsPath
+<build> -OutputDirectory <results>` requires **eight passes/no skips**:
+two reference cases and six unique policy/origin rows. Parent independently
+executes it on SDK403/runtime14 on Windows and Linux: **six pass/two fail/no
+skips on each host**. This is a **failed both-origin acceptance gate**, not
+completed primary retry interoperability. The successful cases are both reference
+cases, all three native-origin rows and primary-origin retry-disabled. Cases
+are individually reported; native cases are not duplicated by another wrapper.
+
+Native-origin means the managed C# application using real pinned Python
+recipients/PNs, not the published NativeAOT desktop. With retry disabled, one
+Failed group occurs. With retry enabled, restoring the PN after the first failed
+group permits storage/retrieval/exact echo; continuous PN failure produces
+exactly two Failed groups followed by an eight-second no-third observation.
+Every passing endpoint scenario restores service and independently sends,
+stores, retrieves and authenticates a **new** healthy command/echo.
+PN storage and sender Sent are asserted before explicit recipient retrieval:
+neither is called recipient execution. Throwing native observers do not stop
+processing. Copied/default adapter and evidence paths also execute successfully
+without operator-specific bridge overrides.
+
+The Python PN is a separate real LXMF node and TCP transport hub. Both endpoints
+use disclosed transparent100ms-per-read latency each way, avoiding the separately
+observed primary callback/SQLite-insertion race. Fault injection uses the public
+PN link-established callback to tear down links; recovery delegates its original
+callback. No protocol replacement, reference patch, manual message-state reset,
+retry-count override or deadline relaxation is used. PN autopeering is off,
+storage8MB; stamp16, transfer256KB and sync10240KB remain defaults. Endpoints
+explicitly know/authorize their conversation and do not automatically fetch.
+The `-NativeOnly` operator selects exactly the three existing native-origin rows;
+it never accepts the required both-origin gate.
+
+The two enabled-primary rows fail for a source-backed lock cycle, independently
+reproduced on each host with `sideband_retry_diagnostic.py`:
+
+- Pinned LXMF `LXMRouter.py` SHA-256
+  `56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9`
+  creates `threading.Lock` at184. Real propagation-stamp completion clears
+  deferral at2766. `process_outbound`2799–2802 holds the lock when exhausted
+  attempts at3047 call `fail_message`.
+- `fail_message`2688–2694 synchronously invokes the failed callback. Actual
+  Sideband4811–4826 consumes retry eligibility, resets the message and
+  synchronously re-submits it. With both deferral flags false, actual
+  `handle_outbound`1906–1907 waits while that same held lock is locked.
+- Read-only public observations find attempts5, lock held, no pending/deferred
+  entries and no callback return; restoring the PN does not store the request.
+  Restart preserves identity and permits a **fresh** propagated request,
+  retrieval and authenticated exact echo. The eight-second observation alone
+  does not prove indefinite waiting; unchanged source establishes the re-entry
+  cycle. Replacing the lock with an RLock alone would not fix the explicit
+  `while locked()` wait.
+
+An upstream correction must avoid synchronous re-submission under that lock;
+the reference is not patched here. Native bounded-worker retry already avoids
+this cycle. This defect is distinct from the finite six/four link-attempt
+scheduling discrepancy above and does not justify a DotReticulum stack change.
+Failed primary rows retain their assertions and deadlines; no skip or
+success-shaped fallback hides them. Direct-failure fallback evidence is not
+relabeled as this initially-propagated retry case.
+
+Parent full-gate TRX/scenarios are
+`artifacts\tests\fleet-remote-retry-parent-final-win` and
+`/home/dennis/fleet-remote-retry-parent-final-linux-results`; separate lock/restart
+probes are under `artifacts\tests\remote-retry\primary-lock`.
+These are local managed application observations, not new hosted, primary GUI,
+published-native propagation, additional PN/hop variants or prolonged-service
+acceptance.
 
 ## Public HTTPS software mirror
 

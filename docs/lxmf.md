@@ -1,6 +1,19 @@
 # LXMF
 
-`LXMF` implements the inventoried required LXMF 1.2.1 software contracts through native APIs on [DotReticulum](https://github.com/dennispayne/DotReticulum). Message signing/validation, delivery proofs, proof-of-work, persistent tickets and ratchets, paper-message ingestion, message containers, opportunistic/direct delivery, propagation delivery, authenticated retrieval and propagation storage exist. Explicit and autonomous peer synchronization are Python-live-verified in both directions, including native daemon restart and failed-peer recovery. A NativeAOT `lxmd` executable exists. Optional client rendering, intentional native differences, upstream defects and verification boundaries are recorded below; this is not an exhaustive-parity claim.
+`LXMF` implements the inventoried LXMF 1.2.1 software surface through native APIs on [DotReticulum](https://github.com/dennispayne/DotReticulum). Message signing/validation, delivery proofs, proof-of-work, persistent tickets and ratchets, paper-message ingestion, message containers, opportunistic/direct delivery, propagation delivery, authenticated retrieval and propagation storage exist. Explicit and autonomous peer synchronization are Python-live-verified in both directions, including native daemon restart and failed-peer recovery. A NativeAOT `lxmd` executable exists. A finite runtime attempt-accounting discrepancy remains: a separate default-timing two-hop refusal probe records six native versus four primary link attempts (terminal failure102.516s/121.991s, individual outgoing deadline18.0004s). These samples neither establish a universal elapsed limit nor demonstrate an unbounded stack defect; exact retry/CLOSED rescheduling still needs reconciliation. Optional client rendering, intentional differences, upstream defects and verification boundaries remain explicit; this is not an exhaustive-parity claim.
+
+Actual Sideband initially-propagated retry additionally exposes a **pinned-primary
+callback-lock defect**, not native queue exhaustion. Unmodified
+`LXMRouter.process_outbound` holds its outbound lock while `fail_message`
+synchronously invokes Sideband's failed callback; Sideband re-submits the
+already-stamped message and `handle_outbound` waits on that same lock.
+Independent Windows/Linux live observations and fresh identity-preserving
+restart recovery support the source-backed cycle. Native bounded-worker retry
+does not synchronously re-enter it. The required both-origin application gate
+remains failed for its two enabled-primary rows; no reference patch or skipped
+assertion masks that result. Source lines/digests, fault injection, topology and
+the distinction from attempt accounting are in
+[Sideband's reference](sideband.md#initially-propagated-retry-and-pinned-callback-lock-defect).
 
 ## Message format and API
 

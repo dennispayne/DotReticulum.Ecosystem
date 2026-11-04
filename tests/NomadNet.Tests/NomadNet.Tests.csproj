@@ -26,6 +26,7 @@
     <EmbeddedResource Include="NomadNetConfigVectors.json" />
     <EmbeddedResource Include="NomadNetNavigationVectors.json" />
     <EmbeddedResource Include="NomadNetDirectoryVectors.json" />
+    <EmbeddedResource Include="NomadNetDirectoryImportVectors.json" />
     <EmbeddedResource Include="NomadNetFileBrowserVectors.json" />
     <EmbeddedResource Include="NomadNetClientAnnounceVectors.json" />
     <EmbeddedResource Include="NomadNetPresentationVectors.json" />

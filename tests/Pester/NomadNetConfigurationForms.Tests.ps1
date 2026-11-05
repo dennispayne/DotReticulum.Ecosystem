@@ -156,7 +156,7 @@ Describe 'Executed-primary bounded configuration forms and ConfigObj persistence
         @(Get-ChildItem $p.Root -Recurse -Force -Filter '.editor-*').Count | Should -Be 0
     }
 
-    It 'T461 native selected RNS forms retain unrelated text refuse ineffective stack controls and restart' {
+    It 'T461 native selected RNS forms retain unrelated text activate owner policies preserve safety refusal and restart' {
         if ($env:DOTRETICULUM_NOMADNET_FORMS -ne '1' -or -not $IsWindows) {
             Set-ItResult -Skipped -Because 'Enable selected Windows NativeAOT configuration-form acceptance.'
             return
@@ -164,19 +164,24 @@ Describe 'Executed-primary bounded configuration forms and ConfigObj persistence
         $p = New-FormProfile selected-rns
         $before = (Get-FileHash $p.Settings).Hash
         $text = Invoke-FormNative forms-rns $p.Arguments @('config section reticulum',
-            'config set respond_to_probes true','config set shared_instance_port 65536',
+            'config set respond_to_probes true','config set use_implicit_proof false',
+            'config set panic_on_interface_error true','config set shared_instance_port 65536',
             'config set instance_name "selected-synthetic"','config save confirm','config cancel','quit')
-        $text | Should -Match 'Error:.*public RNS parser'
+        $text | Should -Match 'Error:.*fixed safety ownership'
         $text | Should -Match 'Error:.*1–65535'
         $text | Should -Match 'Section saved'
         (Get-FileHash $p.Settings).Hash | Should -BeExactly $before
         $saved = Get-Content (Join-Path $p.Rns config) -Raw
         $saved | Should -Match 'share_instance = no # retained'
         $saved | Should -Match 'instance_name = selected-synthetic'
+        $saved | Should -Match 'respond_to_probes = yes'
+        $saved | Should -Match 'use_implicit_proof = no'
         $saved | Should -Match '\[logging\]\r\n loglevel = 0\r\n\[interfaces\]'
         Test-Path $p.Source | Should -BeFalse
         $text = Invoke-FormNative forms-rns-restart $p.Arguments @('config section reticulum','config fields','config cancel','quit')
         $text | Should -Match 'instance_name = "selected-synthetic"'
+        $text | Should -Match 'respond_to_probes = "yes"'
+        $text | Should -Match 'use_implicit_proof = "no"'
         $text | Should -Not -Match 'Error:'
     }
 

@@ -432,6 +432,8 @@ public sealed partial class NomadNetEditor : IDisposable
         {
             if (bytes.Length > MaximumBytes) throw new InvalidDataException("RNS configuration exceeds one megabyte.");
             var parsed = NomadNetConfigDocument.Parse(Utf8.GetString(bytes).TrimStart('\ufeff'), MaximumBytes);
+            if (parsed.Contains("reticulum", "panic_on_interface_error"))
+                throw new NotSupportedException(NomadNetConfigurationForm.PanicSafetyRefusal);
             if (parsed.RequiresExtendedStackGrammar)
                 throw new NotSupportedException("The selected public RNS parser does not support ConfigObj interpolation/triple-quoted values; no ineffective source will be saved.");
             _ = DotReticulum.Applications.Rnsd.RnsdConfigParser.Parse(Utf8.GetString(bytes).TrimStart('\ufeff'));

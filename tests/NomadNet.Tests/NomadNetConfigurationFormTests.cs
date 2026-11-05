@@ -29,11 +29,12 @@ public sealed class NomadNetConfigurationFormTests
                 Assert.Equal(expected.GetProperty("options").EnumerateArray().Select(item => item.GetString()), field.Options ?? []);
                 Assert.Equal(expected.GetProperty("validation").EnumerateArray().Select(item => item.GetString()),
                     field.Validation.Length == 0 ? [] : new[] { field.Validation });
-                Assert.Contains(field.Disposition, new[] { "runtime", "stored-only", "blocked-stack", "upstream-placeholder" });
+                Assert.Contains(field.Disposition, new[] { "runtime", "stored-only", "blocked-stack", "upstream-placeholder", "safety-refused" });
             }
         }
-        Assert.Equal(["respond_to_probes", "use_implicit_proof", "panic_on_interface_error"],
-            NomadNetConfigurationFields.All.Where(field => field.Disposition == "blocked-stack").Select(field => field.Key));
+        Assert.DoesNotContain(NomadNetConfigurationFields.All, field => field.Disposition == "blocked-stack");
+        Assert.Equal("panic_on_interface_error", Assert.Single(
+            NomadNetConfigurationFields.All, field => field.Disposition == "safety-refused").Key);
     }
 
     [Fact, Trait("TestId", "T453")]
@@ -86,9 +87,10 @@ public sealed class NomadNetConfigurationFormTests
         Assert.Equal("", node.LastText);
         Assert.Contains("announce_interval = 120", node.Set("announce_interval", new("120")));
         var rns = new NomadNetConfigurationForm("reticulum", "[reticulum]\nshare_instance = no\n[interfaces]\n");
-        Assert.Throws<NotSupportedException>(() => rns.Set("respond_to_probes", new("yes")));
+        Assert.Throws<NotSupportedException>(() => rns.Set("panic_on_interface_error", new("yes")));
+        Assert.Contains("respond_to_probes = yes", rns.Set("respond_to_probes", new("yes")));
         Assert.Throws<InvalidDataException>(() => rns.Set("shared_instance_port", new("65536")));
-        Assert.Equal("no", rns.Get("respond_to_probes").Scalar);
+        Assert.Equal("yes", rns.Get("respond_to_probes").Scalar);
         Assert.Contains("instance_name = synthetic", rns.Set("instance_name", new("synthetic")));
         var textui = new NomadNetConfigurationForm("textui", "");
         Assert.Throws<InvalidDataException>(() => textui.Set("glyphs", new("unknown")));
@@ -205,7 +207,15 @@ public sealed class NomadNetConfigurationStorageTests
         var saved = await File.ReadAllTextAsync(work.Path("selected-rns"));
         Assert.StartsWith("# RNS selected\r\n[reticulum]\r\nshare_instance = no # retained\r\n", saved);
         Assert.EndsWith("instance_name = synthetic\r\n[interfaces]\r\n", saved);
-        editor.Buffer.Set("[reticulum]\nrespond_to_probes=yes\n[interfaces]\n");
+        editor.Buffer.Set(saved.Replace("[interfaces]", "respond_to_probes=yes\r\nuse_implicit_proof=no\r\n[interfaces]", StringComparison.Ordinal));
+        await editor.SaveAsync();
+        saved = await File.ReadAllTextAsync(work.Path("selected-rns"));
+        var supported = DotReticulum.Applications.Rnsd.RnsdConfigParser.Parse(saved);
+        Assert.True(supported.RespondToProbes);
+        Assert.False(supported.UseImplicitProof);
+        Assert.StartsWith("# RNS selected\r\n[reticulum]\r\nshare_instance = no # retained\r\n", saved);
+        Assert.Equal(native, await File.ReadAllBytesAsync(work.Path("settings.json")));
+        editor.Buffer.Set(saved.Replace("respond_to_probes=yes", "respond_to_probes=invalid", StringComparison.Ordinal));
         await Assert.ThrowsAnyAsync<Exception>(() => editor.SaveAsync());
         Assert.Equal(saved, await File.ReadAllTextAsync(work.Path("selected-rns")));
         Assert.Throws<InvalidOperationException>(() => editor.SetConfigurationField("enable_transport", new("yes")));

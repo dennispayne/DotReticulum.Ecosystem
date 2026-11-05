@@ -8,27 +8,57 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
-The integrated RRC configuration candidate builds with zero warnings/errors and
-passes2775 managed cases/151 explicit skips on Windows:
+The integrated selected-RNS/conversation-actions candidate builds with zero
+warnings/errors and passes2782 managed cases/151 explicit skips on Windows:
 
 ```powershell
-& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-rrc-settings-unified -OutputDirectory artifacts\tests\fleet-rrc-settings-unified
+dotnet build DotReticulum.Ecosystem.slnx -c Release -warnaserror --nologo -v:q --artifacts-path artifacts\builds\root-rns-conversation-actions-strict
+& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-rns-conversation-actions-diagnostic -OutputDirectory artifacts\tests\fleet-rns-conversation-actions-diagnostic
 ```
 
-Ordinary Pester/tooling and strict compatibility aggregation pass with91
-claims/449 selectors/five pins. Coverage unions10 reports:
-21411/28821 production lines and14420/23264 branches. Full Nomad passes367/17.
-Parent-independent frozen Windows NativeAOT/reference acceptance passes4/0/0
-on `e359f1b226aae1b24d67278b88f5d3f38894f0751eef6c818d9565fb822a0cca`,
-including actual primary/rrcd messages both ways, identity-preserving restart
-and the existing Python-hop presentation regression. Exact primary local
-widget/history observations are separate from wire evidence. Changed operators
-pass the repository-configured PowerShell analysis rules. Ten RRC controls are
-functional; `enable_esoterics` has no runtime consumer in the pinned primary.
-Nine TextUI controls, utility visibility and other inventoried software gaps
-remain; the stack is still the accepted `e52da394...` pin. Current Linux replay,
-physical terminal and arbitrary display-cell/case-fold equivalence are not
-inferred from these checks. See [NomadNet](nomadnet.md#current-configuration-acceptance).
+Ordinary Pester/tooling and strict compatibility aggregation pass with93
+claims/460 selectors/five pins. Coverage unions10 reports:
+21456/28916 production lines and14452/23341 branches. Full suites pass
+LXMF163/28, LXST141/30, Nomad371/17, Sideband2104/76 and Telemetry3/0.
+Opt-in native/live checks remain separate, not converted from skips.
+Changed operators pass repository-configured PowerShell analysis.
+
+The selected stack is `4989f050aed865d16ed9f1460071c1a63cd4c7e9`.
+Separately committed stack changes `64b76f6df574406f85b5ab7666b1a91dab9674fa`
+and `4989f05` provide public probe-response and implicit-packet-proof policies,
+with unchanged explicit link proofs and fixed interface-failure ownership.
+Their own1855/84 suite, strict native acceptance, actual Python proof/probe
+exchange through a native hop/restart and2,200,017-byte Resource round trip
+are separate from application integration. Neither repository was pushed.
+
+Parent-independent frozen Nomad Windows NativeAOT/reference replay passes3/0/0
+on `0e41b20cedfc9c51947a63a9addf7cf9c3a10f49519f57b0293021fb31e40437`.
+Actual Python RNS observes configured owner packet proofs across native Nomad
+restart. Four legacy form/reference cases also pass on that exact binary.
+The panic toggle remains an intentional safety refusal, not an ineffective
+stored setting or missing stack implementation. Nine TextUI controls, utility
+visibility and full grammar/presentation remain required software work.
+
+Sideband frozen Windows NativeAOT/reference replay passes7/0/0 on
+`240e1fe2a4d50b52e459bb74498a22e0283e561b3894a3a7bb2e30f003c6a19d`,
+including clear/delete native windows, actual primary messages both ways,
+clean/abrupt restart and synthetic native-native Opus calls. The initial
+missing-codec console failure is retained, not relabelled; installed official
+Opus on PATH permits the unchanged assertions to pass. Exact primary SQL and
+headless control observations do not establish primary GUI, new wire behavior,
+physical audio/display or current Linux replay.
+
+An earlier integrated collection in `fleet-rns-conversation-actions-final`
+failed one shared-owner telemetry assertion after reconnect. The test now
+also requires the reconnected shared-client role and supplies diagnostic
+context; no assertion was relaxed and no production fix is claimed.
+The two focused cases pass without coverage, all three class cases pass with
+coverage, and20 instrumented repetitions pass both connection modes (40 cases).
+The fresh whole gate above also passes. The original intermittent failure's
+cause remains unestablished; a green replay is not evidence that it was fixed.
+See [NomadNet](nomadnet.md#current-configuration-acceptance) and
+[Sideband](sideband.md#selected-local-conversation-actions) for scoped commands,
+source hashes and unavailable-platform boundaries.
 
 The preceding integrated configuration/appearance candidate builds with zero warnings
 and errors and passes2768 managed cases/151 explicit skips on Windows:

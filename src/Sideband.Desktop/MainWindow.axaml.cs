@@ -112,6 +112,11 @@ public sealed partial class MainWindow : Window
                 if (!VerifyConversationAppearanceSmoke()) return;
                 Console.WriteLine("SMOKE_UI_MESSAGE_ACTIONS=confirmed-local-delete");
             }
+            if (Program.SmokeConversationActionsMode)
+            {
+                if (!_conversationActionsSmokeVerified) return;
+                Console.WriteLine("SMOKE_UI_CONVERSATION_ACTIONS=confirmed-clear-delete");
+            }
             if (Program.SmokeMapMode)
             {
                 if (!MapPage.IsVisible || MapViewport.LoadedTileCount == 0 || _refreshingTelemetry || _refreshTelemetryAgain) return;
@@ -315,7 +320,7 @@ public sealed partial class MainWindow : Window
                 Dispatcher.UIThread.Post(() =>
                 {
                     if (_closing) return;
-                    if (!Program.SmokeDiscoveryMode && !Program.SmokeMessageActionsMode)
+                    if (!Program.SmokeDiscoveryMode && !Program.SmokeMessageActionsMode && !Program.SmokeConversationActionsMode)
                         SendButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     if (Program.SmokeMapMode) NavigateTo("Map");
                     if (Program.SmokeTelemetryMode)
@@ -365,6 +370,7 @@ public sealed partial class MainWindow : Window
                     if (Program.SmokeVoicePeersMode) NavigateTo("Voice");
                     if (Program.SmokeDiscoveryMode) TrackOperation(RunDiscoverySmokeAsync);
                     if (Program.SmokeMessageActionsMode) TrackOperation(RunMessageActionsSmokeAsync);
+                    if (Program.SmokeConversationActionsMode) TrackOperation(RunConversationActionsSmokeAsync);
                     Volatile.Write(ref _smokeActionInvoked, 1);
                     InvalidateVisual();
                 });
@@ -374,7 +380,7 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             ShowError("Could not load Sideband data: " + ex.Message);
-            if (_smokeUi && Program.SmokeMessageActionsMode)
+            if (_smokeUi && (Program.SmokeMessageActionsMode || Program.SmokeConversationActionsMode))
             {
                 Console.Error.WriteLine("sideband: Message actions smoke could not load its test profile: " + ex.Message);
                 _ = CloseAfterCaptureAsync();
@@ -771,7 +777,9 @@ public sealed partial class MainWindow : Window
     {
         if (ContactList.SelectedIndex < 0 || ContactList.SelectedIndex >= _conversationContacts.Count) return;
         var contact = _conversationContacts[ContactList.SelectedIndex];
+        if (_selectedContact != contact.DeliveryHash) ConfirmConversationActionBox.IsChecked = false;
         _selectedContact = contact.DeliveryHash;
+        UpdateConversationActionAvailability();
         ConversationPeerText.Text = contact.DisplayName + " · " + _selectedContact;
         TrustConversationBox.IsChecked = contact.Trusted;
         await RefreshMessagesAsync(_windowCancellation.Token);
@@ -1116,6 +1124,7 @@ public sealed partial class MainWindow : Window
         }
         RefreshExpandedContacts();
         RefreshObjects();
+        UpdateConversationActionAvailability();
     }
 
     private void RefreshExpandedContacts()

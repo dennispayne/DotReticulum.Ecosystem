@@ -17,7 +17,30 @@ inventory in [sideband.md](sideband.md); this document does not track it.
 
 ### Current configuration acceptance
 
-The C92 global-RRC/history/style candidate passes full367/17 managed tests,
+The C93 selected-RNS policy candidate passes full371/17 Nomad managed tests,
+strict Windows NativeAOT/help without warnings, and **3 native/reference
+passes/0 failures/0 skips**. The previously red selected-RNS baseline assertion
+now verifies actual supported policy activation while retaining malformed-input
+and exact native/unrelated-source preservation checks. The exact binary SHA256 is
+`0e41b20cedfc9c51947a63a9addf7cf9c3a10f49519f57b0293021fb31e40437`,
+built against stack `4989f050aed865d16ed9f1460071c1a63cd4c7e9`.
+Frozen production/current-LXMF/native/stack guards, source snapshots, T510–516
+selector records and a fresh-child replay operator are in
+`artifacts\tests\nomad-rns-policy`. Actual Python RNS observes explicit and
+implicit replies from the configured Nomad owner across identity-preserving
+restarts, plus disabled/nontransport negative cases after healthy reverse
+traffic. The primary form fixture independently regenerates byte-identically.
+Parent-independent frozen replay passes3/0/0 in `parent-final`. All four legacy
+configuration-form cases also pass on this exact binary in `parent-legacy-forms`,
+including supported flag persistence/restart, explicit panic safety refusal,
+invalid-port rejection and unchanged unrelated/native settings. Whole-root
+acceptance is recorded separately in [testing provenance](testing.md#baseline-provenance).
+
+```powershell
+& artifacts\tests\nomad-rns-policy\Invoke-SelectedNative.ps1 -EvidenceDirectory (Join-Path $PWD 'artifacts\tests\nomad-rns-policy\parent-final')
+```
+
+The preceding C92 global-RRC/history/style candidate passes full367/17 managed tests,
 strict Windows NativeAOT/help, three new native/reference cases and the existing
 actual-primary RRC presentation regression: **4 passed/0 failed/0 skipped**.
 The exact native SHA256 is
@@ -56,8 +79,8 @@ and `parent-lxmf-admission-broader`.
 ```
 
 All75 form fields have explicit functional editing/reset/persistence
-dispositions. Stored-only TextUI/utility effects, the three unsupported
-public-stack controls, complete grammar/presentation and current Linux replay
+dispositions. Stored-only TextUI/utility effects, complete grammar/presentation
+and current Linux replay
 remain required/unverified as detailed below. Native form cases use actual
 piped processes; separate ConPTY cases are not full Urwid or physical terminal
 acceptance. The broader29 repeat actual primary multi-megabyte node
@@ -1767,7 +1790,7 @@ utilities; primary config-directory discovery
 (`/etc/nomadnetwork`, `~/.config/nomadnetwork`, `~/.nomadnetwork`) versus the native
 ApplicationData default; ConfigObj edge cases beyond the bounded grammar below and
 full primary UI (functional section/reset workflows and selected-RNS forms now exist
-with explicit runtime/stored-only/blocked dispositions); safe external-root activation during full profile import;
+with explicit runtime/stored-only/safety-refused dispositions); safe external-root activation during full profile import;
 and remaining router/cache/peer-counter/announce-state migration. The existing
 named `[node]` application keys are imported and wired, but complete peer UI,
 storage-pressure order and exhaustive failure/restart acceptance remain separate
@@ -1775,8 +1798,11 @@ gaps. Primary `ui/textui/Config.py` also edits the separately selected Reticulum
 configuration (`enable_transport`, shared-instance/name/type/ports, interface
 discovery, remote-management allowlist, probes, implicit proofs and panic policy);
 the native app has explicit text and functional section forms for its selected RNS file,
-but probes/implicit proofs/panic options and extended RNS ConfigObj grammar remain blocked by
-the current public stack parser. Migration deliberately does not
+and both probe-response/implicit-proof fields now execute through the selected
+public stack owner after restart. `panic_on_interface_error` remains an
+intentional fixed failure-ownership safety refusal, not a missing platform
+feature or an ineffective saved toggle. Extended RNS ConfigObj grammar remains
+limited by the public parser. Migration deliberately does not
 silently replace network configuration. Unknown keys continue to be reported.
 
 Safety differences are intentional and not upstream defaults: content/queue
@@ -2918,7 +2944,84 @@ retention, original styled view/panes, invalid input, confirmed reset/cancel,
 restart and unchanged identity, plus independently regenerated primary vectors.
 This is local-presentation evidence, not a new wire/topology/audio/hardware claim.
 Linux replay remains blocked by WSL EIO; nine TextUI controls, utility visibility,
-three public-stack controls and full ConfigObj/Urwid scope are not completed here.
+full ConfigObj/Urwid scope are not completed here. The selected-RNS policy
+controls have their separate application acceptance below.
+
+### Selected-RNS probe response and packet-proof policy
+
+The application selects the real RNS source via `--rnsconfig <directory-or-file>`.
+`config section reticulum` edits that selected file, independently of native
+`settings.json` or explicitly enabled Nomad primary configuration. These two
+controls are not new native JSON aliases:
+
+| Primary field; default | Observable running-owner contract |
+|---|---|
+| `respond_to_probes=false`; `Config.py:672–676` | **implemented** through public `RnsdConfig.RespondToProbes`. Only a transport-enabled owner registers `rnstransport.probe`. Setting the flag without selected-RNS `enable_transport=true` does not create a responder. A connected shared client is not a transport owner. This is separate from Nomad's `[node] enable_node` hosting flag. |
+| `use_implicit_proof=true`; `Config.py:679–683` | **implemented** through public `RnsdConfig.UseImplicitProof` and existing router owner. Default packet proofs follow the selected policy after restart; explicit proof overloads and explicit link proofs retain their separate stack contract. |
+| `panic_on_interface_error=false`; `Config.py:686–690` | **intentional safety difference**, disposition `safety-refused`. The native fixed policy terminates the owning service on owned top-level interface failure and isolates failed child peers. Changing this policy is not implemented as a toggle. Form activation and any raw explicit panic key are refused; remove the key to use fixed ownership. The upstream form accepts/stores true, as the independent fixture records; native does not silently pretend to execute it. |
+
+```text
+config section reticulum
+config set enable_transport true
+config set respond_to_probes true
+config set use_implicit_proof false
+config save confirm
+config cancel
+quit
+```
+
+Saving does not hot-reload the active owner. Restart the same application with
+the same selected RNS source. `status` reports immutable running configuration,
+actual router transport mode/shared-client role and the public runtime
+`probe_responder` statistic, not a hash fabricated from the form draft.
+Native identity/delivery address and transport probe identity persist.
+Cancel/reset stage only; Save still needs confirmation. Unknown untouched
+comments and unrelated supported interface configuration remain byte-preserved.
+Malformed booleans, unsupported RNS grammar and external source conflicts fail
+without overwriting the selected file. Existing bounded writer/profile lease,
+cancellation and restart serialization are retained.
+
+The selected stack is `4989f050aed865d16ed9f1460071c1a63cd4c7e9`,
+including policy implementation `64b76f6df574406f85b5ab7666b1a91dab9674fa`.
+This application slice does not edit the submodule or duplicate stack wire
+tests. The parent separately accepted constructor observations, proof formats,
+both directions/hop/restart and encrypted resource transfer in that stack.
+The current application receipt must use its own newly published binary;
+the earlier C92 `e359f1b...` binary targets the previous stack and is not relabelled.
+
+`GenerateNomadNetRnsPolicyVectors.py` executes actual primary
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`
+`ConfigSectionView` path resolution/population, real checkbox changes,
+cancel/save/reconstruction, actual Yes/No reset buttons, ConfigObj and atomic
+writer. Only the headless owner/screen/modal notice/restart observations are
+supplied; no router method is replaced. Canonical source SHA256:
+`nomadnet/ui/textui/Config.py`
+`13a0a531ccc2fc207dc6b4c7f644c3eff6d261bb34edf84781c1c6f76f4b0421`;
+`nomadnet/util.py`
+`77a4368c73b8a84ef2e9df41b4e423bcb1d0677e12ed18debe445996fa3a9e38`.
+
+T510–513 cover actual form observations, defaults/reset/cancel, typed
+malformed/safety refusal, selected-source/runtime-owner activation, immutable
+running options, identity-preserving restart, cancellation/conflict recovery
+and exact unrelated/native-file preservation. The formerly failing C89 raw
+RNS test now asserts actual supported true/false policies and continues to
+reject malformed input and unsupported grammar without altering bytes.
+T514–516 select independently regenerated primary observations, actual native
+application form saves/restarts against pinned unmodified Python RNS and
+startup failure/recovery. The live test uses the stack's existing thin
+`proof_probe_node.py` observer, not copied wire implementation/test classes.
+It exercises native explicit96/implicit64-byte replies, native utility probes
+back to Python, disabled responder and nontransport-owner negative cases
+after proving the same transport healthy. Source and identity guards remain
+unchanged across restarts. Full reset retains `share_instance=no` explicitly
+to isolate the test from other local shared-instance users.
+
+The stack's strict initial15-second/periodic7200-second probe announcements
+and link rejection remain stack-owned; this application gate observes initial
+announcements but does not claim a new two-hour scheduling or link-proof test.
+No new multi-hop/impairment, Linux, physical network or hardware claim is made.
+Linux replay remains blocked by WSL EIO. Full ConfigObj/Urwid, nine stored-only
+TextUI controls and utility visibility remain required software work.
 
 ## Validation and reproduction
 
@@ -3151,7 +3254,7 @@ method, or copy its guide/snippet content. The existing
 | `find_next`, `replace_one`, `replace_all`, `_insert_snippet` | **implemented bounded subset**: case-sensitive ordinal search with wrapping, selected-match replacement/next-match behavior, nonoverlapping replace-all and insertion. ASCII observations match executed primary operations. Native cursor positions are UTF-16 offsets rather than Python Unicode-codepoint offsets, an explicit **difference**. Five original samples are usable; the primary's18 snippet assets are not copied or claimed. |
 | `on_edit_change`, `render_preview`, `is_executable`, syntax/gutter/panes | **partial / safety difference**: explicit textual Micron preview through the existing renderer, no network/partial/image retrieval and no executable-source execution. Executable files display source with a warning; binary files do not preview. The primary100000-character preview bound is retained. Automatic400ms preview debounce, syntax highlighting, gutter, split-pane visibility/weights and keyboard/mouse parity remain **missing**. |
 | `_state_file`, `load_state`, `save_state`, `start` | **partial / local-format difference**: bounded schema1 `editor_state.json` stores only selected relative scope/path and supports explicit `edit resume` after restart. No document text/secrets or unsaved drafts are persisted. Primary filter, expanded tree, pane settings and automatic reopen behavior remain **missing**; this is not primary editor-state migration. |
-| `ConfigSectionView.on_save`, reset/validation and `util.write_config_atomic` | **implemented bounded functional subset / safety difference**: native JSON/raw selected-RNS editing plus all75 primary form fields across eight sections, explicitly opted-in primary ConfigObj source, confirmed staged reset/save and cancel. Exact field/runtime/grammar dispositions and reference evidence appear below. Atomic saves require restart and serialize with runtime settings writes; later runtime-setting edits are refused and automatic announce/sync timestamps stay in memory, preventing stale restart-configuration overwrite. Active service options/identity are not hot-reloaded. Stored-only primary UI/history fields, three blocked stack options and complete ConfigObj/Urwid parity remain gaps. |
+| `ConfigSectionView.on_save`, reset/validation and `util.write_config_atomic` | **implemented bounded functional subset / safety difference**: native JSON/raw selected-RNS editing plus all75 primary form fields across eight sections, explicitly opted-in primary ConfigObj source, confirmed staged reset/save and cancel. Exact field/runtime/grammar dispositions and reference evidence appear below. Atomic saves require restart and serialize with runtime settings writes; later runtime-setting edits are refused and automatic announce/sync timestamps stay in memory, preventing stale restart-configuration overwrite. Active service options/identity are not hot-reloaded. Stored-only primary TextUI/utility fields and complete ConfigObj/Urwid parity remain gaps. Panic failure ownership is an intentional safety difference, not a missing implementation. |
 | `Config.EditorTerminal`, `[textui] editor` | **implemented bounded original workflow / safety difference**: imported/native `editor`, default `nano`, is one executable argv element, not a shell command. `config external [native|rns]` uses the public `RnshProcess` PTY/ConPTY API, a private working copy, validation and snapshot-checked atomic commit, then returns to the console. Explicit Ctrl+] cancellation, child failure and conflict refuse commit. Redirected input/output is explicitly unsupported; interactive commands and child input have one `Console.ReadKey` owner rather than mixing `Console.In` with raw stdin. No embedded Urwid/widget, complete keyboard/mouse/termios or cross-platform terminal parity is claimed. Details and actual Windows terminal evidence follow below. |
 | `GuideEntry.display_topic`, `GuideLinkDelegate.handle_link`, topic reader | **implemented original subset / safety difference**: eight original local topics, local links, anchors, topic list and bounded32-topic back history, using the existing Micron renderer. No remote link is followed implicitly. First-run guide switching, configured `hide_guide`, primary display/demo assets and full keyboard/mouse reader behavior remain **missing**. Network browsing stays an explicit existing browser command. |
 
@@ -3586,7 +3689,7 @@ receipts accompany the fixture; no configuration comment/guide/UI assets are cop
 | `on_reset`, `on_back`, `on_save:1003–1070` | **implemented / safety difference**: reset requires `confirm`, stages defaults only, cancel discards, and save separately requires `confirm`. Empty keys are deleted; absent fields equal to defaults are omitted, so reset does not materialize an absent section. Existing empty sections and unknown keys survive. Forms never apply running service options; explicit full restart is required. Native snapshots reject external changes instead of the primary's reload-and-merge/swallowed reload-error behavior. |
 | Runtime node/client/logging/printing fields; `NomadNetworkApp.applyConfig` | **implemented bounded projection** onto existing runtime settings. The source loader uses the existing importer semantics and native bounds, not a new protocol. `enable_client` and `user_interface` are preserved raw controls outside the client's14 form fields, as in primary. Native-only identity/display name/trust/manual propagation/timestamps/media settings are retained. The form default is not necessarily the missing loader default: e.g. node360/starttrue versus missing node720/startfalse. Fixture records generated-default application separately. Unsupported source keys remain preserved and reported by import; they are not silently applied. |
 | TextUI12, utilities1, RRC13 operational effects | **partial, explicit per-field disposition**: `image_loading`, `editor`, `clipboard_copy` execute existing native behaviors; the other nine TextUI fields and utility visibility remain **stored-only**. Both RRC render switches and ten history/style fields are operational in the original bounded terminal service; `enable_esoterics` is an executed/inventoried **upstream-placeholder**, not an invented no-op feature. See the field-level RRC contracts below. |
-| Selected Reticulum12 fields, `Config.py:876–882` | **partial**: selected actual RNS file, not native JSON/default-global RNS. Nine supported fields validate through the public stack parser and require restart. `respond_to_probes`, `use_implicit_proof`, `panic_on_interface_error` are **blocked-stack**; changing them away from form default is refused, not saved ineffectively. No external submodule changes. |
+| Selected Reticulum12 fields, `Config.py:672–690,876–882` | **eleven runtime fields / one intentional safety difference**: selected actual RNS file, not native JSON/default-global RNS. `respond_to_probes` and `use_implicit_proof` now join the nine supported controls, validate through public `RnsdConfigParser` and activate in the running owner after full restart. `panic_on_interface_error` is **safety-refused**: fixed native top-level failure termination and child-peer failure isolation, not missing hardware or a no-op toggle. Raw explicit panic keys are refused as well, including false; remove the key to use fixed native ownership. |
 | ConfigObj root assignments, quoted names/scalars, comma lists, nested sections, comments, literal backslashes, triple quotes and interpolation | **implemented bounded grammar with executed vectors**. Root `enable_node=yes` is legal and retained/reported unsupported, not treated as `[node] enable_node`. Empty scalar, empty list, one-item list and scalar-with-comma remain distinct. Interpolation resolves section/DEFAULT/ancestor values; absent/cyclic expansion fails explicitly. Unknown nested/multiline/comment text is retained byte-for-byte when untouched. Duplicate names, malformed lists/nesting/quotes, invalid UTF8 and NUL refuse before save. |
 | Full ConfigObj grammar/serialization and RNS parser integration | **partial / safety difference**: primary source64KiB, selected RNS1,000,000 bytes,8192 characters/line,2048 entries/sections/list members,16 section levels,32 interpolation levels,64KiB expanded value and four-times-input aggregate expansion budget. Eager interpolation validation differs from ConfigObj's deferred access errors. Ambiguous dotted flattened paths and unencodable quote combinations explicitly fail. Native retains BOM/newline/comments/unknown untouched bytes instead of canonicalizing the entire file. Edited quoted keys remain safely quoted instead of reproducing the primary writer's ambiguous equals-key output. Selected RNS refuses interpolation/triple quotes because the public stack would not execute them faithfully; passing ConfigObj validation alone never grants RNS grammar parity. |
 | Atomic writer `util.py:6–34`, restart serialization | **implemented bounded safety subset**: private same-directory `CreateNew` staging, file flush/fsync, preserved existing Unix modes in code, snapshot-checked atomic per-file replacement and cleanup on failure/cancellation. Existing profile lease remains required by the executable. Directory fsync, hostile-admin path races, crash-atomic multi-file activation and current Unix mode execution are **unverified**, not claimed. |

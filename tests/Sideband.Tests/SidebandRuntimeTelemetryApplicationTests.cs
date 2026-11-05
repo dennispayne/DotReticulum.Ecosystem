@@ -93,7 +93,10 @@ public sealed class SidebandRuntimeTelemetryApplicationTests
                 (await client.RefreshLocalTelemetryAsync(token))!.Get(S.RnsTransport)!.Status);
             await client.ConnectAsync(clientConfig, token);
             Assert.Equal(destination, client.ConnectionInfo!.DeliveryHash);
-            Assert.True((await client.RefreshLocalTelemetryAsync(token))!.Get(S.RnsTransport)!.Data.Get("transport_enabled")!.Boolean);
+            if (shared) Assert.Equal(SharedInstanceRole.Client, client.ConnectionInfo.SharedRole);
+            var restarted = (await client.RefreshLocalTelemetryAsync(token))!.Get(S.RnsTransport)!;
+            Assert.True(restarted.Data.Get("transport_enabled")!.Boolean,
+                $"Restarted runtime telemetry must describe the transport owner; shared role: {client.ConnectionInfo.SharedRole}, status: {restarted.Status}, error: {restarted.Error}.");
             await client.ConfigureTelemetryAsync((await client.LoadAsync(token)).Telemetry with
                 { RnsTransportEnabled = false }, token);
             Assert.Null((await client.RefreshLocalTelemetryAsync(token))!.Get(S.RnsTransport));

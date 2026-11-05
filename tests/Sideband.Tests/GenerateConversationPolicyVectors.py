@@ -8,6 +8,7 @@ from pathlib import Path
 import sqlite3
 import subprocess
 import threading
+import time
 from types import MethodType, SimpleNamespace
 
 import LXMF
@@ -37,7 +38,9 @@ def main():
     methods = [node for node in core.body if isinstance(node, ast.FunctionDef)
                and node.name in ("is_trusted", "send_message", "raw_display_name", "peer_display_name",
                                  "named_conversation", "_db_conversation_set_name",
-                                 "delete_message", "_db_delete_message")]
+                                 "delete_message", "_db_delete_message", "clear_conversation",
+                                 "delete_conversation", "_db_clear_conversation",
+                                 "_db_clear_telemetry", "_db_delete_conversation")]
     created = []
 
     def message(*_, **kwargs):
@@ -53,7 +56,7 @@ def main():
         LOG_ERROR=0, LOG_DEBUG=0)
     rns.Destination = type("Destination", (), {
         "OUT": 1, "SINGLE": 0, "__new__": lambda *_, **__: object()})
-    namespace = {"RNS": rns, "LXMF": SimpleNamespace(
+    namespace = {"RNS": rns, "time": time, "LXMF": SimpleNamespace(
         LXMessage=message, FIELD_RENDERER=LXMF.FIELD_RENDERER,
         RENDERER_MARKDOWN=LXMF.RENDERER_MARKDOWN,
         RENDERER_BBCODE=LXMF.RENDERER_BBCODE,
@@ -139,11 +142,36 @@ def main():
                 "name": label, "target": value,
                 "remaining": [row[0][0] for row in database.execute(
                     "SELECT lxm_hash FROM lxm ORDER BY lxm_hash")]})
+    conversation_actions = []
+    for action in ("clear", "delete"):
+        with contextlib.closing(sqlite3.connect(":memory:")) as database:
+            selected, other, local = (bytes([value]) * 16 for value in (1, 2, 0))
+            database.execute("CREATE TABLE conv(dest_context BLOB, name TEXT, trust INTEGER)")
+            database.execute("CREATE TABLE lxm(id INTEGER, dest BLOB, source BLOB)")
+            database.execute("CREATE TABLE telemetry(dest_context BLOB)")
+            for destination in (selected, other):
+                database.execute("INSERT INTO conv VALUES(?,?,?)", (destination, "Saved peer", 1))
+                database.execute("INSERT INTO telemetry VALUES(?)", (destination,))
+            for identifier, destination, origin in ((1, local, selected), (2, selected, local), (3, local, other)):
+                database.execute("INSERT INTO lxm VALUES(?,?,?)", (identifier, destination, origin))
+            flags = []
+            owner = SimpleNamespace(db_lock=threading.Lock(), setstate=lambda key, _: flags.append(key))
+            owner.__db_connect = lambda: database
+            for name in ("_db_clear_conversation", "_db_clear_telemetry", "_db_delete_conversation"):
+                setattr(owner, name, MethodType(namespace[name], owner))
+            for label, destination in (("selected", selected), ("repeat", selected), ("unknown", bytes([9]) * 16)):
+                namespace[action + "_conversation"](owner, destination)
+                conversation_actions.append({
+                    "action": action, "target": label,
+                    "remaining_messages": [row[0] for row in database.execute("SELECT id FROM lxm ORDER BY id")],
+                    "remaining_conversations": [row[0][0] for row in database.execute("SELECT dest_context FROM conv ORDER BY dest_context")],
+                    "remaining_telemetry": [row[0][0] for row in database.execute("SELECT dest_context FROM telemetry ORDER BY dest_context")],
+                    "telemetry_changed": bool(flags)})
     result = {
         "revision": PIN, "source_sha256": DIGEST,
-        "method": "actual is_trusted/send_message/raw_display_name/peer_display_name plus named_conversation/_db_conversation_set_name and delete_message/_db_delete_message on real private SQLite; injected connection/read/announce cache/message/router APIs and synthetic owner",
+        "method": "actual is_trusted/send_message/raw_display_name/peer_display_name plus named_conversation/_db_conversation_set_name, delete_message/_db_delete_message and clear_conversation/delete_conversation with their three actual SQL methods on real private SQLite; injected connection/read/announce cache/message/router/state-notification APIs and synthetic owner; no network or primary GUI",
         "cases": cases, "name_cases": names, "rename_cases": renames,
-        "deletion_cases": deletions}
+        "deletion_cases": deletions, "conversation_actions": conversation_actions}
     with args.output.open("w", encoding="utf-8", newline="\n") as output:
         output.write(json.dumps(result, indent=4) + "\n")
 

@@ -701,6 +701,9 @@ internal static partial class Program
                 Console.WriteLine($"Reticulum identity: {Convert.ToHexStringLower(identity.Hash)}");
                 Console.WriteLine($"Reticulum interfaces: {node.Interfaces.Count}; known destinations: {node.Router.Engine.Known.Count}");
                 Console.WriteLine(node.IsConnectedToSharedInstance ? "Connected to shared Reticulum instance." : "Using local Reticulum instance.");
+                Console.WriteLine($"RNS owner policy: transport={node.Router.TransportEnabled}; respond_to_probes={node.Config.RespondToProbes}; use_implicit_proof={node.Config.UseImplicitProof}; shared_client={node.IsConnectedToSharedInstance}");
+                Console.WriteLine("RNS probe responder: " + (node.GetStatistics().GetValueOrDefault("probe_responder") is byte[] probe
+                    ? Convert.ToHexStringLower(probe) : "disabled"));
                 if (router.PropagationNode is { } stored) Console.WriteLine($"Propagation stored messages: {stored.MessageCount}");
                 return false;
             }

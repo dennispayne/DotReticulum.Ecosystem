@@ -2,6 +2,7 @@ namespace NomadNet;
 
 public sealed class NomadNetConfigurationForm
 {
+    internal const string PanicSafetyRefusal = "panic_on_interface_error is intentionally refused: native top-level interface failure terminates its owner; child-peer failure is isolated. This fixed safety ownership is not an ineffective toggle.";
     private readonly NomadNetConfigDocument _document;
     private readonly Dictionary<string, NomadNetConfigValue> _values = new(StringComparer.Ordinal);
     public string Section { get; }
@@ -24,6 +25,8 @@ public sealed class NomadNetConfigurationForm
     {
         var field = Fields.SingleOrDefault(field => field.Key == key) ?? throw new ArgumentException("Unknown section field.");
         NomadNetConfigurationFields.Validate(field, value);
+        if (field.Disposition == "safety-refused" && !Equivalent(value, field.DefaultValue))
+            throw new NotSupportedException(PanicSafetyRefusal);
         if (field.Disposition == "blocked-stack" && !Equivalent(value, field.DefaultValue))
             throw new NotSupportedException("The selected stack public RNS parser does not implement " + field.Key + "; no ineffective value will be saved.");
         var previous = _values[key];

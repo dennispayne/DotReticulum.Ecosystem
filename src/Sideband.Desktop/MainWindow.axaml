@@ -82,6 +82,13 @@
               <TextBox x:Name="ContactNameBox" PlaceholderText="Contact name" />
               <TextBox x:Name="ContactHashBox" PlaceholderText="LXMF delivery address (32 hex)" />
               <Button Content="Add contact" Click="AddContactClicked" />
+              <CheckBox x:Name="ConfirmConversationActionBox" Content="Confirm removal of selected local history/conversation"
+                        ToolTip.Tip="Confirmation resets when the conversation changes. Does not recall or cancel delivery." />
+              <Button x:Name="ClearConversationButton" Content="Clear selected conversation messages" IsEnabled="False"
+                      Click="ClearConversationClicked" />
+              <Button x:Name="DeleteConversationButton" Content="Delete selected conversation" IsEnabled="False"
+                      Click="DeleteConversationClicked"
+                      ToolTip.Tip="Also removes this peer's saved telemetry and conversation policies. Retains shared media files and does not erase remotely delivered messages." />
             </StackPanel>
             <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="10">
               <StackPanel>

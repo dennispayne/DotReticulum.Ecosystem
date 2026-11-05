@@ -51,6 +51,55 @@ a conversation or override voice-only authorization.
 Historical outgoing paper envelopes also restore exact offline URI/QR exports,
 with persisted, visible imported-envelope provenance rather than an assertion
 that archived ciphertext was authenticated or matched to the displayed text.
+Selected desktop conversations also expose confirmed local message clearing and
+conversation deletion through the existing client APIs. Clearing retains peer
+policies, telemetry and drafts; deletion additionally removes peer telemetry
+and conversation policies, and explicitly refuses an unsent draft/attachment.
+Neither action cancels delivery, recalls remote copies or erases shared media.
+
+## Selected local conversation actions
+
+The original Conversations screen exposes **Clear selected conversation
+messages** and **Delete selected conversation**. Both require selection-bound
+confirmation and admit one desktop operation at a time. Changing the selected
+conversation clears confirmation. Clearing preserves draft text/attachments,
+conversation policy and telemetry. Deletion refuses any unsent draft, attachment
+or recording, then removes that peer's saved messages, telemetry and conversation
+entry through the existing client APIs. Unrelated conversations survive.
+Errors remain visible and window cancellation reaches the owned operation.
+These are local erasures, not delivery cancellation, remote recall, secure media
+erasure or an atomic transaction across the state/telemetry files; a failed
+multi-store deletion can be retried.
+
+Six independently executed primary clear/delete/repeat/unknown SQL observations
+precede the UI implementation. `GenerateConversationPolicyVectors.py` executes
+the actual AST-extracted primary methods against private real SQLite; only
+connection, synthetic owner and state-notification dependencies are supplied.
+The primary revision/core digest remain those recorded below. The extended
+canonical LF fixture SHA256 is
+`313032704852f8ded52fd24eeb74c98bf5afff69c2734e1aa31254c010556668`.
+No primary GUI, network or copied assets are involved in those observations.
+
+```powershell
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path artifacts\builds\sideband-conversation-actions --no-build --nologo -v:q
+& artifacts\tests\sideband-conversation-actions\Invoke-SelectedNative.ps1 -EvidenceDirectory (Join-Path $PWD 'artifacts\tests\sideband-conversation-actions\guarded-final')
+```
+
+Full Sideband passes2104 cases/76 explicit skips. Focused new/reference and
+previous message-action checks pass6/0. Strict Windows NativeAOT/help and
+repository-configured operator analysis pass. Exact native SHA256:
+`240e1fe2a4d50b52e459bb74498a22e0283e561b3894a3a7bb2e30f003c6a19d`.
+The guarded native/reference replay passes7/0/0: two conversation-action cases
+and five existing console cases, including actual primary messages both ways,
+clean/abrupt restart and synthetic native-native Opus calls. Source and stack
+guards select `4989f050aed865d16ed9f1460071c1a63cd4c7e9`; this is not a relabel
+of earlier `e52da394...` binaries. The first broader console attempt passed4/5
+because the installed Opus directory was not on the child process PATH.
+Its explicit capture failure/failed receipt is retained; supplying that existing
+official-build dependency makes the unchanged assertions pass. The primary's
+unmodified optional filter-acceleration fallback is visible in the logs and is
+not codec/quality acceptance. Current Linux replay, physical audio/display,
+primary Kivy and new impaired-network topology evidence remain unclaimed.
 
 ## Reference provenance
 
@@ -114,12 +163,13 @@ runtime evidence.
 
 | Contract | Status | Upstream contract and source |
 |---|---|---|
+| Local conversation clearing/deletion | implemented bounded subset | Actual primary clear/delete and three SQL methods execute on private SQLite, including repeated/unknown targets. Original desktop controls reuse the existing native client, admit one pending action and reset confirmation on selection changes. Real telemetry, unrelated history, draft protection, headless controls, offline restart and selected Windows NativeAOT window checks are separate from new network/primary GUI/Linux evidence; see below; `MainWindow.ConversationActions.cs`, `sbapp/sideband/core.py:1346-1358,3061-3092`, `sbapp/ui/conversations.py:168-220`. |
 | Conversation appearance policies | implemented bounded subset | `display_style_in_contact_list` and `display_style_from_all` activate strict atomic settings/profile persistence and original Preferences. Original text badges show effective icon names/colors while preserving explicit trust/unread labels.96 executed primary policy observations, headless immediate-save/state/restart and selected Windows NativeAOT rendering are separate from copied assets, full schema/presentation, primary GUI or current Linux evidence; `SidebandConversationAppearance.cs`, `MainWindow.ConversationAppearance.cs`, `sbapp/ui/conversations.py:trust_icon,get_icon_colors`. |
 | Selected raw-message text copy | implemented bounded subset | Exact saved content, not title/media/rendered markup, goes to the desktop clipboard provider. One pending provider operation, a five-second wait deadline, close cancellation and explicit errors also bound announcement copying. Executed primary callback, headless failure/ownership tests and selected Windows NativeAOT private-provider windows are separate from unverified OS clipboard round trips; `MainWindow.Clipboard.cs`, `sbapp/ui/messages.py:gen_copy`. |
 | Selected active-message cancellation | implemented bounded subset | Current-runtime peer/local-ID ownership and exact pending LXMF object checks stop queued/stamp work through a bounded API, original desktop action and native console extension. Historical/terminal/restarted refusal, capacity/identity cleanup, no-subscriber persistence, selected Windows NativeAOT actual-primary recovery/restart and headless draft preservation are separate evidence. Best effort is not recall/nonreceipt, primary GUI or current Linux replay acceptance. `SidebandClient.MessageCancellation.cs`, `LxmRouter.Policy.cs`, `sbapp/sideband/core.py:5136`, `LXMF/LXMRouter.py:1729`. |
 | Explicit failed-message text retry | implemented bounded subset | Confirmed desktop and native console extension create a new ordinary message with current settings, atomically replacing only a matching failed outgoing text entry after validation. Eight-request admission, cancellation/disconnect, duplicate selection, draft protection, current-policy queue refusal/recovery, actual primary reception/return and native restart are separately tested. No old media/title/hash replay, exactly-once crash guarantee or primary Kivy invocation; see selected retry below; `SidebandClient.MessageActions.cs`, `MainWindow.Messages.cs`, `sbapp/ui/messages.py:gen_retry`. |
 | App shell and interaction | partial | Original Avalonia UI provides Conversations, Contacts, Objects, Announce Stream, Connectivity, Backup & Keys, Preferences, Utilities, Guide, Voice, Telemetry, Map and Remote screens. Supported screens expose real local state and explicit errors; hardware/plugin management remain unavailable rather than simulated. Upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
-| Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. A bounded persisted delivery/PN stream exposes inspect, converse, copy, node selection and deletion; receipt does not promote a discovered contact to a known conversation. Bounded primary SQLite history activates separately without contact creation. Appearance values and telemetry permissions persist; voice uses the shared client below. Complete peer settings, groups and broadcasts remain absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `src/Sideband/SidebandAnnounce.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
+| Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. A bounded persisted delivery/PN stream exposes inspect, converse, copy, node selection and deletion; receipt does not promote a discovered contact to a known conversation. Bounded primary SQLite history activates separately without contact creation. Appearance values and telemetry permissions persist; voice uses the shared client below. Complete peer settings remain partial. Group/broadcast types are upstream placeholders: `CONV_GROUP`/`CONV_BROADCAST` occur only as reserved definitions at `core.py:95-96`, with no consumer in the pinned `sbapp` Python tree; do not invent a group wire protocol. `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `src/Sideband/SidebandAnnounce.cs`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
 | LXMF messaging and propagation UI | partial | Text send/receive, automatic/manual node selection, persisted periodic fetches, cancellation, one-shot failed-delivery propagation retry, trusted-conversation reply tickets and restart retrieval reuse `LxmRouter`. Actual primary Sideband daemon-core direct/propagated round trips pass separately from Python LXMF endpoint tests, with trust enabled and disabled in both directions. Selected saved text/title/time/state/method inspection and confirmed local entry deletion are implemented; deletion does not cancel or recall delivery. Full message presentation/settings remain missing. Sent via propagation means node storage, not recipient delivery; `src/Sideband/SidebandClient.cs`, `MainWindow.Messages.cs`, `tests/Sideband.Tests/SidebandLiveInteropTests.cs`, `sbapp/sideband/core.py:48–93,3966–4001,4811–4828,5156–5227,5634–5644`, `docs/lxmf.md`. |
 | Inbound delivery stamp configuration | implemented bounded subset | Independent `lxmf_require_stamps`, `lxmf_inbound_stamp_cost` and `lxmf_ignore_invalid_stamps` activate on startup and explicit runtime save, persist/import/export atomically and have original Preferences controls. Actual primary cost8 announcements, signed stamped delivery, explicit stale-cache rejection/admission and identity-preserving restart pass Windows/Linux direct/Python-hop/.NET-hop. Strict native offline process/profile activation is separate; safety differences, timing and remaining boundaries are below; `SidebandStampConfiguration.cs`, `SidebandClient.Stamps.cs`, `SidebandStateStore.Stamps.cs`, `MainWindow.Stamps.cs`, `sbapp/sideband/core.py:lxmf_announce,update_ignore_invalid_stamps`. |
 | Incoming transfer-size configuration | implemented bounded subset | Primary `lxm_limit_1mb` maps decimal1000/128000KB onto startup and mutable router admission/retrieval, atomic settings/profile persistence and original Preferences. Windows/Linux actual primary oversize refusal, larger-policy recovery both ways and native identity restart pass direct/Python-hop/.NET-hop; separate native offline settings/profile flows pass.128MB payload acceptance is not established, and existing attachment/local-storage bounds remain; `SidebandDeliveryConfiguration.cs`, `SidebandClient.Delivery.cs`, `MainWindow.Delivery.cs`, `sbapp/sideband/core.py:start_reticulum,_update_delivery_limits`. |
@@ -129,7 +179,7 @@ runtime evidence.
 | Telemetry, location and situational awareness | partial | All 27 sensor wire formats, exact values, bounded atomic storage and reference-executed geometry exist. Original desktop controls configure manual information/location/sensors, opted-in Reticulum runtime collection, privacy/collector/tracking policies, inspect trusted reports, explicitly delete and show reported locations on the map. Actual primary reports/collector streams, requests, restart, supported profile import, schedules and propagation recovery pass separately on Windows/Linux. Runtime collection/rendering/receive normalization is independently verified below; other automatic sensors, hardware and advanced presentation remain absent/unverified; `SidebandTelemetry*.cs`, `SidebandRuntimeTelemetry.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/ui/telemetry.py`. |
 | Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default/provider/layer, overlay and passive discovery vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, source zoom limits and persisted view. Reported peers/interfaces/connection points, bounded selected-cache discovery advertisements, clustering, high-zoom scatter, local fixed overrides and marker inspection are integrated. Thirteen provider presets and supported offline-profile activation exist. Broader map migration/presentation remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
 | Remote commands, queries and plugins | partial | Authorized telemetry requests and built-in ping/echo/signal requests use the existing bounded client worker. Actual primary daemon cores exchange commands/replies, propagated requests and offline replies, and verify unknown-conversation admission across direct, Python-hop and .NET-hop paths. Explicit PN storage/retrieval, restart/cancellation and controlled direct-failure recovery are distinct evidence. Initially-propagated native-origin failure/recovery passes separately; enabled primary retry remains blocked by the reproduced pinned callback-lock cycle below. Original Remote controls configure shared request permissions, queue/cancel commands and preview persisted replies. Arbitrary Python command/service/telemetry plugins and custom sensors remain missing; native helpers are not a Python-plugin ABI; `SidebandClient.Remote.cs`, `SidebandRemoteCommands.cs`, `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`. |
-| Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. The map passively inspects the selected configuration's discovery cache without autoconnect; shared-owner blackhole policy is queried through actual management RPC. Interface editing, remote shared-owner discovery-cache access and Android interface loading remain absent; `SidebandClient.Discovery.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
+| Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. The map passively inspects the selected configuration's discovery cache without autoconnect; shared-owner blackhole policy is queried through actual management RPC. Primary desktop `hardware.py:72-92` also directs users to the runtime configuration path and hides device-setting controls; its in-app device editor is Android-only, not a missing desktop acceptance requirement. Remote shared-owner discovery-cache access remains absent; Android interface loading is deferred. `SidebandClient.Discovery.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
 | Long-lived service and OS integration | partial | The desktop window and headless daemon own the same cancellable client. Linux published daemon/interactive processes stop on SIGTERM with closed/blocked stdin; native console quit and restart pass on both hosts. Days-long Sideband service operation remains unverified. Android foreground services, notifications, location/permission APIs, wake/multicast locks, Bluetooth/RNode discovery and background-power behavior are deferred mobile contracts; `SidebandDaemon.cs`, `sbapp/services/sidebandservice.py`, `sbapp/main.py`, `sbapp/sideband/core.py`. |
 | Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/object classification/text/files/images/audio/methods, known client-router tickets/own ratchets/caches, synchronization anchors, bounded delivery/PN announce history, retained call assertions, voice-only identity/name/trust and supported telemetry/settings/permissions/appearance/cursors/map-overlay settings. Unimplemented semantics remain archived; source files never change. Other voice-object metadata, other fields and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `SidebandTelemetryProfile.cs`, `SidebandAnnounceProfile.cs`, `SidebandVoiceProfile.cs`, `SidebandVoicePeerProfile.cs`, `sbapp/main.py:209–273`. |
 | CLI and headless operation | implemented bounded subset | The desktop/headless console has an executed inventory of all56 primary registrations, quoted arguments, longest-prefix resolution, general status, conversation/message/paper/command workflows, propagation/announce/link inspection, active native configuration and telemetry/tracking. Long network operations are owned/cancellable; Unicode pipes, malformed input, persistence and restart are tested. Runtime log-level control filters available structured host reports; log streaming is not complete capture of every stack diagnostic. Arbitrary Python evaluation/plugins fail explicitly; unsupported configuration is never activated by archiving keys. All twelve primary voice handlers are placeholders; functional native voice remains an extension. See the dedicated console section below for exact inventory, limits, evidence and core gaps; `SidebandDaemon.cs`, `SidebandConsole*.cs`, `sbapp/sideband/cli/*.py`. |
@@ -2611,7 +2661,8 @@ placeholder or Python plugin ABI claim.
 
 Active aliases:
 
-* `general`: `display_name`, `dark_ui`, `start_announce`, `lxm_limit_1mb`.
+* `general`: `display_name`, `dark_ui`, `display_style_in_contact_list`,
+  `start_announce`, `lxm_limit_1mb`.
 * `lxmf`: `propagation_node`, `propagation_by_default`, `periodic_sync`,
   `sync_interval`, `try_propagation_on_fail`, `ignore_unknown`,
   `require_stamps`, `ignore_invalid_stamps`, `inbound_stamp_cost`, `sync_max`,
@@ -2622,7 +2673,7 @@ Active aliases:
   `allow_requests_from_anyone`, `allow_requests_from_trusted`,
   `receive_trusted_only`, `display_trusted_only`, `send_appearance`,
   `use_propagation_only`, `try_propagation_on_fail`,
-  `requests_only_send_latest`, `collector`, `send_interval`,
+  `requests_only_send_latest`, `display_style_from_all`, `collector`, `send_interval`,
   `request_interval`, `icon`, `fg`, `bg`.
 * `sensors`: `rns_transport`, `information`, `information_text`,
   `fixed_location`, `fixed_latlon`, `fixed_altitude`. These do not open devices.
@@ -2950,8 +3001,10 @@ observations cover incoming/outbound deletion, an unknown hash and a repeat,
 while another peer's identical text remains. The reference returns no error for
 missing hashes; native ownership validation explicitly rejects an absent
 peer/local-ID match rather than reporting false deletion. This is a deliberate
-error-reporting difference, not a wire change. The regenerated fixture SHA-256
-is `cdd1ddcb255b824421853961ace6139137403a09fc6551addff110ad06f33c6c`.
+error-reporting difference, not a wire change. The original fixture SHA-256
+was `cdd1ddcb255b824421853961ace6139137403a09fc6551addff110ad06f33c6c`;
+the current fixture retains those observations and adds the independently
+executed whole-conversation cases/digest recorded above.
 
 T378–T380 cover those observations, unchanged rejected/cancelled writes,
 concurrent/late state callbacks, no-subscriber operation, continued service,

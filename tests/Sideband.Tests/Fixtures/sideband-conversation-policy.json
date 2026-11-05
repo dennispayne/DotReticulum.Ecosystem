@@ -1,7 +1,7 @@
 {
     "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
     "source_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
-    "method": "actual is_trusted/send_message/raw_display_name/peer_display_name plus named_conversation/_db_conversation_set_name and delete_message/_db_delete_message on real private SQLite; injected connection/read/announce cache/message/router APIs and synthetic owner",
+    "method": "actual is_trusted/send_message/raw_display_name/peer_display_name plus named_conversation/_db_conversation_set_name, delete_message/_db_delete_message and clear_conversation/delete_conversation with their three actual SQL methods on real private SQLite; injected connection/read/announce cache/message/router/state-notification APIs and synthetic owner; no network or primary GUI",
     "cases": [
         {
             "name": "missing",
@@ -141,6 +141,98 @@
             "remaining": [
                 3
             ]
+        }
+    ],
+    "conversation_actions": [
+        {
+            "action": "clear",
+            "target": "selected",
+            "remaining_messages": [
+                3
+            ],
+            "remaining_conversations": [
+                1,
+                2
+            ],
+            "remaining_telemetry": [
+                1,
+                2
+            ],
+            "telemetry_changed": false
+        },
+        {
+            "action": "clear",
+            "target": "repeat",
+            "remaining_messages": [
+                3
+            ],
+            "remaining_conversations": [
+                1,
+                2
+            ],
+            "remaining_telemetry": [
+                1,
+                2
+            ],
+            "telemetry_changed": false
+        },
+        {
+            "action": "clear",
+            "target": "unknown",
+            "remaining_messages": [
+                3
+            ],
+            "remaining_conversations": [
+                1,
+                2
+            ],
+            "remaining_telemetry": [
+                1,
+                2
+            ],
+            "telemetry_changed": false
+        },
+        {
+            "action": "delete",
+            "target": "selected",
+            "remaining_messages": [
+                3
+            ],
+            "remaining_conversations": [
+                2
+            ],
+            "remaining_telemetry": [
+                2
+            ],
+            "telemetry_changed": true
+        },
+        {
+            "action": "delete",
+            "target": "repeat",
+            "remaining_messages": [
+                3
+            ],
+            "remaining_conversations": [
+                2
+            ],
+            "remaining_telemetry": [
+                2
+            ],
+            "telemetry_changed": true
+        },
+        {
+            "action": "delete",
+            "target": "unknown",
+            "remaining_messages": [
+                3
+            ],
+            "remaining_conversations": [
+                2
+            ],
+            "remaining_telemetry": [
+                2
+            ],
+            "telemetry_changed": true
         }
     ]
 }

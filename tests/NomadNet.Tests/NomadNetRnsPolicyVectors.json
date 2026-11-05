@@ -1,0 +1,68 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sources": {
+    "nomadnet/ui/textui/Config.py": "13a0a531ccc2fc207dc6b4c7f644c3eff6d261bb34edf84781c1c6f76f4b0421",
+    "nomadnet/util.py": "77a4368c73b8a84ef2e9df41b4e423bcb1d0677e12ed18debe445996fa3a9e38"
+  },
+  "initial": "# Selected RNS original\n[reticulum]\nshare_instance=no # unchanged\n[logging]\nloglevel=0\n[interfaces]\n# Unrelated interface preserved\n[[Disabled]]\ntype=TCPServerInterface\nenabled=no\nlisten_ip=127.0.0.1\nlisten_port=42424\n",
+  "defaults": {
+    "respond_to_probes": "no",
+    "use_implicit_proof": "yes",
+    "panic_on_interface_error": "no"
+  },
+  "staged": {
+    "respond_to_probes": "yes",
+    "use_implicit_proof": "no",
+    "panic_on_interface_error": "no"
+  },
+  "cancelUnchanged": true,
+  "saved": {
+    "respond_to_probes": true,
+    "use_implicit_proof": false,
+    "panic_on_interface_error": false
+  },
+  "savedText": "# Selected RNS original\n[reticulum]\nshare_instance = no# unchanged\nrespond_to_probes = yes\nuse_implicit_proof = no\n[logging]\nloglevel = 0\n[interfaces]\n# Unrelated interface preserved\n[[Disabled]]\ntype = TCPServerInterface\nenabled = no\nlisten_ip = 127.0.0.1\nlisten_port = 42424\n",
+  "reloaded": {
+    "respond_to_probes": "yes",
+    "use_implicit_proof": "no",
+    "panic_on_interface_error": "no"
+  },
+  "resetCancelled": {
+    "respond_to_probes": "yes",
+    "use_implicit_proof": "no",
+    "panic_on_interface_error": "no"
+  },
+  "reset": {
+    "respond_to_probes": "no",
+    "use_implicit_proof": "yes",
+    "panic_on_interface_error": "no"
+  },
+  "resetUnsaved": true,
+  "resetSaved": {
+    "reticulum": {
+      "share_instance": "yes",
+      "respond_to_probes": "no",
+      "use_implicit_proof": "yes"
+    },
+    "logging": {
+      "loglevel": "0"
+    },
+    "interfaces": {
+      "Disabled": {
+        "type": "TCPServerInterface",
+        "enabled": "no",
+        "listen_ip": "127.0.0.1",
+        "listen_port": "42424"
+      }
+    }
+  },
+  "primaryConfigUnchanged": true,
+  "primaryAcceptsPanicTrue": true,
+  "transitions": [
+    "list",
+    "restart",
+    "restart",
+    "restart"
+  ],
+  "method": "Actual pinned ConfigSectionView reticulum path resolution/population, real CheckBox.set_state, on_back/on_save/on_reset and actual Yes/No buttons; actual ConfigObj and write_config_atomic. Headless owner/screen/modal notice/restart observers only. No router methods or source replaced; no wire claim."
+}

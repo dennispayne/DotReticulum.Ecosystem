@@ -44,8 +44,8 @@ public static class NomadNetConfigurationFields
         B("reticulum", "enable_transport", false), B("reticulum", "share_instance", true), E("reticulum", "instance_name", "default"),
         E("reticulum", "shared_instance_type"), N("reticulum", "shared_instance_port", ""), N("reticulum", "instance_control_port", ""),
         B("reticulum", "discover_interfaces", false), B("reticulum", "enable_remote_management", false), L("reticulum", "remote_management_allowed"),
-        B("reticulum", "respond_to_probes", false, "blocked-stack"), B("reticulum", "use_implicit_proof", true, "blocked-stack"),
-        B("reticulum", "panic_on_interface_error", false, "blocked-stack"),
+        B("reticulum", "respond_to_probes", false), B("reticulum", "use_implicit_proof", true),
+        B("reticulum", "panic_on_interface_error", false, "safety-refused"),
     });
 
     public static IReadOnlyList<string> Sections { get; } = Array.AsReadOnly(All.Select(field => field.Section).Distinct(StringComparer.Ordinal).ToArray());

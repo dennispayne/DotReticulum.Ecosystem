@@ -87,7 +87,7 @@ internal static partial class Program
                     : JsonSerializer.Serialize(value.Scalar, NomadNetEditorJsonContext.Default.String);
                 Console.WriteLine($"{field.Key} = {json}; {field.Type}; {field.Disposition}");
             }
-            Console.WriteLine("stored-only controls remain preserved but their primary UI/history behavior is not implemented. blocked-stack controls cannot be changed through the current public stack.");
+            Console.WriteLine("stored-only controls remain preserved but their primary UI/history behavior is not implemented. safety-refused panic_on_interface_error uses fixed top-level/child failure ownership; it is not a missing hardware feature or a no-op toggle.");
         }
     }
 }

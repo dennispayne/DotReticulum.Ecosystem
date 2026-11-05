@@ -55,5 +55,6 @@
     <EmbeddedResource Include="NomadNetRrcSettingsVectors.json" />
     <EmbeddedResource Include="NomadNetRnsPolicyVectors.json" />
     <EmbeddedResource Include="NomadNetTerminalControlVectors.json" />
+    <EmbeddedResource Include="NomadNetEditorPresentationVectors.json" />
   </ItemGroup>
 </Project>

@@ -3341,15 +3341,138 @@ method, or copy its guide/snippet content. The existing
 
 | Primary editor/config/guide contract and source | Native status and exact boundary |
 |---|---|
-| `Editor._roots`, `_confine`, `build_entries`, `walk_dir`, `_do_new` | **implemented bounded subset / safety difference**: explicit pages/files scope, immediate-child listing and nested directory creation. Relative paths up to512 characters; up to2048 displayed entries and4096 inspected entries. Refuses hidden/traversal/device/alternate-stream paths and every observed symlink/reparse ancestor, including dangling links. Primary confinement is lexical and can cross between configured roots; native requires explicit scope rather than accepting arbitrary absolute paths. Full expanded directory tree and `.mu` filter remain **missing**. |
+| `Editor._roots`, `_confine`, `build_entries`, `walk_dir`, `_dir_has_mu`, `_do_new` | **implemented bounded original controls / safety difference**: explicit pages/files scope, nested creation and expanded directory tree; case-sensitive `.mu` filtering prunes directories without matching visible descendants. Relative paths up to512 characters; up to2048 displayed entries,4096 inspected entries,16 levels and256 expanded folders. Refuses hidden/traversal/device/alternate-stream paths and observed symlink/reparse ancestors, including dangling links. Permission companions remain hidden rather than appearing as editable documents. Primary confinement is lexical and can cross between configured roots; native requires explicit scope rather than arbitrary absolute paths. C97 below records functional presentation, not Urwid tree-widget parity. |
 | `load_file`, `save_file`, `_atomic_write`, `_do_saveas`, `confirm_discard` | **implemented bounded subset / safety difference**: one-megabyte strict UTF8 buffer, invalid-UTF8 read-only, save/discard/cancel, save-as, no silent overwrite, explicit dirty-open/quit refusal and nonzero dirty EOF. Random private same-directory `CreateNew` staging, flushed file and atomic replacement; save errors/cancellation retain the buffer and previous document. Optimistic snapshots reject ordinary external edits, and a shared in-process mutation gate serializes editor commits. Save-as never overwrites and refuses restricted source copies rather than accidentally publishing them. Existing Unix mode is preserved in code; current Linux execution is **unverified**. Directory fsync, hostile administrator path races and crash-atomic multi-file transactions are **not claimed**. |
 | `_do_rename`, `_do_delete`, `_write_allowed`, `_apply_permissions` | **implemented bounded file/folder management and recursive permissions / safety difference**: confirmed deletion, nonoverwriting rename/move and per-file `.allowed` companion handling. Folder create/rename/cross-root move/recursive removal use a bounded inspected tree and exact one-use token, preserve descendant permission files, and rebase/clear live and persisted selections; details below. Per-file and recursive restrictions accept up to1024 validated distinct identities. Recursive permission summaries, confirmed replacement and make-public conversion are implemented with staged policy replacement/rollback; all recursive changes require explicit confirmation. Overwrite confirmation for moves is deliberately replaced by refusal. Committed cleanup failures are surfaced with retained transactions, never falsely reported as rollback. |
 | `find_next`, `replace_one`, `replace_all`, `_insert_snippet` | **implemented bounded subset**: case-sensitive ordinal search with wrapping, selected-match replacement/next-match behavior, nonoverlapping replace-all and insertion. ASCII observations match executed primary operations. Native cursor positions are UTF-16 offsets rather than Python Unicode-codepoint offsets, an explicit **difference**. Five original samples are usable; the primary's18 snippet assets are not copied or claimed. |
-| `on_edit_change`, `render_preview`, `is_executable`, syntax/gutter/panes | **partial / safety difference**: explicit textual Micron preview through the existing renderer, no network/partial/image retrieval and no executable-source execution. Executable files display source with a warning; binary files do not preview. The primary100000-character preview bound is retained. Automatic400ms preview debounce, syntax highlighting, gutter, split-pane visibility/weights and keyboard/mouse parity remain **missing**. |
-| `_state_file`, `load_state`, `save_state`, `start` | **partial / local-format difference**: bounded schema1 `editor_state.json` stores only selected relative scope/path and supports explicit `edit resume` after restart. No document text/secrets or unsaved drafts are persisted. Primary filter, expanded tree, pane settings and automatic reopen behavior remain **missing**; this is not primary editor-state migration. |
+| `on_edit_change`, `render_preview`, `is_executable`, `highlight_micron`, `MicronEdit`, `GutterEdit`, `visible_panes`, `toggle_pane`, `rebuild_columns` | **implemented bounded original functional controls / safety difference**: owned400ms latest-edit debounce, original source syntax colours and wrap-aware line numbers, three independently visible panes with primary22:40:38 weights and last-pane protection. Explicit and automatic textual Micron preview reuse the existing renderer, with no network/partial/image retrieval or executable-source execution. Executable files retain source/warning behavior; binary files do not preview. The existing100000 UTF-16-character preview cap remains intentionally at least as restrictive as Python's Unicode-codepoint cap. Primary syntax stops above50000 Unicode codepoints. `edit view` prints the current bounded split-pane snapshot; it is not automatic full-screen Urwid redraw. Source/preview scrolling, retained preview scroll position and exact keyboard/mouse/cursor/terminal-width parity remain **missing/unverified**. |
+| `_state_file`, `load_state`, `save_state`, `start` | **implemented bounded original controls / local-format difference**: extended schema1 `editor_state.json` stores relative selection, `.mu` filter, expanded folders and visible panes, bounded to32 KiB. Editor activation reopens an existing saved file; `edit resume` remains explicit. Old native schema1 selections still load. Folder moves/removal rebase/clear live and persisted expansions/selections. No document text, secrets or unsaved drafts are persisted. Malformed/oversized state is reported rather than silently ignored. This is not primary editor-state migration: primary absolute paths and its JSON field layout are not imported. |
 | `ConfigSectionView.on_save`, reset/validation and `util.write_config_atomic` | **implemented bounded functional subset / safety difference**: native JSON/raw selected-RNS editing plus all75 primary form fields across eight sections, explicitly opted-in primary ConfigObj source, confirmed staged reset/save and cancel. Exact field/runtime/grammar dispositions and reference evidence appear below. Atomic saves require restart and serialize with runtime settings writes; later runtime-setting edits are refused and automatic announce/sync timestamps stay in memory, preventing stale restart-configuration overwrite. Active service options/identity are not hot-reloaded. TextUI/utility controls have bounded functional effects under C95; complete ConfigObj/Urwid parity remains a gap. Panic failure ownership is an intentional safety difference, not a missing implementation. |
 | `Config.EditorTerminal`, `[textui] editor` | **implemented bounded original workflow / safety difference**: imported/native `editor`, default `nano`, is one executable argv element, not a shell command. `config external [native|rns]` uses the public `RnshProcess` PTY/ConPTY API, a private working copy, validation and snapshot-checked atomic commit, then returns to the console. Explicit Ctrl+] cancellation, child failure and conflict refuse commit. Redirected input/output is explicitly unsupported; interactive commands and child input have one owner rather than mixing `Console.In` with raw stdin. C95 uses Win32 console records for Windows command/mouse input, restores the exact input mode before child activation, and retains `Console.ReadKey` child forwarding. No embedded Urwid/widget, complete keyboard/mouse/termios or cross-platform terminal parity is claimed. Details and actual Windows terminal evidence follow below. |
 | `GuideEntry.display_topic`, `GuideLinkDelegate.handle_link`, topic reader | **implemented original subset / safety difference**: eight original local topics, local links, anchors, topic list and bounded32-topic back history, using the existing Micron renderer. No remote link is followed implicitly. C95 displays the local start topic on first client-state creation, even with its menu entry hidden, and wires `hide_guide` to menu visibility only. Explicit `guide` remains usable. Primary display/demo assets and full keyboard/mouse reader behavior remain **missing**. Network browsing stays explicit. |
+
+### Original editor presentation (C97)
+
+The factual reference remains primary1.4.4
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`.
+`GenerateNomadNetEditorPresentationVectors.py` executes actual
+`PageEditorDisplay`, `Browser`, syntax functions and Urwid editor/gutter widgets
+against synthetic local files. Its synthetic application owner supplies a
+headless screen/palette sink and a recording alarm owner; actual preview alarm
+callbacks are invoked explicitly. It observes scheduling/cancellation arguments,
+not primary wall-clock timing, a full application constructor, a physical
+terminal or network interoperability. Actual imported paths and imported-file
+hashes are retained separately. Canonical source hashes use `git show`, so
+normal Windows checkout line endings do not become a different upstream pin.
+
+| Canonical primary source | SHA-256 |
+|---|---|
+| `nomadnet/ui/textui/Editor.py` | `ae6c09cde38d473fd97d1758ebcbc13edaf5d7e1f97dc4e698a870c68cd8d378` |
+| `nomadnet/ui/textui/Browser.py` | `cbce04302ec092ae6bb3cc6ce9f423139b1339b9e903f14f12cf8e6ebe736729` |
+| `nomadnet/ui/textui/ReadlineEdit.py` | `3538c109151528b8adcdda217bea4890d035461ae59b29bb49c455cfc47cc7d6` |
+
+Primary source contracts are `Editor.py:79–213` (syntax,50000-codepoint
+highlight cutoff, wrap-aware gutter), `435–549` (construction, activation and
+state), `617–714` (fixed pane weights/visibility, tree, filter and expansion)
+and `1105–1155` (dirty state,400ms replacement alarm,100000-codepoint preview
+cutoff and preview scroll preservation). Syntax and gutter are always present
+upstream; there are no invented persisted syntax/gutter/weight configuration
+options. Primary's preview-link external-navigation TODO is not an implemented
+remote preview feature: only local anchors are acted on there.
+
+Original native commands:
+
+```text
+edit help
+edit view 120 20
+edit tree
+edit expand pages chapter
+edit collapse pages chapter
+edit filter on
+edit pane files
+edit pane editor
+edit pane preview
+edit focus next
+edit focus previous
+edit preview-status
+```
+
+Activation occurs on the first `edit` command, not application startup.
+The source buffer, search/replace, mutations, permissions, external editor and
+explicit `edit preview` remain the existing workflows. Text edits schedule a
+latest-only preview without any observer registered; `edit view` consumes the
+current snapshot without initiating retrieval or execution. There is one owned
+worker and one pending snapshot, no background console writer. Changing
+selection invalidates obsolete render results; close and session disposal
+cannot publish an old document. Disposal cancels and joins the worker, including
+through the existing synchronous session owner; an asynchronous disposal API is
+also available. Individual observer/render failures are reported through the
+configured logging callback or diagnostic trace, and subsequent edits continue.
+Attempting to synchronously dispose from inside the worker's own callback is
+reported rather than self-deadlocking.
+
+`view` accepts40–240 columns and1–60 rows. The header reports nominal primary
+weights and actual allocated columns; visible weights are normalized after
+hiding a pane, preserving at least one pane. Original syntax colours respect
+the existing terminal colour-depth/monochrome settings, not copied palettes.
+ASCII wrap/gutter and lexical observations match the executed cases; UTF-16
+cursor offsets, wide/combining-character terminal columns and exact Urwid
+line-breaking/keyboard/mouse behavior are not claimed. Source/preview scrolling
+and preview scroll-position preservation remain required presentation work.
+Views replace terminal controls/formatting characters with inert placeholders.
+The native preview's existing100000 UTF-16-character safety cap is preserved;
+the Python cap counts Unicode codepoints. Windows follows primary behavior in
+not treating hosted files as Unix executables; current Unix executable-mode
+replay is unverified.
+
+Extended native schema1 persists only relative selection/filter/expansion/pane
+controls. Old native schema1 files are supported; primary's state JSON is not
+silently treated as migrated state. Saves are atomic and bounded, errors retain
+the previous controls, and unsaved content is never persisted. Tree traversal
+and descendant filtering share the entry/depth bounds, refuse unsafe paths
+and ignore reparse entries rather than following them. Existing folder
+move/removal transactions now rebase/clear expanded paths alongside selections.
+Oversized trees fail visibly; later smaller-tree operations remain usable.
+
+Frozen Windows evidence uses SDK10.0.403/runtime and NativeAOT10.0.14,
+stack`4989f050aed865d16ed9f1460071c1a63cd4c7e9`, root acceptance base
+`abfe5b121ceb3b1890f18239eb5d5dc3228faedb`, and native SHA-256
+`a6296e669f605f839a321169055fe6b9172754035b50751c531b379890505062`.
+
+- `dotnet build tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --no-restore -warnaserror --artifacts-path artifacts\tests\nomad-editor-presentation\managed-build --nologo -v:q`: **passed**, zero warnings/errors. The first isolated build correctly refused missing assets; a selected-project restore/build established the isolated assets without changing dependencies.
+- `dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --no-build --no-restore -warnaserror --artifacts-path artifacts\tests\nomad-editor-presentation\managed-build --filter "FullyQualifiedName~NomadNetEditorPresentation" --logger "trx;LogFileName=focused.trx" --results-directory artifacts\tests\nomad-editor-presentation\focused-isolated -v:q`: **13 passed,3 explicit native opt-in skips**, zero failures. Manual-clock tests establish399ms refusal and400ms latest-only publication, no subscribers, observer/logger/render failures, selection/disposal races and continued service; storage tests cover malformed state/bounds, failed persistence, old-state compatibility, tree/filter/panes, folder moves/removal and clean restart.
+- `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64 -o artifacts\tests\nomad-editor-presentation\native -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror -v minimal`, with the selected MSVC environment and `vswhere` available: **passed**, no warnings/errors. Published `nomadnet.exe --help` **passed**.
+- `pwsh -NoProfile -File artifacts\tests\nomad-editor-presentation\Replay-Candidate.ps1 -OutputDirectory artifacts\tests\nomad-editor-presentation\acceptance-isolated-third`: fresh-child **408 passed/15 explicit skips/zero failures** for the full Nomad suite, including **3 new actual ConPTY**, **3 existing terminal ConPTY** and **2 actual installed Vim** regressions; new scoped Pester **3 passed/zero failed/zero skipped**. Managed tests use the isolated artifacts path above. Repository-configured PowerShell analysis reports **zero diagnostics**. Source/dependency/file-set/native/managed/reference/editor guards hold before and after the replay.
+
+Pester separately regenerates byte-identical actual-primary vectors and runs
+published command persistence/reopen and dirty-EOF/error/recovery cases.
+New ConPTY windows exercise syntax/gutter and split panes, latest automatic
+preview, filtered expansion, selected-file/identity retention through clean
+restart and pending-preview close/failure recovery. The initial Pester attempt
+incorrectly assumed the piped native profile had an `identity` file; it failed
+visibly. The corrected assertion compares the actual public delivery address
+across restart, without reading private state or weakening identity retention.
+This did not change production code or the native binary.
+Expanded executed-primary syntax cases exposed Unicode-tag/newline edges;
+the independently authored lexer was corrected before the final native publish.
+Earlier isolated receipts retain two failures from an existing Vim test's
+PID-file sharing race and one interleaved-menu source-text assertion. The
+new assertion now removes only the known menu redraw while retaining the raw
+ConPTY transcript; the existing Vim test is unchanged. The final fresh replay
+passes both Vim regressions, but does not claim that their PID-file race is fixed.
+
+Receipts, exact commands, frozen manifest, selector handoff and reusable
+fresh-child replay are under ignored
+`artifacts\tests\nomad-editor-presentation`. These are Windows local
+presentation/primary-method observations, **not new wire interoperability**,
+full primary UI/guide asset parity, physical-terminal/audio/hardware or current
+Linux acceptance. No WSL repair was attempted. Parent-independent guarded replay
+also passes408 managed cases/15 explicit skips and3/0/0 Pester, including
+the actual ConPTY/Vim cases, under `parent-independent`:
+
+```powershell
+pwsh -NoProfile -File artifacts\tests\nomad-editor-presentation\Replay-Candidate.ps1 -OutputDirectory artifacts\tests\nomad-editor-presentation\parent-independent
+```
 
 Example, using JSON strings for text without invoking a shell or executable page:
 
@@ -3533,9 +3656,9 @@ ignored replay operator selects those exact artifacts with fresh evidence.
 Current Linux execution remains blocked by WSL EIO/read-only storage.
 This proves bounded software terminal workflows, not a physical display/input
 device, Python-peer network exchange or complete primary editor/configuration
-inventory. Primary section/reset forms, complete ConfigObj,
-full editor state/tree/panes and remaining guide
-presentation remain required software work.
+inventory. Bounded section/reset forms and editor state/tree/pane controls are
+implemented in their sections above; complete ConfigObj grammar, source/preview
+scrolling and remaining guide/terminal presentation remain required software work.
 
 ### Bounded folder management
 
@@ -3653,8 +3776,9 @@ replays those artifacts into a fresh evidence root. Reference fixture SHA-256:
 `d4df2f4fec4984ca29543354da457fb62c46d4667fad669776f4813644e4d266`.
 Earlier candidate evidence remains separately retained. Current Linux replay is
 still blocked by WSL EIO/read-only storage; no WSL repair was attempted.
-Full ConfigObj/primary presentation, complete
-editor state/tree/panes and remaining guide/presentation remain required work.
+Full ConfigObj/primary presentation, source/preview scrolling, primary editor-state
+migration and remaining guide/terminal presentation remain required work.
+Bounded state/tree/pane controls are implemented under C97 above.
 
 ### Bounded recursive folder permissions
 
@@ -3742,9 +3866,10 @@ hashes; the replay operator creates fresh evidence and matching before/after
 guards, restoring process environment afterward. Earlier candidate evidence
 retains its own original source and binary association. Current Linux replay
 remains blocked by WSL EIO/read-only storage; WSL was not repaired.
-Full ConfigObj/primary configuration presentation, full editor
-state/tree/filter/gutter/panes/preview migration and remaining guide/terminal
-presentation are still required software work. No full editor/UI parity,
+Full ConfigObj/primary configuration presentation, source/preview scrolling,
+primary editor-state migration and remaining guide/terminal presentation are
+still required software work. Bounded native state/tree/filter/gutter/panes and
+debounced preview are implemented under C97 above. No full editor/UI parity,
 physical-terminal or additional live-network acceptance is claimed.
 
 ### Bounded configuration sections, reset and ConfigObj source
@@ -3834,8 +3959,9 @@ T460–T463 select actual native console workflows and independent primary
 regeneration. Physical terminal/layout parity and current Linux execution are
 not claimed; WSL EIO remains blocked and no repair was attempted. Remaining
 required software includes complete
-ConfigObj/RNS edge grammar, full editor state/tree/filter/gutter/panes/preview
+ConfigObj/RNS edge grammar, source/preview scrolling, primary editor-state
 migration and primary guide/terminal presentation, not merely hardware acceptance.
+Bounded native editor presentation and controls are implemented under C97 above.
 
 Preceding Windows validation for the original configuration candidate, before
 the read-only LXMF readiness addition (current refreshed acceptance is above):

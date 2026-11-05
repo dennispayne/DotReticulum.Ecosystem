@@ -1,0 +1,560 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "canonicalSourceSha256": {
+    "nomadnet/ui/textui/Editor.py": "ae6c09cde38d473fd97d1758ebcbc13edaf5d7e1f97dc4e698a870c68cd8d378",
+    "nomadnet/ui/textui/Browser.py": "cbce04302ec092ae6bb3cc6ce9f423139b1339b9e903f14f12cf8e6ebe736729",
+    "nomadnet/ui/textui/ReadlineEdit.py": "3538c109151528b8adcdda217bea4890d035461ae59b29bb49c455cfc47cc7d6"
+  },
+  "boundary": "Actual PageEditorDisplay/Browser/Urwid widgets on synthetic local files; headless screen, palette sink and recording alarm owner. Actual render callbacks invoked explicitly. No OS terminal, network node, executable page or wall-clock timer claim.",
+  "initialTree": [
+    {
+      "path": "pages",
+      "folder": true
+    },
+    {
+      "path": "pages/empty",
+      "folder": true
+    },
+    {
+      "path": "pages/nested",
+      "folder": true
+    },
+    {
+      "path": "pages/a.mu",
+      "folder": false
+    },
+    {
+      "path": "pages/B.MU",
+      "folder": false
+    },
+    {
+      "path": "pages/plain.txt",
+      "folder": false
+    },
+    {
+      "path": "files",
+      "folder": true
+    }
+  ],
+  "expandedTree": [
+    {
+      "path": "pages",
+      "folder": true
+    },
+    {
+      "path": "pages/empty",
+      "folder": true
+    },
+    {
+      "path": "pages/nested",
+      "folder": true
+    },
+    {
+      "path": "pages/nested/visible.txt",
+      "folder": false
+    },
+    {
+      "path": "pages/nested/z.mu",
+      "folder": false
+    },
+    {
+      "path": "pages/a.mu",
+      "folder": false
+    },
+    {
+      "path": "pages/B.MU",
+      "folder": false
+    },
+    {
+      "path": "pages/plain.txt",
+      "folder": false
+    },
+    {
+      "path": "files",
+      "folder": true
+    }
+  ],
+  "filteredTree": [
+    {
+      "path": "pages",
+      "folder": true
+    },
+    {
+      "path": "pages/nested",
+      "folder": true
+    },
+    {
+      "path": "pages/nested/z.mu",
+      "folder": false
+    },
+    {
+      "path": "pages/a.mu",
+      "folder": false
+    },
+    {
+      "path": "files",
+      "folder": true
+    }
+  ],
+  "panes": [
+    {
+      "toggle": "files",
+      "visible": [
+        "editor",
+        "preview"
+      ],
+      "weights": [
+        0.4,
+        0.38
+      ],
+      "focus": 0
+    },
+    {
+      "toggle": "preview",
+      "visible": [
+        "editor"
+      ],
+      "weights": [
+        0.4
+      ],
+      "focus": 0
+    },
+    {
+      "toggle": "editor",
+      "visible": [
+        "editor"
+      ],
+      "weights": [
+        0.4
+      ],
+      "focus": 0
+    },
+    {
+      "toggle": "files",
+      "visible": [
+        "files",
+        "editor"
+      ],
+      "weights": [
+        0.22,
+        0.4
+      ],
+      "focus": 1
+    },
+    {
+      "toggle": "preview",
+      "visible": [
+        "files",
+        "editor",
+        "preview"
+      ],
+      "weights": [
+        0.22,
+        0.4,
+        0.38
+      ],
+      "focus": 1
+    }
+  ],
+  "debounceEvents": [
+    {
+      "kind": "schedule",
+      "delay": 0.4,
+      "token": 1
+    },
+    {
+      "kind": "cancel",
+      "token": 1
+    },
+    {
+      "kind": "schedule",
+      "delay": 0.4,
+      "token": 3
+    }
+  ],
+  "completedAlarmCleared": true,
+  "dirty": true,
+  "tooLargePreview": "File too large to preview (100 KB). Editing still works.",
+  "savedState": {
+    "filter_mu": true,
+    "expanded": [
+      "files",
+      "pages",
+      "pages/nested"
+    ],
+    "pane_visible": {
+      "files": true,
+      "editor": true,
+      "preview": true
+    },
+    "last_file": "pages/a.mu"
+  },
+  "restart": {
+    "beforeStart": null,
+    "afterStart": "a.mu"
+  },
+  "highlighting": [
+    {
+      "text": "",
+      "runs": []
+    },
+    {
+      "text": "# comment\n>heading\nbody",
+      "runs": [
+        [
+          "editor_comment",
+          9
+        ],
+        [
+          null,
+          1
+        ],
+        [
+          "editor_heading",
+          1
+        ],
+        [
+          null,
+          12
+        ]
+      ]
+    },
+    {
+      "text": ">> heading `!bold`!\n",
+      "runs": [
+        [
+          "editor_heading",
+          2
+        ],
+        [
+          null,
+          9
+        ],
+        [
+          "editor_tag",
+          2
+        ],
+        [
+          null,
+          4
+        ],
+        [
+          "editor_tag",
+          2
+        ],
+        [
+          null,
+          1
+        ]
+      ]
+    },
+    {
+      "text": "`+>>Fold\n`<24|field`> `[label`:/page] `{x}\n",
+      "runs": [
+        [
+          "editor_heading",
+          4
+        ],
+        [
+          null,
+          5
+        ],
+        [
+          "editor_field",
+          12
+        ],
+        [
+          null,
+          1
+        ],
+        [
+          "editor_link",
+          15
+        ],
+        [
+          null,
+          1
+        ],
+        [
+          "editor_link",
+          4
+        ],
+        [
+          null,
+          1
+        ]
+      ]
+    },
+    {
+      "text": "\\`!literal",
+      "runs": [
+        [
+          null,
+          10
+        ]
+      ]
+    },
+    {
+      "text": "`F123text`f `BTabcdef text",
+      "runs": [
+        [
+          "editor_tag",
+          5
+        ],
+        [
+          null,
+          4
+        ],
+        [
+          "editor_tag",
+          2
+        ],
+        [
+          null,
+          1
+        ],
+        [
+          "editor_tag",
+          9
+        ],
+        [
+          null,
+          5
+        ]
+      ]
+    },
+    {
+      "text": "`:anchor-name\n",
+      "runs": [
+        [
+          "editor_tag",
+          13
+        ],
+        [
+          null,
+          1
+        ]
+      ]
+    },
+    {
+      "text": "`[unterminated",
+      "runs": [
+        [
+          "editor_link",
+          14
+        ]
+      ]
+    },
+    {
+      "text": "`<unterminated",
+      "runs": [
+        [
+          "editor_field",
+          14
+        ]
+      ]
+    },
+    {
+      "text": "a\n\nb\n",
+      "runs": [
+        [
+          null,
+          5
+        ]
+      ]
+    },
+    {
+      "text": "α😀`!x`!",
+      "runs": [
+        [
+          null,
+          2
+        ],
+        [
+          "editor_tag",
+          2
+        ],
+        [
+          null,
+          1
+        ],
+        [
+          "editor_tag",
+          2
+        ]
+      ]
+    },
+    {
+      "text": "`😀tail",
+      "runs": [
+        [
+          "editor_tag",
+          2
+        ],
+        [
+          null,
+          4
+        ]
+      ]
+    },
+    {
+      "text": "`F12😀tail",
+      "runs": [
+        [
+          "editor_tag",
+          5
+        ],
+        [
+          null,
+          4
+        ]
+      ]
+    },
+    {
+      "text": "`FT12😀456tail",
+      "runs": [
+        [
+          "editor_tag",
+          9
+        ],
+        [
+          null,
+          4
+        ]
+      ]
+    },
+    {
+      "text": "`:Ⅻ²\n",
+      "runs": [
+        [
+          "editor_tag",
+          4
+        ],
+        [
+          null,
+          1
+        ]
+      ]
+    },
+    {
+      "text": "\\\n>escaped newline heading",
+      "runs": [
+        [
+          null,
+          26
+        ]
+      ]
+    },
+    {
+      "text": "`F12\n>colour-consumed newline",
+      "runs": [
+        [
+          "editor_tag",
+          5
+        ],
+        [
+          null,
+          24
+        ]
+      ]
+    }
+  ],
+  "highlightBounds": [
+    {
+      "length": 50000,
+      "runs": [
+        [
+          "editor_comment",
+          50000
+        ]
+      ]
+    },
+    {
+      "length": 50001,
+      "runs": []
+    }
+  ],
+  "gutters": [
+    {
+      "width": 2,
+      "gutter": 0,
+      "rows": [
+        "al",
+        "ph",
+        "a ",
+        "be",
+        "ta",
+        "ga",
+        "mm",
+        "a ",
+        "ne",
+        "xt",
+        "  "
+      ]
+    },
+    {
+      "width": 3,
+      "gutter": 0,
+      "rows": [
+        "alp",
+        "ha ",
+        "bet",
+        "a g",
+        "amm",
+        "a  ",
+        "nex",
+        "t  ",
+        "   "
+      ]
+    },
+    {
+      "width": 4,
+      "gutter": 3,
+      "rows": [
+        " 1 a",
+        "   l",
+        "   p",
+        "   h",
+        "   a",
+        "   b",
+        "   e",
+        "   t",
+        "   a",
+        "   g",
+        "   a",
+        "   m",
+        "   m",
+        "   a",
+        " 2 n",
+        "   e",
+        "   x",
+        "   t",
+        " 3  "
+      ]
+    },
+    {
+      "width": 8,
+      "gutter": 3,
+      "rows": [
+        " 1 alpha",
+        "   beta ",
+        "   gamma",
+        " 2 next ",
+        " 3      "
+      ]
+    },
+    {
+      "width": 12,
+      "gutter": 3,
+      "rows": [
+        " 1 alpha    ",
+        "   beta     ",
+        "   gamma    ",
+        " 2 next     ",
+        " 3          "
+      ]
+    }
+  ],
+  "loadingIgnored": true,
+  "executableNotScheduled": true
+}

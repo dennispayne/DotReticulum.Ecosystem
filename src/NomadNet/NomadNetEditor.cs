@@ -13,6 +13,7 @@ public sealed class NomadNetEditorBuffer
     public int Cursor { get; private set; }
     public bool Dirty { get; private set; }
     public bool Editable { get; private set; } = true;
+    internal Action? Changed { get; set; }
 
     public void Load(string text, bool editable = true)
     {
@@ -30,6 +31,7 @@ public sealed class NomadNetEditorBuffer
         Text = text;
         Cursor = Math.Min(Cursor, text.Length);
         Dirty = true;
+        Changed?.Invoke();
     }
 
     public void Insert(string text, int? position = null)
@@ -92,13 +94,14 @@ public sealed class NomadNetEditorBuffer
     }
 }
 
-public sealed record NomadNetEditorState(int SchemaVersion = 1, string? Scope = null, string? Path = null);
+public sealed record NomadNetEditorState(int SchemaVersion = 1, string? Scope = null, string? Path = null,
+    bool FilterMu = false, string[]? Expanded = null, string[]? VisiblePanes = null);
 
 /// <summary>
 /// Single-console-session editor. The profile lease excludes other native processes; content snapshots
 /// reject ordinary external changes. Filesystem administrators racing path checks are not sandboxed.
 /// </summary>
-public sealed partial class NomadNetEditor : IDisposable
+public sealed partial class NomadNetEditor : IDisposable, IAsyncDisposable
 {
     public const int MaximumBytes = 1_000_000;
     private static readonly UTF8Encoding Utf8 = new(false, true);
@@ -110,6 +113,8 @@ public sealed partial class NomadNetEditor : IDisposable
     private byte[]? _snapshot;
     private byte[]? _allowedSnapshot;
     private bool _disposed;
+    private readonly object _disposeGate = new();
+    private Task? _disposeWork;
     public NomadNetEditorBuffer Buffer { get; } = new();
     public string? Scope { get; private set; }
     public string? RelativePath { get; private set; }
@@ -130,6 +135,7 @@ public sealed partial class NomadNetEditor : IDisposable
             ["config"] = _profile,
         };
         foreach (var root in _roots.Values) Guard(root);
+        Buffer.Changed = PresentationBufferChanged;
     }
 
     public string Resolve(string scope, string relative)
@@ -191,6 +197,7 @@ public sealed partial class NomadNetEditor : IDisposable
             RelativePath = relative;
             Executable = bytes is not null && !OperatingSystem.IsWindows() &&
                 (File.GetUnixFileMode(path) & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute)) != 0;
+            RefreshPresentationSelection();
         }
         finally
         {
@@ -206,7 +213,7 @@ public sealed partial class NomadNetEditor : IDisposable
     {
         var bytes = await SnapshotAsync(System.IO.Path.Combine(_profile, "editor_state.json"), cancellationToken).ConfigureAwait(false)
             ?? throw new FileNotFoundException("No saved editor selection.");
-        if (bytes.Length > 4096) throw new InvalidDataException("Editor selection exceeds its limit.");
+        if (bytes.Length > 32768) throw new InvalidDataException("Editor selection exceeds its limit.");
         var state = JsonSerializer.Deserialize(bytes, NomadNetEditorJsonContext.Default.NomadNetEditorState)
             ?? throw new InvalidDataException("Invalid editor selection.");
         if (state.SchemaVersion != 1 || state.Scope is null || state.Path is null) throw new InvalidDataException("No valid saved editor selection.");
@@ -259,6 +266,7 @@ public sealed partial class NomadNetEditor : IDisposable
         _allowedSnapshot = null;
         Executable = false;
         Buffer.Saved();
+        RefreshPresentationSelection();
         await WriteStateAsync(new(Scope: scope, Path: relative), cancellationToken).ConfigureAwait(false);
     }
 
@@ -273,6 +281,7 @@ public sealed partial class NomadNetEditor : IDisposable
         RelativePath = null;
         ClearSnapshots();
         Executable = false;
+        RefreshPresentationSelection();
         return true;
     }
 
@@ -365,6 +374,7 @@ public sealed partial class NomadNetEditor : IDisposable
             throw;
         }
         await CloseAsync("discard", CancellationToken.None).ConfigureAwait(false);
+        await WriteStateAsync(new(), CancellationToken.None).ConfigureAwait(false);
         // After the two moves, deletion is committed. A cleanup error is surfaced and the hidden
         // tombstone is retained rather than falsely reporting a rollback after destroying data.
         File.Delete(staged);
@@ -403,10 +413,24 @@ public sealed partial class NomadNetEditor : IDisposable
 
     private async Task WriteStateAsync(NomadNetEditorState state, CancellationToken cancellationToken)
     {
+        if (_presentationActivated || _preview is not null)
+            state = state with
+            {
+                FilterMu = _filterMu,
+                Expanded = _expanded.Order(StringComparer.Ordinal).ToArray(),
+                VisiblePanes = VisiblePanes.ToArray()
+            };
+        else
+        {
+            var previous = await ReadPresentationStateAsync(cancellationToken).ConfigureAwait(false);
+            if (previous is not null)
+                state = state with { FilterMu = previous.FilterMu, Expanded = previous.Expanded, VisiblePanes = previous.VisiblePanes };
+        }
         var path = System.IO.Path.Combine(_profile, "editor_state.json");
         Guard(path);
-        await WriteAsync(path, JsonSerializer.SerializeToUtf8Bytes(state, NomadNetEditorJsonContext.Default.NomadNetEditorState),
-            File.Exists(path), cancellationToken).ConfigureAwait(false);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(state, NomadNetEditorJsonContext.Default.NomadNetEditorState);
+        if (bytes.Length > 32768) throw new InvalidDataException("Editor state exceeds32 KiB.");
+        await WriteAsync(path, bytes, File.Exists(path), cancellationToken).ConfigureAwait(false);
     }
 
     public void ValidateConfiguration()
@@ -483,8 +507,13 @@ public sealed partial class NomadNetEditor : IDisposable
         var staged = System.IO.Path.Combine(parent, ".editor-write-" + Guid.NewGuid().ToString("N"));
         try
         {
-            var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write,
-                Share = FileShare.None, Options = FileOptions.Asynchronous | FileOptions.WriteThrough };
+            var options = new FileStreamOptions
+            {
+                Mode = FileMode.CreateNew,
+                Access = FileAccess.Write,
+                Share = FileShare.None,
+                Options = FileOptions.Asynchronous | FileOptions.WriteThrough
+            };
             if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
             await using (var stream = new FileStream(staged, options))
             {
@@ -540,10 +569,19 @@ public sealed partial class NomadNetEditor : IDisposable
         _allowedSnapshot = null;
     }
 
-    public void Dispose()
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
+
+    public ValueTask DisposeAsync()
+    {
+        lock (_disposeGate) return new(_disposeWork ??= DisposeCoreAsync());
+    }
+
+    private async Task DisposeCoreAsync()
     {
         if (_disposed) return;
         _disposed = true;
+        if (_preview is not null) await _preview.DisposeAsync().ConfigureAwait(false);
+        Buffer.Changed = null;
         _configurationForm = null;
         CancelFolderPlan();
         ClearSnapshots();

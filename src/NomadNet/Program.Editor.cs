@@ -8,7 +8,8 @@ internal static partial class Program
     {
         private NomadNetEditor? _editor;
         private readonly NomadNetGuide _guide = new();
-        private NomadNetEditor Editor => _editor ??= new(dataDirectory, propagation.Settings, selectedRnsFile);
+        private NomadNetEditor Editor => _editor ??= new(dataDirectory, propagation.Settings, selectedRnsFile)
+        { PresentationLog = message => logging.Write(1, message) };
 
         private async Task<bool> TryHandleEditorAsync(string command, CancellationToken cancellationToken)
         {
@@ -76,6 +77,7 @@ internal static partial class Program
                 return true;
             }
             if (parts[0] != "edit") return false;
+            await Editor.ActivatePresentationAsync(cancellationToken).ConfigureAwait(false);
             var action = parts.Length > 1 ? parts[1] : "status";
             var value = parts.Length > 2 ? parts[2] : "";
             if (action == "folder")
@@ -138,6 +140,48 @@ internal static partial class Program
             }
             switch (action)
             {
+                case "help":
+                    Console.WriteLine("Editor presentation: view [width40–240] [rows1–60]; tree; expand|collapse <pages|files> [folder]; " +
+                        "filter on|off; pane files|editor|preview; focus next|previous; preview-status. " +
+                        "Source edits render a bounded local preview after400ms; view prints the current panes. No network/image retrieval or executable preview.");
+                    break;
+                case "view":
+                    var dimensions = Split(value, 2);
+                    var width = dimensions.Length == 0 ? 120 : int.Parse(dimensions[0], System.Globalization.CultureInfo.InvariantCulture);
+                    var rows = dimensions.Length < 2 ? 20 : int.Parse(dimensions[1], System.Globalization.CultureInfo.InvariantCulture);
+                    Console.Write(Editor.View(width, rows, propagation.Settings, !Console.IsOutputRedirected, cancellationToken));
+                    break;
+                case "tree":
+                    foreach (var entry in Editor.Tree(cancellationToken))
+                        Console.WriteLine($"{new string(' ', entry.Depth * 2)}{(entry.Directory ? entry.Expanded ? "[-]" : "[+]" : " . ")} " +
+                            NomadNetEditorSyntax.SafeCells(entry.Scope + "/" + entry.Path));
+                    break;
+                case "expand":
+                case "collapse":
+                    var expansion = Split(value, 2);
+                    if (expansion.Length == 0) throw new ArgumentException("Choose pages or files and an optional relative folder.");
+                    await Editor.ExpandAsync(expansion[0], expansion.ElementAtOrDefault(1), action == "expand", cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Editor tree expansion saved.");
+                    break;
+                case "filter":
+                    if (value is not ("on" or "off")) throw new ArgumentException("Use edit filter on|off (.mu is case-sensitive).");
+                    await Editor.FilterAsync(value == "on", cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Editor .mu filter: " + value);
+                    break;
+                case "pane":
+                    await Editor.PaneAsync(value, cancellationToken).ConfigureAwait(false);
+                    Console.WriteLine("Editor visible panes: " + string.Join(", ", Editor.VisiblePanes));
+                    break;
+                case "focus":
+                    if (value is not ("" or "next" or "previous")) throw new ArgumentException("Use edit focus next|previous.");
+                    Editor.FocusPane(value == "previous");
+                    Console.WriteLine("Editor focused pane: " + Editor.FocusedPane);
+                    break;
+                case "preview-status":
+                    var preview = Editor.AutomaticPreview;
+                    Console.WriteLine($"Automatic preview: revision={preview?.Revision ?? 0}; requested={Editor.PreviewRevision}; " +
+                        $"state={(preview is not null && preview.Revision == Editor.PreviewRevision ? "ready" : "pending")}");
+                    break;
                 case "open":
                 case "new":
                     var location = Split(value, 2);

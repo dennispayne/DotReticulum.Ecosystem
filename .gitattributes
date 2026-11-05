@@ -31,3 +31,4 @@ tests/NomadNet.Tests/NomadNetRrcSettingsVectors.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-conversation-policy.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-message-markup.json text eol=lf
 tests/NomadNet.Tests/NomadNetRnsPolicyVectors.json text eol=lf
+tests/NomadNet.Tests/NomadNetEditorPresentationVectors.json text eol=lf

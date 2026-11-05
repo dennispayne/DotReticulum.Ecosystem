@@ -309,13 +309,28 @@ public sealed partial class NomadNetEditor
         {
             try
             {
-                if (bytes.Length > 4096) throw new InvalidDataException("Editor selection exceeds its limit.");
+                if (bytes.Length > 32768) throw new InvalidDataException("Editor selection exceeds its limit.");
                 var state = JsonSerializer.Deserialize(bytes, NomadNetEditorJsonContext.Default.NomadNetEditorState)
                     ?? throw new InvalidDataException("Invalid editor selection.");
-                if (state.SchemaVersion != 1) throw new InvalidDataException("Invalid editor selection schema.");
+                ValidatePresentationState(state);
+                var expansions = new List<string>();
+                foreach (var key in state.Expanded ?? ["pages", "files"])
+                {
+                    var parts = key.Split('/', 2);
+                    var expandedPath = parts.Length == 1 ? _roots[parts[0]] : ResolveFolder(parts[0], parts[1]);
+                    if (!Within(expandedPath, plan.Absolute)) expansions.Add(key);
+                    else if (target is not null)
+                        expansions.Add(TreeKey(nextScope!, System.IO.Path.GetRelativePath(_roots[nextScope!],
+                            System.IO.Path.Combine(target, System.IO.Path.GetRelativePath(plan.Absolute, expandedPath)))));
+                }
+                changed = state with { Expanded = expansions.ToArray() };
                 if (state.Scope is "pages" or "files" && state.Path is not null &&
                     Within(Resolve(state.Scope, state.Path), plan.Absolute))
-                    changed = target is null ? new() : new(Scope: nextScope, Path: Rebase(Resolve(state.Scope, state.Path)));
+                    changed = changed with
+                    {
+                        Scope = target is null ? null : nextScope,
+                        Path = target is null ? null : Rebase(Resolve(state.Scope, state.Path))
+                    };
             }
             finally { CryptographicOperations.ZeroMemory(bytes); }
         }
@@ -337,9 +352,11 @@ public sealed partial class NomadNetEditor
             Scope = removed ? null : scope;
             RelativePath = selection.NextPath;
             if (removed) { ClearSnapshots(); Buffer.Load(""); Executable = false; }
+            RefreshPresentationSelection();
         }
         if (selection.State is not null)
         {
+            if (_preview is not null) _expanded = new(selection.State.Expanded ?? ["pages", "files"], StringComparer.Ordinal);
             try { await WriteStateAsync(selection.State, CancellationToken.None).ConfigureAwait(false); }
             catch (Exception failure) { throw new IOException("Folder change committed; editor selection persistence failed.", failure); }
         }

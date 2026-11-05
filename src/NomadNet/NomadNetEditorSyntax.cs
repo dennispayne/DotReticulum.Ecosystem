@@ -88,15 +88,38 @@ public static class NomadNetEditorSyntax
         return length;
     }
 
-    public static IReadOnlyList<NomadNetEditorRow> Rows(string text, int width, int maximumRows = 60)
+    public static IReadOnlyList<NomadNetEditorRow> Rows(string text, int width, int maximumRows = 60, int firstRow = 0)
     {
-        if (width is < 1 or > 240 || maximumRows is < 1 or > 60) throw new ArgumentOutOfRangeException(nameof(width));
+        if (width is < 1 or > 240 || maximumRows is < 1 or > 60 || firstRow < 0) throw new ArgumentOutOfRangeException(nameof(width));
         var spans = Highlight(text);
+        var rows = new List<NomadNetEditorRow>();
+        foreach (var (offset, take, prefix) in Layout(text, width).Skip(firstRow).Take(maximumRows))
+        {
+            var safe = SafeCells(text.Substring(offset, take));
+            if (safe.Length > width - prefix.Length) safe = "?";
+            var rowSpans = spans.Where(span => span.Start < offset + take && span.Start + span.Length > offset)
+                .Select(span => new NomadNetEditorSpan(prefix.Length + Math.Max(0, span.Start - offset),
+                    Math.Min(offset + take, span.Start + span.Length) - Math.Max(offset, span.Start), span.Style))
+                .Where(span => span.Start + span.Length <= prefix.Length + safe.Length).ToArray();
+            rows.Add(new(prefix + safe.PadRight(width - prefix.Length), rowSpans));
+        }
+        return rows;
+    }
+
+    public static int CountRows(string text, int width)
+    {
+        if (width is < 1 or > 240) throw new ArgumentOutOfRangeException(nameof(width));
+        if (text.Length > NomadNetEditor.MaximumBytes) throw new InvalidDataException("Source exceeds editor bound.");
+        return Layout(text, width).Count();
+    }
+
+    private static IEnumerable<(int Offset, int Length, string Prefix)> Layout(string text, int width)
+    {
         var lineCount = text.Count(character => character == '\n') + 1;
         var gutter = Math.Max(3, lineCount.ToString(CultureInfo.InvariantCulture).Length + 2);
         if (width <= gutter) gutter = 0;
         var available = width - gutter;
-        var rows = new List<NomadNetEditorRow>();
+        var wrapWords = text.EnumerateRunes().Count() <= MaximumHighlightCharacters;
         var offset = 0;
         var number = 1;
         foreach (var line in text.Split('\n'))
@@ -104,15 +127,14 @@ public static class NomadNetEditorSyntax
             var position = 0;
             do
             {
-                if (rows.Count == maximumRows) return rows;
-                if (position > 0 && spans.Count != 0)
+                if (position > 0 && wrapWords)
                     while (position < line.Length && line[position] == ' ') position++;
                 if (position == line.Length && line.Length > 0) break;
                 var take = Math.Min(available, line.Length - position);
                 if (take > 0 && position + take < line.Length && char.IsHighSurrogate(line[position + take - 1])) take--;
                 if (take == 0 && position < line.Length) take = Math.Min(2, line.Length - position);
                 // Match observed word wrapping for ordinary source; long words still make progress.
-                if (spans.Count != 0 && position + take < line.Length && take > 1)
+                if (wrapWords && position + take < line.Length && take > 1)
                 {
                     var space = line.AsSpan(position, take).LastIndexOf(' ');
                     if (space >= 0)
@@ -124,19 +146,12 @@ public static class NomadNetEditorSyntax
                 }
                 var prefix = gutter == 0 ? "" : position == 0
                     ? number.ToString(CultureInfo.InvariantCulture).PadLeft(gutter - 1) + " " : new string(' ', gutter);
-                var raw = line.Substring(position, take);
-                var safe = SafeCells(raw);
-                var rowSpans = spans.Where(span => span.Start < offset + position + take && span.Start + span.Length > offset + position)
-                    .Select(span => new NomadNetEditorSpan(gutter + Math.Max(0, span.Start - offset - position),
-                        Math.Min(offset + position + take, span.Start + span.Length) - Math.Max(offset + position, span.Start), span.Style))
-                    .ToArray();
-                rows.Add(new(prefix + safe.PadRight(Math.Max(0, width - gutter)), rowSpans));
+                yield return (offset + position, take, prefix);
                 position += take;
             } while (position < line.Length);
             offset += line.Length + 1;
             number++;
         }
-        return rows;
     }
 
     public static string SafeCells(string text)

@@ -1,0 +1,143 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "canonicalSourceSha256": {
+    "nomadnet/ui/textui/Editor.py": "ae6c09cde38d473fd97d1758ebcbc13edaf5d7e1f97dc4e698a870c68cd8d378",
+    "nomadnet/ui/textui/Browser.py": "cbce04302ec092ae6bb3cc6ce9f423139b1339b9e903f14f12cf8e6ebe736729",
+    "nomadnet/vendor/Scrollable.py": "afa1da21a9d330c718394bcc9cd2ebe1449436fdb2e04d11b7be7ea50d65c6a4"
+  },
+  "text": "line 000\nline 001\nline 002\nline 003\nline 004\nline 005\nline 006\nline 007\nline 008\nline 009\nline 010\nline 011\nline 012\nline 013\nline 014\nline 015\nline 016\nline 017\nline 018\nline 019\nline 020\nline 021\nline 022\nline 023\nline 024\nline 025\nline 026\nline 027\nline 028\nline 029\nline 030\nline 031\nline 032\nline 033\nline 034\nline 035\nline 036\nline 037\nline 038\nline 039\nline 040\nline 041\nline 042\nline 043\nline 044\nline 045\nline 046\nline 047\nline 048\nline 049\nline 050\nline 051\nline 052\nline 053\nline 054\nline 055\nline 056\nline 057\nline 058\nline 059\nline 060\nline 061\nline 062\nline 063\nline 064\nline 065\nline 066\nline 067\nline 068\nline 069\nline 070\nline 071\nline 072\nline 073\nline 074\nline 075\nline 076\nline 077\nline 078\nline 079",
+  "size": [
+    40,
+    6
+  ],
+  "operations": [
+    {
+      "key": "page down",
+      "position": 5,
+      "rows": [
+        "line 005                                ",
+        "line 006                                ",
+        "line 007                                ",
+        "line 008                                ",
+        "line 009                                ",
+        "line 010                                "
+      ]
+    },
+    {
+      "key": "page down",
+      "position": 10,
+      "rows": [
+        "line 010                                ",
+        "line 011                                ",
+        "line 012                                ",
+        "line 013                                ",
+        "line 014                                ",
+        "line 015                                "
+      ]
+    },
+    {
+      "key": "page up",
+      "position": 5,
+      "rows": [
+        "line 005                                ",
+        "line 006                                ",
+        "line 007                                ",
+        "line 008                                ",
+        "line 009                                ",
+        "line 010                                "
+      ]
+    },
+    {
+      "key": "end",
+      "position": 74,
+      "rows": [
+        "line 074                                ",
+        "line 075                                ",
+        "line 076                                ",
+        "line 077                                ",
+        "line 078                                ",
+        "line 079                                "
+      ]
+    },
+    {
+      "key": "page down",
+      "position": 74,
+      "rows": [
+        "line 074                                ",
+        "line 075                                ",
+        "line 076                                ",
+        "line 077                                ",
+        "line 078                                ",
+        "line 079                                "
+      ]
+    },
+    {
+      "key": "home",
+      "position": 0,
+      "rows": [
+        "line 000                                ",
+        "line 001                                ",
+        "line 002                                ",
+        "line 003                                ",
+        "line 004                                ",
+        "line 005                                "
+      ]
+    },
+    {
+      "key": "page up",
+      "position": 0,
+      "rows": [
+        "line 000                                ",
+        "line 001                                ",
+        "line 002                                ",
+        "line 003                                ",
+        "line 004                                ",
+        "line 005                                "
+      ]
+    }
+  ],
+  "positions": [
+    {
+      "requested": -100,
+      "position": 0
+    },
+    {
+      "requested": 0,
+      "position": 0
+    },
+    {
+      "requested": 3,
+      "position": 3
+    },
+    {
+      "requested": 74,
+      "position": 74
+    },
+    {
+      "requested": 1000000,
+      "position": 74
+    }
+  ],
+  "editor": {
+    "before": 17,
+    "afterToggle": 17,
+    "totalRows": 159,
+    "initialCanvas": [
+      "line 000                                ",
+      "                                        ",
+      "line 001                                ",
+      "                                        ",
+      "line 002                                ",
+      "                                        "
+    ],
+    "immediateRerender": 0,
+    "afterRender": 0,
+    "persistedKeys": [
+      "expanded",
+      "filter_mu",
+      "last_file",
+      "pane_visible"
+    ]
+  },
+  "boundary": "Actual PageList and PageEditorDisplay on synthetic text; headless screen/palette/alarm owner and disclosed application singleton shim for MicronParser theme/palette. No full unmodified primary application, terminal, network, physical display or automatic timer evidence."
+}

@@ -201,9 +201,9 @@ public sealed partial class NomadNetEditor
         settings ??= _configurationBasis;
         var panes = VisiblePanes;
         var weights = panes.Select(pane => pane switch { "files" => 22, "editor" => 40, _ => 38 }).ToArray();
-        var available = width - (panes.Count - 1) * 3;
-        var widths = weights.Select(weight => available * weight / weights.Sum()).ToArray();
-        widths[^1] += available - widths.Sum();
+        var widths = PaneWidths(width);
+        _viewWidth = width;
+        _viewRows = rows;
         var output = new StringBuilder("Editor panes: " + string.Join(", ", panes.Select((pane, index) =>
             $"{pane}={weights[index]}%/{widths[index]}cols")) + $"; focus={_focusedPane}; filter.mu={_filterMu}\n");
         var columns = new List<IReadOnlyList<string>>();
@@ -218,16 +218,19 @@ public sealed partial class NomadNetEditor
                             (entry.Path.Length == 0 ? entry.Scope : System.IO.Path.GetFileName(entry.Path)), size)).ToArray());
                     break;
                 case "editor":
-                    columns.Add(NomadNetEditorSyntax.Rows(Buffer.Text, size, rows)
+                    _sourceScroll.Clamp(NomadNetEditorSyntax.CountRows(Buffer.Text, size), rows);
+                    columns.Add(NomadNetEditorSyntax.Rows(Buffer.Text, size, rows, SourceScrollPosition)
                         .Select(row => NomadNetEditorSyntax.Color(row, settings, ansi)).ToArray());
                     break;
                 default:
-                    var preview = AutomaticPreview;
-                    var text = preview is null ? "Preview pending." : preview.Revision != PreviewRevision ? "Preview pending.\n" + preview.Text : preview.Text;
-                    columns.Add(text.Split('\n').Take(rows).Select(line => Cell(line, size)).ToArray());
+                    var text = PreviewViewportText();
+                    _previewScroll.Clamp(text.Count(character => character == '\n') + 1, rows);
+                    columns.Add(text.Split('\n').Skip(PreviewScrollPosition).Take(rows).Select(line => Cell(line, size)).ToArray());
                     break;
             }
         }
+        output.AppendLine($"Scroll rows: editor={SourceScrollPosition}; preview={PreviewScrollPosition}; " +
+            $"height={rows}; preview={(AutomaticPreview is { } current && current.Revision == PreviewRevision ? "ready" : "pending")}");
         output.AppendLine(string.Join(" | ", panes.Select((pane, index) => Cell(pane.ToUpperInvariant(), widths[index]))));
         for (var row = 0; row < Math.Min(rows, columns.Max(column => column.Count)); row++)
             output.AppendLine(string.Join(" | ", columns.Select((column, index) => row < column.Count ? column[row] : new string(' ', widths[index]))));

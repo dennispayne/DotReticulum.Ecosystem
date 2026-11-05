@@ -25,9 +25,11 @@ pwsh -NoProfile -File tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artif
 ```
 
 Its source-identity union covers23067/30760 production lines and
-16017/25289 branches across10 reports. C99 source/tests are present in this
-integrated development worktree; their separately accepted scrolling claim is
-not yet part of that97-claim catalog snapshot. Skipped native/live and
+16017/25289 branches across10 reports. That original catalog snapshot precedes
+C99 integration. Reaggregation of the unchanged executed records against the
+accepted editor catalog validates98 claims/558 selectors in
+`artifacts\tests\fleet-mqtt-editor-catalog`; it does not claim another execution.
+Skipped native/live and
 unmapped cases are not passing compatibility evidence.
 Selected MQTT/external-geoid acceptance
 separately passes124/0 without skips plus2/0/0 Pester, including actual primary
@@ -44,6 +46,22 @@ broker-policy/reference-drain and cadence-harness failures remain recorded in
 ```powershell
 pwsh -NoProfile -File artifacts\tests\sideband-mqtt\Replay-Candidate.ps1 -OutputDirectory artifacts\tests\sideband-mqtt\parent-frozen-retry-observed
 ```
+
+Parent-independent frozen C99 replay separately passes426/15 managed and
+3/0/0 Pester, including three new scrolling ConPTY, existing editor/terminal
+ConPTY and actual Vim checks on native SHA-256
+`1d6d99096f45b20e920371a0e1b66ca0394f5f78fd8152093c6a996af1aa5548`:
+
+```powershell
+pwsh -NoProfile -File artifacts\tests\nomad-editor-scrolling\Replay-Candidate.ps1 -OutputDirectory artifacts\tests\nomad-editor-scrolling\parent-independent
+```
+
+Independent session positions survive native preview replacement; primary's
+observed replacement resets. C97's actual-primary callbacks had rendered an
+error panel without the singleton. C99 separately verifies synthetic Micron
+with a disclosed singleton/palette shim; that is not full unmodified-primary
+application evidence. Full terminal interaction/columns and primary editor-state
+migration remain required software, not physical-hardware deferrals.
 
 Hosted evidence was rechecked without dispatching workflows: latest
 Build41502113530 succeeds at `89e948a90e9606bed331b71da6b787cace0bbd81`;

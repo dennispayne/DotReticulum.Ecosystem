@@ -142,7 +142,9 @@ internal static partial class Program
             {
                 case "help":
                     Console.WriteLine("Editor presentation: view [width40–240] [rows1–60]; tree; expand|collapse <pages|files> [folder]; " +
-                        "filter on|off; pane files|editor|preview; focus next|previous; preview-status. " +
+                        "filter on|off; pane files|editor|preview; focus next|previous; preview-status; " +
+                        "scroll <editor|preview|focused> <up|down|page-up|page-down|home|end|signed-row-delta>. " +
+                        "Scrolling uses the last view dimensions (default120x20), retains independent session positions; selection/restart resets them. " +
                         "Source edits render a bounded local preview after400ms; view prints the current panes. No network/image retrieval or executable preview.");
                     break;
                 case "view":
@@ -155,6 +157,13 @@ internal static partial class Program
                     foreach (var entry in Editor.Tree(cancellationToken))
                         Console.WriteLine($"{new string(' ', entry.Depth * 2)}{(entry.Directory ? entry.Expanded ? "[-]" : "[+]" : " . ")} " +
                             NomadNetEditorSyntax.SafeCells(entry.Scope + "/" + entry.Path));
+                    break;
+                case "scroll":
+                    var scrolling = Split(value, 3);
+                    if (scrolling.Length != 2) throw new ArgumentException("Use edit scroll <editor|preview|focused> <movement>.");
+                    Editor.Scroll(scrolling[0], scrolling[1]);
+                    Console.Write(Editor.View(settings: propagation.Settings, ansi: !Console.IsOutputRedirected,
+                        token: cancellationToken, width: Editor.ViewWidth, rows: Editor.ViewRows));
                     break;
                 case "expand":
                 case "collapse":

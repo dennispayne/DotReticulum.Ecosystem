@@ -197,6 +197,7 @@ public sealed partial class NomadNetEditor : IDisposable, IAsyncDisposable
             RelativePath = relative;
             Executable = bytes is not null && !OperatingSystem.IsWindows() &&
                 (File.GetUnixFileMode(path) & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute)) != 0;
+            ResetScroll();
             RefreshPresentationSelection();
         }
         finally
@@ -281,6 +282,7 @@ public sealed partial class NomadNetEditor : IDisposable, IAsyncDisposable
         RelativePath = null;
         ClearSnapshots();
         Executable = false;
+        ResetScroll();
         RefreshPresentationSelection();
         return true;
     }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 
 namespace Sideband;
 
@@ -12,13 +13,24 @@ internal static class SidebandTelemetrySettings
         "telemetry_requests_only_send_latest" or "telemetry_collector" or "telemetry_send_interval" or "telemetry_request_interval" or
         "telemetry_s_information" or "telemetry_s_information_text" or "telemetry_s_fixed_location" or "telemetry_s_fixed_latlon" or
         "telemetry_s_fixed_altitude" or "telemetry_s_rns_transport" or "dotreticulum_runtime_telemetry_tables" or
-        "telemetry_icon" or "telemetry_fg" or "telemetry_bg";
+        "telemetry_icon" or "telemetry_fg" or "telemetry_bg" or "telemetry_to_mqtt" or
+        "telemetry_mqtt_host" or "telemetry_mqtt_port" or "telemetry_mqtt_user" or "telemetry_mqtt_pass";
 
     internal static SidebandTelemetryConfiguration Import(IReadOnlyDictionary<string, JsonElement> settings, SidebandTelemetryConfiguration prior)
     {
         bool Flag(string key, bool fallback) => settings.TryGetValue(key, out var value) ? value.GetBoolean() : fallback;
         int Interval(string key, int fallback) => settings.TryGetValue(key, out var value) ? value.GetInt32() : fallback;
         string Text(string key, string fallback) => settings.TryGetValue(key, out var value) ? value.GetString() ?? fallback : fallback;
+        int? MqttPort()
+        {
+            if (!settings.TryGetValue("telemetry_mqtt_port", out var value)) return prior.Mqtt.Port;
+            if (value.ValueKind == JsonValueKind.Null) return null;
+            if (value.ValueKind == JsonValueKind.String && value.GetString() == "") return null;
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number)) return number;
+            if (value.ValueKind == JsonValueKind.String &&
+                int.TryParse(value.GetString(), NumberStyles.None, CultureInfo.InvariantCulture, out number)) return number;
+            throw new InvalidDataException("MQTT port must be null or a whole port number; decimal primary GUI strings are accepted.");
+        }
         string Color(string key, string fallback)
         {
             if (!settings.TryGetValue(key, out var value)) return fallback;
@@ -38,6 +50,14 @@ internal static class SidebandTelemetrySettings
         return (prior with
         {
             Enabled = Flag("telemetry_enabled", prior.Enabled), SendToTrusted = Flag("telemetry_send_to_trusted", prior.SendToTrusted),
+            Mqtt = new()
+            {
+                Enabled = Flag("telemetry_to_mqtt", prior.Mqtt.Enabled),
+                Host = settings.TryGetValue("telemetry_mqtt_host", out var mqttHost) ? mqttHost.GetString() : prior.Mqtt.Host,
+                Port = MqttPort(),
+                Username = settings.TryGetValue("telemetry_mqtt_user", out var mqttUser) ? mqttUser.GetString() : prior.Mqtt.Username,
+                Password = settings.TryGetValue("telemetry_mqtt_pass", out var mqttPassword) ? mqttPassword.GetString() : prior.Mqtt.Password
+            },
             RnsTransportEnabled = Flag("telemetry_s_rns_transport", prior.RnsTransportEnabled),
             RnsTransportIncludeTables = Flag("dotreticulum_runtime_telemetry_tables", prior.RnsTransportIncludeTables),
             SendToCollector = Flag("telemetry_send_to_collector", prior.SendToCollector),
@@ -70,6 +90,11 @@ internal static class SidebandTelemetrySettings
         void Interval(string key, int value) => settings[key] = JsonSerializer.SerializeToElement(value, SidebandStateJsonContext.Default.Int32);
         void Numbers(string key, double[] value) => settings[key] = JsonSerializer.SerializeToElement(value, SidebandStateJsonContext.Default.DoubleArray);
         Flag("telemetry_enabled", config.Enabled); Flag("telemetry_send_to_trusted", config.SendToTrusted);
+        Flag("telemetry_to_mqtt", config.Mqtt.Enabled);
+        Text("telemetry_mqtt_host", config.Mqtt.Host); Text("telemetry_mqtt_user", config.Mqtt.Username);
+        Text("telemetry_mqtt_pass", config.Mqtt.Password);
+        settings["telemetry_mqtt_port"] = JsonSerializer.SerializeToElement(config.Mqtt.Port,
+            SidebandStateJsonContext.Default.NullableInt32);
         Flag("telemetry_s_rns_transport", config.RnsTransportEnabled);
         Flag("dotreticulum_runtime_telemetry_tables", config.RnsTransportIncludeTables);
         Flag("telemetry_send_to_collector", config.SendToCollector); Flag("telemetry_request_from_collector", config.RequestFromCollector);

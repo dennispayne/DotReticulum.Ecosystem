@@ -592,7 +592,7 @@ public static class SidebandTelemetryCodec
         return Math.Truncate(RoundBinaryDecimal(value, digits) * scale);
     }
     // Decimal rounding of the exact IEEE-754 value, avoiding a pre-rounded value*10^digits tie.
-    private static double RoundBinaryDecimal(double value, int digits)
+    internal static double RoundBinaryDecimal(double value, int digits)
     {
         Require(double.IsFinite(value), "Expected finite value.");
         if (Math.Abs(value) >= 1e16) return value;

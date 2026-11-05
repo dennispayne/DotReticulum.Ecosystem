@@ -28,6 +28,9 @@ Default-off LXST calling, trust-aware direct PTT, bounded call history and an or
 desktop voice screen reuse the same Reticulum identity/router as messaging.
 Manual telemetry, privacy-aware collector/report exchange, supported telemetry
 migration and an original bounded raster/offline MBTiles map are implemented.
+Explicit bounded MQTT forwarding, five persisted primary settings and an
+independently evaluated caller-supplied geoid are implemented; their separate
+Windows native/reference evidence and plaintext-export risks are below.
 Actual primary application telemetry passes on Windows/Linux, including opted-in
 Reticulum runtime collection. Other automatic sensors, plugins, mobile operation,
 broad upstream configuration, and upstream database
@@ -1747,7 +1750,8 @@ where primary counters are RAM-only. A one-second worker, rather than primary's
 hardware/plugin settings remain reported/preserved, never activated by import.
 Supported JSON settings and actual primary binary/SQLite profile migration
 activate supported manual/runtime collection/privacy settings, contact flags/appearance, reports
-and the four named telemetry cursor suffixes. Broader sensor/provider, MQTT,
+and the four named telemetry cursor suffixes. Explicit MQTT forwarding is covered
+separately below. Broader sensor/provider,
 Python-plugin and complete upstream presentation/configuration parity is absent.
 
 `GenerateSidebandTelemetryPolicyVectors.py`,
@@ -1798,6 +1802,151 @@ correction (Windows 1m04s, Linux 1m03s), including both actual-primary migration
 cases, not only the arithmetic vectors. Results are retained under
 `artifacts\builds\sba\results` and native Linux
 `/home/dennis/dotreticulum-ecosystem-acfd3d43/artifacts/tests/sba/results`.
+
+## Explicit MQTT telemetry forwarding and external geoid (C98)
+
+The original desktop controls, console aliases and supported settings/profile
+import activate the five primary MQTT settings. This is an explicit plaintext
+export of potentially private data, not another encrypted LXMF transport.
+It does not enable physical sensors, Python plugins or telemetry collection
+by itself. The password control is masked, console credential reads are
+redacted, and UTF-8 password buffers are zeroed after network-client disposal;
+the saved profile still contains the configured credentials.
+
+| Primary contract | Native disposition |
+| --- | --- |
+| `core.py:mqtt_handle_telemetry`, `_db_save_telemetry`, `get_telemetry` | Prepared local reports forward on every preparation, even unchanged/same-time reports. Accepted newly stored direct/collector reports forward under their source context; duplicate/rejected remote reports do not. Core processing needs no event subscriber. |
+| `core.py:TELEMETRY_INTERVAL`, `run_telemetry` | Connected, enabled local telemetry with MQTT enabled prepares automatically at the primary60-second interval. The existing one-second scheduler starts within one tick and measures the local interval monotonically after preparation; collector scheduling remains independent. Explicit preparation can publish between periodic samples. Disabled local collection still permits accepted remote forwarding. |
+| `mqtt.py:handle`, sensor `sense.py:render_mqtt` | Bounded original projector implements the observed sensor topic/payload conventions, including transport/propagation/interface modes, nil/default data and location geometry. Stored corpus covers75 cases, not every possible sensor value or hardware provider. |
+| Bundled `pmqtt/client.py:publish` scalar encoding | Observed nil/boolean/string/bytes/integer/float payloads, Python float notation and per-report LIFO topic drain order match the executed corpus, including2048 independently derived finite IEEE patterns. Not an exhaustive floating-point proof. |
+| MQTT connection/publication | Plain TCP MQTT3.1.1, QoS1, nonretained publications and optional username/password. No TLS toggle is claimed: primary declares `telemetry_mqtt_validate_ssl` but never applies it. |
+| Settings/CLI | `telemetry_to_mqtt`, `telemetry_mqtt_host`, `_port`, `_user`, `_pass` activate; console aliases are `telemetry to_mqtt`, `mqtt_host`, `mqtt_port`, `mqtt_user`, `mqtt_pass`. Integer/null/valid GUI decimal-string and blank default-port imports work; absent port uses1883. Invalid native ports/hostnames/Unicode reject atomically rather than primary's silent conversion/fallback or deferred connection error. The unused TLS key remains archive-only. |
+| Queue, retries and shutdown | Eight waiting raw reports plus one active report; FIFO report admission intentionally differs from primary's65536-message LIFO deque. Full admission is reported, not silently evicted. Configuration generations invalidate old work/cancel active publication. Owned retries wait one second; connect/per-message deadlines are ten seconds, disconnect five seconds. Cancellation/disposal wait owned work. Unexpected worker faults are reported, rethrown at disposal and stop further admission; transport/telemetry cleanup still runs before rethrow and reconnect remains possible. |
+| Projection failure | Each sensor projects transactionally; malformed/unsupported/oversize sensors are omitted with bounded redacted diagnostics and other sensors continue. Primary instead can abort a drain on an unsupported payload and can return success after publication/wait failure. Native never presents that false success as delivery. |
+
+`SidebandMqtt.Project` is independent of broker/device collection. A projection
+allows4096 messages,1024 UTF-8 topic bytes,65536 payload bytes and1MiB total
+topic/payload bytes. Diagnostics stop at64 plus a suppression marker. These
+are native safety limits, not primary queue limits. Retries may duplicate
+already acknowledged topics from a partially published report, consistent
+with at-least-once delivery; the queue is not an on-disk MQTT spool.
+
+### External geoid and numerical boundaries
+
+Location projection uses the caller-supplied EGM2008-5 grid, never a bundled or
+downloaded asset. Set `TELEMETER_GEOID_PATH` to its **directory**, or install
+`egm2008-5.pgm` under the profile's `geoids` directory. Missing/malformed data
+produces an explicit location-sensor error while other sensors continue.
+Initialization is lazy; reconnect after correcting a failed initialization.
+The numerical adapter preserves negative ellipsoid-minus-geoid altitude;
+the MQTT location projection separately applies primary's nonnegative AAMSL
+clamp and its angle/horizon conventions.
+
+The managed MIT `GeographicLib.NET`2.3.2 dependency
+(`44cd85d42e20fe96e0db00390f12a229747c6c70`) needs no geoid native library.
+MQTTnet5.2.0.1603 is also MIT; its source tag is `v5.2.0`,
+`14463d1ef9f1f119514185c1832905b91bff827d`.
+Both notices ship with Sideband. The PGM reader bounds headers to16KiB,
+individual lines to1024 characters, even width4..16384, odd height3..8193,
+and raster storage to32MiB. It validates finite metadata, exact16-bit levels
+and exact raster length before cache allocation. Immutable snapshot/cache
+storage is bounded around64MiB plus borders/object overhead. Source handles
+close after opening; lookups and disposal are serialized. Larger2.5/1-minute
+grids are deliberately unsupported.
+
+Executed primary geodesy has78 ordinary cubic/AAMSL matches, maximum absolute
+error6.324e-13m under a1e-8m floating-point tolerance. This is **not** physical
+model accuracy: the external grid's recorded cubic maximum error is0.294m.
+The pinned primary raises `TypeError` at poles/outermost polar cells and can
+reuse stale coefficients after failure. Native finite polar interpolation,
+complete longitude normalization and explicit invalid-coordinate rejection
+are intentional correctness differences, not claimed primary parity there.
+
+### Reference, native and broker evidence
+
+Both generators execute the actual Sideband2.2.0 checkout
+`d069122af14880e43607aed0b71add4c7806fbe0`; fixtures retain source hashes,
+method descriptions and observed failure boundaries. MQTT fixture generation
+bypasses the scheduler constructor, fixes the sensor clock and observes without
+starting the propagation sensor's polling thread. It executes real sensor
+renderers, `handle`, `post_message` and bundled-paho encoding, not a replacement
+reference implementation or a broker-success simulation.
+
+Source SHA-256 values are:
+
+| Source | SHA-256 |
+| --- | --- |
+| `sbapp/sideband/mqtt.py` | `b83a9adff2fd1ab200901b03dfa44aaf5ab4929c58c8753406e89032006df3f0` |
+| `sbapp/sideband/sense.py` | `80418b1aa4de638f2c65f1bd64e5ea0466378a6f0bc682781672ef89b93a7dab` |
+| `sbapp/sideband/geo.py` | `af416ae7a1c087cc0c636e994ff58d5c6f7edf9f85379765d7fda9d130e780c7` |
+| `sbapp/pmqtt/client.py` | `a48f6d3ff640d2edcbf7c62aa1bdd88984c2fd951aa5e32cb8eaf60325dfd9f5` |
+| `sbapp/sideband/core.py` | `8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25` |
+| External EGM2008-5 grid,18671444 bytes | `96d55e88db186ddae892b00c5f8cc42a37cdac8ddb69b6de00af8c75dffb34a3` |
+
+Managed acceptance covers real authenticated loopback publication, three
+broker stop/restart recoveries, rejected-credential/configuration recovery,
+bounded admission, exact retry timing with a controlled clock, failing observers,
+configuration cancellation, concurrent disposal and fatal-worker transport
+cleanup/reconnect. Windows NativeAOT acceptance separately exercises local
+sampling/external geoid, both-direction actual-primary telemetry and collector
+streams, clean/abrupt native identity restarts, actual primary binary/SQLite
+profile import with string MQTT ports and subsequent native restarts, and four
+offline native settings windows. Imported identity activation uses the imported
+profile's private `reticulum` directory; substituting another `--rnsconfig`
+selects another Reticulum identity and is not an identity-preserving import test.
+
+The native publisher uses an authenticated MQTTnet.Server loopback observer.
+The actual primary publisher uses a separate isolated Mosquitto2.1.2 loopback
+broker, with an ACL allowing only the synthetic primary user to publish and
+only the synthetic observer to subscribe. This separation attributes report
+origin without inventing sender metadata in MQTT3.1.1. It is not a same-broker
+coexistence claim. Mosquitto is an external acceptance tool, not shipped with
+Sideband; its EPL2.0/EDL1.0 notices remain with the isolated tool.
+
+The earlier MQTTnet-only reference gate remains a recorded failed gate:
+MQTTnet rejects primary's initially empty MQTT3.1.1 client ID with CONNACK2.
+Actual bundled paho then reconnects with a generated ID while primary drains;
+`wait_for_publish` can fail with not-connected, after which primary reports
+"All MQTT messages processed" and drops work. Explicit observation callbacks
+and debug logging establish this peer-policy/reference-failure interaction.
+Assigning an ID in MQTTnet's validation callback does not change its3.1.1
+rejection. The compatible Mosquitto broker avoids that rejection without
+patching the primary publisher; no connect barrier or replacement paho client
+is used.
+
+New live topology is direct IPv4 TCP between native Sideband and actual Python
+daemon core, plus the two loopback brokers. No new transport-hop, packet-loss,
+primary GUI, physical sensor/audio, current Linux or other-platform acceptance
+is inferred. A one-minute cadence/outage check is not a multi-hour soak.
+
+The exact Windows NativeAOT candidate SHA-256 is
+`a4c1a3bdd23e8766138b94ef7ff3bb55967fc831584a407ae0d7536bd08d7c32`,
+published with SDK10.0.403/compiler10.0.14 and both trim/compiler
+warnings-as-errors plus `-warnaserror`. Its independent fresh-child replay
+guards1260 production, dependency, acceptance, native, reference and broker
+inputs before/after; stack remains
+`4989f050aed865d16ed9f1460071c1a63cd4c7e9`.
+Actual RNS/LXMF/LXST imports are verified separately from import diagnostics.
+Selected managed/live/native checks pass124/0 without skips, then actual-primary
+fixture regeneration and four offline native windows pass2/0/0 Pester.
+Native `--help` also passes. Commands and receipts:
+
+```powershell
+pwsh -NoProfile -File artifacts\tests\sideband-mqtt\Run-Native.ps1 -Run native-final-cadence -Gui
+pwsh -NoProfile -File artifacts\tests\sideband-mqtt\Replay-Candidate.ps1 -OutputDirectory artifacts\tests\sideband-mqtt\parent-frozen-retry-observed
+```
+
+The cadence check retains the prepared report through an actual broker outage,
+observes at least two publication failures before restoring the broker, measures
+recovery elapsed time directly within ten seconds, and receives the next
+unrequested automatic sample60–65 seconds after the first. Its first frozen
+attempt passed actual cadence/recovery but failed its final two-error assertion:
+a three-second outage did not ensure two failures with ten-second network
+deadlines. The corrected harness waits for both failures before restoration;
+the original count and cadence assertions remain. Prepared payload time is not
+used as a proxy for recovery duration. Failed TRX/log/manifest inputs remain
+under `parent-frozen-replay` and `failed-cadence-inputs.json`; no production
+timing change or passed-gate claim is attributed to that failed attempt.
 
 ## Automatic Reticulum runtime telemetry
 
@@ -2753,7 +2902,7 @@ behavior is retained, with a two-minute dialing deadline.
 ### Active configuration and intentional boundaries
 
 `config list` lists only native-active settings, with their current values and
-types. Unsupported aliases fail before mutation, including plugin/MQTT/mobile/
+types. Unsupported aliases fail before mutation, including plugin/mobile/
 hardware/connectivity templates, archive-only values and the primary
 `voice output` alias (the actual supported native setting is separately
 named `voice_speaker` in settings exchange). There is no success-shaped
@@ -2774,7 +2923,8 @@ Active aliases:
   `receive_trusted_only`, `display_trusted_only`, `send_appearance`,
   `use_propagation_only`, `try_propagation_on_fail`,
   `requests_only_send_latest`, `display_style_from_all`, `collector`, `send_interval`,
-  `request_interval`, `icon`, `fg`, `bg`.
+  `request_interval`, `icon`, `fg`, `bg`, `to_mqtt`, `mqtt_host`, `mqtt_port`,
+  `mqtt_user`, `mqtt_pass` (credential reads are redacted).
 * `sensors`: `rns_transport`, `information`, `information_text`,
   `fixed_location`, `fixed_latlon`, `fixed_altitude`. These do not open devices.
 * `map`: `history_limit`, `lat`, `lon`, `zoom`, `use_offline`, `layer`,

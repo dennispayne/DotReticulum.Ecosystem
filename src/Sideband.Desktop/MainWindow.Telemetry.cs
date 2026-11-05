@@ -20,6 +20,11 @@ public sealed partial class MainWindow
         TelemetryEnabledBox.IsChecked = config.Enabled;
         TelemetryRnsTransportBox.IsChecked = config.RnsTransportEnabled;
         TelemetryRnsTransportTablesBox.IsChecked = config.RnsTransportIncludeTables;
+        TelemetryMqttEnabledBox.IsChecked = config.Mqtt.Enabled;
+        TelemetryMqttHostBox.Text = config.Mqtt.Host;
+        TelemetryMqttPortBox.Text = config.Mqtt.Port?.ToString(CultureInfo.InvariantCulture);
+        TelemetryMqttUserBox.Text = config.Mqtt.Username;
+        TelemetryMqttPasswordBox.Text = config.Mqtt.Password;
         TelemetryInformationEnabledBox.IsChecked = config.InformationEnabled;
         TelemetryInformationBox.Text = config.Information;
         TelemetryFixedLocationBox.IsChecked = config.FixedLocationEnabled;
@@ -55,12 +60,22 @@ public sealed partial class MainWindow
         UpdateTelemetryTrackingView();
     }
 
-    private void SaveTelemetryClicked(object? sender, RoutedEventArgs e) => RunTelemetryOperation(async () =>
+    private void SaveTelemetryClicked(object? sender, RoutedEventArgs e) => RunTelemetryOperation(SaveTelemetryAsync);
+
+    private async Task SaveTelemetryAsync()
     {
         _state = await _client.LoadAsync(_windowCancellation.Token);
         var config = _state.Telemetry with
         {
             Enabled = TelemetryEnabledBox.IsChecked == true,
+            Mqtt = new()
+            {
+                Enabled = TelemetryMqttEnabledBox.IsChecked == true,
+                Host = string.IsNullOrEmpty(TelemetryMqttHostBox.Text) ? null : TelemetryMqttHostBox.Text,
+                Port = string.IsNullOrEmpty(TelemetryMqttPortBox.Text) ? null : TelemetrySeconds(TelemetryMqttPortBox.Text),
+                Username = string.IsNullOrEmpty(TelemetryMqttUserBox.Text) ? null : TelemetryMqttUserBox.Text,
+                Password = string.IsNullOrEmpty(TelemetryMqttPasswordBox.Text) ? null : TelemetryMqttPasswordBox.Text
+            },
             RnsTransportEnabled = TelemetryRnsTransportBox.IsChecked == true,
             RnsTransportIncludeTables = TelemetryRnsTransportTablesBox.IsChecked == true,
             InformationEnabled = TelemetryInformationEnabledBox.IsChecked == true,
@@ -93,7 +108,7 @@ public sealed partial class MainWindow
         _telemetryPreview = null;
         TelemetryStatusText.Text = "Telemetry settings saved. Automatic runtime collection and schedules run only while connected; no physical sensors are opened.";
         RequestTelemetryRefresh();
-    });
+    }
 
     private void RefreshLocalTelemetryClicked(object? sender, RoutedEventArgs e) => RunTelemetryOperation(async () =>
     {

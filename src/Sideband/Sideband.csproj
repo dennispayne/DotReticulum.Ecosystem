@@ -9,7 +9,9 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Sideband.Tests" />
+    <PackageReference Include="GeographicLib.NET" Version="2.3.2" />
     <PackageReference Include="Markdig" Version="0.41.3" />
+    <PackageReference Include="MQTTnet" Version="5.2.0.1603" />
     <PackageReference Include="SkiaSharp" Version="3.119.4" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.4" />
     <ProjectReference Include="..\LXMF\LXMF.csproj" />
@@ -19,6 +21,10 @@
 
   <ItemGroup>
     <None Include="THIRD-PARTY-NOTICES.Markdig.txt" CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="Always" Pack="true" PackagePath="" />
+    <None Include="THIRD-PARTY-NOTICES.MQTTnet.txt" CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="Always" Pack="true" PackagePath="" />
+    <None Include="THIRD-PARTY-NOTICES.GeographicLib.txt" CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="Always" Pack="true" PackagePath="" />
   </ItemGroup>
 

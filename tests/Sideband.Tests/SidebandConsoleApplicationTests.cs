@@ -105,7 +105,7 @@ public sealed class SidebandConsoleApplicationTests
             {
                 "config set connect tcp true", "config set plugins services true", "raw arbitrary-code",
                 "plugins reload", "config set sensors battery true", "config set voice output speaker",
-                "config set telemetry mqtt_pass secret", "config set lxmf sync_limit 3",
+                "config set telemetry mqtt_validate_ssl true", "config set lxmf sync_limit 3",
                 "config set lxmf sync_interval -1", "config set sensors fixed_latlon '[100,2]'",
                 "config set telemetry fg '[2,0,0,1]'", "config set telemetry fg '[[[[]]]]'",
                 "config set sensors fixed_altitude NaN", "config set general display_name ''",
@@ -118,7 +118,7 @@ public sealed class SidebandConsoleApplicationTests
             Assert.Equal("Sideband", state.DisplayName);
             Assert.Equal(43_200, state.SynchronizationIntervalSeconds);
             Assert.DoesNotContain(state.ImportedSettings ?? new Dictionary<string, System.Text.Json.JsonElement>(),
-                item => item.Key is "connect_tcp" or "telemetry_mqtt_pass" or "service_plugins_enabled");
+                item => item.Key is "connect_tcp" or "mqtt_validate_ssl" or "service_plugins_enabled");
             Assert.True(await console.ExecuteAsync(SidebandConsoleSyntax.Resolve(["conv", "create", Peer])!, token));
             Assert.Single((await client.LoadAsync(token)).Contacts);
         }

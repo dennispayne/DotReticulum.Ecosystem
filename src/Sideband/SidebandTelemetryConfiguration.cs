@@ -13,6 +13,7 @@ public sealed record SidebandTelemetryConfiguration
     public bool Enabled { get; init; }
     public bool RnsTransportEnabled { get; init; }
     public bool RnsTransportIncludeTables { get; init; }
+    public SidebandMqttConfiguration Mqtt { get; init; } = new();
     public bool SendToTrusted { get; init; }
     public bool SendToCollector { get; init; }
     public bool RequestFromCollector { get; init; }
@@ -57,6 +58,8 @@ public sealed record SidebandTelemetryConfiguration
         if (Collector is not null && !SidebandContact.TryNormalizeDeliveryHash(Collector, out _))
             throw new InvalidDataException("Invalid telemetry collector hash.");
         ValidateAppearance(Appearance);
+        if (Mqtt is null) throw new InvalidDataException("MQTT configuration cannot be null.");
+        _ = Mqtt.Validate();
         _ = SidebandGeo.ToCartesian(FixedLocation);
         if (FixedLocationEnabled)
             _ = SidebandTelemetryCodec.FromLocation(new(FixedLocation.Latitude, FixedLocation.Longitude, FixedLocation.Altitude, 0, 0, 0, 0));

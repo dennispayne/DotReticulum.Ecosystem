@@ -200,6 +200,17 @@ public sealed partial class MainWindow : Window
             if (Program.SmokeTelemetryMode)
             {
                 if (!TelemetryPage.IsVisible) return;
+                if (_state.Telemetry.Mqtt.Host is not null)
+                {
+                    if (!EnsureSmokeControlVisible(TelemetryMqttPasswordBox, TelemetryPage)) return;
+                    if (TelemetryMqttPasswordBox.PasswordChar != '*' ||
+                        TelemetryMqttPasswordBox.Text != _state.Telemetry.Mqtt.Password ||
+                        TelemetryMqttHostBox.Text != _state.Telemetry.Mqtt.Host ||
+                        TelemetryMqttEnabledBox.IsChecked != _state.Telemetry.Mqtt.Enabled ||
+                        !TelemetryMqttWarningText.Text!.Contains("plain TCP", StringComparison.Ordinal))
+                        throw new InvalidOperationException("The selected MQTT settings were not rendered consistently.");
+                    Console.WriteLine("SMOKE_UI_MQTT=masked-persisted-controls;plain-tcp-warning;connected:" + (_client.IsConnected ? "1" : "0"));
+                }
                 if (TelemetryDetailsText.Text?.StartsWith("LOCAL MANUAL PREVIEW", StringComparison.Ordinal) == true)
                     Console.WriteLine("SMOKE_UI_RENDERED_TELEMETRY=manual-preview");
                 else if (TelemetryDetailsText.Text?.StartsWith("LOCAL RUNTIME/MANUAL PREVIEW", StringComparison.Ordinal) == true)
@@ -333,6 +344,8 @@ public sealed partial class MainWindow : Window
                         {
                             try
                             {
+                                if (_state.Telemetry.Mqtt.Host is not null)
+                                    await SaveTelemetryAsync();
                                 if (_state.Telemetry.RnsTransportEnabled && Program.ReticulumConfigDirectory is { } config)
                                     await _client.ConnectAsync(config, _windowCancellation.Token);
                                 RefreshLocalTelemetryButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -934,11 +947,13 @@ public sealed partial class MainWindow : Window
         VoicePeerList.SelectedIndex = Array.FindIndex(peers, peer => peer.IdentityHash == selected);
     }
 
-    private bool EnsureVoiceControlVisible(Control control)
+    private bool EnsureVoiceControlVisible(Control control) => EnsureSmokeControlVisible(control, VoicePage);
+
+    private bool EnsureSmokeControlVisible(Control control, Control page)
     {
-        var center = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), VoicePage);
+        var center = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), page);
         if (control.Bounds.Height > 0 && center is { } point &&
-            point.Y >= 0 && point.Y < VoicePage.Bounds.Height && point.X >= 0 && point.X < VoicePage.Bounds.Width)
+            point.Y >= 0 && point.Y < page.Bounds.Height && point.X >= 0 && point.X < page.Bounds.Width)
             return true;
         Dispatcher.UIThread.Post(() =>
         {

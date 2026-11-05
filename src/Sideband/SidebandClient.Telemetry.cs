@@ -30,6 +30,7 @@ public sealed partial class SidebandClient
         {
             ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
             await _store.ConfigureTelemetryAsync(config, cancellationToken).ConfigureAwait(false);
+            _mqtt?.Configure(config.Mqtt);
             await RefreshLocalTelemetryCoreAsync(cancellationToken).ConfigureAwait(false);
             PublishState(await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false));
         }
@@ -99,6 +100,7 @@ public sealed partial class SidebandClient
         {
             var storage = await TelemetryStoreAsync(cancellationToken).ConfigureAwait(false);
             await storage.AppendAsync(own, SidebandTelemetryCodec.Encode(report), TelemetryNow, cancellationToken).ConfigureAwait(false);
+            QueueTelemetryToMqtt(own, report);
         }
         return report;
     }
@@ -170,17 +172,33 @@ public sealed partial class SidebandClient
         finally { _telemetryStoreGate.Release(); }
     }
 
-    private void StartTelemetry(LxmRouter router, ReticulumNode node, Identity identity, CancellationToken token)
+    private async Task StartTelemetryAsync(LxmRouter router, ReticulumNode node, Identity identity, CancellationToken token)
     {
-        _runtimeTelemetry = SidebandRuntimeTelemetry.ForNode(node);
-        var outbound = System.Threading.Channels.Channel.CreateBounded<TelemetryWork>(new BoundedChannelOptions(64)
-        { SingleReader = true, SingleWriter = false, FullMode = BoundedChannelFullMode.Wait });
-        _telemetryOutbound = outbound;
-        _telemetryOutboundTask = Task.Run(() => ProcessTelemetryOutboundAsync(outbound.Reader, router, node, identity, token), CancellationToken.None);
-        _telemetryScheduleTask = Task.Run(() => ProcessTelemetryScheduleAsync(token), CancellationToken.None);
+        await _telemetryRefreshGate.WaitAsync(token).ConfigureAwait(false);
+        try
+        {
+            var state = await _store.LoadAsync(cancellationToken: token).ConfigureAwait(false);
+            StartMqtt(state.Telemetry.Mqtt, token);
+            _runtimeTelemetry = SidebandRuntimeTelemetry.ForNode(node);
+            var outbound = System.Threading.Channels.Channel.CreateBounded<TelemetryWork>(new BoundedChannelOptions(64)
+            { SingleReader = true, SingleWriter = false, FullMode = BoundedChannelFullMode.Wait });
+            _telemetryOutbound = outbound;
+            _telemetryOutboundTask = Task.Run(() => ProcessTelemetryOutboundAsync(outbound.Reader, router, node, identity, token), CancellationToken.None);
+            _telemetryScheduleTask = Task.Run(() => ProcessTelemetryScheduleAsync(token), CancellationToken.None);
+        }
+        finally { _telemetryRefreshGate.Release(); }
     }
 
     private async Task StopTelemetryAsync()
+    {
+        try { await StopMqttAsync().ConfigureAwait(false); }
+        finally
+        {
+            await StopTelemetryWorkersAsync().ConfigureAwait(false);
+        }
+    }
+
+    private async Task StopTelemetryWorkersAsync()
     {
         _telemetryOutbound?.Writer.TryComplete();
         _telemetryOutbound = null;
@@ -404,7 +422,8 @@ public sealed partial class SidebandClient
                 var report = SidebandTelemetryCodec.Decode(data);
                 var enriched = SidebandTelemetryObservations.Apply(report, receiver, hash, false, own, message.Rssi, message.Snr, message.Quality);
                 var storage = await TelemetryStoreAsync(token).ConfigureAwait(false);
-                await storage.AppendAsync(hash, SidebandTelemetryCodec.Encode(enriched), TelemetryNow, token).ConfigureAwait(false);
+                var accepted = await storage.AppendAsync(hash, SidebandTelemetryCodec.Encode(enriched), TelemetryNow, token).ConfigureAwait(false);
+                if (accepted == SidebandTelemetryAppendResult.Added) QueueTelemetryToMqtt(hash, enriched);
             }
             if (hasStream)
             {
@@ -430,6 +449,7 @@ public sealed partial class SidebandClient
                         var accepted = await storage.AppendAsync(sourceHash, SidebandTelemetryCodec.Encode(enriched), TelemetryNow, token).ConfigureAwait(false);
                         if (accepted != SidebandTelemetryAppendResult.InvalidTimestamp)
                         {
+                            if (accepted == SidebandTelemetryAppendResult.Added) QueueTelemetryToMqtt(sourceHash, enriched);
                             cursor = Math.Max(cursor, outer);
                             if (TryAppearance(MsgPack.Unpack(entry.Items[3].Encode()), out var sourceAppearance))
                                 await _store.SetTelemetryAppearanceAsync(sourceHash, sourceAppearance!, true, token).ConfigureAwait(false);
@@ -449,7 +469,7 @@ public sealed partial class SidebandClient
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         var lastClean = 0d;
-        var lastRuntimeUpdate = 0d;
+        long? lastLocalUpdate = null;
         try
         {
             while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
@@ -459,11 +479,13 @@ public sealed partial class SidebandClient
                     var state = await _store.LoadAsync(cancellationToken: token).ConfigureAwait(false);
                     var config = state.Telemetry;
                     var now = TelemetryNow;
-                    if (config.Enabled && config.RnsTransportEnabled &&
-                        now > lastRuntimeUpdate + SidebandRuntimeTelemetry.StaleSeconds)
+                    var refreshInterval = config.Mqtt.Enabled ? MqttLocalRefreshSeconds : SidebandRuntimeTelemetry.StaleSeconds;
+                    if (config.Enabled && (config.RnsTransportEnabled || config.Mqtt.Enabled) &&
+                        (lastLocalUpdate is null ||
+                         TimeProvider.System.GetElapsedTime(lastLocalUpdate.Value) >= TimeSpan.FromSeconds(refreshInterval)))
                     {
                         await RefreshLocalTelemetryAsync(token).ConfigureAwait(false);
-                        lastRuntimeUpdate = now;
+                        lastLocalUpdate = TimeProvider.System.GetTimestamp();
                     }
                     if (config.Enabled && now - lastClean >= SidebandTelemetryRetention.PrimaryCleanIntervalSeconds)
                     {

@@ -13,6 +13,50 @@ public sealed class SidebandTelemetryUiTests
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     [AvaloniaFact]
+    public async Task ExplicitMqttSettingsAreMaskedWarnAboutPlainTcpAndPersistWithoutOpeningHardware()
+    {
+        var path = TemporaryDirectory();
+        MainWindow? window = null;
+        try
+        {
+            window = new MainWindow(path);
+            window.Show();
+            await ReadyAsync(window);
+            Click(window, "TelemetryNavButton");
+            Assert.False(window.FindControl<CheckBox>("TelemetryMqttEnabledBox")!.IsChecked);
+            var warning = window.FindControl<TextBlock>("TelemetryMqttWarningText")!.Text!;
+            Assert.Contains("plain TCP", warning);
+            Assert.Contains("private locations", warning);
+            Assert.Contains("unchanged", warning);
+            window.FindControl<TextBox>("TelemetryMqttHostBox")!.Text = "example.invalid";
+            window.FindControl<TextBox>("TelemetryMqttPortBox")!.Text = "1884";
+            window.FindControl<TextBox>("TelemetryMqttUserBox")!.Text = "synthetic-private-user";
+            window.FindControl<TextBox>("TelemetryMqttPasswordBox")!.Text = "synthetic-private-password";
+            Assert.Equal('*', window.FindControl<TextBox>("TelemetryMqttPasswordBox")!.PasswordChar);
+            window.FindControl<CheckBox>("TelemetryMqttEnabledBox")!.IsChecked = true;
+            Click(window, "SaveTelemetryButton");
+            await WaitForAsync(() => Status(window).StartsWith("Telemetry settings saved.", StringComparison.Ordinal));
+            var settings = (await ReadStateAsync(path)).Telemetry;
+            Assert.True(settings.Mqtt.Enabled);
+            Assert.False(settings.Enabled);
+            Assert.Equal(1884, settings.Mqtt.Port);
+            Assert.DoesNotContain("synthetic-private", Status(window));
+            await window.CloseAndWaitAsync();
+            window = new MainWindow(path);
+            window.Show();
+            await ReadyAsync(window);
+            Assert.True(window.FindControl<CheckBox>("TelemetryMqttEnabledBox")!.IsChecked);
+            Assert.Equal("1884", window.FindControl<TextBox>("TelemetryMqttPortBox")!.Text);
+            Assert.Equal("synthetic-private-password", window.FindControl<TextBox>("TelemetryMqttPasswordBox")!.Text);
+        }
+        finally
+        {
+            if (window?.IsVisible == true) await window.CloseAndWaitAsync();
+            Directory.Delete(path, true);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task RuntimeOptInAndTableDisclosurePersistWhileOfflineCollectionIsExplicitlyUnavailable()
     {
         var path = TemporaryDirectory();

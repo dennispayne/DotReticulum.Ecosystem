@@ -8,6 +8,50 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+The integrated MQTT/editor candidate builds with zero warnings/errors and
+passes2951 managed cases/174 explicit skips on Windows:
+
+```powershell
+dotnet build DotReticulum.Ecosystem.slnx -c Release -warnaserror --nologo -v:q
+dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build --nologo -v:q --logger trx --results-directory artifacts\tests\root-mqtt-final
+```
+
+Full suites pass LXMF163/28, LXST141/30, Nomad415/26,
+Sideband2229/90 and Telemetry3/0. The ordinary coverage/Pester/catalog gate
+also passes with97 scoped claims/545 selectors/five pins:
+
+```powershell
+pwsh -NoProfile -File tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-mqtt-unified -OutputDirectory artifacts\tests\fleet-mqtt-unified
+```
+
+Its source-identity union covers23067/30760 production lines and
+16017/25289 branches across10 reports. C99 source/tests are present in this
+integrated development worktree; their separately accepted scrolling claim is
+not yet part of that97-claim catalog snapshot. Skipped native/live and
+unmapped cases are not passing compatibility evidence.
+Selected MQTT/external-geoid acceptance
+separately passes124/0 without skips plus2/0/0 Pester, including actual primary
+telemetry/collector exchange, clean/abrupt native restart, primary-profile import,
+observed repeated broker failures and minute cadence, and four offline native
+settings windows. The fresh-child frozen replay guards1260 exact inputs and
+runs native help on Sideband SHA-256
+`a4c1a3bdd23e8766138b94ef7ff3bb55967fc831584a407ae0d7536bd08d7c32`.
+Reference publishers use genuine isolated Mosquitto separately from the native
+MQTTnet observer; this is not same-broker or transport-hop acceptance. Earlier
+broker-policy/reference-drain and cadence-harness failures remain recorded in
+[Sideband's scoped evidence](sideband.md#explicit-mqtt-telemetry-forwarding-and-external-geoid-c98).
+
+```powershell
+pwsh -NoProfile -File artifacts\tests\sideband-mqtt\Replay-Candidate.ps1 -OutputDirectory artifacts\tests\sideband-mqtt\parent-frozen-retry-observed
+```
+
+Hosted evidence was rechecked without dispatching workflows: latest
+Build41502113530 succeeds at `89e948a90e9606bed331b71da6b787cace0bbd81`;
+Test41643993895 succeeds at `0e49bee87c932fdf404949812a8420f83cb49e4a`,
+including its Windows/Linux Unit, Integration and Compatibility jobs.
+These earlier commits do not accept the current local MQTT/editor changes.
+The xUnit3.2.2 Avalonia-compatible pin remains unchanged.
+
 The integrated terminal-controls/rich-message candidate builds with zero
 warnings/errors and passes2812 managed cases/156 explicit skips on Windows:
 

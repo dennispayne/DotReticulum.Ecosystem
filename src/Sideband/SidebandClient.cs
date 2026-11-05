@@ -122,7 +122,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
                 _identity = identity;
                 _router = router;
                 lock (_cancellationGate) _runCancellation = runCancellation;
-                StartTelemetry(router, node, identity, runCancellation.Token);
+                await StartTelemetryAsync(router, node, identity, runCancellation.Token).ConfigureAwait(false);
                 _inboundTask = Task.Run(() => ProcessIncomingAsync(inbound.Reader), CancellationToken.None);
                 await ApplyVoiceConfigurationAsync(state, cancellationToken).ConfigureAwait(false);
                 var runToken = runCancellation.Token;
@@ -145,32 +145,35 @@ public sealed partial class SidebandClient : IAsyncDisposable
                 if (runCancellation is not null) await runCancellation.CancelAsync().ConfigureAwait(false);
                 if (_startupAnnounceTask is not null) await _startupAnnounceTask.ConfigureAwait(false);
                 _startupAnnounceTask = null;
-                await StopTelemetryAsync().ConfigureAwait(false);
-                if (_announceHandler is not null) node.Router.Engine.DeregisterHandler(_announceHandler);
-                if (_propagationHandler is not null) node.Router.Engine.DeregisterHandler(_propagationHandler);
-                _announceHandler = null;
-                _propagationHandler = null;
-                await _propagationGate.WaitAsync().ConfigureAwait(false);
-                try { _router = null; _node = null; }
-                finally { _propagationGate.Release(); }
-                if (_voice is { } voice) await voice.DisposeAsync().ConfigureAwait(false);
-                _voice = null;
-                _voiceRemoteIdentity?.Dispose();
-                _voiceRemoteIdentity = null;
-                if (router is not null) await router.DisposeAsync().ConfigureAwait(false);
-                ClearOutgoingMessages();
-                inbound.Writer.TryComplete();
-                if (_inboundTask is not null) await _inboundTask.ConfigureAwait(false);
-                if (_periodicTask is not null) await _periodicTask.ConfigureAwait(false);
-                runCancellation?.Dispose();
-                if (identity is not null) identity.Dispose();
-                await node.DisposeAsync().ConfigureAwait(false);
-                _router = null;
-                _node = null;
-                _identity = null;
-                _inboundTask = null;
-                _periodicTask = null;
-                ConnectionInfo = null;
+                try { await StopTelemetryAsync().ConfigureAwait(false); }
+                finally
+                {
+                    if (_announceHandler is not null) node.Router.Engine.DeregisterHandler(_announceHandler);
+                    if (_propagationHandler is not null) node.Router.Engine.DeregisterHandler(_propagationHandler);
+                    _announceHandler = null;
+                    _propagationHandler = null;
+                    await _propagationGate.WaitAsync().ConfigureAwait(false);
+                    try { _router = null; _node = null; }
+                    finally { _propagationGate.Release(); }
+                    if (_voice is { } voice) await voice.DisposeAsync().ConfigureAwait(false);
+                    _voice = null;
+                    _voiceRemoteIdentity?.Dispose();
+                    _voiceRemoteIdentity = null;
+                    if (router is not null) await router.DisposeAsync().ConfigureAwait(false);
+                    ClearOutgoingMessages();
+                    inbound.Writer.TryComplete();
+                    if (_inboundTask is not null) await _inboundTask.ConfigureAwait(false);
+                    if (_periodicTask is not null) await _periodicTask.ConfigureAwait(false);
+                    runCancellation?.Dispose();
+                    if (identity is not null) identity.Dispose();
+                    await node.DisposeAsync().ConfigureAwait(false);
+                    _router = null;
+                    _node = null;
+                    _identity = null;
+                    _inboundTask = null;
+                    _periodicTask = null;
+                    ConnectionInfo = null;
+                }
                 throw;
             }
         }
@@ -738,7 +741,13 @@ public sealed partial class SidebandClient : IAsyncDisposable
         if (cancellation is not null) await cancellation.CancelAsync().ConfigureAwait(false);
         if (_startupAnnounceTask is not null) await _startupAnnounceTask.ConfigureAwait(false);
         _startupAnnounceTask = null;
-        await StopTelemetryAsync().ConfigureAwait(false);
+        try { await StopTelemetryAsync().ConfigureAwait(false); }
+        finally { await StopTransportAsync(node, router, identity, cancellation).ConfigureAwait(false); }
+    }
+
+    private async Task StopTransportAsync(ReticulumNode? node, LxmRouter? router, Identity? identity,
+        CancellationTokenSource? cancellation)
+    {
         var voice = _voice;
         _voice = null;
         if (voice is not null) await voice.DisposeAsync().ConfigureAwait(false);

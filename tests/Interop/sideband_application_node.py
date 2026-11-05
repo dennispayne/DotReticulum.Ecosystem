@@ -47,7 +47,10 @@ def main():
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--no-propagation-retry", action="store_true")
     parser.add_argument("--startup-announce", choices=("on", "off"))
+    parser.add_argument("--mqtt-broker-port", type=int)
     args = parser.parse_args()
+    if args.mqtt_broker_port is not None and not 1 <= args.mqtt_broker_port <= 65535:
+        raise ValueError("Synthetic loopback MQTT broker port must be1..65535")
     lxst_source = os.environ.get("DOTRETICULUM_LXST_UPSTREAM")
     if lxst_source:
         sys.path.insert(0, str(Path(lxst_source).resolve()))
@@ -72,10 +75,37 @@ def main():
     write_config(str(rns), args.tcp_server_port, args.rnsd_port)
     core = SidebandCore(None, config_path=str(args.config / "profile"),
                         rns_config_path=str(rns), is_daemon=True, quiet=True)
+    if args.mqtt_broker_port is not None:
+        core.config.update({
+            "telemetry_mqtt_host": "127.0.0.1",
+            "telemetry_mqtt_port": str(args.mqtt_broker_port),
+            "telemetry_mqtt_user": "synthetic-primary-mqtt-user",
+            "telemetry_mqtt_pass": "synthetic-mqtt-password",
+        })
     if args.startup_announce is not None:
         core.config["start_announce"] = args.startup_announce == "on"
     startup_time = time.time()
     core.start()
+    if args.mqtt_broker_port is not None:
+        RNS.loglevel = RNS.LOG_EXTREME
+        import threading
+        def observe_mqtt():
+            deadline = time.monotonic() + 60
+            while time.monotonic() < deadline:
+                mqtt = core.mqtt
+                if mqtt is not None:
+                    prior = mqtt.client.on_log
+                    remaining = [128]
+                    def observe(client, userdata, level, message):
+                        if prior is not None:
+                            prior(client, userdata, level, message)
+                        if remaining[0] > 0:
+                            remaining[0] -= 1
+                            emit({"event": "mqtt-log", "message": message})
+                    mqtt.client.on_log = observe
+                    return
+                time.sleep(0.01)
+        threading.Thread(target=observe_mqtt, daemon=True).start()
     if args.no_propagation_retry:
         core.config["lxmf_try_propagation_on_fail"] = False
     delivery_packet_callback = core.lxmf_destination.callbacks.packet
@@ -211,8 +241,10 @@ def main():
             for key, value in values.items():
                 if not key.startswith("telemetry_") or key not in core.config:
                     raise ValueError(f"Unknown telemetry configuration key {key}")
-                if key in ("telemetry_to_mqtt",) and value:
-                    raise ValueError("Reference bridge does not permit external services")
+                if key == "telemetry_to_mqtt" and value and args.mqtt_broker_port is None:
+                    raise ValueError("MQTT requires the explicit synthetic loopback broker opt-in")
+                if key.startswith("telemetry_mqtt_") and value != core.config[key]:
+                    raise ValueError("The bridge only permits its fixed synthetic loopback MQTT settings")
                 if key in ("telemetry_s_" + sensor for sensor in hardware) and value:
                     raise ValueError("Reference bridge does not permit hardware sensors")
                 if key == "telemetry_collector" and value is not None:
@@ -290,6 +322,13 @@ def main():
                   "last_request_success": core.getpersistent(f"telemetry.{destination.hex()}.last_request_success_timebase"),
                   "records": [{"source": source.hex(), "timestamp": entry[0], "packed": base64.b64encode(entry[1]).decode()}
                               for source, entries in reports.items() for entry in entries]})
+        elif parts[0] == "mqtt-snapshot" and args.mqtt_broker_port is not None:
+            mqtt = core.mqtt
+            emit({"event": "mqtt-snapshot", "created": mqtt is not None,
+                  "running": mqtt.run if mqtt else None,
+                  "connected": mqtt.client.is_connected() if mqtt else None,
+                  "waiting_messages": len(mqtt.waiting_msgs) if mqtt else None,
+                  "waiting_publications": len(mqtt.waiting_telemetry) if mqtt else None})
         elif parts[0] == "telemetry-seed" and len(parts) == 3:
             result = core._db_save_telemetry(bytes.fromhex(parts[1]), base64.b64decode(parts[2], validate=True))
             emit({"event": "telemetry-seeded", "saved": result is not None})

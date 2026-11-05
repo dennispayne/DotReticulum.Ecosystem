@@ -238,6 +238,14 @@
             <TextBox x:Name="TelemetryExcludedBox" AcceptsReturn="True" MaxLength="33000" MinHeight="64" />
             <TextBlock Text="Optional manual sensors: one hexadecimal sensor-id=MessagePack-wire-hex entry per line; time and received provenance cannot be supplied." TextWrapping="Wrap" />
             <TextBox x:Name="TelemetryManualSensorsBox" AcceptsReturn="True" MaxLength="16384" MinHeight="64" />
+            <TextBlock FontWeight="SemiBold" Text="MQTT telemetry forwarding" />
+            <TextBlock x:Name="TelemetryMqttWarningText" Text="Explicit opt-in forwards complete prepared local reports and newly accepted remote reports, including private locations and any interface keys, outside encrypted LXMF to a plain TCP MQTT broker. Preparing a local report can forward even an unchanged report. Credentials are stored in this local profile. No TLS toggle is claimed. Location projection requires your external EGM2008-5 grid via TELEMETER_GEOID_PATH (directory), or geoids under this profile; reconnect after installing it."
+                       TextWrapping="Wrap" />
+            <CheckBox x:Name="TelemetryMqttEnabledBox" Content="Forward prepared local and newly stored remote telemetry to MQTT while connected" />
+            <TextBox x:Name="TelemetryMqttHostBox" MaxLength="253" PlaceholderText="Broker hostname (not a URL)" />
+            <TextBox x:Name="TelemetryMqttPortBox" MaxLength="5" PlaceholderText="Port (blank uses1883)" />
+            <TextBox x:Name="TelemetryMqttUserBox" MaxLength="256" PlaceholderText="Username (optional)" />
+            <TextBox x:Name="TelemetryMqttPasswordBox" MaxLength="1024" PasswordChar="*" PlaceholderText="Password (optional; masked)" />
             <CheckBox x:Name="TelemetryAppearanceBox" Content="Send peer appearance" />
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBox x:Name="TelemetryIconBox" Width="150" MaxLength="64" Text="account" PlaceholderText="Icon name (not a font asset)" />

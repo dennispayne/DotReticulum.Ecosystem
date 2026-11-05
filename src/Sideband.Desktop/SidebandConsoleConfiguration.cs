@@ -64,6 +64,17 @@ public sealed class SidebandConsoleConfiguration
         Text("voice", "ringer", s => s.Voice?.Ringer ?? "None",
             (s, v, t) => client.ConfigureVoiceAsync(s.VoiceEnabled, (s.Voice ?? new()) with { Ringer = NullableText(v) }, t));
         TelemetryFlag("enabled", c => c.Enabled, (c, v) => c with { Enabled = v });
+        TelemetryFlag("to_mqtt", c => c.Mqtt.Enabled, (c, v) => c with { Mqtt = c.Mqtt with { Enabled = v } });
+        Text("telemetry", "mqtt_host", s => s.Telemetry.Mqtt.Host ?? "None",
+            (s, v, t) => client.ConfigureTelemetryAsync(s.Telemetry with { Mqtt = s.Telemetry.Mqtt with { Host = NullableText(v) } }, t));
+        Text("telemetry", "mqtt_user", s => s.Telemetry.Mqtt.Username is null ? "None" : "[redacted]",
+            (s, v, t) => client.ConfigureTelemetryAsync(s.Telemetry with { Mqtt = s.Telemetry.Mqtt with { Username = NullableText(v) } }, t));
+        Text("telemetry", "mqtt_pass", s => s.Telemetry.Mqtt.Password is null ? "None" : "[redacted]",
+            (s, v, t) => client.ConfigureTelemetryAsync(s.Telemetry with { Mqtt = s.Telemetry.Mqtt with { Password = NullableText(v) } }, t));
+        _settings.Add(new("telemetry", "mqtt_port", "int",
+            s => Format(s.Telemetry.Mqtt.Port),
+            (s, v, t) => client.ConfigureTelemetryAsync(s.Telemetry with
+            { Mqtt = s.Telemetry.Mqtt with { Port = NullableInteger(v) } }, t)));
         TelemetryFlag("send_to_trusted", c => c.SendToTrusted, (c, v) => c with { SendToTrusted = v });
         TelemetryFlag("send_to_collector", c => c.SendToCollector, (c, v) => c with { SendToCollector = v });
         TelemetryFlag("request_from_collector", c => c.RequestFromCollector, (c, v) => c with { RequestFromCollector = v });

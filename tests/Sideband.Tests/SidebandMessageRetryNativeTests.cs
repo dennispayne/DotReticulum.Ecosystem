@@ -179,6 +179,20 @@ public sealed class SidebandMessageRetryNativeTests
             }
         }
 
+        public async Task WaitForOccurrencesAsync(string text, int count, CancellationToken token)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(count, 1);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+            timeout.CancelAfter(TimeSpan.FromSeconds(30));
+            while (_lines.Count(line => line.Contains(text, StringComparison.Ordinal)) < count)
+            {
+                if (_stdout.IsFaulted) await _stdout;
+                if (_stderr.IsFaulted) await _stderr;
+                if (_process.HasExited) throw new InvalidOperationException("Native exited before repeated " + text + "\n" + string.Join('\n', _lines));
+                await Task.Delay(20, timeout.Token);
+            }
+        }
+
         public async Task QuitAsync(CancellationToken token)
         {
             await SendAsync("quit", token);

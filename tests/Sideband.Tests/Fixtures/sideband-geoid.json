@@ -1,0 +1,1357 @@
+{
+  "sideband_revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "geo_sha256": "af416ae7a1c087cc0c636e994ff58d5c6f7edf9f85379765d7fda9d130e780c7",
+  "sense_sha256": "80418b1aa4de638f2c65f1bd64e5ea0466378a6f0bc682781672ef89b93a7dab",
+  "grid_sha256": "96d55e88db186ddae892b00c5f8cc42a37cdac8ddb69b6de00af8c75dffb34a3",
+  "grid_bytes": 18671444,
+  "method": "Actual sbapp.sideband.geo.GeoidHeight.get and altitude_to_aamsl; fresh instance per observation, no shims",
+  "rns_revision": "a29bfb51c468945c96a1ee22cae0114e993e2391",
+  "rns_version": "1.5.7",
+  "geo_import_relative": "sbapp/sideband/geo.py",
+  "tolerance_metres": 1e-08,
+  "cached_failure_probe": [
+    {
+      "latitude": 45,
+      "longitude": 359,
+      "value": 46.91512499999999
+    },
+    {
+      "latitude": 90,
+      "longitude": 0,
+      "error": "TypeError"
+    },
+    {
+      "latitude": 90,
+      "longitude": 0,
+      "value": 46.91512499999999
+    }
+  ],
+  "observations": [
+    {
+      "latitude": 0,
+      "longitude": 0,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": 17.224874999999997
+      },
+      "bilinear": {
+        "value": 17.226
+      },
+      "aamsl": {
+        "value": -140.724875
+      }
+    },
+    {
+      "latitude": 51.5,
+      "longitude": -0.12,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": 46.06817908800005
+      },
+      "bilinear": {
+        "value": 46.06920000000005
+      },
+      "aamsl": {
+        "value": -46.06817908800005
+      }
+    },
+    {
+      "latitude": -33.8688,
+      "longitude": 151.2093,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": 22.352759554284233
+      },
+      "bilinear": {
+        "value": 22.34222026943999
+      },
+      "aamsl": {
+        "value": 102.89724044571577
+      }
+    },
+    {
+      "latitude": 27.9881,
+      "longitude": 86.925,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": -28.341368836596857
+      },
+      "bilinear": {
+        "value": -28.375727040000015
+      },
+      "aamsl": {
+        "value": 8876.341368836596
+      }
+    },
+    {
+      "latitude": 0,
+      "longitude": -180,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": 21.286387500000018
+      },
+      "bilinear": {
+        "value": 21.28200000000001
+      },
+      "aamsl": {
+        "value": -144.78638750000002
+      }
+    },
+    {
+      "latitude": 0,
+      "longitude": 180,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": 21.286387500000018
+      },
+      "bilinear": {
+        "value": 21.28200000000001
+      },
+      "aamsl": {
+        "value": -21.286387500000018
+      }
+    },
+    {
+      "latitude": 0,
+      "longitude": 360,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": 17.224874999999997
+      },
+      "bilinear": {
+        "value": 17.226
+      },
+      "aamsl": {
+        "value": 108.025125
+      }
+    },
+    {
+      "latitude": 0,
+      "longitude": -360,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": 17.224874999999997
+      },
+      "bilinear": {
+        "value": 17.226
+      },
+      "aamsl": {
+        "value": 8830.775125
+      }
+    },
+    {
+      "latitude": 0,
+      "longitude": 720,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": 17.222737499999994
+      },
+      "bilinear": {
+        "value": 17.226
+      },
+      "aamsl": {
+        "value": -140.7227375
+      }
+    },
+    {
+      "latitude": 45,
+      "longitude": -1,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": 46.91512499999999
+      },
+      "bilinear": {
+        "value": 46.914000000000016
+      },
+      "aamsl": {
+        "value": -46.91512499999999
+      }
+    },
+    {
+      "latitude": 45,
+      "longitude": 359,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": 46.91512499999999
+      },
+      "bilinear": {
+        "value": 46.914000000000016
+      },
+      "aamsl": {
+        "value": 78.33487500000001
+      }
+    },
+    {
+      "latitude": 45,
+      "longitude": 719,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": 46.91512499999999
+      },
+      "bilinear": {
+        "value": 46.914000000000016
+      },
+      "aamsl": {
+        "value": 8801.084875
+      }
+    },
+    {
+      "latitude": 90,
+      "longitude": 0,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      },
+      "bilinear": {
+        "value": 14.897999999999996
+      },
+      "aamsl": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      }
+    },
+    {
+      "latitude": -90,
+      "longitude": 0,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      },
+      "bilinear": {
+        "value": -30.060000000000002
+      },
+      "aamsl": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      }
+    },
+    {
+      "latitude": 89.99,
+      "longitude": 12,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      },
+      "bilinear": {
+        "value": 14.912759999999992
+      },
+      "aamsl": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      }
+    },
+    {
+      "latitude": -89.99,
+      "longitude": 12,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      },
+      "bilinear": {
+        "value": -30.139920000000018
+      },
+      "aamsl": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      }
+    },
+    {
+      "latitude": 89.9,
+      "longitude": 12,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": 15.048356999999996
+      },
+      "bilinear": {
+        "value": 15.049800000000005
+      },
+      "aamsl": {
+        "value": -138.548357
+      }
+    },
+    {
+      "latitude": -89.9,
+      "longitude": 12,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": -30.051552000000015
+      },
+      "bilinear": {
+        "value": -30.05280000000002
+      },
+      "aamsl": {
+        "value": 30.051552000000015
+      }
+    },
+    {
+      "latitude": 90.001,
+      "longitude": 0,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      },
+      "bilinear": {
+        "value": 14.896451999999996
+      },
+      "aamsl": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      }
+    },
+    {
+      "latitude": -90.001,
+      "longitude": 0,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      },
+      "bilinear": {
+        "value": -30.061080000000004
+      },
+      "aamsl": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      }
+    },
+    {
+      "latitude": 91,
+      "longitude": 0,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      },
+      "bilinear": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      },
+      "aamsl": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      }
+    },
+    {
+      "latitude": -91,
+      "longitude": 0,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      },
+      "bilinear": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      },
+      "aamsl": {
+        "error": "TypeError",
+        "message": "'float' object cannot be interpreted as an integer"
+      }
+    },
+    {
+      "latitude": 0,
+      "longitude": -721,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": 17.324099999999987
+      },
+      "bilinear": {
+        "value": 17.325000000000003
+      },
+      "aamsl": {
+        "value": 107.92590000000001
+      }
+    },
+    {
+      "latitude": 0,
+      "longitude": 1080,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": 17.238675
+      },
+      "bilinear": {
+        "value": 17.238
+      },
+      "aamsl": {
+        "value": 8830.761325
+      }
+    },
+    {
+      "latitude": "nan",
+      "longitude": 0,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "error": "ValueError",
+        "message": "cannot convert float NaN to integer"
+      },
+      "bilinear": {
+        "error": "ValueError",
+        "message": "cannot convert float NaN to integer"
+      },
+      "aamsl": {
+        "error": "ValueError",
+        "message": "cannot convert float NaN to integer"
+      }
+    },
+    {
+      "latitude": 0,
+      "longitude": "inf",
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "error": "OverflowError",
+        "message": "cannot convert float infinity to integer"
+      },
+      "bilinear": {
+        "error": "OverflowError",
+        "message": "cannot convert float infinity to integer"
+      },
+      "aamsl": {
+        "error": "OverflowError",
+        "message": "cannot convert float infinity to integer"
+      }
+    },
+    {
+      "latitude": 0,
+      "longitude": -1e-10,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": 17.22375000001665
+      },
+      "bilinear": {
+        "value": 17.22600000000361
+      },
+      "aamsl": {
+        "value": 108.02624999998335
+      }
+    },
+    {
+      "latitude": 0,
+      "longitude": 359.9999999999,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": 17.22375000001665
+      },
+      "bilinear": {
+        "value": 17.22600000000361
+      },
+      "aamsl": {
+        "value": 8830.776249999983
+      }
+    },
+    {
+      "latitude": 12.0833333333333,
+      "longitude": 10.0833333333333,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": 20.500875000000093
+      },
+      "bilinear": {
+        "value": 20.502000000000123
+      },
+      "aamsl": {
+        "value": -144.0008750000001
+      }
+    },
+    {
+      "latitude": 20.20112625062933,
+      "longitude": 279.67041192632473,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": -20.354134064759663
+      },
+      "bilinear": {
+        "value": -20.348829851554783
+      },
+      "aamsl": {
+        "value": 20.354134064759663
+      }
+    },
+    {
+      "latitude": -65.91622150213504,
+      "longitude": 251.48524692287583,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": -27.056723801419537
+      },
+      "bilinear": {
+        "value": -27.056438733282548
+      },
+      "aamsl": {
+        "value": 152.30672380141954
+      }
+    },
+    {
+      "latitude": 2.2518595478417467,
+      "longitude": 114.03683342143688,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": 46.90703356901585
+      },
+      "bilinear": {
+        "value": 46.900143604835165
+      },
+      "aamsl": {
+        "value": 8801.092966430984
+      }
+    },
+    {
+      "latitude": 87.3962743052737,
+      "longitude": 207.65346518748095,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": 12.40326479264914
+      },
+      "bilinear": {
+        "value": 12.407563322738469
+      },
+      "aamsl": {
+        "value": -135.90326479264914
+      }
+    },
+    {
+      "latitude": 5.597361474882646,
+      "longitude": -10.124675953096272,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": 29.46100602250803
+      },
+      "bilinear": {
+        "value": 29.450647885830477
+      },
+      "aamsl": {
+        "value": -29.46100602250803
+      }
+    },
+    {
+      "latitude": 52.34735667209536,
+      "longitude": -107.43714325648804,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": -21.399697667989074
+      },
+      "bilinear": {
+        "value": -21.400302251299166
+      },
+      "aamsl": {
+        "value": 146.64969766798907
+      }
+    },
+    {
+      "latitude": -19.91441421257734,
+      "longitude": 57.97523625406615,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": -6.585039547534109
+      },
+      "bilinear": {
+        "value": -6.594404488479086
+      },
+      "aamsl": {
+        "value": 8854.585039547534
+      }
+    },
+    {
+      "latitude": 58.171767563316976,
+      "longitude": 97.28841204295645,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": -39.30905402828323
+      },
+      "bilinear": {
+        "value": -39.301570030313
+      },
+      "aamsl": {
+        "value": -84.19094597171677
+      }
+    },
+    {
+      "latitude": 33.79825270974054,
+      "longitude": -35.75965886162575,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": 36.24791432774214
+      },
+      "bilinear": {
+        "value": 36.25501704949889
+      },
+      "aamsl": {
+        "value": -36.24791432774214
+      }
+    },
+    {
+      "latitude": 27.117414040764473,
+      "longitude": 199.88181096497152,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": -0.7987978006889307
+      },
+      "bilinear": {
+        "value": -0.7916815521174954
+      },
+      "aamsl": {
+        "value": 126.04879780068893
+      }
+    },
+    {
+      "latitude": 75.69691233731062,
+      "longitude": 296.1220307127308,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": 16.953316568612877
+      },
+      "bilinear": {
+        "value": 16.968801485551936
+      },
+      "aamsl": {
+        "value": 8831.046683431387
+      }
+    },
+    {
+      "latitude": 71.7679009689865,
+      "longitude": 73.05857356548833,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": -8.488235314551673
+      },
+      "bilinear": {
+        "value": -8.494051073013665
+      },
+      "aamsl": {
+        "value": -115.01176468544833
+      }
+    },
+    {
+      "latitude": -39.97639722167689,
+      "longitude": -106.32270956217609,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": -9.339338454784325
+      },
+      "bilinear": {
+        "value": -9.339793823602761
+      },
+      "aamsl": {
+        "value": 9.339338454784325
+      }
+    },
+    {
+      "latitude": -73.94557308161997,
+      "longitude": 117.40724076562327,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": -35.25161163713189
+      },
+      "bilinear": {
+        "value": -35.24819574779963
+      },
+      "aamsl": {
+        "value": 160.50161163713187
+      }
+    },
+    {
+      "latitude": 63.36263200334703,
+      "longitude": -2.5744468310890056,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": 50.97718570838157
+      },
+      "bilinear": {
+        "value": 50.981869615797564
+      },
+      "aamsl": {
+        "value": 8797.022814291618
+      }
+    },
+    {
+      "latitude": 27.188820715026154,
+      "longitude": 341.5540151061052,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": 34.71816358813854
+      },
+      "bilinear": {
+        "value": 34.72000076268742
+      },
+      "aamsl": {
+        "value": -158.21816358813854
+      }
+    },
+    {
+      "latitude": 18.000811826689258,
+      "longitude": -61.632269950174106,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": -52.512764268150434
+      },
+      "bilinear": {
+        "value": -52.544162265219356
+      },
+      "aamsl": {
+        "value": 52.512764268150434
+      }
+    },
+    {
+      "latitude": 13.702030369272705,
+      "longitude": -100.80930019645874,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": -12.027162034218989
+      },
+      "bilinear": {
+        "value": -12.031736972354608
+      },
+      "aamsl": {
+        "value": 137.27716203421897
+      }
+    },
+    {
+      "latitude": 51.547821352204195,
+      "longitude": 85.15028682612012,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": -41.57174653786194
+      },
+      "bilinear": {
+        "value": -41.57328915154129
+      },
+      "aamsl": {
+        "value": 8889.571746537862
+      }
+    },
+    {
+      "latitude": -5.7298083465351795,
+      "longitude": -131.40438935392046,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": -8.486651818400773
+      },
+      "bilinear": {
+        "value": -8.487148810144589
+      },
+      "aamsl": {
+        "value": -115.01334818159923
+      }
+    },
+    {
+      "latitude": -83.25133630835666,
+      "longitude": 58.75389037172616,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": -4.058390381242845
+      },
+      "bilinear": {
+        "value": -4.058566748025967
+      },
+      "aamsl": {
+        "value": 4.058390381242845
+      }
+    },
+    {
+      "latitude": -81.15921336253294,
+      "longitude": 310.45711001307393,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": -22.188149961160633
+      },
+      "bilinear": {
+        "value": -22.186817921294633
+      },
+      "aamsl": {
+        "value": 147.43814996116063
+      }
+    },
+    {
+      "latitude": 32.78334710875467,
+      "longitude": 8.815625684689877,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": 30.969896201846183
+      },
+      "bilinear": {
+        "value": 30.965021282887136
+      },
+      "aamsl": {
+        "value": 8817.030103798154
+      }
+    },
+    {
+      "latitude": 39.163285970389765,
+      "longitude": -89.38542849946765,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": -32.11876068273743
+      },
+      "bilinear": {
+        "value": -32.120027353984256
+      },
+      "aamsl": {
+        "value": -91.38123931726257
+      }
+    },
+    {
+      "latitude": 10.049928064271285,
+      "longitude": 25.846743579186494,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": -2.2588672585754495
+      },
+      "bilinear": {
+        "value": -2.2536393438623037
+      },
+      "aamsl": {
+        "value": 2.2588672585754495
+      }
+    },
+    {
+      "latitude": -18.116706291424364,
+      "longitude": 47.216435862891814,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": -3.5787028466711206
+      },
+      "bilinear": {
+        "value": -3.6142461746376
+      },
+      "aamsl": {
+        "value": 128.82870284667112
+      }
+    },
+    {
+      "latitude": -89.46060062511471,
+      "longitude": 63.16037731926096,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": -29.572218762461077
+      },
+      "bilinear": {
+        "value": -29.570009767677533
+      },
+      "aamsl": {
+        "value": 8877.572218762461
+      }
+    },
+    {
+      "latitude": 7.492082178179828,
+      "longitude": -142.61698242874974,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": -4.061899099006894
+      },
+      "bilinear": {
+        "value": -4.062226030070249
+      },
+      "aamsl": {
+        "value": -119.4381009009931
+      }
+    },
+    {
+      "latitude": -69.91990056329159,
+      "longitude": 211.25246009385546,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": -56.44225041232102
+      },
+      "bilinear": {
+        "value": -56.44335016710054
+      },
+      "aamsl": {
+        "value": 56.44225041232102
+      }
+    },
+    {
+      "latitude": 85.17036353215725,
+      "longitude": -112.91032151876263,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": 14.635769901639776
+      },
+      "bilinear": {
+        "value": 14.63464123574002
+      },
+      "aamsl": {
+        "value": 110.61423009836022
+      }
+    },
+    {
+      "latitude": -53.166501691477535,
+      "longitude": -2.351823378137709,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": 27.66917115555725
+      },
+      "bilinear": {
+        "value": 27.671468338407124
+      },
+      "aamsl": {
+        "value": 8820.330828844442
+      }
+    },
+    {
+      "latitude": -9.444208879217896,
+      "longitude": 147.8213051716067,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": 80.5213488601066
+      },
+      "bilinear": {
+        "value": 80.53611613983662
+      },
+      "aamsl": {
+        "value": -204.0213488601066
+      }
+    },
+    {
+      "latitude": 68.0800422120915,
+      "longitude": 339.6043647808383,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": 61.70814509346906
+      },
+      "bilinear": {
+        "value": 61.709305360451225
+      },
+      "aamsl": {
+        "value": -61.70814509346906
+      }
+    },
+    {
+      "latitude": 48.376145841977504,
+      "longitude": 53.0961824898439,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": -17.472796352192304
+      },
+      "bilinear": {
+        "value": -17.467618093981386
+      },
+      "aamsl": {
+        "value": 142.7227963521923
+      }
+    },
+    {
+      "latitude": -86.158630573357,
+      "longitude": 43.2579650049976,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": -14.78179021847211
+      },
+      "bilinear": {
+        "value": -14.782596958895269
+      },
+      "aamsl": {
+        "value": 8862.781790218472
+      }
+    },
+    {
+      "latitude": -41.52084749696468,
+      "longitude": -125.34244219844057,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": -12.078606428063978
+      },
+      "bilinear": {
+        "value": -12.07970247776285
+      },
+      "aamsl": {
+        "value": -111.42139357193602
+      }
+    },
+    {
+      "latitude": -71.19595347657315,
+      "longitude": -5.918769032887212,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": 11.067800486195836
+      },
+      "bilinear": {
+        "value": 11.068908940388724
+      },
+      "aamsl": {
+        "value": -11.067800486195836
+      }
+    },
+    {
+      "latitude": 56.835649796153504,
+      "longitude": -60.61473056362749,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": -5.915488389179629
+      },
+      "bilinear": {
+        "value": -5.912825859673177
+      },
+      "aamsl": {
+        "value": 131.16548838917964
+      }
+    },
+    {
+      "latitude": -63.54471194615736,
+      "longitude": -60.99980673783979,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": 20.249242800610006
+      },
+      "bilinear": {
+        "value": 20.25388223197956
+      },
+      "aamsl": {
+        "value": 8827.75075719939
+      }
+    },
+    {
+      "latitude": -24.17322207747067,
+      "longitude": 329.5377892536398,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": -5.858637322832891
+      },
+      "bilinear": {
+        "value": -5.858804950896513
+      },
+      "aamsl": {
+        "value": -117.64136267716711
+      }
+    },
+    {
+      "latitude": 12.247948247138439,
+      "longitude": 187.8353503069858,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": 10.65484938815581
+      },
+      "bilinear": {
+        "value": 10.654897903750935
+      },
+      "aamsl": {
+        "value": -10.65484938815581
+      }
+    },
+    {
+      "latitude": -41.86448875807942,
+      "longitude": 176.80661506582004,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": 11.209980647199231
+      },
+      "bilinear": {
+        "value": 11.219264697336811
+      },
+      "aamsl": {
+        "value": 114.04001935280077
+      }
+    },
+    {
+      "latitude": -11.223659775637941,
+      "longitude": 117.98026470381376,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": 14.73238615991312
+      },
+      "bilinear": {
+        "value": 14.770959474617698
+      },
+      "aamsl": {
+        "value": 8833.267613840088
+      }
+    },
+    {
+      "latitude": 86.4310842339065,
+      "longitude": 38.054728166896126,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": 19.99318708850349
+      },
+      "bilinear": {
+        "value": 20.010096770844797
+      },
+      "aamsl": {
+        "value": -143.49318708850348
+      }
+    },
+    {
+      "latitude": 84.201780901285,
+      "longitude": 128.78553425403982,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": 6.180229001499654
+      },
+      "bilinear": {
+        "value": 6.18061389884403
+      },
+      "aamsl": {
+        "value": -6.180229001499654
+      }
+    },
+    {
+      "latitude": -21.625433937500148,
+      "longitude": -82.26442791550483,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": 6.384523188169027
+      },
+      "bilinear": {
+        "value": 6.383490402048125
+      },
+      "aamsl": {
+        "value": 118.86547681183097
+      }
+    },
+    {
+      "latitude": -51.41246637130581,
+      "longitude": -77.07573034696762,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": 4.952244333795349
+      },
+      "bilinear": {
+        "value": 4.952310907325668
+      },
+      "aamsl": {
+        "value": 8843.047755666204
+      }
+    },
+    {
+      "latitude": -9.01775576122995,
+      "longitude": 287.7176030249468,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": 24.84541850757242
+      },
+      "bilinear": {
+        "value": 24.844274097534168
+      },
+      "aamsl": {
+        "value": -148.34541850757242
+      }
+    },
+    {
+      "latitude": -81.63536421003244,
+      "longitude": 294.4802449845444,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": -25.843546279843864
+      },
+      "bilinear": {
+        "value": -25.84209130267584
+      },
+      "aamsl": {
+        "value": 25.843546279843864
+      }
+    },
+    {
+      "latitude": -55.262138015802094,
+      "longitude": 252.22793514329913,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": -13.543899592413979
+      },
+      "bilinear": {
+        "value": -13.54398030666151
+      },
+      "aamsl": {
+        "value": 138.793899592414
+      }
+    },
+    {
+      "latitude": -62.840167695600385,
+      "longitude": 202.73088075307555,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": -41.3544635192665
+      },
+      "bilinear": {
+        "value": -41.355287336510415
+      },
+      "aamsl": {
+        "value": 8889.354463519267
+      }
+    },
+    {
+      "latitude": -82.12730029040546,
+      "longitude": 101.57016750968307,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": -18.093641072580425
+      },
+      "bilinear": {
+        "value": -18.092004270642576
+      },
+      "aamsl": {
+        "value": -105.40635892741957
+      }
+    },
+    {
+      "latitude": 62.90468157013005,
+      "longitude": 281.7139353423841,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": -33.46612895754157
+      },
+      "bilinear": {
+        "value": -33.46440126375529
+      },
+      "aamsl": {
+        "value": 33.46612895754157
+      }
+    },
+    {
+      "latitude": 74.94066201657195,
+      "longitude": 261.5248829404433,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": -9.52008540049711
+      },
+      "bilinear": {
+        "value": -9.516146200279735
+      },
+      "aamsl": {
+        "value": 134.77008540049712
+      }
+    },
+    {
+      "latitude": 40.89790977155512,
+      "longitude": -28.62230762781917,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": 60.969354541055964
+      },
+      "bilinear": {
+        "value": 60.96286025351094
+      },
+      "aamsl": {
+        "value": 8787.030645458944
+      }
+    },
+    {
+      "latitude": -49.38325897256482,
+      "longitude": 140.4542212624753,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": -18.201641524929798
+      },
+      "bilinear": {
+        "value": -18.200599861988962
+      },
+      "aamsl": {
+        "value": -105.2983584750702
+      }
+    },
+    {
+      "latitude": 44.14690400936057,
+      "longitude": 163.85673547157404,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": -2.3999225612503636
+      },
+      "bilinear": {
+        "value": -2.3989415750286724
+      },
+      "aamsl": {
+        "value": 2.3999225612503636
+      }
+    },
+    {
+      "latitude": 34.341236681359305,
+      "longitude": 317.92817030721767,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": 18.547987285345286
+      },
+      "bilinear": {
+        "value": 18.561573029042535
+      },
+      "aamsl": {
+        "value": 106.70201271465471
+      }
+    },
+    {
+      "latitude": 42.94969572142445,
+      "longitude": 57.1645447339034,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": -22.736389886241753
+      },
+      "bilinear": {
+        "value": -22.744002108736183
+      },
+      "aamsl": {
+        "value": 8870.736389886242
+      }
+    },
+    {
+      "latitude": 49.526009303781265,
+      "longitude": -14.431012066707495,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": 56.34423046684634
+      },
+      "bilinear": {
+        "value": 56.34458226200297
+      },
+      "aamsl": {
+        "value": -179.84423046684634
+      }
+    },
+    {
+      "latitude": -20.654384167784784,
+      "longitude": 307.88561012797504,
+      "ellipsoid_altitude": 0,
+      "cubic": {
+        "value": -5.871184503659322
+      },
+      "bilinear": {
+        "value": -5.86849654805647
+      },
+      "aamsl": {
+        "value": 5.871184503659322
+      }
+    },
+    {
+      "latitude": -66.62827415887769,
+      "longitude": 333.96963776316136,
+      "ellipsoid_altitude": 125.25,
+      "cubic": {
+        "value": 7.859749647394835
+      },
+      "bilinear": {
+        "value": 7.857996760570046
+      },
+      "aamsl": {
+        "value": 117.39025035260516
+      }
+    },
+    {
+      "latitude": -8.780278440795158,
+      "longitude": 246.51123084701544,
+      "ellipsoid_altitude": 8848,
+      "cubic": {
+        "value": -10.627162900229692
+      },
+      "bilinear": {
+        "value": -10.621502333259158
+      },
+      "aamsl": {
+        "value": 8858.62716290023
+      }
+    },
+    {
+      "latitude": -14.963144984642838,
+      "longitude": 91.03105183940772,
+      "ellipsoid_altitude": -123.5,
+      "cubic": {
+        "value": -57.2955894501152
+      },
+      "bilinear": {
+        "value": -57.29390694089504
+      },
+      "aamsl": {
+        "value": -66.2044105498848
+      }
+    }
+  ]
+}

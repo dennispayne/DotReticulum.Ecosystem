@@ -2,18 +2,27 @@ namespace LXMF;
 
 public sealed partial class LxmRouter
 {
+    public bool CanCancelPending(LxMessage message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        lock (_gate) return CanCancelPendingCore(message);
+    }
+
     public bool TryCancelPending(LxMessage message)
     {
         ArgumentNullException.ThrowIfNull(message);
         lock (_gate)
         {
-            if (!_outbound.Contains(message) && !_preparing.ContainsKey(message)) return false;
-            if (message.State is LxmState.Delivered or LxmState.Paper or LxmState.Failed or LxmState.Rejected or LxmState.Cancelled ||
-                message.State == LxmState.Sent && message.Method == LxmMethod.Propagated) return false;
+            if (!CanCancelPendingCore(message)) return false;
             Cancel(message);
             return true;
         }
     }
+
+    private bool CanCancelPendingCore(LxMessage message) =>
+        (_outbound.Contains(message) || _preparing.ContainsKey(message)) &&
+        message.State is not (LxmState.Delivered or LxmState.Paper or LxmState.Failed or LxmState.Rejected or LxmState.Cancelled) &&
+        !(message.State == LxmState.Sent && message.Method == LxmMethod.Propagated);
 
     private int _enforceStamps;
     public bool StampsEnforced => Volatile.Read(ref _enforceStamps) != 0;

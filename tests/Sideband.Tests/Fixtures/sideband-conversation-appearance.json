@@ -1,0 +1,1491 @@
+{
+    "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+    "source_sha256": "741cdc76c264e899c8b9f2e57ebc8d3c6036f665bd95e645e5df21022c88c32d",
+    "core_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+    "default_appearance": [
+        "account",
+        [
+            0,
+            0,
+            0,
+            1
+        ],
+        [
+            1,
+            1,
+            1,
+            1
+        ]
+    ],
+    "source_defaults": {
+        "display_style_in_contact_list": true,
+        "display_style_from_all": true
+    },
+    "method": "Actual AST-extracted trust_icon/get_icon_colors and source constants; synthetic LXMF conversation, owner, cached appearance and request-authorization observations only. No constructor, assets, Kivy, network or independent authorization claim",
+    "cases": [
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "account-question",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "account-question",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "account-question",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "account-check",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "account-check",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "account-check",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": false,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "account-question",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "account-question",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "account-question",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "account-check",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "account-check",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "account-check",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": false,
+            "from_all": true,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "account-question",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "account-question",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "account-question",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "account-check",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "account-check",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "rocket",
+            "colors": {
+                "ti_color": "Custom",
+                "fg": [
+                    0.2,
+                    0.4,
+                    0.6,
+                    1
+                ],
+                "bg": [
+                    1,
+                    0.8,
+                    0.4,
+                    1
+                ]
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "rocket",
+            "colors": {
+                "ti_color": "Custom",
+                "fg": [
+                    0.2,
+                    0.4,
+                    0.6,
+                    1
+                ],
+                "bg": [
+                    1,
+                    0.8,
+                    0.4,
+                    1
+                ]
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "email",
+            "colors": {
+                "ti_color": "Custom",
+                "fg": [
+                    0.2,
+                    0.4,
+                    0.6,
+                    1
+                ],
+                "bg": [
+                    1,
+                    0.8,
+                    0.4,
+                    1
+                ]
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": false,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "email",
+            "colors": {
+                "ti_color": "Custom",
+                "fg": [
+                    0.2,
+                    0.4,
+                    0.6,
+                    1
+                ],
+                "bg": [
+                    1,
+                    0.8,
+                    0.4,
+                    1
+                ]
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "account-question",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "account-question",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "rocket",
+            "colors": {
+                "ti_color": "Custom",
+                "fg": [
+                    0.2,
+                    0.4,
+                    0.6,
+                    1
+                ],
+                "bg": [
+                    1,
+                    0.8,
+                    0.4,
+                    1
+                ]
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": false,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "rocket",
+            "colors": {
+                "ti_color": "Custom",
+                "fg": [
+                    0.2,
+                    0.4,
+                    0.6,
+                    1
+                ],
+                "bg": [
+                    1,
+                    0.8,
+                    0.4,
+                    1
+                ]
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "email",
+            "colors": {
+                "ti_color": "Custom",
+                "fg": [
+                    0.2,
+                    0.4,
+                    0.6,
+                    1
+                ],
+                "bg": [
+                    1,
+                    0.8,
+                    0.4,
+                    1
+                ]
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "email",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": false,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "email",
+            "colors": {
+                "ti_color": "Custom",
+                "fg": [
+                    0.2,
+                    0.4,
+                    0.6,
+                    1
+                ],
+                "bg": [
+                    1,
+                    0.8,
+                    0.4,
+                    1
+                ]
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "account-check",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "account-check",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "rocket",
+            "colors": {
+                "ti_color": "Custom",
+                "fg": [
+                    0.2,
+                    0.4,
+                    0.6,
+                    1
+                ],
+                "bg": [
+                    1,
+                    0.8,
+                    0.4,
+                    1
+                ]
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "account-lock-open",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": true,
+            "unread": false,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "rocket",
+            "colors": {
+                "ti_color": "Custom",
+                "fg": [
+                    0.2,
+                    0.4,
+                    0.6,
+                    1
+                ],
+                "bg": [
+                    1,
+                    0.8,
+                    0.4,
+                    1
+                ]
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "absent",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "default",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": false,
+            "appearance": "custom",
+            "icon": "email",
+            "colors": {
+                "ti_color": "Custom",
+                "fg": [
+                    0.2,
+                    0.4,
+                    0.6,
+                    1
+                ],
+                "bg": [
+                    1,
+                    0.8,
+                    0.4,
+                    1
+                ]
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "absent",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "default",
+            "icon": "email-seal",
+            "colors": {
+                "ti_color": null,
+                "fg": null,
+                "bg": null
+            }
+        },
+        {
+            "enabled": true,
+            "from_all": true,
+            "trusted": true,
+            "unread": true,
+            "requests_allowed": true,
+            "appearance": "custom",
+            "icon": "email",
+            "colors": {
+                "ti_color": "Custom",
+                "fg": [
+                    0.2,
+                    0.4,
+                    0.6,
+                    1
+                ],
+                "bg": [
+                    1,
+                    0.8,
+                    0.4,
+                    1
+                ]
+            }
+        }
+    ]
+}

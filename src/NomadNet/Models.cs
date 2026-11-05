@@ -17,6 +17,7 @@ public sealed record NomadNetSettings
     public int SchemaVersion { get; init; } = 1;
     public string DisplayName { get; init; } = "NomadNet user";
     public string? RnsConfigDirectory { get; init; }
+    public bool UsePrimaryConfiguration { get; init; }
     public string Editor { get; set; } = "nano";
     public bool EnableClient { get; set; } = true;
     public NomadNetUserInterface UserInterface { get; set; } = NomadNetUserInterface.Text;
@@ -116,6 +117,15 @@ public sealed record NomadNetSettings
         using (var document = System.Text.Json.JsonDocument.Parse(bytes.AsMemory(offset)))
             if (!document.RootElement.TryGetProperty("propagationStorageLimitBytes", out _))
                 settings.PropagationStorageLimitBytes = 500_000_000;
+        if (settings.UsePrimaryConfiguration)
+        {
+            var primaryPath = Path.Combine(root, "config");
+            NomadNetEditor.Guard(primaryPath);
+            if (!File.Exists(primaryPath)) throw new FileNotFoundException("Active primary ConfigObj source is missing; restore it or explicitly repair native JSON.");
+            var primaryBytes = await NomadNetLocalFiles.ReadAsync(primaryPath, NomadNetConfigDocument.MaximumBytes, cancellationToken).ConfigureAwait(false);
+            try { settings = NomadNetConfigImport.Overlay(new System.Text.UTF8Encoding(false, true).GetString(primaryBytes), settings).Settings; }
+            finally { System.Security.Cryptography.CryptographicOperations.ZeroMemory(primaryBytes); }
+        }
         settings.Validate();
         return settings with
         {

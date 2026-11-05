@@ -114,6 +114,7 @@ runtime evidence.
 
 | Contract | Status | Upstream contract and source |
 |---|---|---|
+| Conversation appearance policies | implemented bounded subset | `display_style_in_contact_list` and `display_style_from_all` activate strict atomic settings/profile persistence and original Preferences. Original text badges show effective icon names/colors while preserving explicit trust/unread labels.96 executed primary policy observations, headless immediate-save/state/restart and selected Windows NativeAOT rendering are separate from copied assets, full schema/presentation, primary GUI or current Linux evidence; `SidebandConversationAppearance.cs`, `MainWindow.ConversationAppearance.cs`, `sbapp/ui/conversations.py:trust_icon,get_icon_colors`. |
 | Selected raw-message text copy | implemented bounded subset | Exact saved content, not title/media/rendered markup, goes to the desktop clipboard provider. One pending provider operation, a five-second wait deadline, close cancellation and explicit errors also bound announcement copying. Executed primary callback, headless failure/ownership tests and selected Windows NativeAOT private-provider windows are separate from unverified OS clipboard round trips; `MainWindow.Clipboard.cs`, `sbapp/ui/messages.py:gen_copy`. |
 | Selected active-message cancellation | implemented bounded subset | Current-runtime peer/local-ID ownership and exact pending LXMF object checks stop queued/stamp work through a bounded API, original desktop action and native console extension. Historical/terminal/restarted refusal, capacity/identity cleanup, no-subscriber persistence, selected Windows NativeAOT actual-primary recovery/restart and headless draft preservation are separate evidence. Best effort is not recall/nonreceipt, primary GUI or current Linux replay acceptance. `SidebandClient.MessageCancellation.cs`, `LxmRouter.Policy.cs`, `sbapp/sideband/core.py:5136`, `LXMF/LXMRouter.py:1729`. |
 | Explicit failed-message text retry | implemented bounded subset | Confirmed desktop and native console extension create a new ordinary message with current settings, atomically replacing only a matching failed outgoing text entry after validation. Eight-request admission, cancellation/disconnect, duplicate selection, draft protection, current-policy queue refusal/recovery, actual primary reception/return and native restart are separately tested. No old media/title/hash replay, exactly-once crash guarantee or primary Kivy invocation; see selected retry below; `SidebandClient.MessageActions.cs`, `MainWindow.Messages.cs`, `sbapp/ui/messages.py:gen_retry`. |
@@ -3152,6 +3153,91 @@ changed announcements by1.1seconds; original cost, cancellation, delivery and
 restart assertions remain. No production transport guard was changed.
 The preceding accepted `1f9c8ad73de657c0039a46a6dde02de339034eb378bd9681cafa4a189f36bfee`
 candidate does not establish the final offline disposal-waiter correction.
+
+## Conversation appearance policies
+
+The original conversation list now renders reported peer icon **names as
+original text badges**, using saved RGB foreground/background values. It does
+not bundle primary icons, fonts or other restricted assets. Explicit contact
+trust/unread labels remain visible independently of the badge. Displaying an
+appearance never grants trust, telemetry request permissions or authorization.
+Preferences enable reported styles and optionally limit them to trusted
+conversations, immediately and durably without changing selection or drafts.
+
+The exact primary `d069122af14880e43607aed0b71add4c7806fbe0`
+`conversations.py:trust_icon,get_icon_colors` policies execute in
+`GenerateConversationAppearanceVectors.py` with disclosed synthetic P2P
+conversation/cache/authorization owners.96 cases cover both flags, trust,
+unread, request permission and absent/default/custom appearances. The actual
+methods choose custom colors only when enabled and trusted or allowed-from-all;
+unread custom icons become `email`. Default fallback icons independently
+reflect request/trust/unread policy. Source defaults for both flags are true.
+Core and UI source SHA-256 values are
+`8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25`
+and `741cdc76c264e899c8b9f2e57ebc8d3c6036f665bd95e645e5df21022c88c32d`;
+fixture SHA-256:
+`a3f4451774474a01aad64fb7eb6d4938ccb1e185b3832ccb4ab4079c493fcef7`.
+These observations do not execute Kivy, the constructor, a network peer or an
+independent authorization implementation.
+
+`display_style_in_contact_list` and `display_style_from_all` activate through
+strict settings import/export, the shared offline-profile import path,
+original Preferences and the actual primary console aliases
+`config set general display_style_in_contact_list <bool>` and
+`config set telemetry display_style_from_all <bool>` from `cli/config_tree.py`.
+Nonboolean values reject the whole mutation. Partial
+imports retain the current policy; absent legacy state uses primary defaults.
+Unknown settings, appearance metadata, names, trust and other state survive.
+The existing bounded icon/RGB schema remains narrower than all primary
+appearance variants; malformed values fail explicitly. Voice-only lists and
+complete primary presentation remain separate required contracts.
+
+C91/T480-T484 separates executed vectors, atomic malformed/cancelled settings
+and restart, real headless templates/Preferences and selected native windows.
+Windows full Sideband2101/76, existing primary console4/0, strict NativeAOT/help
+and ordinary native console5/0 pass. Appearance/reference Pester2/0 includes
+six real native windows across custom/trusted-only/disabled synthetic profiles,
+exact rendered badge names/colors, settings exchange and identity/state
+retention through two restarts per profile, plus real native interactive
+activation of both configuration aliases. Additional raw-copy/reference2/0
+and cancellation/retry/deletion5/0 pass on that same source-guarded executable.
+The latter includes actual-primary direct-TCP messaging/recovery/restart;
+appearance windows themselves add no new network topology or primary GUI,
+physical display or current Linux replay acceptance. Their copy path uses the
+private observation provider, never the shared OS clipboard.
+
+```powershell
+& artifacts\tests\sideband-console\Parent-CurrentConsole.ps1 -Managed -Run conversation-appearance-aliases
+& artifacts\tests\sideband-conversation-appearance\Accept-SelectedNative.ps1 -CandidateRun conversation-appearance-aliases -Run parent-aliases-final
+& artifacts\tests\sideband-message-copy\Accept-SelectedNative.ps1 -CandidateRun conversation-appearance-aliases -Run parent-appearance-aliases
+& artifacts\tests\sideband-message-cancellation\Accept-SelectedNative.ps1 -CandidateRun conversation-appearance-aliases -Run parent-appearance-aliases
+```
+
+Final executable SHA-256:
+`74584c124b45e943e8d435923c7d3a51b8cf3f0727c933a392caccd68d52e196`;
+selected verification assembly:
+`8288647f48a72655f675a5c086dadc076bb19c314d89a2c8f6047312f9f2cc20`.
+Exact source guards/logs and parent receipts are under the corresponding
+`artifacts\tests\sideband-console\windows-conversation-appearance-aliases`,
+`sideband-conversation-appearance\parent-aliases-final`, and both
+`sideband-message-{copy,cancellation}\parent-appearance-aliases` directories.
+The preceding accepted `2a178010...` candidate does not establish the final
+two-alias activation; its original scoped receipts are retained separately.
+
+### Cancellation-readiness correction
+
+The first full appearance gate retained a C88 failure: local tracking and
+Queued-history publication precede actual router admission, so the former
+availability predicate could enable cancellation before pending work existed.
+T485 deterministically observes that pre-admission publication, verifies
+unavailability there, then actual hashless stamp preparation and successful
+cancellation. Readiness now uses `LxmRouter.CanCancelPending` outside the
+outgoing-registry lock, avoiding reverse callback lock order. The shared
+pending-object checks do not pack/mutate a hash or reserve future cancellation.
+Late terminal transitions can still refuse a request; it remains best effort.
+The no-subscriber preparation/recovery case and exact foreign/terminal LXMF
+assertions remain intact. The preceding failed full-gate log is not acceptance;
+the final candidate passes the complete managed/native gates above.
 
 ## Selected-message raw-text copy
 

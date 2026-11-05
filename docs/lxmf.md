@@ -80,7 +80,12 @@ Direct links identify the sender; opportunistic packets are encrypted to the des
 owners that have no stable packed hash during stamp preparation. It checks exact
 object membership and terminal state under the existing router gate, then reuses
 `Cancel`; absent, foreign and terminal objects return false. It does not recall
-traffic or prove nonreceipt. `LxmRuntimePolicyTests` verifies hashless deferred
+traffic or prove nonreceipt. `CanCancelPending(message)` observes the same
+eligibility without packing/mutating the message; it is a readiness snapshot,
+not a reservation. Applications must not confuse local tracking/persistence
+with actual router admission. Sideband queries it without holding its outgoing
+registry lock, avoiding the reverse callback lock order.
+`LxmRuntimePolicyTests` verifies hashless deferred
 work, equal-hash foreign-object refusal, eight concurrent requests with exactly
 one admission, terminal refusal and subsequent proved delivery. Sideband's
 [selected runtime cancellation](sideband.md#selected-active-message-cancellation)

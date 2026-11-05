@@ -8,7 +8,7 @@ public sealed record NomadNetConfigImportResult(NomadNetSettings Settings, IRead
     public IReadOnlyList<string> Warnings { get; init; } = [];
 }
 
-/// <summary>Explicit core ConfigObj migration, not a replacement for the complete ConfigObj grammar.</summary>
+/// <summary>ConfigObj-to-native runtime projection. Unknown controls are reported, never silently applied.</summary>
 public static class NomadNetConfigImport
 {
     public const int MaximumConfigBytes = 64 * 1024;
@@ -22,7 +22,15 @@ public static class NomadNetConfigImport
         return (cap, !values.TryGetValue("rrc.filter_loaded_history", out raw) || Boolean(Scalar(raw)));
     }
 
-    public static NomadNetConfigImportResult Parse(string text)
+    public static NomadNetConfigImportResult Parse(string text) => ParseCore(text);
+
+    public static NomadNetConfigImportResult Overlay(string text, NomadNetSettings basis)
+    {
+        var parsed = ParseCore(text);
+        return parsed with { Settings = NomadNetPrimaryConfiguration.Project(parsed.Settings, basis) };
+    }
+
+    private static NomadNetConfigImportResult ParseCore(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
         if (Encoding.UTF8.GetByteCount(text) > MaximumConfigBytes) throw new InvalidDataException("Configuration exceeds 64 KiB.");
@@ -150,54 +158,14 @@ public static class NomadNetConfigImport
 
     private static Dictionary<string, string> Read(string text)
     {
-        var values = new Dictionary<string, string>(StringComparer.Ordinal);
-        var sections = new HashSet<string>(StringComparer.Ordinal);
-        string? section = null;
-        foreach (var raw in text.TrimStart('\uFEFF').Split('\n'))
-        {
-            if (raw.Length > 8192) throw new InvalidDataException("Configuration line exceeds 8192 characters.");
-            var line = StripComment(raw).Trim();
-            if (line.Length == 0) continue;
-            if (line.StartsWith('['))
-            {
-                if (!line.EndsWith(']') || line.StartsWith("[[", StringComparison.Ordinal))
-                    throw new InvalidDataException("Nested or malformed ConfigObj sections are not supported.");
-                section = line[1..^1].Trim();
-                if (section.Length == 0 || !sections.Add(section)) throw new InvalidDataException("Empty or duplicate configuration section.");
-                continue;
-            }
-            var separator = line.IndexOf('=');
-            if (section is null || separator <= 0) throw new InvalidDataException("Expected a section and key=value configuration entry.");
-            var key = line[..separator].Trim();
-            if (key.Length == 0 || !values.TryAdd(section + "." + key, line[(separator + 1)..].Trim()))
-                throw new InvalidDataException("Empty or duplicate configuration key.");
-        }
-        return values;
-    }
-
-    private static string StripComment(string line)
-    {
-        char quote = '\0';
-        for (var index = 0; index < line.Length; index++)
-        {
-            if (line[index] is '\'' or '"')
-            {
-                if (quote == '\0') quote = line[index];
-                else if (line[index] == quote) quote = '\0';
-            }
-            else if (line[index] == '#' && quote == '\0') return line[..index];
-        }
-        if (quote != '\0') throw new InvalidDataException("Unterminated/multiline quoted configuration values are not supported.");
-        return line;
+        return NomadNetConfigDocument.Parse(text).Flatten().ToDictionary(pair => pair.Key,
+            pair => NomadNetConfigDocument.Encode(pair.Value), StringComparer.Ordinal);
     }
 
     private static string Scalar(string value)
     {
-        if (value.Length >= 2 && value[0] is '\'' or '"' && value[^1] == value[0])
-            return value[1..^1];
-        if (value.Contains(',') || value.Contains('"') || value.Contains('\''))
-            throw new InvalidDataException("Expected an unambiguous scalar configuration value.");
-        return value;
+        var parsed = NomadNetConfigDocument.ParseValue(value);
+        return parsed.Scalar ?? throw new InvalidDataException("Expected a scalar ConfigObj value, not a list.");
     }
 
     private static List<string> Destinations(string raw, string key, List<string> warnings)
@@ -227,22 +195,7 @@ public static class NomadNetConfigImport
 
     private static List<string> CommaValues(string raw)
     {
-        var tokens = new List<string>();
-        var start = 0;
-        var quote = '\0';
-        for (var index = 0; index <= raw.Length; index++)
-        {
-            if (index < raw.Length && raw[index] is '\'' or '"')
-            {
-                if (quote == '\0') quote = raw[index];
-                else if (quote == raw[index]) quote = '\0';
-            }
-            if (index != raw.Length && (raw[index] != ',' || quote != '\0')) continue;
-            var token = raw[start..index].Trim();
-            if (token.Length != 0 || index != raw.Length || start == 0) tokens.Add(Scalar(token));
-            start = index + 1;
-        }
-        return tokens;
+        return NomadNetConfigDocument.ParseValue(raw).AsList().ToList();
     }
 
     private static void ApplyPrinting(Dictionary<string, string> values, NomadNetSettings settings, List<string> warnings)

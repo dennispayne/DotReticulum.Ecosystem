@@ -75,6 +75,7 @@ public sealed partial class MainWindow : Window
         VoiceModeSelector.ItemsSource = Enum.GetValues<TelephoneMode>();
         VoiceModeSelector.SelectedItem = TelephoneMode.FullDuplex;
         InitializeMap();
+        InitializeConversationAppearance();
         PushToTalkButton.AddHandler(Avalonia.Input.InputElement.PointerPressedEvent, PushToTalkPressed, RoutingStrategies.Tunnel);
         PushToTalkButton.AddHandler(Avalonia.Input.InputElement.PointerReleasedEvent, PushToTalkReleased, RoutingStrategies.Tunnel);
         PushToTalkButton.PointerCaptureLost += (_, _) => ReleasePushToTalk();
@@ -108,6 +109,7 @@ public sealed partial class MainWindow : Window
             if (Program.SmokeMessageActionsMode)
             {
                 if (!_messageActionsSmokeVerified) return;
+                if (!VerifyConversationAppearanceSmoke()) return;
                 Console.WriteLine("SMOKE_UI_MESSAGE_ACTIONS=confirmed-local-delete");
             }
             if (Program.SmokeMapMode)
@@ -291,6 +293,7 @@ public sealed partial class MainWindow : Window
             LoadDeliverySettings();
             LoadSynchronizationSettings();
             LoadStartupAnnouncementSettings();
+            LoadConversationAppearance();
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
             PropagationFallbackBox.IsChecked = _state.TryPropagationOnFail;
@@ -506,6 +509,7 @@ public sealed partial class MainWindow : Window
             LoadDeliverySettings();
             LoadSynchronizationSettings();
             LoadStartupAnnouncementSettings();
+            LoadConversationAppearance();
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
             PropagationFallbackBox.IsChecked = _state.TryPropagationOnFail;
@@ -513,6 +517,7 @@ public sealed partial class MainWindow : Window
             SyncIntervalBox.Text = _state.SynchronizationIntervalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
             ApplyTheme(_state.Theme);
             LoadVoiceSettings();
+            RefreshContacts();
             PreferencesStatusText.Text = unsupported.Count == 0 ? "Settings imported." :
                 "Settings imported. Preserved but not applied: " + string.Join(", ", unsupported);
         }

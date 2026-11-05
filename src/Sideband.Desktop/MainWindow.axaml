@@ -468,6 +468,13 @@
                     Content="Save preferences" Click="SavePreferencesClicked" />
             <TextBlock x:Name="PreferencesStatusText" Foreground="{DynamicResource SecondaryTextBrush}"
                        TextWrapping="Wrap" />
+            <TextBlock FontSize="17" FontWeight="SemiBold" Text="Conversation peer appearance" />
+            <CheckBox x:Name="ShowConversationAppearanceBox" Content="Display reported peer styles in the conversation list" />
+            <CheckBox x:Name="TrustedConversationAppearanceOnlyBox" Content="Use reported styles only for trusted conversations" />
+            <TextBlock Text="Original text badges show the reported icon name and colors, not copied upstream assets. Trust and unread labels remain separate; a custom badge does not authorize requests."
+                       TextWrapping="Wrap" />
+            <Button x:Name="SaveConversationAppearanceButton" Content="Save conversation appearance" HorizontalAlignment="Left"
+                    Click="SaveConversationAppearanceClicked" />
             <TextBlock FontSize="17" FontWeight="SemiBold" Text="Incoming LXMF stamps" />
             <CheckBox x:Name="RequireStampsBox" Content="Advertise an inbound stamp cost" />
             <TextBox x:Name="InboundStampCostBox" MaxLength="11" PlaceholderText="Cost 1–254; empty or below one clears the cost" />

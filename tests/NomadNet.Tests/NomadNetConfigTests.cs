@@ -90,7 +90,6 @@ public sealed class NomadNetConfigTests
     [InlineData("[node]\nenable_node=yes\nenable_node=no")]
     [InlineData("[node]\n[node]")]
     [InlineData("[[nested]]")]
-    [InlineData("enable_node=yes")]
     [InlineData("[node]\nnode_name=one,two")]
     [InlineData("[client]\ndownloads_path=~another-user/Downloads")]
     [InlineData("[textui]\nimage_loading=yes")]

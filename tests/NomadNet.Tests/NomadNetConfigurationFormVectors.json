@@ -1,0 +1,938 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sources": {
+    "nomadnet/ui/textui/Config.py": "13a0a531ccc2fc207dc6b4c7f644c3eff6d261bb34edf84781c1c6f76f4b0421",
+    "nomadnet/NomadNetworkApp.py": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2",
+    "nomadnet/util.py": "77a4368c73b8a84ef2e9df41b4e423bcb1d0677e12ed18debe445996fa3a9e38",
+    "nomadnet/vendor/additional_urwid_widgets/FormWidgets.py": "dd8f20052ead5de2b05a5d1ae8f377fd2758f8dd1058553d615995e1d22f81c6"
+  },
+  "configobjSha256": "fb7036cfe845a256889752ac5839d7e8dce3356eef9c7b440a92a646be4bec8e",
+  "method": "Actual ConfigSectionView construction/population/default/reset/save/back, actual confirmation buttons and atomic writer, actual createDefaultConfig/applyConfig on minimal owner; UI notice/screen/restart observers only. Actual pinned RNS ConfigObj parser/dict/write. Synthetic config; no UI guide/assets copied.",
+  "catalog": [
+    {
+      "key": "node",
+      "target": "nomadnet",
+      "fields": [
+        {
+          "key": "enable_node",
+          "type": "checkbox",
+          "default": "no",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "node_name",
+          "type": "edit",
+          "default": "None",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "announce_at_start",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "announce_interval",
+          "type": "edit",
+          "default": "360",
+          "options": [],
+          "validation": [
+            "number"
+          ]
+        },
+        {
+          "key": "disable_propagation",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "propagation_cost",
+          "type": "edit",
+          "default": "16",
+          "options": [],
+          "validation": [
+            "number"
+          ]
+        },
+        {
+          "key": "max_transfer_size",
+          "type": "edit",
+          "default": "256",
+          "options": [],
+          "validation": [
+            "float"
+          ]
+        },
+        {
+          "key": "max_sync_size",
+          "type": "edit",
+          "default": "10240",
+          "options": [],
+          "validation": [
+            "float"
+          ]
+        },
+        {
+          "key": "pages_path",
+          "type": "edit",
+          "default": "",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "page_refresh_interval",
+          "type": "edit",
+          "default": "0",
+          "options": [],
+          "validation": [
+            "number"
+          ]
+        },
+        {
+          "key": "files_path",
+          "type": "edit",
+          "default": "",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "file_refresh_interval",
+          "type": "edit",
+          "default": "0",
+          "options": [],
+          "validation": [
+            "number"
+          ]
+        },
+        {
+          "key": "prioritise_destinations",
+          "type": "list",
+          "default": [],
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "static_peers",
+          "type": "list",
+          "default": [],
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "max_peers",
+          "type": "edit",
+          "default": "",
+          "options": [],
+          "validation": [
+            "number"
+          ]
+        },
+        {
+          "key": "message_storage_limit",
+          "type": "edit",
+          "default": "2000",
+          "options": [],
+          "validation": [
+            "float"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "client",
+      "target": "nomadnet",
+      "fields": [
+        {
+          "key": "downloads_path",
+          "type": "edit",
+          "default": "~/Downloads",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "attachment_save_path",
+          "type": "edit",
+          "default": "",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "notify_on_new_message",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "announce_at_start",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "announce_interval",
+          "type": "edit",
+          "default": "360",
+          "options": [],
+          "validation": [
+            "number"
+          ]
+        },
+        {
+          "key": "try_propagation_on_send_fail",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "periodic_lxmf_sync",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "lxmf_sync_interval",
+          "type": "edit",
+          "default": "360",
+          "options": [],
+          "validation": [
+            "number"
+          ]
+        },
+        {
+          "key": "lxmf_sync_limit",
+          "type": "edit",
+          "default": "8",
+          "options": [],
+          "validation": [
+            "number"
+          ]
+        },
+        {
+          "key": "required_stamp_cost",
+          "type": "edit",
+          "default": "None",
+          "options": [],
+          "validation": [
+            "stamp_cost"
+          ]
+        },
+        {
+          "key": "accept_invalid_stamps",
+          "type": "checkbox",
+          "default": "no",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "max_accepted_size",
+          "type": "edit",
+          "default": "500",
+          "options": [],
+          "validation": [
+            "float"
+          ]
+        },
+        {
+          "key": "compact_announce_stream",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "compose_in_markdown",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        }
+      ]
+    },
+    {
+      "key": "logging",
+      "target": "nomadnet",
+      "fields": [
+        {
+          "key": "loglevel",
+          "type": "dropdown",
+          "default": "4",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7"
+          ],
+          "validation": []
+        },
+        {
+          "key": "destination",
+          "type": "dropdown",
+          "default": "file",
+          "options": [
+            "file",
+            "stdout"
+          ],
+          "validation": []
+        },
+        {
+          "key": "logfile",
+          "type": "edit",
+          "default": "",
+          "options": [],
+          "validation": []
+        }
+      ]
+    },
+    {
+      "key": "textui",
+      "target": "nomadnet",
+      "fields": [
+        {
+          "key": "intro_time",
+          "type": "edit",
+          "default": "1",
+          "options": [],
+          "validation": [
+            "float"
+          ]
+        },
+        {
+          "key": "intro_text",
+          "type": "edit",
+          "default": "Nomad Network",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "theme",
+          "type": "dropdown",
+          "default": "dark",
+          "options": [
+            "dark",
+            "light"
+          ],
+          "validation": []
+        },
+        {
+          "key": "colormode",
+          "type": "dropdown",
+          "default": "24bit",
+          "options": [
+            "monochrome",
+            "16",
+            "88",
+            "256",
+            "24bit"
+          ],
+          "validation": []
+        },
+        {
+          "key": "image_loading",
+          "type": "dropdown",
+          "default": "auto",
+          "options": [
+            "never",
+            "manual",
+            "auto",
+            "always"
+          ],
+          "validation": []
+        },
+        {
+          "key": "glyphs",
+          "type": "dropdown",
+          "default": "nerdfont",
+          "options": [
+            "plain",
+            "unicode",
+            "nerdfont"
+          ],
+          "validation": []
+        },
+        {
+          "key": "mouse_enabled",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "editor",
+          "type": "edit",
+          "default": "nano",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "hide_guide",
+          "type": "checkbox",
+          "default": "no",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "sanitize_names",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "clipboard_copy",
+          "type": "checkbox",
+          "default": "no",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "animation_interval",
+          "type": "edit",
+          "default": "1",
+          "options": [],
+          "validation": [
+            "number"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "utilities",
+      "target": "nomadnet",
+      "fields": [
+        {
+          "key": "enable_utilities",
+          "type": "checkbox",
+          "default": "no",
+          "options": [],
+          "validation": []
+        }
+      ]
+    },
+    {
+      "key": "rrc",
+      "target": "nomadnet",
+      "fields": [
+        {
+          "key": "history_per_room_cap",
+          "type": "edit",
+          "default": "500",
+          "options": [],
+          "validation": [
+            "number"
+          ]
+        },
+        {
+          "key": "filter_loaded_history",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "ephemeral_notices",
+          "type": "edit",
+          "default": "10",
+          "options": [],
+          "validation": [
+            "float"
+          ]
+        },
+        {
+          "key": "color_mention_timestamps",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "render_markdown",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "render_micron",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "nick_colors",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "justify_msgs",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "space_msgs",
+          "type": "checkbox",
+          "default": "no",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "show_gutters",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "mention_color",
+          "type": "edit",
+          "default": "",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "nick_colors_theme",
+          "type": "list",
+          "default": [],
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "enable_esoterics",
+          "type": "checkbox",
+          "default": "no",
+          "options": [],
+          "validation": []
+        }
+      ]
+    },
+    {
+      "key": "printing",
+      "target": "nomadnet",
+      "fields": [
+        {
+          "key": "print_messages",
+          "type": "checkbox",
+          "default": "no",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "print_command",
+          "type": "edit",
+          "default": "lp",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "print_from",
+          "type": "list",
+          "default": [],
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "message_template",
+          "type": "edit",
+          "default": "",
+          "options": [],
+          "validation": []
+        }
+      ]
+    },
+    {
+      "key": "reticulum",
+      "target": "reticulum",
+      "fields": [
+        {
+          "key": "enable_transport",
+          "type": "checkbox",
+          "default": "no",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "share_instance",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "instance_name",
+          "type": "edit",
+          "default": "default",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "shared_instance_type",
+          "type": "edit",
+          "default": "",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "shared_instance_port",
+          "type": "edit",
+          "default": "",
+          "options": [],
+          "validation": [
+            "number"
+          ]
+        },
+        {
+          "key": "instance_control_port",
+          "type": "edit",
+          "default": "",
+          "options": [],
+          "validation": [
+            "number"
+          ]
+        },
+        {
+          "key": "discover_interfaces",
+          "type": "checkbox",
+          "default": "no",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "enable_remote_management",
+          "type": "checkbox",
+          "default": "no",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "remote_management_allowed",
+          "type": "list",
+          "default": [],
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "respond_to_probes",
+          "type": "checkbox",
+          "default": "no",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "use_implicit_proof",
+          "type": "checkbox",
+          "default": "yes",
+          "options": [],
+          "validation": []
+        },
+        {
+          "key": "panic_on_interface_error",
+          "type": "checkbox",
+          "default": "no",
+          "options": [],
+          "validation": []
+        }
+      ]
+    }
+  ],
+  "initial": "# Synthetic original observation\n[client] # retained section comment\nannounce_interval = 90 # retained inline\ndownloads_path = 'quoted, # path'\nunknown = retained\n[textui]\neditor = installed-editor\n[other]\nvalue = '''first\n# literal second\nthird'''\n[[child]]\nquoted = 'a,b'\n",
+  "loaded": {
+    "downloads_path": "quoted, # path",
+    "attachment_save_path": "",
+    "notify_on_new_message": "yes",
+    "announce_at_start": "yes",
+    "announce_interval": "90",
+    "try_propagation_on_send_fail": "yes",
+    "periodic_lxmf_sync": "yes",
+    "lxmf_sync_interval": "360",
+    "lxmf_sync_limit": "8",
+    "required_stamp_cost": "None",
+    "accept_invalid_stamps": "no",
+    "max_accepted_size": "500",
+    "compact_announce_stream": "yes",
+    "compose_in_markdown": "yes"
+  },
+  "cancelUnchanged": true,
+  "resetCancelledInterval": "123",
+  "reset": {
+    "downloads_path": "~/Downloads",
+    "attachment_save_path": "",
+    "notify_on_new_message": "yes",
+    "announce_at_start": "yes",
+    "announce_interval": "360",
+    "try_propagation_on_send_fail": "yes",
+    "periodic_lxmf_sync": "yes",
+    "lxmf_sync_interval": "360",
+    "lxmf_sync_limit": "8",
+    "required_stamp_cost": "None",
+    "accept_invalid_stamps": "no",
+    "max_accepted_size": "500",
+    "compact_announce_stream": "yes",
+    "compose_in_markdown": "yes"
+  },
+  "resetUnsaved": true,
+  "saved": {
+    "client": {
+      "announce_interval": "360",
+      "downloads_path": "~/Downloads",
+      "unknown": "retained"
+    },
+    "textui": {
+      "editor": "installed-editor"
+    },
+    "other": {
+      "value": "first\n# literal second\nthird",
+      "child": {
+        "quoted": "a,b"
+      }
+    }
+  },
+  "savedComments": {
+    "section": "# retained section comment",
+    "inline": "# retained inline"
+  },
+  "transitions": [
+    "list",
+    "restart"
+  ],
+  "defaults": {
+    "logging": {
+      "loglevel": "4",
+      "destination": "file"
+    },
+    "client": {
+      "enable_client": "yes",
+      "user_interface": "text",
+      "downloads_path": "~/Downloads",
+      "notify_on_new_message": "yes",
+      "announce_at_start": "yes",
+      "announce_interval": "360",
+      "try_propagation_on_send_fail": "yes",
+      "periodic_lxmf_sync": "yes",
+      "lxmf_sync_interval": "360",
+      "lxmf_sync_limit": "8",
+      "required_stamp_cost": "None",
+      "accept_invalid_stamps": "False",
+      "max_accepted_size": "500",
+      "compact_announce_stream": "yes",
+      "compose_in_markdown": "yes"
+    },
+    "textui": {
+      "intro_time": "1",
+      "theme": "dark",
+      "colormode": "24bit",
+      "glyphs": "nerdfont",
+      "image_loading": "auto",
+      "mouse_enabled": "True",
+      "editor": "nano",
+      "hide_guide": "no",
+      "sanitize_names": "yes",
+      "clipboard_copy": "no"
+    },
+    "utilities": {
+      "enable_utilities": "no"
+    },
+    "rrc": {
+      "history_per_room_cap": "500",
+      "filter_loaded_history": "yes",
+      "max_accepted_resource_size": "256",
+      "ephemeral_notices": "10",
+      "color_mention_timestamps": "yes",
+      "render_markdown": "yes",
+      "render_micron": "yes",
+      "nick_colors": "yes",
+      "justify_msgs": "yes",
+      "space_msgs": "no",
+      "show_gutters": "yes"
+    },
+    "node": {
+      "enable_node": "no",
+      "node_name": "None",
+      "announce_interval": "360",
+      "announce_at_start": "Yes",
+      "disable_propagation": "Yes",
+      "propagation_cost": "16",
+      "max_transfer_size": "256",
+      "max_sync_size": "10240"
+    },
+    "printing": {
+      "print_messages": "No",
+      "print_command": "lp"
+    }
+  },
+  "appliedDefaults": {
+    "announce_interval": 21600,
+    "node_announce_interval": 360,
+    "node_announce_at_start": true,
+    "page_refresh_interval": 0,
+    "file_refresh_interval": 0,
+    "lxmf_max_incoming_size": 500.0,
+    "required_stamp_cost": null,
+    "rrc_show_gutters": true
+  },
+  "grammar": [
+    {
+      "name": "root-setting",
+      "text": "enable_node=yes",
+      "value": {
+        "enable_node": "yes"
+      },
+      "written": "enable_node = yes\n"
+    },
+    {
+      "name": "literal-inner-quotes",
+      "text": "[section#literal] # comment\nkey'part = unquoted \"quote # comment\n",
+      "value": {
+        "section#literal": {
+          "key'part": "unquoted \"quote"
+        }
+      },
+      "written": "[\"section#literal\"]# comment\nkey'part = unquoted \"quote# comment\n"
+    },
+    {
+      "name": "quoted-lists",
+      "text": "# original\nroot = scalar\n[one]\na = \"a,b#c\"\nb = alpha, \"two,#\", 'three'\nc = x,\nd = ,\ne =\n",
+      "value": {
+        "root": "scalar",
+        "one": {
+          "a": "a,b#c",
+          "b": [
+            "alpha",
+            "two,#",
+            "three"
+          ],
+          "c": [
+            "x"
+          ],
+          "d": [],
+          "e": ""
+        }
+      },
+      "written": "# original\nroot = scalar\n[one]\na = \"a,b#c\"\nb = alpha, \"two,#\", three\nc = x,\nd = ,\ne = \"\"\n"
+    },
+    {
+      "name": "nested-comments",
+      "text": "[one] # section\nkey = \"value#not-comment\" # inline\n[[child]]\n\"quoted key\" = literal\\path\n[[[deep]]]\nvalue = yes\n[two]\nvalue = no\n",
+      "value": {
+        "one": {
+          "key": "value#not-comment",
+          "child": {
+            "quoted key": "literal\\path",
+            "deep": {
+              "value": "yes"
+            }
+          }
+        },
+        "two": {
+          "value": "no"
+        }
+      },
+      "written": "[one]# section\nkey = \"value#not-comment\"# inline\n[[child]]\nquoted key = literal\\path\n[[[deep]]]\nvalue = yes\n[two]\nvalue = no\n"
+    },
+    {
+      "name": "multiline",
+      "text": "[one]\na = \"\"\"first\n# literal\nlast\"\"\" # tail\nb = '''inline \"\"\" literal'''\n",
+      "value": {
+        "one": {
+          "a": "first\n# literal\nlast",
+          "b": "inline \"\"\" literal"
+        }
+      },
+      "written": "[one]\na = '''first\n# literal\nlast'''# tail\nb = inline \"\"\" literal\n"
+    },
+    {
+      "name": "interpolation",
+      "text": "base = root\n[DEFAULT]\nfallback = inherited\n[one]\na = %(base)s/%(fallback)s\n[[child]]\nb = %(a)s\n",
+      "value": {
+        "base": "root",
+        "DEFAULT": {
+          "fallback": "inherited"
+        },
+        "one": {
+          "a": "root/inherited",
+          "child": {
+            "b": "root/inherited"
+          }
+        }
+      },
+      "written": "base = root\n[DEFAULT]\nfallback = inherited\n[one]\na = %(base)s/%(fallback)s\n[[child]]\nb = %(a)s\n"
+    },
+    {
+      "name": "quoted-sections",
+      "text": "[\"a # b\"]\n'key=quoted' = \"value\"\n",
+      "value": {
+        "a # b": {
+          "key=quoted": "value"
+        }
+      },
+      "written": "[\"a # b\"]\nkey=quoted = value\n"
+    },
+    {
+      "name": "percent",
+      "text": "[one]\na = 100%%\nb = 100% literal\n",
+      "value": {
+        "one": {
+          "a": "100%%",
+          "b": "100% literal"
+        }
+      },
+      "written": "[one]\na = 100%%\nb = 100% literal\n"
+    },
+    {
+      "name": "empty-middle",
+      "text": "[one]\na = a,,b\n",
+      "error": "ParseError"
+    },
+    {
+      "name": "duplicate-key",
+      "text": "[one]\na = x\na = y\n",
+      "error": "DuplicateError"
+    },
+    {
+      "name": "duplicate-section",
+      "text": "[one]\na = x\n[one]\nb = y\n",
+      "error": "DuplicateError"
+    },
+    {
+      "name": "bad-depth",
+      "text": "[one]\n[[[deep]]]\na = x\n",
+      "error": "NestingError"
+    },
+    {
+      "name": "unterminated",
+      "text": "[one]\na = \"\"\"first\n",
+      "error": "ParseError"
+    },
+    {
+      "name": "bad-list",
+      "text": "[one]\na = \"x\" broken\n",
+      "error": "ParseError"
+    },
+    {
+      "name": "missing-interpolation",
+      "text": "[one]\na = %(absent)s\n",
+      "error": "MissingInterpolationOption"
+    },
+    {
+      "name": "cyclic-interpolation",
+      "text": "[one]\na = %(b)s\nb = %(a)s\n",
+      "error": "InterpolationLoopError"
+    }
+  ]
+}

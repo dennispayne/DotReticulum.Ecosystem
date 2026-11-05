@@ -30,6 +30,7 @@ internal static partial class Program
             }
             if (parts[0] == "config")
             {
+                if (await TryHandleConfigurationFormAsync(parts, cancellationToken).ConfigureAwait(false)) return true;
                 if (parts.Length >= 2 && parts[1] is "edit" or "external" or "show")
                 {
                     var target = parts.Length == 3 ? parts[2] : "native";
@@ -37,7 +38,8 @@ internal static partial class Program
                     {
                         "native" => ("config", "settings.json"),
                         "rns" => ("rns", "selected"),
-                        _ => throw new ArgumentException("Select native or rns configuration explicitly."),
+                        "primary" => ("primary", "config"),
+                        _ => throw new ArgumentException("Select native, primary or rns configuration explicitly."),
                     };
                     if (parts[1] == "external" && !NomadNetConsoleInput.Interactive)
                         throw new InvalidOperationException("External editing requires an interactive terminal; redirected input/output is unsupported.");
@@ -70,7 +72,7 @@ internal static partial class Program
                     Editor.ValidateConfiguration();
                     Console.WriteLine("Configuration buffer valid; not saved.");
                 }
-                else throw new ArgumentException("Usage: config edit|show|external [native|rns] or config validate");
+                else throw new ArgumentException("Use config sections, section <name>, set <field> <JSON>, reset confirm, save confirm, cancel; edit|show|external [native|primary|rns]; or validate.");
                 return true;
             }
             if (parts[0] != "edit") return false;
@@ -140,7 +142,7 @@ internal static partial class Program
                 case "new":
                     var location = Split(value, 2);
                     if (location.Length != 2) throw new ArgumentException("Usage: edit open|new <pages|files> <relative-path>");
-                    if (location[0] is "config" or "rns") throw new ArgumentException("Use config edit for configuration.");
+                    if (location[0] is "config" or "rns" or "primary") throw new ArgumentException("Use config edit for configuration.");
                     await Editor.OpenAsync(location[0], location[1], action == "new", cancellationToken).ConfigureAwait(false);
                     PrintEditorStatus();
                     break;

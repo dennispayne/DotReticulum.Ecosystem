@@ -15,6 +15,32 @@ Kitty presentation differences do not establish full upstream UI parity.
 Sideband has its own implementation and
 inventory in [sideband.md](sideband.md); this document does not track it.
 
+### Current configuration acceptance
+
+The bounded C89 configuration slice has parent-independent full360/17 managed
+acceptance, strict Windows NativeAOT/help, native18/0 including actual installed
+Vim ConPTY2/0, and broader printing/node-migration/clipboard/utility29/0.
+The refreshed candidate includes the final LXMF cancellation-readiness API;
+its exact SHA-256 is
+`5abcbf19347b222db09ee7ee616b0cba5c2dc056d211e57d8d11f907c79d1bd8`.
+The original `f846045e...` candidate/receipts remain preserved, not relabelled.
+Frozen source/native guards, regenerated primary observations and parent
+receipts are under `artifacts\tests\nomad-config-forms\parent-lxmf-admission`
+and `parent-lxmf-admission-broader`.
+
+```powershell
+& artifacts\tests\nomad-config-forms\Invoke-SelectedNative.ps1 -EvidenceDirectory (Join-Path $PWD 'artifacts\tests\nomad-config-forms\parent-lxmf-admission')
+& artifacts\tests\nomad-editor\Parent-BroaderAcceptance.ps1 -Candidate artifacts\tests\nomad-config-forms\candidate.json -OutputDirectory artifacts\tests\nomad-config-forms\parent-lxmf-admission-broader
+```
+
+All75 form fields have explicit functional editing/reset/persistence
+dispositions. Stored-only TextUI/RRC/history effects, the three unsupported
+public-stack controls, complete grammar/presentation and current Linux replay
+remain required/unverified as detailed below. Native form cases use actual
+piped processes; separate ConPTY cases are not full Urwid or physical terminal
+acceptance. The broader29 repeat actual primary multi-megabyte node
+transfers/restarts, not new impaired-network or prolonged-operation evidence.
+
 ## Primary reference and licensing
 
 The primary repository was retrieved with native .NET `rngit` from
@@ -1695,37 +1721,40 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   Windows/Linux, described below; generic underlying LXMF tests are not substituted.
 - `[textui]`: `intro_time`, `intro_text`, `theme`, `colormode`, `glyphs`, `image_loading`,
   `mouse_enabled`, `editor`, `hide_guide`, `sanitize_names`, `clipboard_copy`, `animation_interval`
-  — **partial**: `image_loading` is imported and operational for original inline ASCII, not Kitty. `clipboard_copy` activates explicitly opted-in OSC52 content/URL copying; remaining listed UI options are missing. Ordinary native terminal output sanitises control characters; clipboard content is Base64-framed rather than rendered.
+  — **partial**: `image_loading` is operational for original inline ASCII, not Kitty. `clipboard_copy` activates explicitly opted-in OSC52 content/URL copying and `editor` selects the installed external editor. All listed fields have bounded section editing/reset/persistence below; the remaining listed UI behaviors are **stored-only**, not implemented. Ordinary native terminal output sanitises control characters; clipboard content is Base64-framed rather than rendered.
 - `[rrc]`: `history_per_room_cap`, `filter_loaded_history`,
   `max_accepted_resource_size`, `ephemeral_notices`, `justify_msgs`, `space_msgs`,
   `nick_colors`, `mention_color`, `color_mention_timestamps`, `nick_colors_theme`,
   `render_markdown`, `render_micron`, `show_gutters`, `enable_esoterics`
   — **partial**: `rrc history-limit` configures per-hub retention; `render_markdown`/`render_micron` are imported and operational for live/history bodies; other listed
-  options remain missing as configuration surfaces. The implemented RRC core uses the
+  form options are editable/preserved below but their global runtime behavior remains missing. The implemented RRC core uses the
   upstream 256 KiB resource default, a local 1,000-item/2 MiB aggregate history
   bound and terminal-safe plain display; these are not configuration parity.
-- `[utilities] enable_utilities` — **missing** complete configuration/UI
-  workflows. `[printing] print_messages`, `print_command`, `print_from`,
+- `[utilities] enable_utilities` — **partial**: editable/resettable/preserved below;
+  primary utility-screen visibility behavior is **stored-only**.
+  `[printing] print_messages`, `print_command`, `print_from`,
   `message_template` — **implemented bounded software subset**, with exact
   opt-in filter semantics and documented original-template/safety differences
   under C78; physical printer acceptance remains unverified separately.
 
-The remaining required configuration surface is not silently deferred:
-the two client keys above; every listed TextUI key except `image_loading`, `clipboard_copy` and `editor`;
+The remaining required configuration behavior is not silently deferred:
+every listed TextUI key except `image_loading`, `clipboard_copy` and `editor`;
 every listed global RRC key except the two render switches (history cap/filter
 currently affect offline migration only, not global runtime policy);
 utilities; primary config-directory discovery
 (`/etc/nomadnetwork`, `~/.config/nomadnetwork`, `~/.nomadnetwork`) versus the native
-ApplicationData default; complete ConfigObj grammar, primary section-form/reset
-workflows (bounded native JSON, selected-RNS text and configured external editors are
-described below); safe external-root activation during full profile import;
+ApplicationData default; ConfigObj edge cases beyond the bounded grammar below and
+full primary UI (functional section/reset workflows and selected-RNS forms now exist
+with explicit runtime/stored-only/blocked dispositions); safe external-root activation during full profile import;
 and remaining router/cache/peer-counter/announce-state migration. The existing
 named `[node]` application keys are imported and wired, but complete peer UI,
 storage-pressure order and exhaustive failure/restart acceptance remain separate
 gaps. Primary `ui/textui/Config.py` also edits the separately selected Reticulum
 configuration (`enable_transport`, shared-instance/name/type/ports, interface
 discovery, remote-management allowlist, probes, implicit proofs and panic policy);
-the native app has an explicit text editor for its selected RNS file, not equivalent global section forms, and migration deliberately does not
+the native app has explicit text and functional section forms for its selected RNS file,
+but probes/implicit proofs/panic options and extended RNS ConfigObj grammar remain blocked by
+the current public stack parser. Migration deliberately does not
 silently replace network configuration. Unknown keys continue to be reported.
 
 Safety differences are intentional and not upstream defaults: content/queue
@@ -3035,7 +3064,7 @@ method, or copy its guide/snippet content. The existing
 | `find_next`, `replace_one`, `replace_all`, `_insert_snippet` | **implemented bounded subset**: case-sensitive ordinal search with wrapping, selected-match replacement/next-match behavior, nonoverlapping replace-all and insertion. ASCII observations match executed primary operations. Native cursor positions are UTF-16 offsets rather than Python Unicode-codepoint offsets, an explicit **difference**. Five original samples are usable; the primary's18 snippet assets are not copied or claimed. |
 | `on_edit_change`, `render_preview`, `is_executable`, syntax/gutter/panes | **partial / safety difference**: explicit textual Micron preview through the existing renderer, no network/partial/image retrieval and no executable-source execution. Executable files display source with a warning; binary files do not preview. The primary100000-character preview bound is retained. Automatic400ms preview debounce, syntax highlighting, gutter, split-pane visibility/weights and keyboard/mouse parity remain **missing**. |
 | `_state_file`, `load_state`, `save_state`, `start` | **partial / local-format difference**: bounded schema1 `editor_state.json` stores only selected relative scope/path and supports explicit `edit resume` after restart. No document text/secrets or unsaved drafts are persisted. Primary filter, expanded tree, pane settings and automatic reopen behavior remain **missing**; this is not primary editor-state migration. |
-| `ConfigSectionView.on_save`, reset/validation and `util.write_config_atomic` | **implemented bounded subset / safety difference**: edit/show/validate represented native JSON settings or the actual selected RNS text. JSON requires schema/name and rejects unknown/duplicate keys; RNS validates with the existing public stack parser without reserializing comments/unknown text. Atomic saves require restart and serialize with runtime settings writes; later runtime-setting edits are refused and automatic announce/sync timestamps stay in memory, preventing stale restart-configuration overwrite. Active service options/identity are not hot-reloaded. Primary section forms, reset dialogs and complete ConfigObj grammar remain **missing**. |
+| `ConfigSectionView.on_save`, reset/validation and `util.write_config_atomic` | **implemented bounded functional subset / safety difference**: native JSON/raw selected-RNS editing plus all75 primary form fields across eight sections, explicitly opted-in primary ConfigObj source, confirmed staged reset/save and cancel. Exact field/runtime/grammar dispositions and reference evidence appear below. Atomic saves require restart and serialize with runtime settings writes; later runtime-setting edits are refused and automatic announce/sync timestamps stay in memory, preventing stale restart-configuration overwrite. Active service options/identity are not hot-reloaded. Stored-only primary UI/history fields, three blocked stack options and complete ConfigObj/Urwid parity remain gaps. |
 | `Config.EditorTerminal`, `[textui] editor` | **implemented bounded original workflow / safety difference**: imported/native `editor`, default `nano`, is one executable argv element, not a shell command. `config external [native|rns]` uses the public `RnshProcess` PTY/ConPTY API, a private working copy, validation and snapshot-checked atomic commit, then returns to the console. Explicit Ctrl+] cancellation, child failure and conflict refuse commit. Redirected input/output is explicitly unsupported; interactive commands and child input have one `Console.ReadKey` owner rather than mixing `Console.In` with raw stdin. No embedded Urwid/widget, complete keyboard/mouse/termios or cross-platform terminal parity is claimed. Details and actual Windows terminal evidence follow below. |
 | `GuideEntry.display_topic`, `GuideLinkDelegate.handle_link`, topic reader | **implemented original subset / safety difference**: eight original local topics, local links, anchors, topic list and bounded32-topic back history, using the existing Micron renderer. No remote link is followed implicitly. First-run guide switching, configured `hide_guide`, primary display/demo assets and full keyboard/mouse reader behavior remain **missing**. Network browsing stays an explicit existing browser command. |
 
@@ -3341,7 +3370,7 @@ replays those artifacts into a fresh evidence root. Reference fixture SHA-256:
 `d4df2f4fec4984ca29543354da457fb62c46d4667fad669776f4813644e4d266`.
 Earlier candidate evidence remains separately retained. Current Linux replay is
 still blocked by WSL EIO/read-only storage; no WSL repair was attempted.
-Primary configuration forms/reset/full ConfigObj, complete
+Full ConfigObj/primary presentation, complete
 editor state/tree/panes and remaining guide/presentation remain required work.
 
 ### Bounded recursive folder permissions
@@ -3430,10 +3459,122 @@ hashes; the replay operator creates fresh evidence and matching before/after
 guards, restoring process environment afterward. Earlier candidate evidence
 retains its own original source and binary association. Current Linux replay
 remains blocked by WSL EIO/read-only storage; WSL was not repaired.
-Primary configuration section/reset forms/full ConfigObj, full editor
+Full ConfigObj/primary configuration presentation, full editor
 state/tree/filter/gutter/panes/preview migration and remaining guide/terminal
 presentation are still required software work. No full editor/UI parity,
 physical-terminal or additional live-network acceptance is claimed.
+
+### Bounded configuration sections, reset and ConfigObj source
+
+The original terminal implements functional forms for every **75 editable
+primary fields across eight sections**, not copied Urwid screens or primary
+assets. Native JSON remains the default. Operators explicitly opt into the
+owned `<profile>\config` ConfigObj source; unrelated native-only settings,
+identity and persistence remain native-owned.
+
+The reference is primary **1.4.4**, commit
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`, and RNS ConfigObj at
+`a29bfb51c468945c96a1ee22cae0114e993e2391`. Exact source SHA-256:
+
+| Source | SHA-256 |
+|---|---|
+| `nomadnet/ui/textui/Config.py` | `13a0a531ccc2fc207dc6b4c7f644c3eff6d261bb34edf84781c1c6f76f4b0421` |
+| `nomadnet/NomadNetworkApp.py` | `c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2` |
+| `nomadnet/util.py` | `77a4368c73b8a84ef2e9df41b4e423bcb1d0677e12ed18debe445996fa3a9e38` |
+| `nomadnet/vendor/additional_urwid_widgets/FormWidgets.py` | `dd8f20052ead5de2b05a5d1ae8f377fd2758f8dd1058553d615995e1d22f81c6` |
+| actual imported `RNS/vendor/configobj.py` | `fb7036cfe845a256889752ac5839d7e8dce3356eef9c7b440a92a646be4bec8e` |
+
+`GenerateNomadNetConfigurationFormVectors.py` executes actual
+`ConfigSectionView` construction/population/back/reset/save, the actual Yes/No
+reset buttons, `createDefaultConfig/applyConfig`, ConfigObj parsing/dictionary
+resolution/writing and `write_config_atomic` **before implementation**. Only
+screen size, modal notice display and navigation/restart observers use synthetic
+owners; core form/parser/writer methods are unchanged. Source/import/version
+receipts accompany the fixture; no configuration comment/guide/UI assets are copied.
+
+| Exact primary contract and observable completion criterion | Current disposition |
+|---|---|
+| `Config.py:CONFIG_SECTIONS`, `ConfigSectionView` field creation | **implemented functional forms**: node16, client14, logging3, textui12, utilities1, rrc13, printing4, reticulum12. Every key/type/default/dropdown option/validator is compared to the executed actual form catalog. The editor action is not a ninth section. |
+| `ConfigSectionView` population, `_default_write_value`, `_widget_write_value` | **implemented bounded subset**: missing fields show form defaults, checkbox truth normalization, scalar-to-list population, list-to-text joining and unknown dropdown fallback. JSON scalar/bool/number/string-list input avoids shell parsing. Limits:128 list items,4096 characters per item, finite floats, whole-number fields, validated hash/color/port fields and final native runtime validation. Invalid edits retain the staged value/file and permit recovery. Control characters in form values are refused; raw ConfigObj multiline editing is separate. |
+| `on_reset`, `on_back`, `on_save:1003–1070` | **implemented / safety difference**: reset requires `confirm`, stages defaults only, cancel discards, and save separately requires `confirm`. Empty keys are deleted; absent fields equal to defaults are omitted, so reset does not materialize an absent section. Existing empty sections and unknown keys survive. Forms never apply running service options; explicit full restart is required. Native snapshots reject external changes instead of the primary's reload-and-merge/swallowed reload-error behavior. |
+| Runtime node/client/logging/printing fields; `NomadNetworkApp.applyConfig` | **implemented bounded projection** onto existing runtime settings. The source loader uses the existing importer semantics and native bounds, not a new protocol. `enable_client` and `user_interface` are preserved raw controls outside the client's14 form fields, as in primary. Native-only identity/display name/trust/manual propagation/timestamps/media settings are retained. The form default is not necessarily the missing loader default: e.g. node360/starttrue versus missing node720/startfalse. Fixture records generated-default application separately. Unsupported source keys remain preserved and reported by import; they are not silently applied. |
+| TextUI12, utilities1, RRC13 operational effects | **partial, explicit per-field disposition**: `image_loading`, `editor`, `clipboard_copy`, `render_markdown`, `render_micron` execute existing native behaviors; the other nine TextUI fields, utility visibility and eleven RRC styling/global-history fields are **stored-only**, editable/resettable/preserved but their primary UI/history behavior is **missing**. This does not substitute for the existing per-hub history command or migration handling. |
+| Selected Reticulum12 fields, `Config.py:876–882` | **partial**: selected actual RNS file, not native JSON/default-global RNS. Nine supported fields validate through the public stack parser and require restart. `respond_to_probes`, `use_implicit_proof`, `panic_on_interface_error` are **blocked-stack**; changing them away from form default is refused, not saved ineffectively. No external submodule changes. |
+| ConfigObj root assignments, quoted names/scalars, comma lists, nested sections, comments, literal backslashes, triple quotes and interpolation | **implemented bounded grammar with executed vectors**. Root `enable_node=yes` is legal and retained/reported unsupported, not treated as `[node] enable_node`. Empty scalar, empty list, one-item list and scalar-with-comma remain distinct. Interpolation resolves section/DEFAULT/ancestor values; absent/cyclic expansion fails explicitly. Unknown nested/multiline/comment text is retained byte-for-byte when untouched. Duplicate names, malformed lists/nesting/quotes, invalid UTF8 and NUL refuse before save. |
+| Full ConfigObj grammar/serialization and RNS parser integration | **partial / safety difference**: primary source64KiB, selected RNS1,000,000 bytes,8192 characters/line,2048 entries/sections/list members,16 section levels,32 interpolation levels,64KiB expanded value and four-times-input aggregate expansion budget. Eager interpolation validation differs from ConfigObj's deferred access errors. Ambiguous dotted flattened paths and unencodable quote combinations explicitly fail. Native retains BOM/newline/comments/unknown untouched bytes instead of canonicalizing the entire file. Edited quoted keys remain safely quoted instead of reproducing the primary writer's ambiguous equals-key output. Selected RNS refuses interpolation/triple quotes because the public stack would not execute them faithfully; passing ConfigObj validation alone never grants RNS grammar parity. |
+| Atomic writer `util.py:6–34`, restart serialization | **implemented bounded safety subset**: private same-directory `CreateNew` staging, file flush/fsync, preserved existing Unix modes in code, snapshot-checked atomic per-file replacement and cleanup on failure/cancellation. Existing profile lease remains required by the executable. Directory fsync, hostile-admin path races, crash-atomic multi-file activation and current Unix mode execution are **unverified**, not claimed. |
+
+```text
+config sections
+config primary enable confirm
+config section client
+config fields
+config set announce_interval 120
+config set notify_on_new_message false
+config reset confirm
+config cancel
+config section client
+config set announce_interval 120
+config save confirm
+config cancel
+config section reticulum
+config set instance_name "selected-instance"
+config save confirm
+config cancel
+```
+
+Activation exports supported current native settings only if the primary source
+is absent; existing primary text is never overwritten. Export refuses fractional
+native page/file refresh minutes (including the native five-second default) and
+embedded custom printing templates rather than rounding or inventing a template
+filename. Reconcile those settings explicitly first. A failed native settings
+commit attempts snapshot-checked deletion of a newly created inactive source;
+rollback failure explicitly retains it for manual reconciliation. This is not
+a crash-atomic two-file transaction. Missing/malformed active source fails
+explicitly; restore it or repair native JSON, not silently revert to defaults.
+
+`config primary disable confirm`, with the configuration buffer closed, freezes
+effective supported settings into native JSON and retains source text.
+`config edit|show|external primary` supports the same raw validation/conflict-safe
+editor flow. While primary source is active, competing runtime settings commands
+refuse rather than write an ineffective JSON setting. The existing propagation
+gate serializes source/section commits with automatic timestamps; successful
+restart saves make subsequent timestamps memory-only. Running options/identity
+are unchanged until restart. This is tightly coupled writer ownership, not new
+propagation behavior.
+
+T450–T459 cover executed grammar/catalog/reset semantics, typed/budget/refusal
+boundaries, byte-preserving staged saves, missing source and activation errors,
+cancel/reset/conflict recovery, selected RNS refusal, restart/source disable,
+native-only retention, cancellation/disposal and competing runtime writers.
+T460–T463 select actual native console workflows and independent primary
+regeneration. Physical terminal/layout parity and current Linux execution are
+not claimed; WSL EIO remains blocked and no repair was attempted. Remaining
+required software includes the explicit stored-only/blocked behaviors, complete
+ConfigObj/RNS edge grammar, full editor state/tree/filter/gutter/panes/preview
+migration and primary guide/terminal presentation, not merely hardware acceptance.
+
+Preceding Windows validation for the original configuration candidate, before
+the read-only LXMF readiness addition (current refreshed acceptance is above):
+
+- `dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --no-restore -warnaserror --filter "FullyQualifiedName~NomadNetConfiguration|FullyQualifiedName~NomadNetConfigTests" -v quiet`: **26 passed**, zero failures/skips. The obsolete rejection of legal root `enable_node=yes` was replaced with the exact executed-root disposition assertion; all other existing malformed-config assertions remain.
+- `dotnet build src\NomadNet\NomadNet.csproj -c Release --no-restore -warnaserror -v quiet`: zero warnings/errors.
+- `dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --no-restore -warnaserror --logger "trx;LogFileName=configuration-forms-frozen.trx" --results-directory artifacts\tests\nomad-config-forms\managed-final -v quiet`: **360 passed,17 explicit skips**, zero failures.
+- `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64 -o artifacts\tests\nomad-config-forms\native -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror -v minimal`: zero warnings/errors; published `--help` executed successfully. SDK10.0.403/compiler10.0.14; stack `e52da394658f6f6c723214a9f811552418789cb6`.
+- Exact native SHA-256: `f846045e0df7b30257e0df2694d1f7689e6267ed2af6b45259aec0e7e9f0757c`.
+- `pwsh -NoProfile -File artifacts\tests\nomad-config-forms\Invoke-SelectedNative.ps1 -FormsOnly`: **4 passed**, zero failures/skips. Actual native opt-in/no-overwrite, all-section display, typed edit/cancel/reset confirmation/save, selected RNS text/comment retention, blocked-stack/invalid-source/fractional-export/profile-lease/external-conflict/reparse refusal, identity-preserving restarts and healthy continued service. The fourth case independently regenerates the actual-primary fixture byte-identically.
+- `pwsh -NoProfile -File artifacts\tests\nomad-config-forms\Invoke-SelectedNative.ps1`: **18 passed**, zero failures/skips, including the previous fourteen editor/folder/permission/external-editor cases and actual installed Vim ConPTY **2/2** on this exact binary. These new form workflows use actual standard-console processes with pipes, not physical terminal/layout acceptance.
+
+Ignored frozen `candidate.json` includes exact NomadNet/**current LXMF**
+production and test/generator hashes, SDK/compiler/stack and selected real editor.
+The operator requires fresh owned evidence and verifies those guards both before
+and after replay. Full replay receipt:
+`artifacts\tests\nomad-config-forms\acceptance-5530a70624524a10bc1e5f675077b4c2`;
+matching before/after guard SHA-256
+`a4b095d194bb7be56ab4352870d85e6a164b632b9a116ffa2f1debe259b418a1`.
+Fixture SHA-256:
+`28b869842b7159dda0a0ef289f554cdcdd3a079eac98bfa9ab69b1ee5a2fab27`.
+Earlier candidate evidence retains its own source/binary boundaries.
 
 ### Selected local picker/composer acceptance
 

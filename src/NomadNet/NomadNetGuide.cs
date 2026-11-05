@@ -94,8 +94,25 @@ public sealed class NomadNetGuide
             Saved configuration takes effect after a full application restart, not by mutating active services.
             Later runtime setting edits are refused until restart; background timestamps remain memory-only,
             so active services cannot overwrite the saved restart configuration.
-            The native JSON is not ConfigObj/INI. Import supported primary keys using offline --import-config.
-            Unsupported primary keys are reported; this is not complete configuration migration.
+            Native JSON remains the default. config sections lists all eight primary form sections.
+            config primary enable confirm explicitly selects the owned profile/config ConfigObj source.
+            If absent, that file is exported from current native settings; an existing source is not overwritten.
+            Export refuses fractional page/file refresh minutes or an embedded custom print template.
+            Reconcile those native settings explicitly; no rounding or foreign template file is invented.
+            config section client opens its form; config fields shows typed values and dispositions.
+            config set announce_interval 120 stages a whole number; config set notify_on_new_message false
+            stages a checkbox. Text uses JSON strings and list fields use JSON string arrays.
+            config reset confirm stages primary form defaults only; config cancel discards changes.
+            config save confirm validates and saves; restart the application to apply supported runtime fields.
+            Stored-only fields retain configuration but their primary UI/history behavior is not implemented.
+            Blocked-stack RNS fields cannot be enabled through an ineffective native setting.
+            config section reticulum edits the actual selected RNS file, not the profile or native JSON.
+            config primary disable confirm freezes effective supported values into native JSON and retains text.
+            Close the configuration buffer before switching sources. Active primary source forbids competing
+            runtime settings writes; use section editing and restart. Raw config edit primary remains available.
+            ConfigObj quotes, lists, nesting, multiline text, interpolation and comments have bounded support.
+            Unknown text is retained, not silently executed. This is not complete primary UI or RNS grammar parity.
+            Offline --import-config remains available for supported primary keys without activating a source.
             Set editor to one installed executable (default nano), without shell arguments, and restart.
             config external native or config external rns launches it on a working copy in a real terminal.
             Closing with a successful exit validates and commits changes; Ctrl+] cancels and discards the copy.

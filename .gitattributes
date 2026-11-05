@@ -23,3 +23,7 @@ tests/Sideband.Tests/Fixtures/sideband-delivery-limits.json text eol=lf
 tests/NomadNet.Tests/NomadNetRouterProfileVectors.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-sync-limits.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-startup-announce.json text eol=lf
+tests/Sideband.Tests/Fixtures/sideband-message-cancellation.json text eol=lf
+tests/Sideband.Tests/Fixtures/sideband-message-copy.json text eol=lf
+tests/Sideband.Tests/Fixtures/sideband-conversation-appearance.json text eol=lf
+tests/NomadNet.Tests/NomadNetConfigurationFormVectors.json text eol=lf

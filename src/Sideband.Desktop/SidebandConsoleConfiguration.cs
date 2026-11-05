@@ -18,6 +18,8 @@ public sealed class SidebandConsoleConfiguration
         _client = client;
         Text("general", "display_name", s => s.DisplayName, (s, v, t) => client.ConfigurePreferencesAsync(v, s.Theme, t));
         Flag("general", "dark_ui", s => s.Theme == "Dark", (s, v, t) => client.ConfigurePreferencesAsync(s.DisplayName, v ? "Dark" : "Light", t));
+        Flag("general", "display_style_in_contact_list", s => SidebandConversationAppearance.FromState(s).Enabled,
+            (s, v, t) => client.ConfigureConversationAppearanceAsync(SidebandConversationAppearance.FromState(s) with { Enabled = v }, t));
         Flag("general", "start_announce", s => SidebandAnnounceConfiguration.FromState(s).AnnounceOnStartup,
             (_, v, t) => client.ConfigureAnnouncementAsync(new(v), t));
         Flag("general", "lxm_limit_1mb", s => SidebandDeliveryConfiguration.FromState(s).LimitIncomingToOneMegabyte,
@@ -68,6 +70,8 @@ public sealed class SidebandConsoleConfiguration
         TelemetryFlag("receive_trusted_only", c => c.ReceiveTrustedOnly, (c, v) => c with { ReceiveTrustedOnly = v });
         TelemetryFlag("display_trusted_only", c => c.DisplayTrustedOnly, (c, v) => c with { DisplayTrustedOnly = v });
         TelemetryFlag("send_appearance", c => c.SendAppearance, (c, v) => c with { SendAppearance = v });
+        Flag("telemetry", "display_style_from_all", s => SidebandConversationAppearance.FromState(s).FromAll,
+            (s, v, t) => client.ConfigureConversationAppearanceAsync(SidebandConversationAppearance.FromState(s) with { FromAll = v }, t));
         TelemetryFlag("use_propagation_only", c => c.UsePropagationOnly, (c, v) => c with { UsePropagationOnly = v });
         TelemetryFlag("try_propagation_on_fail", c => c.TryPropagationOnFail, (c, v) => c with { TryPropagationOnFail = v });
         TelemetryFlag("requests_only_send_latest", c => c.RequestsOnlySendLatest, (c, v) => c with { RequestsOnlySendLatest = v });

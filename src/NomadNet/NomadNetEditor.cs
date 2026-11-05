@@ -105,6 +105,7 @@ public sealed partial class NomadNetEditor : IDisposable
     private static readonly SemaphoreSlim MutationGate = new(1, 1);
     private readonly string _profile;
     private readonly string? _rnsFile;
+    private readonly NomadNetSettings _configurationBasis;
     private readonly Dictionary<string, string> _roots;
     private byte[]? _snapshot;
     private byte[]? _allowedSnapshot;
@@ -119,6 +120,7 @@ public sealed partial class NomadNetEditor : IDisposable
     public NomadNetEditor(string profile, NomadNetSettings settings, string? selectedRnsFile = null)
     {
         _profile = System.IO.Path.GetFullPath(profile);
+        _configurationBasis = settings.Copy();
         _rnsFile = selectedRnsFile is null ? null : System.IO.Path.GetFullPath(selectedRnsFile);
         if (_rnsFile is not null) Guard(_rnsFile);
         _roots = new(StringComparer.Ordinal)
@@ -139,6 +141,13 @@ public sealed partial class NomadNetEditor : IDisposable
                 throw new ArgumentException("Only the explicitly selected running RNS configuration is editable.");
             Guard(_rnsFile);
             return _rnsFile;
+        }
+        if (scope == "primary")
+        {
+            if (relative != "config") throw new ArgumentException("Only the owned profile's primary ConfigObj file is editable.");
+            var primary = System.IO.Path.Combine(_profile, "config");
+            Guard(primary);
+            return primary;
         }
         if (!_roots.TryGetValue(scope, out var root)) throw new ArgumentException("Scope must be pages, files or config.");
         if (scope == "config" && relative != "settings.json") throw new ArgumentException("Only settings.json is editable as configuration.");
@@ -173,6 +182,7 @@ public sealed partial class NomadNetEditor : IDisposable
             catch (DecoderFallbackException) { text = ""; editable = false; }
             await WriteStateAsync(new(Scope: scope, Path: relative), cancellationToken).ConfigureAwait(false);
             Buffer.Load(text, editable);
+            _configurationForm = null;
             ClearSnapshots();
             _snapshot = bytes;
             _allowedSnapshot = allowed;
@@ -258,6 +268,7 @@ public sealed partial class NomadNetEditor : IDisposable
         if (decision is not ("save" or "discard")) throw new ArgumentException("Choose save, discard or cancel.");
         if (decision == "save") await SaveAsync(cancellationToken).ConfigureAwait(false);
         Buffer.Load("");
+        _configurationForm = null;
         Scope = null;
         RelativePath = null;
         ClearSnapshots();
@@ -407,13 +418,22 @@ public sealed partial class NomadNetEditor : IDisposable
     }
 
     public bool IsConfiguration => Scope is not null && IsConfigurationScope(Scope);
-    private static bool IsConfigurationScope(string scope) => scope is "config" or "rns";
+    private static bool IsConfigurationScope(string scope) => scope is "config" or "rns" or "primary";
 
-    private static void ValidateConfiguration(byte[] bytes, string scope)
+    private void ValidateConfiguration(byte[] bytes, string scope)
     {
+        if (scope == "primary")
+        {
+            if (bytes.Length > NomadNetConfigDocument.MaximumBytes) throw new InvalidDataException("Primary ConfigObj exceeds64 KiB.");
+            NomadNetConfigImport.Overlay(Utf8.GetString(bytes), _configurationBasis).Settings.Validate();
+            return;
+        }
         if (scope == "rns")
         {
             if (bytes.Length > MaximumBytes) throw new InvalidDataException("RNS configuration exceeds one megabyte.");
+            var parsed = NomadNetConfigDocument.Parse(Utf8.GetString(bytes).TrimStart('\ufeff'), MaximumBytes);
+            if (parsed.RequiresExtendedStackGrammar)
+                throw new NotSupportedException("The selected public RNS parser does not support ConfigObj interpolation/triple-quoted values; no ineffective source will be saved.");
             _ = DotReticulum.Applications.Rnsd.RnsdConfigParser.Parse(Utf8.GetString(bytes).TrimStart('\ufeff'));
             return;
         }
@@ -522,6 +542,7 @@ public sealed partial class NomadNetEditor : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _configurationForm = null;
         CancelFolderPlan();
         ClearSnapshots();
         Buffer.Load("");
@@ -533,4 +554,5 @@ public sealed partial class NomadNetEditor : IDisposable
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(NomadNetEditorState))]
 [JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(string[]))]
 internal partial class NomadNetEditorJsonContext : JsonSerializerContext;

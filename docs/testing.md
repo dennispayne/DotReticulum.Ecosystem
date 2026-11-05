@@ -8,7 +8,43 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
-The copy/configuration development worktree passes2763 managed cases/151
+The integrated configuration/appearance candidate builds with zero warnings
+and errors and passes2768 managed cases/151 explicit skips on Windows:
+
+```powershell
+dotnet build DotReticulum.Ecosystem.slnx -c Release -warnaserror --nologo -v:q
+& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-configuration-appearance-aliases-unified -OutputDirectory artifacts\tests\fleet-configuration-appearance-aliases-unified
+```
+
+Ordinary Pester/tooling and strict compatibility aggregation pass with90
+claims/439 selectors/five reference pins. Coverage unions10 reports by source
+identity:21204/28558 production lines and14173/22926 branches. GUI/live/native
+opt-ins remain distinct, not converted from skips into passes. Changed operators
+pass the repository-configured PowerShell analysis rules. Generated fixtures
+used by byte-identical regeneration retain LF explicitly on Windows checkout.
+
+Current C89/C91 Windows candidates have independent source/native acceptance.
+Nomad full360/17, strict NativeAOT/help, native18/0 including actual Vim2/0
+and broader29/0 pass on refreshed executable
+`5abcbf19347b222db09ee7ee616b0cba5c2dc056d211e57d8d11f907c79d1bd8`.
+Sideband full2101/76, actual-primary console4/0, strict NativeAOT/help,
+native console5/0, appearance/reference2/0, raw-copy/reference2/0 and
+cancellation/retry/deletion5/0 pass on executable
+`74584c124b45e943e8d435923c7d3a51b8cf3f0727c933a392caccd68d52e196`.
+Both include the final LXMF nonmutating cancellation-readiness API. The
+deterministic pre-admission regression corrects a reproduced full-gate failure,
+not a relaxed cancellation assertion. Detailed commands, hashes and boundaries
+are in [NomadNet](nomadnet.md#current-configuration-acceptance) and
+[Sideband](sideband.md#conversation-appearance-policies).
+
+The Nomad75-field forms retain explicit stored-only UI/history and unsupported
+public-stack dispositions; their broader29-case replay includes actual primary
+multi-megabyte node transfer/restart but no new loss or endurance topology.
+Sideband appearance windows use original text badges, and raw-copy smoke uses a
+private provider, never primary assets or the shared OS clipboard. Neither
+establishes primary GUI, physical hardware or current Linux source replay.
+
+The preceding copy/configuration development worktree passes2763 managed cases/151
 explicit skips, ordinary Pester/tooling, strict catalog aggregation and merged
 coverage with88 claims/419 selectors/five reference pins:
 

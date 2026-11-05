@@ -482,7 +482,15 @@ internal static partial class Program
               edit find <JSON-string> | edit replace|replace-all ["term","replacement"]
               edit snippets | edit snippet <name> | edit permissions public|["identity-hash"]
               edit mkdir|list <pages|files> [relative-folder]
-              config edit|show [native|rns]   Native JSON or actual selected RNS text; save requires restart
+              config edit|show [native|primary|rns]   Native JSON, owned primary ConfigObj, or selected RNS
+              config sections               List all primary configuration sections and dispositions
+              config primary enable|disable confirm   Explicit saved source selection; restart required
+              config section <section>      Open primary section form, or reticulum for selected RNS
+              config fields                 Show typed values and runtime/stored-only/blocked status
+              config set <field> <JSON value>   Stage scalar/bool/number/string-list
+              config reset confirm          Stage section defaults only; does not save
+              config save confirm           Validate and atomically save section; restart required
+              config cancel                 Discard unsaved configuration edits
               config external [native|rns]    Configured editor in an interactive terminal; Ctrl+] cancels
               config validate                Validate the open configuration buffer without saving
               edit folder inspect <pages|files> <relative>

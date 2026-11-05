@@ -12,10 +12,11 @@ public sealed partial class SidebandClient
 
     public bool CanRequestMessageCancellation(string deliveryHash, Guid id)
     {
+        ActiveOutgoingMessage? active;
         lock (_outgoingGate)
-            return _activeOutgoingMessages.TryGetValue(id, out var active) && active.Peer == deliveryHash &&
-                ReferenceEquals(active.Router, _router) &&
-                !OutgoingMessageIsTerminal(active.Message);
+            _activeOutgoingMessages.TryGetValue(id, out active);
+        return active is not null && active.Peer == deliveryHash && ReferenceEquals(active.Router, _router) &&
+            active.Router.CanCancelPending(active.Message);
     }
 
     public async Task RequestMessageCancellationAsync(string deliveryHash, Guid id, CancellationToken cancellationToken = default)

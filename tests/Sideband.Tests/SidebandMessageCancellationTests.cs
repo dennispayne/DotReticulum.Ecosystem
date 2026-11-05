@@ -17,6 +17,39 @@ public sealed class SidebandMessageCancellationTests
     private const string Peer = "00112233445566778899aabbccddeeff";
 
     [Fact]
+    [Trait("TestId", "T485")]
+    public async Task TrackingBeforeRouterAdmissionDoesNotEnableCancellationButHashlessPreparationDoes()
+    {
+        var root = Root();
+        var token = TestContext.Current.CancellationToken;
+        try
+        {
+            await using var peer = await MessageRetryPeer.StartAsync(root, token);
+            peer.Messages.SetInboundStampCost(254);
+            await using var client = new SidebandClient(new(Path.Combine(root, "data")));
+            await client.ConnectAsync(peer.ClientConfig, token);
+            await peer.Messages.AnnounceAsync(cancellationToken: token);
+            await MessageRetryPeer.UntilAsync(async () => (await client.LoadAsync(token)).Announces?.Any(item =>
+                item.DestinationHash == peer.Hash && item.StampCost == 254) == true, token);
+            var observed = new TaskCompletionSource<(Guid Id, bool Available)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            client.StateChanged += state =>
+            {
+                var queued = state.Messages.FirstOrDefault(message => message.Content == "Admission boundary");
+                if (queued is not null) observed.TrySetResult((queued.Id, client.CanRequestMessageCancellation(peer.Hash, queued.Id)));
+            };
+            var sending = client.SendTextAsync(peer.Hash, "Admission boundary", token);
+            var observation = await observed.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
+            Assert.False(observation.Available);
+            await MessageRetryPeer.UntilAsync(() => Task.FromResult(client.CanRequestMessageCancellation(peer.Hash, observation.Id)), token);
+            await client.RequestMessageCancellationAsync(peer.Hash, observation.Id, token);
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => sending.WaitAsync(TimeSpan.FromSeconds(5), token));
+            Assert.Empty(peer.Received);
+            Assert.False(client.CanRequestMessageCancellation(peer.Hash, observation.Id));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    [Fact]
     [Trait("TestId", "T448")]
     public async Task TrackingCapacityIsExactLateOldCallbacksCannotRemoveReplacementAndDisposalClearsOwnership()
     {

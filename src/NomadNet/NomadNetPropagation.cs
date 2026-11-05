@@ -116,6 +116,8 @@ public sealed class NomadNetPropagation : IAsyncDisposable
             ObjectDisposedException.ThrowIf(_disposed != 0, this);
             if (ConfigurationRestartPending)
                 throw new InvalidOperationException("Configuration was edited for restart; restart before changing runtime settings.");
+            if (Settings.UsePrimaryConfiguration)
+                throw new InvalidOperationException("Primary ConfigObj source is active; use configuration section editing and restart instead of a competing runtime settings writer.");
             var changed = update(Settings);
             changed.Validate();
             changed = changed.Copy();

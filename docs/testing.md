@@ -60,8 +60,33 @@ Independent session positions survive native preview replacement; primary's
 observed replacement resets. C97's actual-primary callbacks had rendered an
 error panel without the singleton. C99 separately verifies synthetic Micron
 with a disclosed singleton/palette shim; that is not full unmodified-primary
-application evidence. Full terminal interaction/columns and primary editor-state
-migration remain required software, not physical-hardware deferrals.
+application evidence. Bounded primary editor-state/document migration is now
+separately accepted below. Full terminal interaction/columns remain required
+software, not physical-hardware deferrals.
+
+Parent-independent frozen C100 replay passes441/26 managed and5/0/0 Pester:
+
+```powershell
+pwsh -NoProfile -File tests\Pester\Invoke-NomadNetEditorStateImportAcceptance.ps1 -Candidate artifacts\tests\nomad-editor-state-import\candidate.json -OutputDirectory artifacts\tests\nomad-editor-state-import\parent-independent
+```
+
+Native SHA-256 is
+`57de210c177c2f4dd9aa010efb1b122a869137b6d832b53d14eb4e7859427e69`.
+The actual primary constructor/start/load/save observations, selected native
+ConPTY edit/save/restart and strict atomic absent-target import are separate
+from primary GUI, new wire interoperability or current Linux acceptance.
+External/custom roots and unknown preferences are not guessed.
+
+The C100 integrated coverage/Pester/catalog gate also passes:
+
+```powershell
+pwsh -NoProfile -File tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-editor-state-import -OutputDirectory artifacts\tests\fleet-editor-state-import
+```
+
+Its full managed execution passes3000 cases/176 explicit skips, including the
+separately accepted battery candidate;99 claims/577 selectors/five pins validate.
+The ten-report source-identity union is23267/30973 lines and16196/25491 branches.
+Neither coverage nor ordinary skipped native/live cases implies full parity.
 
 Hosted evidence was rechecked without dispatching workflows: latest
 Build41502113530 succeeds at `89e948a90e9606bed331b71da6b787cace0bbd81`;

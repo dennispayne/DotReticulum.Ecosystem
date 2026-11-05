@@ -3346,7 +3346,7 @@ method, or copy its guide/snippet content. The existing
 | `_do_rename`, `_do_delete`, `_write_allowed`, `_apply_permissions` | **implemented bounded file/folder management and recursive permissions / safety difference**: confirmed deletion, nonoverwriting rename/move and per-file `.allowed` companion handling. Folder create/rename/cross-root move/recursive removal use a bounded inspected tree and exact one-use token, preserve descendant permission files, and rebase/clear live and persisted selections; details below. Per-file and recursive restrictions accept up to1024 validated distinct identities. Recursive permission summaries, confirmed replacement and make-public conversion are implemented with staged policy replacement/rollback; all recursive changes require explicit confirmation. Overwrite confirmation for moves is deliberately replaced by refusal. Committed cleanup failures are surfaced with retained transactions, never falsely reported as rollback. |
 | `find_next`, `replace_one`, `replace_all`, `_insert_snippet` | **implemented bounded subset**: case-sensitive ordinal search with wrapping, selected-match replacement/next-match behavior, nonoverlapping replace-all and insertion. ASCII observations match executed primary operations. Native cursor positions are UTF-16 offsets rather than Python Unicode-codepoint offsets, an explicit **difference**. Five original samples are usable; the primary's18 snippet assets are not copied or claimed. |
 | `on_edit_change`, `render_preview`, `is_executable`, `highlight_micron`, `MicronEdit`, `GutterEdit`, `visible_panes`, `toggle_pane`, `rebuild_columns`, `Browser.PageList` | **implemented bounded original functional controls / safety difference**: owned400ms latest-edit debounce, original source syntax colours and wrap-aware line numbers, three independently visible panes with primary22:40:38 weights and last-pane protection. Explicit and automatic textual Micron preview reuse the existing renderer, with no network/partial/image retrieval or executable-source execution. Executable files retain source/warning behavior; binary files do not preview. The existing100000 UTF-16-character preview cap remains intentionally at least as restrictive as Python's Unicode-codepoint cap. Primary syntax stops above50000 Unicode codepoints. `edit view` prints the current bounded split-pane snapshot; C99 below adds bounded independent vertical source/preview positions and scrolling commands. This is not automatic full-screen Urwid redraw; exact keyboard/mouse/cursor/terminal-width parity remains **missing/unverified**. |
-| `_state_file`, `load_state`, `save_state`, `start` | **implemented bounded original controls / local-format difference**: extended schema1 `editor_state.json` stores relative selection, `.mu` filter, expanded folders and visible panes, bounded to32 KiB. Editor activation reopens an existing saved file; `edit resume` remains explicit. Old native schema1 selections still load. Folder moves/removal rebase/clear live and persisted expansions/selections. No document text, secrets or unsaved drafts are persisted. Malformed/oversized state is reported rather than silently ignored. This is not primary editor-state migration: primary absolute paths and its JSON field layout are not imported. |
+| `_state_file`, `load_state`, `save_state`, `start` | **implemented bounded original controls / local-format difference**: extended schema1 `editor_state.json` stores relative selection, `.mu` filter, expanded folders and visible panes, bounded to32 KiB. Editor activation reopens an existing saved file; `edit resume` remains explicit. Old native schema1 selections still load. Folder moves/removal rebase/clear live and persisted expansions/selections. No document text, secrets or unsaved drafts are persisted. Malformed/oversized state is reported rather than silently ignored. Bounded primary state/document import is independently accepted under C100 below; external/custom roots are not rebound. |
 | `ConfigSectionView.on_save`, reset/validation and `util.write_config_atomic` | **implemented bounded functional subset / safety difference**: native JSON/raw selected-RNS editing plus all75 primary form fields across eight sections, explicitly opted-in primary ConfigObj source, confirmed staged reset/save and cancel. Exact field/runtime/grammar dispositions and reference evidence appear below. Atomic saves require restart and serialize with runtime settings writes; later runtime-setting edits are refused and automatic announce/sync timestamps stay in memory, preventing stale restart-configuration overwrite. Active service options/identity are not hot-reloaded. TextUI/utility controls have bounded functional effects under C95; complete ConfigObj/Urwid parity remains a gap. Panic failure ownership is an intentional safety difference, not a missing implementation. |
 | `Config.EditorTerminal`, `[textui] editor` | **implemented bounded original workflow / safety difference**: imported/native `editor`, default `nano`, is one executable argv element, not a shell command. `config external [native|rns]` uses the public `RnshProcess` PTY/ConPTY API, a private working copy, validation and snapshot-checked atomic commit, then returns to the console. Explicit Ctrl+] cancellation, child failure and conflict refuse commit. Redirected input/output is explicitly unsupported; interactive commands and child input have one owner rather than mixing `Console.In` with raw stdin. C95 uses Win32 console records for Windows command/mouse input, restores the exact input mode before child activation, and retains `Console.ReadKey` child forwarding. No embedded Urwid/widget, complete keyboard/mouse/termios or cross-platform terminal parity is claimed. Details and actual Windows terminal evidence follow below. |
 | `GuideEntry.display_topic`, `GuideLinkDelegate.handle_link`, topic reader | **implemented original subset / safety difference**: eight original local topics, local links, anchors, topic list and bounded32-topic back history, using the existing Micron renderer. No remote link is followed implicitly. C95 displays the local start topic on first client-state creation, even with its menu entry hidden, and wires `hide_guide` to menu visibility only. Explicit `guide` remains usable. Primary display/demo assets and full keyboard/mouse reader behavior remain **missing**. Network browsing stays explicit. |
@@ -3575,7 +3575,8 @@ weakened assertions or claiming those pre-existing races are fixed.
 Current Linux replay remains blocked by the reported WSL EIO/read-only state;
 no repair/remount/shutdown was attempted, and older Linux receipts do not accept
 this binary. macOS, physical terminals and primary GUI remain unverified.
-Remaining required software includes primary editor-state migration and full
+Bounded primary editor-state migration is accepted under C100 below.
+Remaining required software includes full
 keyboard/mouse/cursor/terminal-column, guide and configuration-grammar contracts;
 this is a bounded vertical-scrolling slice, **not full editor/Urwid parity**.
 
@@ -3881,8 +3882,8 @@ replays those artifacts into a fresh evidence root. Reference fixture SHA-256:
 `d4df2f4fec4984ca29543354da457fb62c46d4667fad669776f4813644e4d266`.
 Earlier candidate evidence remains separately retained. Current Linux replay is
 still blocked by WSL EIO/read-only storage; no WSL repair was attempted.
-Full ConfigObj/primary presentation, primary editor-state
-migration and remaining guide/terminal presentation remain required work.
+Full ConfigObj/primary presentation and remaining guide/terminal presentation
+remain required work. Bounded primary editor-state import is accepted under C100.
 Bounded state/tree/pane controls are implemented under C97 above.
 
 ### Bounded recursive folder permissions
@@ -3971,9 +3972,9 @@ hashes; the replay operator creates fresh evidence and matching before/after
 guards, restoring process environment afterward. Earlier candidate evidence
 retains its own original source and binary association. Current Linux replay
 remains blocked by WSL EIO/read-only storage; WSL was not repaired.
-Full ConfigObj/primary configuration presentation,
-primary editor-state migration and remaining guide/terminal presentation are
-still required software work. Bounded native state/tree/filter/gutter/panes and
+Full ConfigObj/primary configuration presentation and remaining guide/terminal
+presentation are still required software work. Bounded primary editor-state
+import is accepted under C100 below. Bounded native state/tree/filter/gutter/panes and
 debounced preview are implemented under C97 above. No full editor/UI parity,
 physical-terminal or additional live-network acceptance is claimed.
 
@@ -4064,8 +4065,8 @@ T460–T463 select actual native console workflows and independent primary
 regeneration. Physical terminal/layout parity and current Linux execution are
 not claimed; WSL EIO remains blocked and no repair was attempted. Remaining
 required software includes complete
-ConfigObj/RNS edge grammar, primary editor-state
-migration and primary guide/terminal presentation, not merely hardware acceptance.
+ConfigObj/RNS edge grammar and primary guide/terminal presentation, not merely
+hardware acceptance. Bounded primary editor-state import is accepted under C100.
 Bounded native editor presentation and controls are implemented under C97 above.
 
 Preceding Windows validation for the original configuration candidate, before
@@ -4824,3 +4825,105 @@ RF, physical audio/printers, macOS and other operating systems remain
 Remaining RRC behaviors, Kitty presentation,
 configuration/import parity and additional propagation-node peering acceptance remain
 required work rather than a claim of completed NomadNet parity.
+### Primary editor persisted-state import (C100)
+
+The existing offline `--import-profile <stopped-primary> --config <absent-native>
+--rnsconfig <selected-RNS>` transaction now translates primary
+`editor_state.json` into the existing original editor's schema1 state.
+NomadNet1.4.4 `f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`,
+`ui/textui/Editor.py:PageEditorDisplay.__init__/load_state/save_state/start`
+is the authority. Its persisted fields are exactly `filter_mu`, `expanded`,
+`pane_visible`, and `last_file`. **Primary cursor, focus, dirty contents and
+source/preview scroll offsets are not persisted**; no such state is invented.
+This section does not expand or replace the accepted C97/C99 contracts.
+
+| Primary field / input | Native disposition |
+|---|---|
+| `filter_mu` | Activates the existing case-sensitive `.mu` tree filter. Absent is false. |
+| `expanded` | Absolute paths under this source profile's owned `storage/pages` and `storage/files` become bounded native relative expansion keys. Absent retains both expanded roots; an empty list remains empty. Existing referenced empty folders are retained. Missing folders retain inert keys with a warning. |
+| `pane_visible` | Named files/editor/preview booleans map to the existing visible-pane list, in primary order. Omitted entries default true. All false uses primary `visible_panes()`'s editor-only fallback. Native persistence records that effective pane, rather than three unusable false flags. |
+| `last_file` | Owned saved document selection maps to native scope/path and opens on the first original editor command. External/custom-root/relative/foreign-platform paths are explicitly not rebound by suffix. Missing documents are reported in the import report; activation logs the missing selection and remains usable without fabricating a buffer. |
+| No state file | Explicit report warning; native defaults remain. No authoring files are activated in this case. |
+| Unknown top-level fields or pane names | Named, bounded/sanitized warnings; original JSON retained only in the inert archive. No guessed preference or scroll setting is applied. |
+| Malformed JSON, duplicate known/root keys, nonboolean known preferences, invalid paths or bounds | Entire profile transaction fails. Unlike primary's permissive `bool()` conversion and exception-swallowing partial load, migration rejects ambiguous/partially corrupt input rather than silently changing native state. |
+
+When state is present, the profile's supported nonhidden editor documents in
+owned `storage/pages` and `storage/files` migrate with exact bytes and existing
+`.allowed` sidecars. This is stopped-profile user content, **not copied upstream
+guide/example/UI assets**. Native-reserved hidden/device/invalid paths and orphan
+policies remain explicitly not imported; a selected invalid document fails.
+Existing selected document permissions are never loosened; executable pages
+remain disabled. Unix source owner executable bits are preserved for the existing
+source-only preview policy, but this slice's native Unix execution is unverified.
+Configured external page/file roots remain unactivated under the existing
+profile-import safety policy, not silently redirected to a local suffix match.
+
+Bounds are32 KiB JSON (including whitespace), nesting8,256 expanded input paths,
+2048 characters per original absolute path,512 characters per mapped native
+relative path,16 folder levels,2048 documents,1,000,000 bytes per document/sidecar
+and16 MiB combined documents/sidecars, inside the existing whole-profile limits.
+The existing bounded tree renderer can additionally reject an overlarge displayed
+tree rather than truncate it. Duplicate expansion paths collapse as the primary
+set does. Identity, histories, settings, router/RRC state and independent native
+editor ownership keep their existing owners: an existing target is never merged
+or replaced, and activation never replaces an already open clean or dirty editor.
+Draft text is never serialized into imported editor state.
+
+All changes stage under the existing private absent-target transaction, using
+the whole-profile immutable-source snapshots and per-file hash checks. Cancellation,
+read/validation/write errors or target conflicts remove staging without exposing
+a partial target. The original state JSON is byte-identical
+`import-archive/editor_state.json.bin`. Native editor operations subsequently own
+`editor_state.json`, saved documents and ordinary restart recovery; no new
+background importer or runtime ownership path is added.
+
+Evidence and reproducible acceptance:
+
+- `tests/Interop/GenerateNomadNetEditorStateImportVectors.py` executes actual
+  unmodified `PageEditorDisplay` constructors, `start`, `load_state`, `save_state`,
+  actual Browser/Urwid widgets, and the actual peer-settings persistence API on
+  synthetic files. The generated fixture records canonical source-file SHA-256s;
+  observation receipts record actual imported paths and on-disk hashes.
+  Headless palette/alarm owners are disclosed: this is **not the full application
+  constructor or interactive primary GUI**. The previously disclosed newer
+  primary dependency-minimum discrepancy remains; the reference pins are unchanged.
+- T730–740/T748 cover reference vectors, strict malformed/duplicate/type/depth/
+  path/count/byte limits, atomicity, source immutability, cancellation, locked reads,
+  concurrent import, exact permission retention, current clean/dirty ownership,
+  absent/missing/external selections, unknown fields and restart.
+- T741–742 exercise the selected Windows native executable through actual ConPTY:
+  profile import, activated selection/preferences/tree, editing/saving/restart,
+  dirty native-configuration ownership and failed-control recovery.
+- T743–747 are process-level Pester gates for byte-identical actual-primary
+  regeneration, native import/editor/restart, malformed/oversize/duplicate/
+  unsafe-state atomic refusal and recovery, absent/missing/unknown disposition,
+  existing-target ownership and Windows junction refusal.
+- Strict win-x64 publish and receipts live under
+  `artifacts\tests\nomad-editor-state-import`; build outputs are separately
+  `artifacts\builds\nomad-editor-state-import`.
+  `tests\Pester\Invoke-NomadNetEditorStateImportAcceptance.ps1` is the frozen
+  fresh-child replay operator. Its manifest checks native/managed bytes, the
+  exact production and acceptance input inventories, build HEAD/version evidence,
+  unchanged stack/reference pins and before/after hashes. Parent-owned
+  README/catalog/global attributes and unrelated Sideband files are not frozen.
+  Use `-Candidate artifacts\tests\nomad-editor-state-import\candidate.json
+  -OutputDirectory artifacts\tests\nomad-editor-state-import\parent-fresh-UNIQUE`.
+
+Parent-independent frozen acceptance passes **441 managed cases/26 explicit skips
+and5 Pester cases/zero failures/skips**:
+
+```powershell
+pwsh -NoProfile -File tests\Pester\Invoke-NomadNetEditorStateImportAcceptance.ps1 -Candidate artifacts\tests\nomad-editor-state-import\candidate.json -OutputDirectory artifacts\tests\nomad-editor-state-import\parent-independent
+```
+
+The exact native SHA-256 is
+`57de210c177c2f4dd9aa010efb1b122a869137b6d832b53d14eb4e7859427e69`,
+built at `c37c95d65a0a805ddb896ad8c1dcf3127ef5f1c3` with SDK10.0.403/
+NativeAOT compiler10.0.14 and stack `4989f050aed865d16ed9f1460071c1a63cd4c7e9`.
+The receipt is `parent-independent\child\result.json`. The separate handoff-file
+SHA-256 is not the executable hash. No post-integration rebuild is inferred.
+
+Windows software acceptance is the selected platform. Linux native replay is
+explicitly blocked by the existing WSL EIO/unavailable filesystem; no WSL repair,
+full primary GUI, physical hardware, new wire interoperability or full NomadNet
+UI parity is claimed.

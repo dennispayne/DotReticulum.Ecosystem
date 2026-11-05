@@ -92,6 +92,8 @@ public static class NomadNetProfileImport
                     warnings.Add("Peer settings counters, node announce timestamp, quit-confirm and unknown peer keys are archived, not active native settings.");
                 }
                 await settings.SaveAsync(staging, cancellationToken).ConfigureAwait(false);
+                await NomadNetEditorStateImport.ImportAsync(source, staging, settings, snapshot, activated,
+                    archived, warnings, cancellationToken).ConfigureAwait(false);
                 await NomadNetNodeProfile.ImportAsync(source, staging, identity, snapshot, settings, activated,
                     warnings, cancellationToken).ConfigureAwait(false);
                 var ignoredBytes = snapshot.ContainsKey("ignored") ? await ReadAsync(source, "ignored",
@@ -340,7 +342,7 @@ public static class NomadNetProfileImport
     private static bool Within(string root, string path) => path.Equals(root, StringComparison.OrdinalIgnoreCase) ||
         path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
 
-    private static void EnsureNoLinks(string path)
+    internal static void EnsureNoLinks(string path)
     {
         for (var item = new FileInfo(Path.GetFullPath(path)); item is not null; item = item.Directory is { } parent ? new FileInfo(parent.FullName) : null)
             if (Path.Exists(item.FullName) && (File.GetAttributes(item.FullName) & FileAttributes.ReparsePoint) != 0)

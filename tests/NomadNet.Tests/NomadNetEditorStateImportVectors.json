@@ -1,0 +1,324 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "canonicalSourceSha256": {
+    "nomadnet/ui/textui/Editor.py": "ae6c09cde38d473fd97d1758ebcbc13edaf5d7e1f97dc4e698a870c68cd8d378",
+    "nomadnet/NomadNetworkApp.py": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2"
+  },
+  "boundary": "Actual unmodified PageEditorDisplay constructor/start/load_state/save_state on synthetic profiles with actual Browser and Urwid widgets, a headless palette sink and recording alarm owner. Not the full application constructor, interactive GUI, network or audio hardware. RNS/LXMF pins remain below the newer minimums declared by this primary; no dependency check shim.",
+  "cases": [
+    {
+      "name": "absent",
+      "input": null,
+      "observed": {
+        "filter": false,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "visible": [
+          "files",
+          "editor",
+          "preview"
+        ],
+        "beforeStart": null,
+        "selected": null,
+        "dirty": false
+      },
+      "saved": {
+        "filter_mu": false,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "pane_visible": {
+          "files": true,
+          "editor": true,
+          "preview": true
+        },
+        "last_file": null
+      }
+    },
+    {
+      "name": "empty",
+      "input": {},
+      "observed": {
+        "filter": false,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "visible": [
+          "files",
+          "editor",
+          "preview"
+        ],
+        "beforeStart": null,
+        "selected": null,
+        "dirty": false
+      },
+      "saved": {
+        "filter_mu": false,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "pane_visible": {
+          "files": true,
+          "editor": true,
+          "preview": true
+        },
+        "last_file": null
+      }
+    },
+    {
+      "name": "saved",
+      "input": {
+        "filter_mu": true,
+        "expanded": [
+          "@/storage/pages",
+          "@/storage/pages/nested"
+        ],
+        "pane_visible": {
+          "files": true,
+          "editor": true,
+          "preview": false
+        },
+        "last_file": "@/storage/pages/nested/notice.mu"
+      },
+      "observed": {
+        "filter": true,
+        "expanded": [
+          "@/storage/pages",
+          "@/storage/pages/nested"
+        ],
+        "visible": [
+          "files",
+          "editor"
+        ],
+        "beforeStart": null,
+        "selected": "@/storage/pages/nested/notice.mu",
+        "dirty": false
+      },
+      "saved": {
+        "filter_mu": true,
+        "expanded": [
+          "@/storage/pages",
+          "@/storage/pages/nested"
+        ],
+        "pane_visible": {
+          "files": true,
+          "editor": true,
+          "preview": false
+        },
+        "last_file": "@/storage/pages/nested/notice.mu"
+      }
+    },
+    {
+      "name": "all-hidden",
+      "input": {
+        "pane_visible": {
+          "files": false,
+          "editor": false,
+          "preview": false
+        }
+      },
+      "observed": {
+        "filter": false,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "visible": [
+          "editor"
+        ],
+        "beforeStart": null,
+        "selected": null,
+        "dirty": false
+      },
+      "saved": {
+        "filter_mu": false,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "pane_visible": {
+          "files": false,
+          "editor": false,
+          "preview": false
+        },
+        "last_file": null
+      }
+    },
+    {
+      "name": "missing-file",
+      "input": {
+        "last_file": "@/storage/files/gone.txt"
+      },
+      "observed": {
+        "filter": false,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "visible": [
+          "files",
+          "editor",
+          "preview"
+        ],
+        "beforeStart": null,
+        "selected": null,
+        "dirty": false
+      },
+      "saved": {
+        "filter_mu": false,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "pane_visible": {
+          "files": true,
+          "editor": true,
+          "preview": true
+        },
+        "last_file": null
+      }
+    },
+    {
+      "name": "unknown",
+      "input": {
+        "filter_mu": false,
+        "scroll_offset": 91,
+        "cursor": 2
+      },
+      "observed": {
+        "filter": false,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "visible": [
+          "files",
+          "editor",
+          "preview"
+        ],
+        "beforeStart": null,
+        "selected": null,
+        "dirty": false
+      },
+      "saved": {
+        "filter_mu": false,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "pane_visible": {
+          "files": true,
+          "editor": true,
+          "preview": true
+        },
+        "last_file": null
+      }
+    },
+    {
+      "name": "truthy",
+      "input": {
+        "filter_mu": "false",
+        "pane_visible": {
+          "files": [],
+          "preview": "no"
+        }
+      },
+      "observed": {
+        "filter": true,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "visible": [
+          "editor",
+          "preview"
+        ],
+        "beforeStart": null,
+        "selected": null,
+        "dirty": false
+      },
+      "saved": {
+        "filter_mu": true,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "pane_visible": {
+          "files": false,
+          "editor": true,
+          "preview": true
+        },
+        "last_file": null
+      }
+    },
+    {
+      "name": "malformed",
+      "input": "{\"filter_mu\":true",
+      "observed": {
+        "filter": false,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "visible": [
+          "files",
+          "editor",
+          "preview"
+        ],
+        "beforeStart": null,
+        "selected": null,
+        "dirty": false
+      },
+      "saved": {
+        "filter_mu": false,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "pane_visible": {
+          "files": true,
+          "editor": true,
+          "preview": true
+        },
+        "last_file": null
+      }
+    },
+    {
+      "name": "wrong-root",
+      "input": [],
+      "observed": {
+        "filter": false,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "visible": [
+          "files",
+          "editor",
+          "preview"
+        ],
+        "beforeStart": null,
+        "selected": null,
+        "dirty": false
+      },
+      "saved": {
+        "filter_mu": false,
+        "expanded": [
+          "@/storage/files",
+          "@/storage/pages"
+        ],
+        "pane_visible": {
+          "files": true,
+          "editor": true,
+          "preview": true
+        },
+        "last_file": null
+      }
+    }
+  ]
+}

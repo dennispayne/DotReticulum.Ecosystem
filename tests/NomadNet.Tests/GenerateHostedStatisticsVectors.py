@@ -118,7 +118,8 @@ def main():
               "persisted": persisted, "reset": reset, "reloaded": reloaded,
               "jobInterval": module.Node.JOB_INTERVAL,
               "flushInterval": module.Node.SETTINGS_FLUSH_INTERVAL, "boundary": __doc__}
-    Path(args.output).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    with Path(args.output).open("w", encoding="utf-8", newline="\n") as output:
+        output.write(json.dumps(result, indent=2) + "\n")
     Path(args.observations).write_text(json.dumps({"imports": imports, "nodeModule": module.__file__,
                                                  "networkModule": network.__file__}, indent=2) + "\n",
                                       encoding="utf-8")

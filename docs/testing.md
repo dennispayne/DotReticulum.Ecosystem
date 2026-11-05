@@ -63,6 +63,14 @@ The first C102 replay also refused its stale full-suite skip ceiling; the curren
 operator requires the exact inventoried Windows outcomes rather than raising a
 generic allowance.
 
+The printing and hosted-statistics oracle writers explicitly emit LF, matching
+their checked-in `.gitattributes` rules on Windows as well as Linux. Executing
+both pinned references on Windows regenerates Git-canonical fixtures unchanged;
+only the former working-copy CRLF translation is removed. Focused statistics
+17/0 and printing13/0 regression checks pass. This fixture-serialization
+correction changes neither production behavior nor reference observations, and
+does not relabel the earlier native receipts' exact source hashes.
+
 Earlier MQTT ordinary coverage/Pester/catalog gate
 also passes with97 scoped claims/545 selectors/five pins:
 

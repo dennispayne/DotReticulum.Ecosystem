@@ -150,7 +150,8 @@ def main():
             "qr_packages": {name: importlib.metadata.version(name) for name in ("qrcode", "Pillow", "zxing-cpp")},
         }
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    with args.output.open("w", encoding="utf-8", newline="\n") as output:
+        output.write(json.dumps(result, indent=2) + "\n")
 
 
 if __name__ == "__main__":

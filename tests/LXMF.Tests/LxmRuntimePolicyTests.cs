@@ -6,6 +6,38 @@ namespace LXMF.Tests;
 [Trait("Category", "Integration")]
 public class LxmRuntimePolicyTests
 {
+    [Fact]
+    [Trait("TestId", "T447")]
+    public async Task PendingObjectCancellationDoesNotNeedPackedHashAndRejectsAbsentForeignAndTerminalObjects()
+    {
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var token = deadline.Token;
+        await using var pair = await LxmfPair.CreateAsync(serverOptions: new LxmRouterOptions { InboundStampCost = 254 });
+        await pair.Server.AnnounceAsync(cancellationToken: token);
+        await pair.WaitAsync(() => pair.Client.GetOutboundStampCost(pair.Server.DeliveryHash) == 254);
+        var message = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "Object cancellation");
+        Assert.False(pair.Client.TryCancelPending(message));
+        var sending = pair.Client.SendAsync(message, token);
+        await pair.WaitAsync(() => pair.Client.GetOutboundMessageStampCost(message.ComputeHash()) == 254);
+        Assert.Null(message.Hash);
+        var other = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, message.Content, timestamp: message.Timestamp);
+        Assert.Equal(message.ComputeHash(), other.ComputeHash());
+        Assert.False(pair.Client.TryCancelPending(other));
+        var cancellations = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(() => pair.Client.TryCancelPending(message), token)));
+        Assert.Single(cancellations, accepted => accepted);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => sending.WaitAsync(TimeSpan.FromSeconds(5), token));
+        Assert.Equal(LxmState.Cancelled, message.State);
+        Assert.False(pair.Client.TryCancelPending(message));
+        pair.Server.SetInboundStampCost(null);
+        await Task.Delay(TimeSpan.FromSeconds(1.1), token);
+        await pair.Server.AnnounceAsync(cancellationToken: token);
+        await pair.WaitAsync(() => pair.Client.GetOutboundStampCost(pair.Server.DeliveryHash) is null);
+        var healthy = LxMessage.Create(pair.Server.DeliveryHash, pair.ClientIdentity, "Service survived cancellation");
+        await pair.Client.SendAsync(healthy, token);
+        Assert.Equal(LxmState.Delivered, await healthy.Completion.WaitAsync(TimeSpan.FromSeconds(10), token));
+        Assert.False(pair.Client.TryCancelPending(healthy));
+    }
+
     // GenerateLxmPolicyVectors.py executes primary LXMRouter.py at e8ba02483217af43be284a72f1c059c730b7d047.
     [Fact]
     public async Task RuntimeNodePolicies_ChangeAuthorizationLimitsAndEnabledStateWithoutLosingStoreOwnership()

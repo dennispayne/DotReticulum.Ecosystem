@@ -126,7 +126,7 @@ public sealed class SidebandMessageRetryNativeTests
         }, token);
     }
 
-    private sealed class NativeRetryConsole : IAsyncDisposable
+    internal sealed class NativeRetryConsole : IAsyncDisposable
     {
         private readonly Process _process;
         private readonly ConcurrentQueue<string> _lines = new();

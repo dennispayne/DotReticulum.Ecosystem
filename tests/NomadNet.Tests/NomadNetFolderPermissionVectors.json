@@ -1,0 +1,59 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "source": "nomadnet/ui/textui/Editor.py",
+  "sourceSha256": "ae6c09cde38d473fd97d1758ebcbc13edaf5d7e1f97dc4e698a870c68cd8d378",
+  "method": "Actual _folder_permissions/_save_permissions/_apply_permissions/_write_allowed; synthetic UI observer owner, actual ConfirmDialog escape and urwid Make public button callback. No copied guide/assets or rendered UI claim.",
+  "initial": {
+    "nested/two": "AP8NCg==",
+    "nested/two.allowed": "YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmINCg==",
+    "one": "c3ludGhldGljIGZpcnN0Cg==",
+    "one.allowed": "IA0KIGFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIA0KDQphYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ0K",
+    "orphan.allowed": "b3JwaGFuIHBvbGljeSByZXRhaW5lZA0K",
+    "three": "c3ludGhldGljIHRoaXJkCg=="
+  },
+  "mixed": {
+    "common": null,
+    "restricted": 2,
+    "total": 3
+  },
+  "restricted": {
+    "nested/two": "AP8NCg==",
+    "nested/two.allowed": "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWENCmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiDQo=",
+    "one": "c3ludGhldGljIGZpcnN0Cg==",
+    "one.allowed": "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWENCmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiDQo=",
+    "orphan.allowed": "b3JwaGFuIHBvbGljeSByZXRhaW5lZA0K",
+    "three": "c3ludGhldGljIHRoaXJkCg==",
+    "three.allowed": "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWENCmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiDQo="
+  },
+  "uniform": {
+    "common": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "restricted": 3,
+    "total": 3
+  },
+  "makePublic": {
+    "dialogs": 1,
+    "treeUnchanged": true,
+    "cancelUnchanged": true
+  },
+  "public": {
+    "nested/two": "AP8NCg==",
+    "one": "c3ludGhldGljIGZpcnN0Cg==",
+    "orphan.allowed": "b3JwaGFuIHBvbGljeSByZXRhaW5lZA0K",
+    "three": "c3ludGhldGljIHRoaXJkCg=="
+  },
+  "cleared": {
+    "common": null,
+    "restricted": 0,
+    "total": 3
+  },
+  "walked": [
+    ".visible-hidden-file",
+    "nested/two",
+    "one",
+    "three"
+  ],
+  "statuses": [
+    "permissions applied to 3 files",
+    "permissions cleared on 3 files"
+  ]
+}

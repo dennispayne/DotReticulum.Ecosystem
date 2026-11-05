@@ -1,0 +1,49 @@
+{
+    "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+    "core_sha256": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+    "lxmf_revision": "e8ba02483217af43be284a72f1c059c730b7d047",
+    "router_sha256": "56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9",
+    "method": "Actual AST-extracted SidebandCore.cancel_message calling actual LXMF.LXMRouter.cancel_outbound; synthetic queue/message/resource and process_outbound observation boundaries; deferred cancel_work is actual API, not running work; no GUI, full worker, network or recall claim",
+    "cancelled_state": 254,
+    "outbound_state": 1,
+    "cases": [
+        {
+            "name": "packet",
+            "returned": true,
+            "state": 254,
+            "events": [
+                "process-outbound"
+            ]
+        },
+        {
+            "name": "resource",
+            "returned": true,
+            "state": 254,
+            "events": [
+                "resource-cancel",
+                "process-outbound"
+            ]
+        },
+        {
+            "name": "deferred",
+            "returned": true,
+            "state": 254,
+            "events": []
+        },
+        {
+            "name": "unknown",
+            "returned": true,
+            "state": 1,
+            "events": []
+        },
+        {
+            "name": "router-error",
+            "returned": false,
+            "state": 1,
+            "events": [
+                "core-error",
+                "core-trace"
+            ]
+        }
+    ]
+}

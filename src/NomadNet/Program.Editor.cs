@@ -78,6 +78,36 @@ internal static partial class Program
             var value = parts.Length > 2 ? parts[2] : "";
             if (action == "folder")
             {
+                if (value.StartsWith("permissions ", StringComparison.Ordinal))
+                {
+                    var permissions = Split(value["permissions ".Length..], 4);
+                    if (permissions.Length >= 3 && permissions[0] == "inspect")
+                    {
+                        var source = Split(value["permissions ".Length..], 3);
+                        var summary = await Editor.InspectFolderPermissionsAsync(source[1], source[2], cancellationToken).ConfigureAwait(false);
+                        Console.WriteLine($"Folder permissions: {summary.Token}; total={summary.Total}; restricted={summary.Restricted}; " +
+                            $"common={JsonSerializer.Serialize(summary.Common, NomadNetEditorJsonContext.Default.String)}");
+                        Console.WriteLine("Applying replaces every targeted access list. Explicit confirm is required even for restriction expansion or making public.");
+                    }
+                    else if (permissions.Length == 3 && permissions[0] == "public" && permissions[2] == "confirm")
+                    {
+                        await Editor.ApplyFolderPermissionsAsync(permissions[1], null, true, cancellationToken).ConfigureAwait(false);
+                        Console.WriteLine("Folder permissions committed: public.");
+                    }
+                    else if (permissions.Length == 4 && permissions[0] == "apply" && permissions[2] == "confirm")
+                    {
+                        using var json = JsonDocument.Parse(permissions[3]);
+                        if (json.RootElement.ValueKind != JsonValueKind.Array || json.RootElement.GetArrayLength() > 1024 ||
+                            json.RootElement.EnumerateArray().Any(item => item.ValueKind != JsonValueKind.String))
+                            throw new ArgumentException("Supply a JSON array of at most 1024 identity hashes.");
+                        var identities = json.RootElement.EnumerateArray().Select(item => item.GetString()!).ToArray();
+                        if (identities.Length == 0) throw new ArgumentException("Use permissions public TOKEN confirm to make public.");
+                        await Editor.ApplyFolderPermissionsAsync(permissions[1], identities, true, cancellationToken).ConfigureAwait(false);
+                        Console.WriteLine("Folder permissions committed: restricted.");
+                    }
+                    else throw new ArgumentException("Use edit folder permissions inspect <pages|files> <relative>, apply TOKEN confirm <JSON-identities>, or public TOKEN confirm. Cancel with edit folder cancel.");
+                    return true;
+                }
                 var folderParts = Split(value, 4);
                 if (folderParts.Length >= 3 && folderParts[0] == "inspect")
                 {

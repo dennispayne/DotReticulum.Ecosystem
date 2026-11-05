@@ -131,6 +131,17 @@ public sealed class SidebandConsole : IAsyncDisposable
                 string.Join('\n', messages.TakeLast(count).Select(m =>
                     $"{m.Id} [{(m.Incoming ? "in" : "out")}] {m.Timestamp.ToString("O", CultureInfo.InvariantCulture)} {m.DeliveryState} {m.DeliveryMethod}\n{Safe(m.Content)}")));
         }
+        else if (name == "conv cancel-message")
+        {
+            var hash = ResolveDestination(state, args[0]);
+            if (!Guid.TryParse(args[1], out var id) || id == Guid.Empty)
+                throw new ArgumentException("Message cancellation requires a saved message UUID.");
+            _operations.Start(name, async stop =>
+            {
+                await _client.RequestMessageCancellationAsync(hash, id, stop).ConfigureAwait(false);
+                return "Pending message cancellation requested; not a recall or proof that the peer did not receive it.";
+            });
+        }
         else if (name == "conv retry-text")
         {
             var hash = ResolveDestination(state, args[0]);

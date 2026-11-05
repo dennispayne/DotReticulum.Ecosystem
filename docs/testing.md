@@ -8,15 +8,15 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
-The current folder/saved-text-retry solution builds with zero warnings/errors and
-passes2731 managed cases/150 explicit skips on Windows:
+The current folder-permissions/pending-cancellation solution builds with zero warnings/errors and
+passes2748 managed cases/151 explicit skips on Windows:
 
 ```powershell
 dotnet build DotReticulum.Ecosystem.slnx -c Release --nologo -v:q
-& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-retry-folders-unified -OutputDirectory artifacts\tests\fleet-retry-folders-unified
+& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-permissions-cancellation-unified -OutputDirectory artifacts\tests\fleet-permissions-cancellation-unified
 ```
 
-Sideband's current C85 guarded candidate passes full2088/75, separately enabled
+Sideband's preceding C85 guarded candidate passes full2088/75, separately enabled
 primary console4/0, strict NativeAOT/help and existing native console5/0.
 The same selected binary independently passes actual-primary text retry,
 return messages, repeat rejection and identity-preserving restart; exact
@@ -35,7 +35,7 @@ and their corrections remain in [Sideband's reference](sideband.md#selected-fail
 & artifacts\tests\sideband-message-retry\Accept-SelectedNative.ps1 -CandidateRun message-retry-peer-scope -Run peer-scoped-final
 ```
 
-Current Nomad C86 passes337/17 managed and strict NativeAOT/help. Parent
+Preceding Nomad C86 passes337/17 managed and strict NativeAOT/help. Parent
 independently repeats11 reference/native editor/folder cases, including actual
 Vim ConPTY2/0, and29 printing/node-migration/clipboard/utility cases with zero
 failures/skips. Native SHA-256:
@@ -43,8 +43,8 @@ failures/skips. Native SHA-256:
 Folder creation, inspected/confirmed rename/move/removal, dirty/stale/conflict
 refusal, bounded traversal/cleanup and current/saved descendant selection
 survive ordinary-console restart. Reversible detachment is not a crash-atomic
-filesystem-plus-settings transaction; bulk permissions/forms/grammar and full
-presentation remain required. These local editor flows do not add a new
+filesystem-plus-settings transaction; recursive permission acceptance is separate
+below, and full forms/grammar/presentation remain required. These local editor flows do not add a new
 Python-peer topology; the29-case broader gate separately repeats actual primary
 node transfers/restarts. Earlier endurance/extra ownership receipts retain their
 original source boundaries.
@@ -59,6 +59,43 @@ Exact receipts are under
 `parent-broader-native` and
 `artifacts\tests\sideband-message-retry\peer-scoped-final`.
 Current Linux source replay remains blocked by WSL storage EIO.
+
+Current C87 Nomad passes348/17 managed and strict warning-free NativeAOT/help.
+Parent independently repeats14 native/reference permission/editor/folder cases,
+including actual Vim ConPTY2/0, and29 printing/node-migration/clipboard/utility
+cases with zero failures/skips. Native SHA-256:
+`ef0c7a2b8a2bb0ac310d992fc90ebaa175bbba6205dc3be7772a53c17a300863`.
+Confirmed recursive permission summaries/replacement/public conversion,
+ordinary rollback, explicit committed-cleanup failure and identity-preserving
+restart are distinct from network authorization or crash-atomic all-file
+visibility. Actual primary confirmation methods execute with disclosed synthetic
+UI owners. Current Linux replay, full forms/ConfigObj and terminal presentation
+remain unclaimed. Exact guards and fresh parent receipts are retained under
+`artifacts\tests\nomad-folder-permissions\parent-final` and `parent-broader-native`.
+
+```powershell
+& artifacts\tests\nomad-folder-permissions\Invoke-SelectedNative.ps1 -EvidenceDirectory (Join-Path $PWD 'artifacts\tests\nomad-folder-permissions\parent-final')
+& artifacts\tests\nomad-editor\Parent-BroaderAcceptance.ps1 -Candidate artifacts\tests\nomad-folder-permissions\candidate.json -OutputDirectory artifacts\tests\nomad-folder-permissions\parent-broader-native
+```
+
+Current C88 Sideband passes full2093/76, separately enabled primary console4/0,
+strict NativeAOT/help, ordinary native console5/0 and additional selected
+cancellation/retry/deletion5/0. Those5 include two non-skipped nested native
+xUnit cases, two independently regenerated fixtures and the real desktop
+deletion regression. Exact executable SHA-256:
+`d4e8408d6718d4bbedca599c7bf29fbaeeef3e04dbcffe147fd0277cc97c5df7`.
+Eight-request cancellation/disposal,257-entry tracking, peer/object isolation,
+hashless preparation, no-subscriber persistence, draft preservation and actual
+primary direct-TCP healthy delivery in both directions across native restart are
+separate evidence. Primary required stamp cost254 is explicit; cancellation
+is not recall/nonreceipt, primary-origin cancellation or a new hop/loss claim.
+The final candidate adds offline disposal ownership beyond the earlier guarded
+`1f9c8ad7...` candidate; see [Sideband's reference](sideband.md#selected-active-message-cancellation).
+
+```powershell
+& artifacts\tests\sideband-console\Parent-CurrentConsole.ps1 -Managed -Run message-cancellation-lifetime
+& artifacts\tests\sideband-message-cancellation\Accept-SelectedNative.ps1 -CandidateRun message-cancellation-lifetime -Run parent-lifetime-final
+```
 
 The preceding Sideband guarded `message-actions-corrected` candidate passes full2083/74,
 separately enabled live4/0, strict NativeAOT/help and native5/0. SHA-256:
@@ -127,7 +164,7 @@ The refreshed integrated gate also passes:
 & tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-retry-folders-unified -OutputDirectory artifacts\tests\fleet-retry-folders-unified
 ```
 
-Its85 claims/394 selectors aggregate strictly, with explicit missing live/native/
+Its87 claims/413 selectors aggregate strictly, with explicit missing live/native/
 hardware evidence retained. Ten coverage reports are unioned by source identity;
 their percentages are not compatibility acceptance. Changed/new PowerShell
 passes `tools\PSScriptAnalyzerSettings.psd1`; `git diff --check` is clean.

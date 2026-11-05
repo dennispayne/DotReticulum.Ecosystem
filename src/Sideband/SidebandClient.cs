@@ -18,6 +18,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
     private readonly SemaphoreSlim _propagationGate = new(1, 1);
     private readonly object _disposeGate = new();
     private readonly object _cancellationGate = new();
+    private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly object _voiceDialGate = new();
     private CancellationTokenSource? _voiceDialCancellation;
     private Task _voiceDialTask = Task.CompletedTask;
@@ -59,9 +60,12 @@ public sealed partial class SidebandClient : IAsyncDisposable
     private CancellationTokenSource RuntimeOperationCancellation(CancellationToken token)
     {
         lock (_cancellationGate)
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
             return _runCancellation is { } run
-                ? CancellationTokenSource.CreateLinkedTokenSource(token, run.Token)
-                : CancellationTokenSource.CreateLinkedTokenSource(token);
+                ? CancellationTokenSource.CreateLinkedTokenSource(token, run.Token, _lifetimeCancellation.Token)
+                : CancellationTokenSource.CreateLinkedTokenSource(token, _lifetimeCancellation.Token);
+        }
     }
 
     public async Task ConnectAsync(string? reticulumConfigDirectory = null, CancellationToken cancellationToken = default)
@@ -154,6 +158,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
                 _voiceRemoteIdentity?.Dispose();
                 _voiceRemoteIdentity = null;
                 if (router is not null) await router.DisposeAsync().ConfigureAwait(false);
+                ClearOutgoingMessages();
                 inbound.Writer.TryComplete();
                 if (_inboundTask is not null) await _inboundTask.ConfigureAwait(false);
                 if (_periodicTask is not null) await _periodicTask.ConfigureAwait(false);
@@ -565,22 +570,28 @@ public sealed partial class SidebandClient : IAsyncDisposable
         message.IncludeTicket = state.Contacts.Any(contact => contact.DeliveryHash == normalized && contact.Trusted);
         var local = new SidebandChatMessage(Guid.NewGuid(), normalized, false, string.Empty, content, DateTimeOffset.UtcNow, "Queued",
             attachments, method.ToString(), storedImage, storedAudio);
-        await _store.AddMessageAsync(local, true, owned.Token, replacedFailedMessageId).ConfigureAwait(false);
-        PublishState(await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false));
         var updates = _inbound;
         var eligibleForRetry = state.TryPropagationOnFail && router.OutboundPropagationNode is not null;
         message.StateChanged += changed =>
         {
+            if (OutgoingMessageIsTerminal(changed)) UntrackOutgoingMessage(local.Id, changed);
             var failed = SidebandDeliveryRetry.ShouldRetry(changed.State, eligibleForRetry, stampGenerationFailed: false);
             if (!updates.Writer.TryWrite(new ClientUpdate(MessageId: local.Id, DeliveryState: changed.State.ToString(),
                 FailedMessage: failed ? changed : null)))
                 Report("Delivery-state queue is full or closed; a conversation status update could not be saved.");
         };
-        try { await router.SendAsync(message, owned.Token).ConfigureAwait(false); }
+        TrackOutgoingMessage(local.Id, normalized, router, message);
+        try
+        {
+            await _store.AddMessageAsync(local, true, owned.Token, replacedFailedMessageId).ConfigureAwait(false);
+            PublishState(await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false));
+            await router.SendAsync(message, owned.Token).ConfigureAwait(false);
+        }
         catch
         {
+            UntrackOutgoingMessage(local.Id, message);
             await updates.Writer.WriteAsync(new ClientUpdate(MessageId: local.Id,
-                DeliveryState: owned.IsCancellationRequested ? "Cancelled" : "Failed")).ConfigureAwait(false);
+                DeliveryState: owned.IsCancellationRequested || message.State == LxmState.Cancelled ? "Cancelled" : "Failed")).ConfigureAwait(false);
             throw;
         }
         return local;
@@ -674,6 +685,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
     private async Task DisposeCoreAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        await _lifetimeCancellation.CancelAsync().ConfigureAwait(false);
         await CancelRunAsync().ConfigureAwait(false);
         await _lifecycle.WaitAsync().ConfigureAwait(false);
         try { await DisconnectCoreAsync().ConfigureAwait(false); }
@@ -685,7 +697,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
                 if (_telemetryStore is { } storage) await storage.DisposeAsync().ConfigureAwait(false);
                 _telemetryStore = null;
             }
-            finally { _telemetryStoreGate.Release(); _lifecycle.Release(); }
+            finally { _telemetryStoreGate.Release(); _lifecycle.Release(); _lifetimeCancellation.Dispose(); }
         }
     }
 
@@ -730,6 +742,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
         _voiceRemoteIdentity?.Dispose();
         _voiceRemoteIdentity = null;
         if (router is not null) await router.DisposeAsync().ConfigureAwait(false);
+        ClearOutgoingMessages();
         if (cancellation is not null)
         {
             await cancellation.CancelAsync().ConfigureAwait(false);
@@ -986,26 +999,32 @@ public sealed partial class SidebandClient : IAsyncDisposable
     {
         var router = _router;
         var token = _runCancellation?.Token ?? new CancellationToken(canceled: true);
+        LxMessage? retry = null;
         try
         {
             token.ThrowIfCancellationRequested();
             if (router is null) throw new InvalidOperationException("The LXMF router is unavailable for propagation retry.");
-            var retry = SidebandDeliveryRetry.CreatePropagatedRetry(failed);
+            retry = SidebandDeliveryRetry.CreatePropagatedRetry(failed);
+            TrackOutgoingMessage(messageId, Convert.ToHexStringLower(retry.DestinationHash), router, retry);
             await _store.UpdateMessageStateAsync(messageId, "Outbound", token, deliveryMethod: "Propagated").ConfigureAwait(false);
             var updates = _inbound;
             retry.StateChanged += changed =>
             {
+                if (OutgoingMessageIsTerminal(changed)) UntrackOutgoingMessage(messageId, changed);
                 if (!updates.Writer.TryWrite(new ClientUpdate(MessageId: messageId, DeliveryState: changed.State.ToString())))
                     Report("Delivery-state queue is full or closed; a propagation retry status could not be saved.");
             };
             await router.SendAsync(retry, token).ConfigureAwait(false);
         }
-        catch (Exception ex) when ((ex is OperationCanceledException or ObjectDisposedException) && token.IsCancellationRequested)
+        catch (Exception ex) when ((ex is OperationCanceledException or ObjectDisposedException) &&
+            (token.IsCancellationRequested || retry?.State == LxmState.Cancelled))
         {
+            if (retry is not null) UntrackOutgoingMessage(messageId, retry);
             await _store.UpdateMessageStateAsync(messageId, "Cancelled").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
+            if (retry is not null) UntrackOutgoingMessage(messageId, retry);
             await _store.UpdateMessageStateAsync(messageId, "Failed").ConfigureAwait(false);
             Report("The one-shot propagation retry failed: " + ex.Message);
         }

@@ -62,7 +62,15 @@ public sealed class NomadNetGuide
             edit folder remove TOKEN confirm recursively removes exactly the inspected tree.
             edit folder cancel invalidates the plan without changing files. Inspect again after any conflict.
             Roots, hidden entries, links, special files and folder-root .allowed sidecars are refused.
-            File permissions inside the folder are retained. Bulk permission changes remain unavailable.
+            File permissions inside a moved folder are retained.
+            edit folder permissions inspect pages chapter prints public/restricted counts and a one-use token.
+            edit folder permissions apply TOKEN confirm ["0123456789abcdef0123456789abcdef"]
+            replaces each targeted file's access list, including descendants. Review all recipients first.
+            edit folder permissions public TOKEN confirm removes those restrictions after explicit confirmation.
+            Even expanding a nonempty access list requires confirm. Cancel with edit folder cancel.
+            Inspection includes all entries in safety limits; __pycache__ content and orphan policies stay unchanged.
+            Affected open buffers must be clean. Ordinary conflicts refuse; cancellation/failure attempts rollback.
+            Retained transaction/cleanup errors need manual reconciliation; this is not crash-atomic.
             Native editor paths are relative to the selected configured pages or files root.
             node paths shows registered handlers; node refresh rescans after creating or renaming files.
             Enable hosting in settings.json and restart before expecting remote access.

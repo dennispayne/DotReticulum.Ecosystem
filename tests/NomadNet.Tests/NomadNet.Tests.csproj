@@ -50,5 +50,6 @@
     <EmbeddedResource Include="NomadNetEditorVectors.json" />
     <EmbeddedResource Include="NomadNetExternalEditorVectors.json" />
     <EmbeddedResource Include="NomadNetFolderVectors.json" />
+    <EmbeddedResource Include="NomadNetFolderPermissionVectors.json" />
   </ItemGroup>
 </Project>

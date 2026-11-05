@@ -488,6 +488,9 @@ internal static partial class Program
               edit folder inspect <pages|files> <relative>
               edit folder move|rename <token> <pages|files> <relative>
               edit folder remove <token> confirm | edit folder cancel
+              edit folder permissions inspect <pages|files> <relative>
+              edit folder permissions apply <token> confirm <JSON-identities>
+              edit folder permissions public <token> confirm
               guide [topics|links|open <number>|back|<topic>#<anchor>]
                                              Original local documentation, no upstream assets
               rrc connect <hub> [nick]        Connect to an identified rrc.hub

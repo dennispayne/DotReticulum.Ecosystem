@@ -114,6 +114,7 @@ runtime evidence.
 
 | Contract | Status | Upstream contract and source |
 |---|---|---|
+| Selected active-message cancellation | implemented bounded subset | Current-runtime peer/local-ID ownership and exact pending LXMF object checks stop queued/stamp work through a bounded API, original desktop action and native console extension. Historical/terminal/restarted refusal, capacity/identity cleanup, no-subscriber persistence, selected Windows NativeAOT actual-primary recovery/restart and headless draft preservation are separate evidence. Best effort is not recall/nonreceipt, primary GUI or current Linux replay acceptance. `SidebandClient.MessageCancellation.cs`, `LxmRouter.Policy.cs`, `sbapp/sideband/core.py:5136`, `LXMF/LXMRouter.py:1729`. |
 | Explicit failed-message text retry | implemented bounded subset | Confirmed desktop and native console extension create a new ordinary message with current settings, atomically replacing only a matching failed outgoing text entry after validation. Eight-request admission, cancellation/disconnect, duplicate selection, draft protection, current-policy queue refusal/recovery, actual primary reception/return and native restart are separately tested. No old media/title/hash replay, exactly-once crash guarantee or primary Kivy invocation; see selected retry below; `SidebandClient.MessageActions.cs`, `MainWindow.Messages.cs`, `sbapp/ui/messages.py:gen_retry`. |
 | App shell and interaction | partial | Original Avalonia UI provides Conversations, Contacts, Objects, Announce Stream, Connectivity, Backup & Keys, Preferences, Utilities, Guide, Voice, Telemetry, Map and Remote screens. Supported screens expose real local state and explicit errors; hardware/plugin management remain unavailable rather than simulated. Upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
 | Contacts, discovery and conversation types | partial | The app accepts an LXMF delivery hash and display name, records observed delivery announces, and displays a contact list. Persisted trust/unread flags, explicit trust/unread controls and foreground reading are implemented. Trust/unread survive import, rename, announcements and restart. A bounded persisted delivery/PN stream exposes inspect, converse, copy, node selection and deletion; receipt does not promote a discovered contact to a known conversation. Bounded primary SQLite history activates separately without contact creation. Appearance values and telemetry permissions persist; voice uses the shared client below. Complete peer settings, groups and broadcasts remain absent; `src/Sideband/SidebandClient.cs`, `src/Sideband/SidebandContact.cs`, `src/Sideband/SidebandAnnounce.cs`, `sbapp/sideband/core.py`, `sbapp/ui/announces.py`, `sbapp/ui/conversations.py`. |
@@ -2998,7 +2999,7 @@ owned cancellable console operation. Retry creates a fresh LXMF message with
 current direct/propagated, telemetry and reply-ticket policies; it does not
 replay the saved title, attachments, image, audio, timestamp or LXMF hash.
 The UI refuses to overwrite an existing text/media draft or silently reattach
-its content. Copy/cancel and complete rich-message/menu presentation remain
+its content. Copy and complete rich-message/menu presentation remain
 separate required contracts.
 
 At primary `d069122af14880e43607aed0b71add4c7806fbe0`,
@@ -3069,3 +3070,84 @@ selected/discovered node. The final failure-path case instead selects a real
 delivery-only destination, asserts its absent PN-limit refusal, then verifies a
 current-policy direct retry. No configuration guard or delivery assertion was
 relaxed. Current Linux replay remains blocked by WSL storage EIO.
+
+## Selected active-message cancellation
+
+The original Conversations screen requests cancellation for a selected active
+outgoing non-paper message. Native extension
+`conv cancel-message <peer-or-name> <saved-uuid>` uses the same owned operation;
+it is not a new primary CLI registration. It stops pending work best-effort,
+including stamp generation while ordinary send owns the lifecycle semaphore.
+It is **not recall, proof of nonreceipt or a network transaction**. Historical,
+incoming, paper, terminal, unknown, wrong-peer and restarted entries are refused
+explicitly rather than relabelled cancelled. A peer can already have received
+in-flight traffic. Saved content/media and unfinished drafts remain intact.
+
+Primary `SidebandCore.cancel_message` at
+`d069122af14880e43607aed0b71add4c7806fbe0`, `core.py:5136`, calls the
+router and returns true even for an unknown message ID. The native operation
+deliberately distinguishes that no-op from an accepted pending request.
+`GenerateMessageCancellationVectors.py` executes that actual AST-extracted
+method and actual LXMF 1.2.1 `LXMRouter.cancel_outbound:1729` at
+`e8ba02483217af43be284a72f1c059c730b7d047`. Synthetic message/queue/resource
+owners and the `process_outbound` observation boundary are disclosed; actual
+`cancel_work` is called without running Python stamp work. Five cases observe
+packet/resource/deferred state effects, absent-ID success and exception logging.
+This is not a primary GUI, full Python worker, wire-cancellation or live recall
+claim. Core SHA-256 is
+`8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25`,
+router SHA-256 is
+`56b6a8e6b9f79256c4ae297340791eebcc1b6cda3cec04ab2dbe2f1efb53caa9`,
+and generated fixture SHA-256 is
+`1c1589ccc1e177b504849453f455e72dbc96a18af500822bc338d5fa89fc58cc`.
+
+The client has eight immediate-admission cancellation requests and at most
+257 tracked outgoing objects. Terminal callbacks, queue failure, disconnect
+and disposal release ownership; a late old callback cannot remove a new
+propagated-retry object for the same local ID. One-shot propagation retry
+registers its replacement too. Registry-capacity and stale-owner checks are
+explicit white-box tests, not 257 live transfers. Store-gate tests exercise
+exact eight-request refusal and cancellation; real TCP repeated high-cost
+stamp cancellation persists without any client state/error subscriber.
+Client lifetime cancellation also releases all eight offline store waiters on
+disposal, without requiring the store gate or a running network session.
+The LXMF pending-object extension checks membership under its router gate
+without forcing a packed hash. Preparation cancellation stays Cancelled
+rather than being overwritten Failed when the original send unwinds.
+
+C88/T440-T448 covers executed observations, invalid/historical preservation,
+bounded admission, three preparation cancellations and healthy delivery,
+headless selection/draft preservation, exact native/primary restart,
+independent regeneration, pending-object identity and exact tracking bounds.
+Windows full Sideband2093/76 explicit skips, separately enabled primary
+console4/0, strict NativeAOT/help and existing native console5/0 pass.
+The same guarded executable passes5/0 additional Pester cases: actual-primary
+cancellation/recovery/restart and unchanged text retry, both independently
+regenerated fixtures, and the real desktop deletion regression. Two selected
+nested native xUnit cases execute and pass rather than skip.
+
+```powershell
+& artifacts\tests\sideband-console\Parent-CurrentConsole.ps1 -Managed -Run message-cancellation-lifetime
+& artifacts\tests\sideband-message-cancellation\Accept-SelectedNative.ps1 -CandidateRun message-cancellation-lifetime -Run parent-lifetime-final
+```
+
+Final executable SHA-256:
+`d4e8408d6718d4bbedca599c7bf29fbaeeef3e04dbcffe147fd0277cc97c5df7`;
+verification assembly SHA-256:
+`242ca291f3c2f087e54286a2e77ab27b9ac39ceb7f643f8e8ba307adcc0e9420`.
+Receipts, exact source guards, primary commands/snapshots and native logs
+are retained under `artifacts\tests\sideband-console\windows-message-cancellation-lifetime`
+and `artifacts\tests\sideband-message-cancellation\parent-lifetime-final`.
+The actual primary advertises nondefault required stamp cost254 to keep
+preparation pending, then disables that requirement for healthy proved native
+delivery and primary-origin replies before/after native identity-preserving
+restart. This is direct TCP, not a new loss/hop, primary-origin cancellation,
+audio/hardware or current Linux acceptance claim.
+
+Retained first focused failures came from a test reading another store
+instance's cached state and reannouncing changed costs within the same RNS
+emitted second. The corrected operator reopens persisted UI state and separates
+changed announcements by1.1seconds; original cost, cancellation, delivery and
+restart assertions remain. No production transport guard was changed.
+The preceding accepted `1f9c8ad73de657c0039a46a6dde02de339034eb378bd9681cafa4a189f36bfee`
+candidate does not establish the final offline disposal-waiter correction.

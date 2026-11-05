@@ -532,4 +532,5 @@ public sealed partial class NomadNetEditor : IDisposable
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(NomadNetEditorState))]
+[JsonSerializable(typeof(string))]
 internal partial class NomadNetEditorJsonContext : JsonSerializerContext;

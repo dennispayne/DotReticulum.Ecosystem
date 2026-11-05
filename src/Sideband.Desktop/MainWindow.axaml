@@ -106,6 +106,8 @@
                 <CheckBox x:Name="ConfirmRetryMessageBox" Content="Confirm retry of only this failed message's text (not its attachments)" />
                 <Button x:Name="RetryMessageButton" Content="Retry selected failed text" IsEnabled="False" Click="RetryMessageClicked"
                         ToolTip.Tip="Creates a new message with current delivery, trust and telemetry settings. Replaces the old failure atomically after validation; does not reuse attachments or the old LXMF hash." />
+                <Button x:Name="CancelMessageButton" Content="Request selected message cancellation" IsEnabled="False" Click="CancelMessageClicked"
+                        ToolTip.Tip="Best-effort cancellation of a pending message in this runtime. Does not recall delivered messages or cancel historical/restarted entries." />
                 <Image x:Name="MediaPreview" MaxHeight="240" Stretch="Uniform" IsVisible="False" />
                 <TextBlock x:Name="MediaStatusText" TextWrapping="Wrap" />
                 <StackPanel Orientation="Horizontal" Spacing="8">

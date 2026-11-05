@@ -12,7 +12,7 @@ public sealed partial class NomadNetEditor
     public const long MaximumFolderBytes = 16 * 1024 * 1024;
     private FolderPlan? _folderPlan;
     private sealed record FolderEntry(string Path, bool Directory, long Length, string Hash, long Modified, long Created, int Attributes, int? Mode);
-    private sealed record FolderPlan(NomadNetFolderSummary Summary, string Absolute, IReadOnlyList<FolderEntry> Entries);
+    private sealed record FolderPlan(NomadNetFolderSummary Summary, string Absolute, IReadOnlyList<FolderEntry> Entries, bool Permissions = false);
     private sealed record FolderSelection(bool CurrentAffected, NomadNetEditorState? State, string? NextPath);
     public NomadNetFolderSummary? PendingFolder => Volatile.Read(ref _folderPlan)?.Summary;
 

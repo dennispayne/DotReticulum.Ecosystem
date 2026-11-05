@@ -13,7 +13,22 @@ public sealed partial class MainWindow
         var index = MessageList.SelectedIndex;
         RetryMessageButton.IsEnabled = !_closing && !_messageRetryRunning && _client.IsConnected &&
             index >= 0 && index < _visibleMessages.Count && SidebandMessageActions.CanRetryText(_visibleMessages[index]);
+        CancelMessageButton.IsEnabled = !_closing && index >= 0 && index < _visibleMessages.Count &&
+            _client.CanRequestMessageCancellation(_visibleMessages[index].PeerDeliveryHash, _visibleMessages[index].Id);
     }
+
+    private void CancelMessageClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
+    {
+        try
+        {
+            var message = SelectedMessage();
+            await _client.RequestMessageCancellationAsync(message.PeerDeliveryHash, message.Id, _windowCancellation.Token);
+            await RefreshMessagesAsync(_windowCancellation.Token);
+            SetStatus("Pending message cancellation requested. This is not a recall; a peer may already have received it.");
+        }
+        catch (Exception ex) { ShowError("Could not request message cancellation: " + ex.Message); }
+        finally { UpdateRetryAvailability(); }
+    });
 
     private void RetryMessageClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
     {

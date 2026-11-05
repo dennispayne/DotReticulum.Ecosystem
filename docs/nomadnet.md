@@ -3031,7 +3031,7 @@ method, or copy its guide/snippet content. The existing
 |---|---|
 | `Editor._roots`, `_confine`, `build_entries`, `walk_dir`, `_do_new` | **implemented bounded subset / safety difference**: explicit pages/files scope, immediate-child listing and nested directory creation. Relative paths up to512 characters; up to2048 displayed entries and4096 inspected entries. Refuses hidden/traversal/device/alternate-stream paths and every observed symlink/reparse ancestor, including dangling links. Primary confinement is lexical and can cross between configured roots; native requires explicit scope rather than accepting arbitrary absolute paths. Full expanded directory tree and `.mu` filter remain **missing**. |
 | `load_file`, `save_file`, `_atomic_write`, `_do_saveas`, `confirm_discard` | **implemented bounded subset / safety difference**: one-megabyte strict UTF8 buffer, invalid-UTF8 read-only, save/discard/cancel, save-as, no silent overwrite, explicit dirty-open/quit refusal and nonzero dirty EOF. Random private same-directory `CreateNew` staging, flushed file and atomic replacement; save errors/cancellation retain the buffer and previous document. Optimistic snapshots reject ordinary external edits, and a shared in-process mutation gate serializes editor commits. Save-as never overwrites and refuses restricted source copies rather than accidentally publishing them. Existing Unix mode is preserved in code; current Linux execution is **unverified**. Directory fsync, hostile administrator path races and crash-atomic multi-file transactions are **not claimed**. |
-| `_do_rename`, `_do_delete`, `_write_allowed`, `_apply_permissions` | **implemented bounded file/folder management / partial permissions / safety difference**: confirmed deletion, nonoverwriting rename/move and per-file `.allowed` companion handling. Folder create/rename/cross-root move/recursive removal use a bounded inspected tree and exact one-use token, preserve descendant permission files, and rebase/clear live and persisted selections; details below. Per-file restrictions accept up to1024 validated distinct identities. Folder-wide permission application remains **missing**; overwrite confirmation is deliberately replaced by refusal. A committed deletion cleanup failure is surfaced with its hidden tombstone, never falsely reported as rollback. |
+| `_do_rename`, `_do_delete`, `_write_allowed`, `_apply_permissions` | **implemented bounded file/folder management and recursive permissions / safety difference**: confirmed deletion, nonoverwriting rename/move and per-file `.allowed` companion handling. Folder create/rename/cross-root move/recursive removal use a bounded inspected tree and exact one-use token, preserve descendant permission files, and rebase/clear live and persisted selections; details below. Per-file and recursive restrictions accept up to1024 validated distinct identities. Recursive permission summaries, confirmed replacement and make-public conversion are implemented with staged policy replacement/rollback; all recursive changes require explicit confirmation. Overwrite confirmation for moves is deliberately replaced by refusal. Committed cleanup failures are surfaced with retained transactions, never falsely reported as rollback. |
 | `find_next`, `replace_one`, `replace_all`, `_insert_snippet` | **implemented bounded subset**: case-sensitive ordinal search with wrapping, selected-match replacement/next-match behavior, nonoverlapping replace-all and insertion. ASCII observations match executed primary operations. Native cursor positions are UTF-16 offsets rather than Python Unicode-codepoint offsets, an explicit **difference**. Five original samples are usable; the primary's18 snippet assets are not copied or claimed. |
 | `on_edit_change`, `render_preview`, `is_executable`, syntax/gutter/panes | **partial / safety difference**: explicit textual Micron preview through the existing renderer, no network/partial/image retrieval and no executable-source execution. Executable files display source with a warning; binary files do not preview. The primary100000-character preview bound is retained. Automatic400ms preview debounce, syntax highlighting, gutter, split-pane visibility/weights and keyboard/mouse parity remain **missing**. |
 | `_state_file`, `load_state`, `save_state`, `start` | **partial / local-format difference**: bounded schema1 `editor_state.json` stores only selected relative scope/path and supports explicit `edit resume` after restart. No document text/secrets or unsaved drafts are persisted. Primary filter, expanded tree, pane settings and automatic reopen behavior remain **missing**; this is not primary editor-state migration. |
@@ -3221,8 +3221,8 @@ ignored replay operator selects those exact artifacts with fresh evidence.
 Current Linux execution remains blocked by WSL EIO/read-only storage.
 This proves bounded software terminal workflows, not a physical display/input
 device, Python-peer network exchange or complete primary editor/configuration
-inventory. Primary section/reset forms, complete ConfigObj, folder-wide
-permissions, full editor state/tree/panes and remaining guide
+inventory. Primary section/reset forms, complete ConfigObj,
+full editor state/tree/panes and remaining guide
 presentation remain required software work.
 
 ### Bounded folder management
@@ -3241,7 +3241,7 @@ Pinned primary **1.4.4** `f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`,
 | `_do_new`,819: trailing separator creates nested folders with `exist_ok=True` | `edit mkdir <pages|files> [relative]`, idempotent for directories, never overwrites a file; shared mutation gate, cancellation checks, bounded missing-ancestor creation and empty-directory rollback on failure. |
 | `rename_dialog`,843; `_do_rename`,851: root guard, confinement, relative or absolute destination, parent creation, `os.rename`, optional overwrite confirmation, descendant current-path/tree/state rebasing | `edit folder inspect` captures the selected tree; `move` and `rename` are aliases for one confined, nonoverwriting directory rename, including explicit cross-root destinations. There is no invented upstream copy operation. Destination parent must already exist, and cross-volume rename errors do not fall back to copying. Affected dirty/stale buffers refuse the operation; live and closed persisted selections rebase. Case-only/same-path moves are refused. |
 | `delete_dialog`,886; `_do_delete`,896: root guard, explicit confirmation, recursive removal, descendant editor/tree/state clearing | `edit folder remove TOKEN confirm` requires an exact current one-use inspection token and confirmation. Roots/ancestors of configured roots cannot move/remove. Clean affected live selections and saved resume selections clear after committed removal. |
-| `_walk_pages`,927; `_folder_permissions`,935; `_save_permissions`,975; `_apply_permissions`,990 | **Inventoried, still required software work**: primary recursive permission summaries/application skip hidden directories and `__pycache__`, but not hidden filenames; `.allowed` files are not treated as content. The new generator executes these observations separately. Native folder management retains existing descendant `.allowed` bytes; it does not implement bulk restriction editing, summaries or make-public confirmation. |
+| `_walk_pages`,927; `_folder_permissions`,935; `_save_permissions`,975; `_apply_permissions`,990 | **Implemented bounded recursive summaries/application/make-public confirmation, with safety differences** described below. Primary skips hidden directories and `__pycache__`, but includes hidden filenames; native refuses hidden entries and still counts skipped cache entries against safety limits. `.allowed` files are not treated as content; orphan and skipped-cache policies remain unchanged. |
 
 `GenerateNomadNetFolderVectors.py` executes actual `_do_new`, `_do_rename`,
 `_do_delete`, root UI guards, traversal/permission summary and atomic writes with
@@ -3341,8 +3341,99 @@ replays those artifacts into a fresh evidence root. Reference fixture SHA-256:
 `d4df2f4fec4984ca29543354da457fb62c46d4667fad669776f4813644e4d266`.
 Earlier candidate evidence remains separately retained. Current Linux replay is
 still blocked by WSL EIO/read-only storage; no WSL repair was attempted.
-Bulk permissions, primary configuration forms/reset/full ConfigObj, complete
+Primary configuration forms/reset/full ConfigObj, complete
 editor state/tree/panes and remaining guide/presentation remain required work.
+
+### Bounded recursive folder permissions
+
+The original console editor implements recursive permission summaries and
+confirmed replacement/removal of hosted-file `.allowed` policies. This is a
+local authoring workflow, not an additional network protocol or complete
+primary editor UI.
+
+Pinned primary **1.4.4**, commit
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`, `nomadnet/ui/textui/Editor.py`
+SHA-256 `ae6c09cde38d473fd97d1758ebcbc13edaf5d7e1f97dc4e698a870c68cd8d378`:
+
+| Exact primary contract | Native behavior and explicit difference |
+|---|---|
+| `_read_allowed`,917; `_folder_permissions`,935 | Trim nonempty policy lines, count total and restricted content files, and return a common body only when every file shares one nonempty body. Order and duplicate lines in existing policies remain significant. Empty/all-public/mixed folders have no common body. Invalid UTF-8 is an explicit native inspection error, not silently reported as public. Inspection never executes policy generators. |
+| `_walk_pages`,927 | Recurse through selected hosted subfolders, excluding `.allowed` content and `__pycache__` targets. Orphan `.allowed` files and cache policies remain byte-for-byte unchanged. All entries, including skipped cache content, count against C86 traversal/byte limits. Primary skips hidden directories but includes hidden filenames; native refuses hidden entries entirely. Primary can select configured roots; native retains C86's selected-subfolder/root-companion restrictions. |
+| `_save_permissions`,975; `ConfirmDialog`,308 | Primary asks Make public confirmation only when clearing existing folder restrictions. Native additionally requires an exact one-use permission-inspection token and explicit `confirm` for every recursive replacement, including adding recipients to a nonempty policy. Wrong/missing confirmation authorizes nothing. |
+| `_apply_permissions`,990; `_write_allowed`,1006 | Replace each target policy with validated distinct identity hashes, or remove it for public access. Primary accepts arbitrary textual lines and can leave an applied prefix on failure. Native pre-stages bounded new policies, verifies tree snapshots, and attempts reverse rollback on cancellation/failure. Existing restrictions use atomic per-file replacement plus backups, never a remove-then-create public interval. This is not an all-files/crash-atomic transaction. |
+
+```text
+edit folder permissions inspect pages chapter
+edit folder permissions apply TOKEN confirm ["0123456789abcdef0123456789abcdef"]
+edit folder permissions inspect pages chapter
+edit folder permissions public TOKEN confirm
+edit folder cancel
+```
+
+Inspection prints total/restricted counts, JSON-escaped common entries and a
+32-character token. A fresh successful inspection replaces the previous plan.
+Valid mutation attempts consume their token even on failure. Tokens are not
+persisted or replayable after restart; ordinary folder-management tokens cannot
+authorize permission application. An empty recipient array in the CLI is refused:
+use the explicit `public` operation.
+
+The C86 limits remain:1024 total entries including root and sidecars,16 levels,
+512-character relative paths,1,000,000 bytes per file and16,777,216 aggregate
+content bytes. The projected resulting tree must also fit those entry/byte/path
+bounds. At most1024 distinct validated identity hashes can be applied. Links,
+reparse ancestors/descendants, hidden/special names and read-only policies refuse.
+The existing mutation gate serializes cooperating editor instances. Affected
+dirty/stale buffers refuse changes; successful permission application refreshes
+the current document's policy snapshot without changing content, selection or
+saved resume state. Unrelated documents, orphan/cache policies, configuration
+and identity are unchanged.
+
+New policy files are staged in a random hidden sibling transaction directory,
+with Unix0700 directory/0600 new-file creation and existing policy Unix modes
+retained where applicable. Existing Windows attributes are preserved; Windows
+rename-generated Archive/Normal backup differences are accounted for. Actual
+Unix execution and NTFS ACL variants are not verified here. The staging area
+is not advertised, but is not claimed to sandbox a hostile local administrator.
+Every targeted policy is checked before mutation, followed by verification of
+unchanged content/unrelated policies and exact resulting policy bodies.
+
+Cancellation/disposal before completion attempts rollback without cancellation.
+Replacing an existing restriction and restoring its backup use atomic per-file
+replacement. Rollback never overwrites an ordinary external change. If rollback
+fails, the error explicitly reports potentially partial policies and a retained
+transaction for manual reconciliation. After successful verification the change
+is committed; cleanup ignores cancellation and deletes only known staged/backup
+files and the now-empty transaction directory nonrecursively. Unexpected entries
+are retained. Cleanup failure explicitly reports **Permissions committed;
+transaction cleanup incomplete** rather than pretending success or rollback.
+Interrupted/crashed transactions require manual reconciliation; no automatic
+crash recovery or simultaneous network-visible all-files switch is claimed.
+
+`GenerateNomadNetFolderPermissionVectors.py` executes the actual primary
+summary/save/apply/write methods with synthetic owned files, an observing UI
+owner and actual `ConfirmDialog` escape/Make public button callbacks. No method,
+wire format, policy interpreter or primary asset is substituted. Receipt
+regeneration checks actual import paths and pinned revisions. Windows primary
+atomic-write CRLF bytes are recorded as Base64; native policy output is LF with
+equivalent entries. This does not resolve the separately documented primary
+Windows executable-policy authorization defect or claim new network evidence.
+
+Current selected Windows evidence:
+
+- `dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --no-restore --filter "FullyQualifiedName~NomadNetFolderPermissionTests" --logger "trx;LogFileName=focused-final.trx" --results-directory artifacts\tests\nomad-folder-permissions -v quiet`: **11 passed**, no failures/skips. Includes actual second-policy deny-delete rollback, private-staging cancellation, concurrent editors, disposal, dirty/stale buffers, bounds, reparse refusal and restart.
+- `dotnet test tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release --no-build --logger "trx;LogFileName=managed-final.trx" --results-directory artifacts\tests\nomad-folder-permissions -v quiet`: **348 passed,17 explicit skips**, zero failures.
+- `dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64 -o artifacts\tests\nomad-folder-permissions\native -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -v minimal`: warning-free, with actual published `--help` execution. SDK10.0.403/compiler10.0.14; native SHA-256 `ef0c7a2b8a2bb0ac310d992fc90ebaa175bbba6205dc3be7772a53c17a300863`.
+- `pwsh -NoProfile -File artifacts\tests\nomad-folder-permissions\Invoke-SelectedNative.ps1`: **14 passed, zero failures/skips**, including the three new cases and eleven existing editor/folder regressions (actual Vim ConPTY **2/2** inside the external-editor case). `-PermissionsOnly` selects only the three new cases. New native cases cover recursive summaries/replacement/public confirmation, selected-buffer save, identity/configuration/binary/orphan retention through restarts, actual locked-policy rollback, conflicts/cancel/dirty/reparse refusal, and healthy continued service after an explicitly committed cleanup failure. That failure uses an unexpected synthetic transaction entry, verifies it is retained, and manually removes only that owned marker/empty directory. The third case independently regenerates the receipt byte-identically.
+
+The ignored `candidate.json` freezes production/test/source/compiler/native
+hashes; the replay operator creates fresh evidence and matching before/after
+guards, restoring process environment afterward. Earlier candidate evidence
+retains its own original source and binary association. Current Linux replay
+remains blocked by WSL EIO/read-only storage; WSL was not repaired.
+Primary configuration section/reset forms/full ConfigObj, full editor
+state/tree/filter/gutter/panes/preview migration and remaining guide/terminal
+presentation are still required software work. No full editor/UI parity,
+physical-terminal or additional live-network acceptance is claimed.
 
 ### Selected local picker/composer acceptance
 

@@ -29,7 +29,7 @@ public sealed class NomadNetConfigurationFormTests
                 Assert.Equal(expected.GetProperty("options").EnumerateArray().Select(item => item.GetString()), field.Options ?? []);
                 Assert.Equal(expected.GetProperty("validation").EnumerateArray().Select(item => item.GetString()),
                     field.Validation.Length == 0 ? [] : new[] { field.Validation });
-                Assert.Contains(field.Disposition, new[] { "runtime", "stored-only", "blocked-stack" });
+                Assert.Contains(field.Disposition, new[] { "runtime", "stored-only", "blocked-stack", "upstream-placeholder" });
             }
         }
         Assert.Equal(["respond_to_probes", "use_implicit_proof", "panic_on_interface_error"],

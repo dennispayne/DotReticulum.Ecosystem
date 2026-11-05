@@ -6,6 +6,8 @@ using DotReticulum.Transport;
 
 namespace NomadNet;
 
+public sealed record RrcPresentationContext(string Nick, IReadOnlyDictionary<string, string> Nicks);
+
 /// <summary>One identified RRC hub link with bounded processing, durable rooms/history, and reconnect.</summary>
 public sealed class RrcClient : IAsyncDisposable
 {
@@ -31,6 +33,12 @@ public sealed class RrcClient : IAsyncDisposable
     private readonly HashSet<string> _partedRooms = new(StringComparer.Ordinal);
     private string _destinationName = "rrc.hub";
     private string _savedName = "";
+    private NomadNetSettings? _settings;
+    private int _perHubHistoryCap;
+    private readonly List<RrcChatMessage> _durableHistory = [];
+    private int _durableHistoryBytes;
+    private RrcPresentationContext _presentation = new("", new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>()));
+    public RrcPresentationContext Presentation => Volatile.Read(ref _presentation);
 
     private RrcClient(ReticulumNode node, Identity identity, byte[] hash, string path)
     {
@@ -46,19 +54,27 @@ public sealed class RrcClient : IAsyncDisposable
     public string HubHash => Convert.ToHexStringLower(_hash);
 
     public static async Task<RrcClient> OpenAsync(ReticulumNode node, Identity identity, string directory,
-        string hubHash, CancellationToken cancellationToken = default)
+        string hubHash, CancellationToken cancellationToken = default, NomadNetSettings? settings = null)
     {
         hubHash = NomadNetAddress.NormalizeHash(hubHash);
         var path = Path.Combine(directory, "rrc", hubHash + ".cbor");
         var client = new RrcClient(node, identity, Convert.FromHexString(hubHash), path);
         try
         {
+            if (settings is not null)
+            {
+                NomadNetRrcPolicy.Validate(settings);
+                client._settings = settings.Copy();
+                client._state.SetHistoryPerRoomCap(settings.RrcHistoryPerRoomCap);
+            }
             if (File.Exists(path))
             {
                 if (new FileInfo(path).Length > RrcCbor.MaximumBytes) throw new InvalidDataException("RRC saved profile is too large.");
                 var data = await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
                 client.Restore(data);
             }
+            client._state.Recorded = client.CaptureDurable;
+            client.PublishPresentation();
             return client;
         }
         catch { await client.DisposeAsync().ConfigureAwait(false); throw; }
@@ -172,6 +188,7 @@ public sealed class RrcClient : IAsyncDisposable
                     foreach (var automatic in _state.DrainAutomaticCommands()) SendCore(automatic);
                     var latest = _state.History.LastOrDefault();
                     if (!ReferenceEquals(previous, latest)) notification = latest;
+                    if (_settings is not null) _state.CleanEphemeralNotices(DateTimeOffset.UtcNow, _settings.RrcEphemeralNoticeMinutes);
                     await PersistAsync(_stop.Token).ConfigureAwait(false);
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException)
@@ -276,6 +293,8 @@ public sealed class RrcClient : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed != 0, this);
             _state.ClearMessages(room);
+            _durableHistory.RemoveAll(message => message.Room == RrcEnvelope.NormalizeRoom(room));
+            _durableHistoryBytes = _durableHistory.Sum(message => System.Text.Encoding.UTF8.GetByteCount(message.Text));
             await PersistAsync(cancellationToken).ConfigureAwait(false);
         }
         finally { _gate.Release(); }
@@ -287,7 +306,9 @@ public sealed class RrcClient : IAsyncDisposable
         try
         {
             ObjectDisposedException.ThrowIf(_disposed != 0, this);
-            _state.SetHistoryPerRoomCap(cap);
+            if (cap is < 0 or > RrcSessionState.MaximumHistory) throw new ArgumentOutOfRangeException(nameof(cap));
+            _perHubHistoryCap = cap;
+            _state.SetHistoryPerRoomCap(NomadNetRrcPolicy.EffectiveCap(_settings?.RrcHistoryPerRoomCap ?? 0, cap));
             await PersistAsync(cancellationToken).ConfigureAwait(false);
         }
         finally { _gate.Release(); }
@@ -338,6 +359,7 @@ public sealed class RrcClient : IAsyncDisposable
         if (bytes.Length > link.Mdu) throw new InvalidDataException("RRC envelope exceeds link MDU; shorten the message, room or nickname.");
         if (!link.TrySend(bytes)) throw new IOException("RRC link could not send the packet.");
         _state.Sent(envelope);
+        if (_settings is not null) _state.CleanEphemeralNotices(DateTimeOffset.UtcNow, _settings.RrcEphemeralNoticeMinutes);
     }
 
     public async Task<string> StatusAsync(CancellationToken cancellationToken = default)
@@ -357,7 +379,12 @@ public sealed class RrcClient : IAsyncDisposable
     public async Task<IReadOnlyList<RrcChatMessage>> HistoryAsync(string? room = null, CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try { return _state.History.Where(item => room is null || item.Room == RrcEnvelope.NormalizeRoom(room)).ToArray(); }
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            if (_settings is not null) _state.CleanEphemeralNotices(DateTimeOffset.UtcNow, _settings.RrcEphemeralNoticeMinutes);
+            return _state.History.Where(item => room is null || item.Room == RrcEnvelope.NormalizeRoom(room)).ToArray();
+        }
         finally { _gate.Release(); }
     }
 
@@ -381,15 +408,16 @@ public sealed class RrcClient : IAsyncDisposable
 
     private async Task PersistAsync(CancellationToken cancellationToken)
     {
+        PublishPresentation();
         _partedRooms.UnionWith(_state.History.Select(item => item.Room).OfType<string>());
         _partedRooms.ExceptWith(_state.Rooms);
         var map = new Dictionary<long, object?>
         {
             [0] = 1L, [1] = _state.Nick, [2] = _state.Rooms.Cast<object?>().ToArray(),
-            [3] = _state.History.Select(item => (object?)new object?[] { item.Kind, item.Room, item.Source,
+            [3] = _durableHistory.Select(item => (object?)new object?[] { item.Kind, item.Room, item.Source,
                 item.Nick, item.Text, item.Timestamp, item.Mention, item.ImportedHistory }).ToArray(),
             [4] = _autoReconnect,
-            [7] = (long)_state.HistoryPerRoomCap,
+            [7] = (long)_perHubHistoryCap,
             [5] = _state.AutoList, [6] = _state.AutoWho,
             [8] = _savedName, [9] = _destinationName, [10] = _partedRooms.Cast<object?>().ToArray(),
         };
@@ -439,7 +467,8 @@ public sealed class RrcClient : IAsyncDisposable
         {
             if (historyLimit is not long cap || cap is < 0 or > RrcSessionState.MaximumHistory)
                 throw new InvalidDataException("Malformed RRC history cap.");
-            _state.SetHistoryPerRoomCap((int)cap);
+            _perHubHistoryCap = (int)cap;
+            _state.SetHistoryPerRoomCap(NomadNetRrcPolicy.EffectiveCap(_settings?.RrcHistoryPerRoomCap ?? 0, (int)cap));
         }
         foreach (var room in rooms)
             _state.Rooms.Add(RrcEnvelope.NormalizeRoom(room as string ?? throw new InvalidDataException("Invalid saved room."), 4096));
@@ -450,9 +479,35 @@ public sealed class RrcClient : IAsyncDisposable
                 (record[1] is not null && record[1] is not string) || (record[3] is not null && record[3] is not string) ||
                 (record.Count == 8 && record[7] is not bool))
                 throw new InvalidDataException("Malformed RRC saved history.");
-            _state.Record(new(kind, record[1] as string, source, record[3] as string, text, timestamp, mention)
-            { ImportedHistory = record.Count == 8 && record[7] is true });
+            var message = new RrcChatMessage(kind, record[1] as string, source, record[3] as string, text, timestamp, mention)
+            { ImportedHistory = record.Count == 8 && record[7] is true };
+            CaptureDurable(message);
+            if (_settings?.RrcFilterLoadedHistory is not true || kind is not ("notice" or "system"))
+                _state.Record(message);
         }
+    }
+
+    private void CaptureDurable(RrcChatMessage message)
+    {
+        if (System.Text.Encoding.UTF8.GetByteCount(message.Text) > RrcSessionState.MaximumResourceBytes)
+            throw new InvalidDataException("RRC persisted history item exceeds256 KiB.");
+        _durableHistory.Add(message);
+        _durableHistoryBytes += System.Text.Encoding.UTF8.GetByteCount(message.Text);
+        while (_durableHistory.Count > RrcSessionState.MaximumHistory || _durableHistoryBytes > 2 * 1024 * 1024)
+        {
+            _durableHistoryBytes -= System.Text.Encoding.UTF8.GetByteCount(_durableHistory[0].Text);
+            _durableHistory.RemoveAt(0);
+        }
+    }
+
+    private void PublishPresentation() => Volatile.Write(ref _presentation, new(_state.Nick,
+        new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(_state.Nicks))));
+
+    public async Task<IReadOnlyList<string>> ViewRoomsAsync(CancellationToken token = default)
+    {
+        await _gate.WaitAsync(token).ConfigureAwait(false);
+        try { return _state.Rooms.Concat(_partedRooms).Concat(_state.AvailableRooms.Keys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(); }
+        finally { _gate.Release(); }
     }
 
     private void Report(string text)

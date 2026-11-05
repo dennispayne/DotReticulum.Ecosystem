@@ -61,6 +61,17 @@ public sealed record NomadNetSettings
     public bool ComposeInMarkdown { get; set; } = true;
     public bool RrcRenderMarkdown { get; set; } = true;
     public bool RrcRenderMicron { get; set; } = true;
+    public int RrcHistoryPerRoomCap { get; set; } = 500;
+    public bool RrcFilterLoadedHistory { get; set; } = true;
+    public double RrcEphemeralNoticeMinutes { get; set; } = 10;
+    public bool RrcColorMentionTimestamps { get; set; } = true;
+    public bool RrcNickColors { get; set; } = true;
+    public bool RrcJustifyMessages { get; set; } = true;
+    public bool RrcSpaceMessages { get; set; }
+    public bool RrcShowGutters { get; set; } = true;
+    public string? RrcMentionColor { get; set; }
+    public List<string> RrcNickColorsTheme { get; set; } = [];
+    public bool RrcEnableEsoterics { get; set; }
     public string? PagesPath { get; set; }
     public string? FilesPath { get; set; }
     public string? DownloadsPath { get; set; }
@@ -140,6 +151,7 @@ public sealed record NomadNetSettings
 
     internal NomadNetSettings Copy() => this with
     {
+        RrcNickColorsTheme = [.. RrcNickColorsTheme],
         TrustedNodes = [.. TrustedNodes],
         PropagationStaticPeers = [.. PropagationStaticPeers],
         PrioritisedDestinations = [.. PrioritisedDestinations],
@@ -170,6 +182,7 @@ public sealed record NomadNetSettings
 
     internal void Validate()
     {
+        NomadNetRrcPolicy.Validate(this);
         ValidateNode();
         ValidateAttachmentPath();
         ValidatePrinting();

@@ -17,7 +17,29 @@ inventory in [sideband.md](sideband.md); this document does not track it.
 
 ### Current configuration acceptance
 
-The bounded C89 configuration slice has parent-independent full360/17 managed
+The C92 global-RRC/history/style candidate passes full367/17 managed tests,
+strict Windows NativeAOT/help, three new native/reference cases and the existing
+actual-primary RRC presentation regression: **4 passed/0 failed/0 skipped**.
+The exact native SHA256 is
+`e359f1b226aae1b24d67278b88f5d3f38894f0751eef6c818d9565fb822a0cca`.
+The source/current-LXMF/native guards, source snapshots, nonoverlapping
+T490–499 selector records, exact environment and fresh replay operator are in
+`artifacts\tests\nomad-rrc-settings`. Ten controls are functional;
+`enable_esoterics` is explicitly a primary placeholder, not a fabricated feature.
+Parent-independent guarded replay passes4/0/0 under
+`artifacts\tests\nomad-rrc-settings\parent-final`, including actual primary
+and unchanged rrcd messages both ways, restart and the existing Python-hop
+presentation regression. Local rendering observations are not new wire evidence.
+The parent whole-solution coverage/Pester/strict-catalog gate passes2775 managed
+cases/151 explicit skips with91 claims/449 selectors. Its source-identity union
+covers21411/28821 production lines and14420/23264 branches; opt-in native/live
+receipts are separate, not converted from skips.
+
+```powershell
+& artifacts\tests\nomad-rrc-settings\Invoke-SelectedNative.ps1 -EvidenceDirectory (Join-Path $PWD 'artifacts\tests\nomad-rrc-settings\parent-final')
+```
+
+The preceding bounded C89 configuration slice has parent-independent full360/17 managed
 acceptance, strict Windows NativeAOT/help, native18/0 including actual installed
 Vim ConPTY2/0, and broader printing/node-migration/clipboard/utility29/0.
 The refreshed candidate includes the final LXMF cancellation-readiness API;
@@ -34,7 +56,7 @@ and `parent-lxmf-admission-broader`.
 ```
 
 All75 form fields have explicit functional editing/reset/persistence
-dispositions. Stored-only TextUI/RRC/history effects, the three unsupported
+dispositions. Stored-only TextUI/utility effects, the three unsupported
 public-stack controls, complete grammar/presentation and current Linux replay
 remain required/unverified as detailed below. Native form cases use actual
 piped processes; separate ConPTY cases are not full Urwid or physical terminal
@@ -97,7 +119,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Media; `Node.serve_media`, `convert_media_to_webp` | **partial, live-verified core**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` responses and PNG/JPEG/BMP/GIF/TIFF conversion through configured external FFmpeg. Primary quality85/dimension1200 and content-hash cache naming, 256-file/192-MiB quota, corruption regeneration and restart/cache-only serving are exercised. `show-media` provides ASCII/explicit ANSI previews; bounded browser inline ASCII uses imported/runtime never/manual/auto/always policy, a separate durable remote cache and joined cancellation. Original conversation previews reuse the conversion cache and attachment storage. Actual primary `ImageData` decodes native-served images and native previews primary-served images on Windows/Linux; exact additional inline acceptance is recorded below. Native conversion explicitly selects one frame; complete animated/multipage, alpha/EXIF behavior and Kitty graphics remain unverified/missing. |
 | Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file/media retrieval with explicit identification consent, links/bookmarks, reload, session navigation history with back/forward and submitted-field replay, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Automatic/manual inline ASCII previews preserve descriptor/form indices and collapsed visibility, including partial media; a local interactive file picker supports transactional attachment composition. Upstream Kitty widgets and complete layout remain missing. |
 | Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
-| RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron switches render live/history bodies against executed primary widget vectors; JSON string composition preserves multiline/raw content. Complete Channels layout, mention-span styling, colours/gutters and remaining configuration remain missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
+| RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron switches render live/history bodies against executed primary widget vectors; JSON string composition preserves multiline/raw content. Global retention/load filtering/notice cleanup and original functional nick/mention/timestamp colours, spacing, wrapping and collapsed-pane gutters are implemented below. `enable_esoterics` is a primary placeholder, not a missing invented feature. Complete Channels/Urwid layout remains missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop, local attachment picker, bounded notification policy and opt-in OSC52 content/URL copying. Original bounded page/file/native-config editing, explicit Micron preview and local guide navigation pass separate Windows NativeAOT acceptance below. Complete primary editor/ConfigObj/Urwid/guide-asset workflows remain missing or intentionally different, as individually inventoried below. Current Linux native replay is blocked by WSL storage failure. Utilities have their separate bounded contract below; original presentation is not Urwid layout parity. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
 | Network utilities; `ui/textui/Utilities.py`, `ui/textui/Transport.py` | **implemented bounded subset**: current-owner tables, identity/path resolution/expiry, receipt-backed probes, named rncp sending and identified streamed speed tests. Executed reference vectors, managed TCP and native-pair evidence are separate from independently replayed actual-primary Windows/Linux direct-loopback gates, including unchanged-process ten-minute service operation. Stack callback ownership is fixed in the selected local stack commit; see C79 below. No new hop/loss, maximum-size, full primary GUI or physical-RF claim. |
 | Persistence/recovery; `NomadNetworkApp.py`, `Directory.py`, `Conversation.py`, `RRC.py` | **partial**: versioned JSON settings/state with atomic replacement, bounded contact policy/ignore state/messages/unread/failure alerts/bookmarks, LXMF storage, attachment byte files, page/conversion caches and separate bounded CBOR RRC hub profiles/history; application identity/history/policies/caches and RRC nick/rooms/history survive restart. Explicit core INI import stages a new native profile and reports every unsupported key. Saved-directory/ignored-policy import preserves existing native history/settings/identity, rejects conflicting contacts atomically and persists through terminal/daemon restarts. Offline profile import retains identity/signed ratchets, bounded client-router tickets/stamp-cost and duplicate histories, supported peer settings with backup fallback, contacts/conversations/attachments/paper and bounded primary RRC hubs/nicks/joined/parted rooms/retained history without silently authenticating cached claims. Separate bounded propagation-node migration has immutable-source and current integrated Windows native acceptance; current Linux pin replay is blocked by WSL storage failure. Complete ConfigObj compatibility and full restart policy remain required gaps. |
@@ -1726,10 +1748,12 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   `max_accepted_resource_size`, `ephemeral_notices`, `justify_msgs`, `space_msgs`,
   `nick_colors`, `mention_color`, `color_mention_timestamps`, `nick_colors_theme`,
   `render_markdown`, `render_micron`, `show_gutters`, `enable_esoterics`
-  — **partial**: `rrc history-limit` configures per-hub retention; `render_markdown`/`render_micron` are imported and operational for live/history bodies; other listed
-  form options are editable/preserved below but their global runtime behavior remains missing. The implemented RRC core uses the
-  upstream 256 KiB resource default, a local 1,000-item/2 MiB aggregate history
-  bound and terminal-safe plain display; these are not configuration parity.
+  — **implemented bounded functional controls / upstream placeholder**:
+  the two render switches and ten global history/style controls execute in the
+  original terminal/RRC service as inventoried below; `enable_esoterics` has no
+  primary runtime consumer. `rrc history-limit` is a separate stricter native
+  per-hub limit. Aggregate limits and original layout/palette differences remain
+  explicit; this is not complete Urwid presentation parity.
 - `[utilities] enable_utilities` — **partial**: editable/resettable/preserved below;
   primary utility-screen visibility behavior is **stored-only**.
   `[printing] print_messages`, `print_command`, `print_from`,
@@ -1739,8 +1763,6 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
 
 The remaining required configuration behavior is not silently deferred:
 every listed TextUI key except `image_loading`, `clipboard_copy` and `editor`;
-every listed global RRC key except the two render switches (history cap/filter
-currently affect offline migration only, not global runtime policy);
 utilities; primary config-directory discovery
 (`/etc/nomadnetwork`, `~/.config/nomadnetwork`, `~/.nomadnetwork`) versus the native
 ApplicationData default; ConfigObj edge cases beyond the bounded grammar below and
@@ -2833,6 +2855,71 @@ it does not decode/display or validate image quality. Forms are limited to
 limited to 4 MiB, links to 2,048 and media descriptors to 128. These are safety
 bounds, not primary layout defaults.
 
+### Global RRC history and original functional styling
+
+These controls target primary1.4.4
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`, not copied Urwid assets.
+`GenerateNomadNetRrcSettingsVectors.py` executes actual
+`createDefaultConfig/applyConfig`, `RRCHub._record_message/_load_history/
+_clean_history`, `Channels._message_widget` rendered through real Urwid,
+`get_nick_color`, `_scan_mentions` and pane layout. The disclosed headless
+owner supplies configuration/identity/UI objects; it does not replace these
+methods. Cleanup observations use the real clock with one-second age margins.
+The fixture records canonical Git-blob SHA256:
+
+| Source | SHA256 |
+|---|---|
+| `nomadnet/RRC.py` | `195e3dd62ab6678f5192b8b9c5a3c3e399e519018f3fb2216a16315c32895925` |
+| `nomadnet/ui/textui/Channels.py` | `1cc718e1abc6332ac861d3c6cd0ff504504c22f881a3aae4bee9eeafa9ee6ab7` |
+| `nomadnet/NomadNetworkApp.py` | `c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2` |
+
+| `[rrc]` field; primary contract | Native functional disposition |
+|---|---|
+| `history_per_room_cap=500`; `RRC.py:691,735,761` | **implemented bounded**: trim live visible history per room; filter loaded rows before applying the cap.0 disables this cap, not native aggregate bounds. The stricter nonzero global/native `rrc history-limit` cap wins. |
+| `filter_loaded_history=yes`; `RRC.py:698,761` | **implemented**: remove only loaded notice/system rows from visibility, not message/action/error or newly received notices. Keep a separate bounded durable window inside existing CBOR key3 so later filter-off restart can recover retained rows, rather than silently deleting them during save. |
+| `ephemeral_notices=10` minutes; `RRC.py:703,798` | **implemented bounded**: remove visible notice/system rows only when age is strictly greater than timeout. Preserve the observed strict five-second cleanup-admission test and updating last-clean even when admission fails.0 expires past notices, not “disable cleanup”. Cleanup on traffic/history reads does not delete durable rows. |
+| `color_mention_timestamps=yes`; `Channels.py:1274–1420` | **implemented original styling**: own mentions recolour timestamps when enabled. With nickname colours disabled, the timestamp uses the original default mention colour even when body mention colour is customized, matching the primary interaction. |
+| `nick_colors=yes`; same widget and `get_nick_color:1254` | **implemented original styling**: sender/member/known peer-mention colours and action emphasis. Custom palette index is `(big_endian_hash+15)%palette_length`, verified against actual primary. Without custom colours, an original six-colour palette replaces the primary theme, not a copied asset. |
+| `mention_color` absent | **implemented**: six-hex custom own-mention foreground, otherwise own nickname colour/default original mention colour; own mentions are emphasized. Own-nickname matching supports spaces/Unicode with ASCII word boundaries and case-insensitive comparison; known peer names follow primary's ASCII scanner. Code regions are not highlighted. Full Python Unicode case-fold equivalence is not claimed. |
+| `nick_colors_theme` absent | **implemented bounded**: up to128 valid six-hex colours; empty uses original palette. Source scalar/list grammar remains handled by the existing ConfigObj parser. |
+| `justify_msgs=yes` | **implemented original layout**: `rrc view` wraps to80 Unicode scalars and aligns continuation beneath the timestamp column; off wraps to the left margin. This is not grapheme/display-cell or Urwid geometry parity. Compact live/history stream keeps unindented multiline composition rather than turning every incoming line into a full-screen layout. |
+| `space_msgs=no` | **implemented**: optional extra blank line for message/action, not notice/system/error. |
+| `show_gutters=yes` in generated config/form; constructor/missing key false | **implemented original panes**: `rrc pane users\|channels off` hides content. With gutters on, `rrc view` retains explicit expansion-command affordances; without gutters hidden panes occupy no output. Visibility is session-local, not a fabricated persisted primary option. |
+| `enable_esoterics=no` | **upstream-placeholder**: whole-primary AST inventory finds zero runtime reads of `rrc_enable_esoterics`. The flag is editable/resettable/preserved, with no invented effect or missing software feature implied. |
+
+Source controls are edited with `config section rrc`, JSON-valued `config set`,
+`config reset confirm`, `config cancel` and `config save confirm`. Full restart
+is explicit; each opened RRC client snapshots its retention/filter/cleanup
+policy. Do not expect saving forms to mutate an existing link. `rrc view lobby
+color` explicitly requests controlled true-colour ANSI, including through a
+pipe; ordinary redirected output contains no ANSI. Invalid colours, nonfinite
+or negative times, caps above1000, and palettes above128 fail explicitly before
+activation. This is a safety difference from primary's fallback/invalid-colour
+filtering. Ephemeral time is bounded0–43200 minutes.
+
+The existing per-hub native CBOR snapshot remains the only RRC store; no new
+archive, fake history format or protocol is introduced. Visible and durable
+windows each retain at most1000 rows/2MiB message text; each persisted body is
+at most256KiB and encoded profile at most4MiB. Increasing a visible cap cannot
+recover beyond this durable window; primary append logs are not indefinitely
+retained. Clear explicitly clears both windows. Imported history remains
+labelled unauthenticated and never becomes live membership/authorization.
+Core persistence does not depend on message subscribers. The executable's
+existing profile lease and owned receiver/gate/disposal remain in force.
+
+Managed tests T490–496 cover executed defaults/placeholder, colour and mention
+interactions, Unicode/code boundaries, layout/output bounds, cleanup boundaries,
+projection/invalid values, filtering/caps/restart/clear/cancellation/disposal.
+Dedicated native/reference tests T497–499 are
+`tests\Pester\NomadNetRrcSettings.Tests.ps1`; selection requires
+`DOTRETICULUM_NOMADNET_RRC_SETTINGS=1`, exact native/reference paths and a fresh
+owned evidence directory. They exercise actual primary/rrcd messages both ways,
+retention, original styled view/panes, invalid input, confirmed reset/cancel,
+restart and unchanged identity, plus independently regenerated primary vectors.
+This is local-presentation evidence, not a new wire/topology/audio/hardware claim.
+Linux replay remains blocked by WSL EIO; nine TextUI controls, utility visibility,
+three public-stack controls and full ConfigObj/Urwid scope are not completed here.
+
 ## Validation and reproduction
 
 ### Terminal network utilities (C79)
@@ -3498,7 +3585,7 @@ receipts accompany the fixture; no configuration comment/guide/UI assets are cop
 | `ConfigSectionView` population, `_default_write_value`, `_widget_write_value` | **implemented bounded subset**: missing fields show form defaults, checkbox truth normalization, scalar-to-list population, list-to-text joining and unknown dropdown fallback. JSON scalar/bool/number/string-list input avoids shell parsing. Limits:128 list items,4096 characters per item, finite floats, whole-number fields, validated hash/color/port fields and final native runtime validation. Invalid edits retain the staged value/file and permit recovery. Control characters in form values are refused; raw ConfigObj multiline editing is separate. |
 | `on_reset`, `on_back`, `on_save:1003–1070` | **implemented / safety difference**: reset requires `confirm`, stages defaults only, cancel discards, and save separately requires `confirm`. Empty keys are deleted; absent fields equal to defaults are omitted, so reset does not materialize an absent section. Existing empty sections and unknown keys survive. Forms never apply running service options; explicit full restart is required. Native snapshots reject external changes instead of the primary's reload-and-merge/swallowed reload-error behavior. |
 | Runtime node/client/logging/printing fields; `NomadNetworkApp.applyConfig` | **implemented bounded projection** onto existing runtime settings. The source loader uses the existing importer semantics and native bounds, not a new protocol. `enable_client` and `user_interface` are preserved raw controls outside the client's14 form fields, as in primary. Native-only identity/display name/trust/manual propagation/timestamps/media settings are retained. The form default is not necessarily the missing loader default: e.g. node360/starttrue versus missing node720/startfalse. Fixture records generated-default application separately. Unsupported source keys remain preserved and reported by import; they are not silently applied. |
-| TextUI12, utilities1, RRC13 operational effects | **partial, explicit per-field disposition**: `image_loading`, `editor`, `clipboard_copy`, `render_markdown`, `render_micron` execute existing native behaviors; the other nine TextUI fields, utility visibility and eleven RRC styling/global-history fields are **stored-only**, editable/resettable/preserved but their primary UI/history behavior is **missing**. This does not substitute for the existing per-hub history command or migration handling. |
+| TextUI12, utilities1, RRC13 operational effects | **partial, explicit per-field disposition**: `image_loading`, `editor`, `clipboard_copy` execute existing native behaviors; the other nine TextUI fields and utility visibility remain **stored-only**. Both RRC render switches and ten history/style fields are operational in the original bounded terminal service; `enable_esoterics` is an executed/inventoried **upstream-placeholder**, not an invented no-op feature. See the field-level RRC contracts below. |
 | Selected Reticulum12 fields, `Config.py:876–882` | **partial**: selected actual RNS file, not native JSON/default-global RNS. Nine supported fields validate through the public stack parser and require restart. `respond_to_probes`, `use_implicit_proof`, `panic_on_interface_error` are **blocked-stack**; changing them away from form default is refused, not saved ineffectively. No external submodule changes. |
 | ConfigObj root assignments, quoted names/scalars, comma lists, nested sections, comments, literal backslashes, triple quotes and interpolation | **implemented bounded grammar with executed vectors**. Root `enable_node=yes` is legal and retained/reported unsupported, not treated as `[node] enable_node`. Empty scalar, empty list, one-item list and scalar-with-comma remain distinct. Interpolation resolves section/DEFAULT/ancestor values; absent/cyclic expansion fails explicitly. Unknown nested/multiline/comment text is retained byte-for-byte when untouched. Duplicate names, malformed lists/nesting/quotes, invalid UTF8 and NUL refuse before save. |
 | Full ConfigObj grammar/serialization and RNS parser integration | **partial / safety difference**: primary source64KiB, selected RNS1,000,000 bytes,8192 characters/line,2048 entries/sections/list members,16 section levels,32 interpolation levels,64KiB expanded value and four-times-input aggregate expansion budget. Eager interpolation validation differs from ConfigObj's deferred access errors. Ambiguous dotted flattened paths and unencodable quote combinations explicitly fail. Native retains BOM/newline/comments/unknown untouched bytes instead of canonicalizing the entire file. Edited quoted keys remain safely quoted instead of reproducing the primary writer's ambiguous equals-key output. Selected RNS refuses interpolation/triple quotes because the public stack would not execute them faithfully; passing ConfigObj validation alone never grants RNS grammar parity. |

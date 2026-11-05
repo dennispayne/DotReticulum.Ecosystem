@@ -15,6 +15,11 @@ public static class NomadNetPrimaryConfiguration
         DeliveryTransferLimitBytes = source.DeliveryTransferLimitBytes, CompactAnnounceStream = source.CompactAnnounceStream,
         ComposeInMarkdown = source.ComposeInMarkdown, Editor = source.Editor, ImageLoading = source.ImageLoading,
         ClipboardCopy = source.ClipboardCopy, RrcRenderMarkdown = source.RrcRenderMarkdown, RrcRenderMicron = source.RrcRenderMicron,
+        RrcHistoryPerRoomCap = source.RrcHistoryPerRoomCap, RrcFilterLoadedHistory = source.RrcFilterLoadedHistory,
+        RrcEphemeralNoticeMinutes = source.RrcEphemeralNoticeMinutes, RrcColorMentionTimestamps = source.RrcColorMentionTimestamps,
+        RrcNickColors = source.RrcNickColors, RrcJustifyMessages = source.RrcJustifyMessages, RrcSpaceMessages = source.RrcSpaceMessages,
+        RrcShowGutters = source.RrcShowGutters, RrcMentionColor = source.RrcMentionColor,
+        RrcNickColorsTheme = [.. source.RrcNickColorsTheme], RrcEnableEsoterics = source.RrcEnableEsoterics,
         LogLevel = source.LogLevel, LogDestination = source.LogDestination, LogFile = source.LogFile,
         EnableNode = source.EnableNode, NodeName = source.NodeName, NodeAnnounceAtStart = source.NodeAnnounceAtStart,
         NodeAnnounceIntervalMinutes = source.NodeAnnounceIntervalMinutes, EnablePropagation = source.EnablePropagation,
@@ -60,6 +65,17 @@ public static class NomadNetPrimaryConfiguration
         Add("textui", "clipboard_copy", Bool(settings.ClipboardCopy));
         Add("rrc", "render_markdown", Bool(settings.RrcRenderMarkdown));
         Add("rrc", "render_micron", Bool(settings.RrcRenderMicron));
+        Add("rrc", "history_per_room_cap", Number(settings.RrcHistoryPerRoomCap));
+        Add("rrc", "filter_loaded_history", Bool(settings.RrcFilterLoadedHistory));
+        Add("rrc", "ephemeral_notices", Number(settings.RrcEphemeralNoticeMinutes));
+        Add("rrc", "color_mention_timestamps", Bool(settings.RrcColorMentionTimestamps));
+        Add("rrc", "nick_colors", Bool(settings.RrcNickColors));
+        Add("rrc", "justify_msgs", Bool(settings.RrcJustifyMessages));
+        Add("rrc", "space_msgs", Bool(settings.RrcSpaceMessages));
+        Add("rrc", "show_gutters", Bool(settings.RrcShowGutters));
+        Add("rrc", "mention_color", settings.RrcMentionColor);
+        List("rrc", "nick_colors_theme", settings.RrcNickColorsTheme);
+        Add("rrc", "enable_esoterics", Bool(settings.RrcEnableEsoterics));
         Add("node", "enable_node", Bool(settings.EnableNode));
         Add("node", "node_name", settings.NodeName ?? "None");
         Add("node", "announce_at_start", Bool(settings.NodeAnnounceAtStart));

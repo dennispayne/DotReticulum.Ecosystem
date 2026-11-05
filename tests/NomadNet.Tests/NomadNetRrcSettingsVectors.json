@@ -1,0 +1,1128 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sources": {
+    "nomadnet/RRC.py": "195e3dd62ab6678f5192b8b9c5a3c3e399e519018f3fb2216a16315c32895925",
+    "nomadnet/ui/textui/Channels.py": "1cc718e1abc6332ac861d3c6cd0ff504504c22f881a3aae4bee9eeafa9ee6ab7",
+    "nomadnet/NomadNetworkApp.py": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2"
+  },
+  "defaults": {
+    "history_per_room_cap": 500,
+    "filter_loaded_history": true,
+    "ephemeral_notices": 600.0,
+    "color_mention_timestamps": true,
+    "nick_colors": true,
+    "justify_msgs": true,
+    "space_msgs": false,
+    "show_gutters": true,
+    "mention_color": null,
+    "nick_colors_theme": null,
+    "enable_esoterics": false
+  },
+  "history": [
+    {
+      "cap": 0,
+      "filter": false,
+      "texts": [
+        "first",
+        "notice",
+        "system",
+        "action",
+        "error",
+        "last"
+      ]
+    },
+    {
+      "cap": 0,
+      "filter": true,
+      "texts": [
+        "first",
+        "action",
+        "error",
+        "last"
+      ]
+    },
+    {
+      "cap": 1,
+      "filter": false,
+      "texts": [
+        "last"
+      ]
+    },
+    {
+      "cap": 1,
+      "filter": true,
+      "texts": [
+        "last"
+      ]
+    },
+    {
+      "cap": 2,
+      "filter": false,
+      "texts": [
+        "error",
+        "last"
+      ]
+    },
+    {
+      "cap": 2,
+      "filter": true,
+      "texts": [
+        "error",
+        "last"
+      ]
+    },
+    {
+      "cap": 500,
+      "filter": false,
+      "texts": [
+        "first",
+        "notice",
+        "system",
+        "action",
+        "error",
+        "last"
+      ]
+    },
+    {
+      "cap": 500,
+      "filter": true,
+      "texts": [
+        "first",
+        "action",
+        "error",
+        "last"
+      ]
+    }
+  ],
+  "liveCap": [
+    "b",
+    "c"
+  ],
+  "cleaned": [
+    "old error",
+    "old message",
+    "fresh notice"
+  ],
+  "colors": {
+    "0": "112233",
+    "1": "445566",
+    "17": "778899",
+    "34": "445566",
+    "255": "112233"
+  },
+  "widgets": [
+    {
+      "colors": false,
+      "timestamp": false,
+      "justify": false,
+      "spacing": false,
+      "lines": [
+        " [<time>] <Peer> Hello @Native and @Peer"
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_888_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_3cd_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and @Peer",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "      ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": false,
+      "timestamp": false,
+      "justify": false,
+      "spacing": true,
+      "lines": [
+        " [<time>] <Peer> Hello @Native and @Peer",
+        ""
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_888_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_3cd_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and @Peer",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "      ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ],
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "                                               ",
+            "foreground": "None",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": false,
+      "timestamp": false,
+      "justify": true,
+      "spacing": false,
+      "lines": [
+        " [<time>]  <Peer> Hello @Native and @Peer"
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_888_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_3cd_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and @Peer",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "     ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": false,
+      "timestamp": false,
+      "justify": true,
+      "spacing": true,
+      "lines": [
+        " [<time>]  <Peer> Hello @Native and @Peer",
+        ""
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_888_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_3cd_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and @Peer",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "     ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ],
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "            ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "                                   ",
+            "foreground": "None",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": false,
+      "timestamp": true,
+      "justify": false,
+      "spacing": false,
+      "lines": [
+        " [<time>] <Peer> Hello @Native and @Peer"
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_fb4_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_3cd_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and @Peer",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "      ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": false,
+      "timestamp": true,
+      "justify": false,
+      "spacing": true,
+      "lines": [
+        " [<time>] <Peer> Hello @Native and @Peer",
+        ""
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_fb4_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_3cd_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and @Peer",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "      ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ],
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "                                               ",
+            "foreground": "None",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": false,
+      "timestamp": true,
+      "justify": true,
+      "spacing": false,
+      "lines": [
+        " [<time>]  <Peer> Hello @Native and @Peer"
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_fb4_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_3cd_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and @Peer",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "     ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": false,
+      "timestamp": true,
+      "justify": true,
+      "spacing": true,
+      "lines": [
+        " [<time>]  <Peer> Hello @Native and @Peer",
+        ""
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_fb4_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_3cd_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and @Peer",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "     ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ],
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "            ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "                                   ",
+            "foreground": "None",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": true,
+      "timestamp": false,
+      "justify": false,
+      "spacing": false,
+      "lines": [
+        " [<time>] <Peer> Hello @Native and @Peer"
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_888_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_778899_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Peer",
+            "foreground": "LayeredAttr('micron_778899_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "      ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": true,
+      "timestamp": false,
+      "justify": false,
+      "spacing": true,
+      "lines": [
+        " [<time>] <Peer> Hello @Native and @Peer",
+        ""
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_888_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_778899_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Peer",
+            "foreground": "LayeredAttr('micron_778899_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "      ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ],
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "                                               ",
+            "foreground": "None",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": true,
+      "timestamp": false,
+      "justify": true,
+      "spacing": false,
+      "lines": [
+        " [<time>]  <Peer> Hello @Native and @Peer"
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_888_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_778899_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Peer",
+            "foreground": "LayeredAttr('micron_778899_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "     ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": true,
+      "timestamp": false,
+      "justify": true,
+      "spacing": true,
+      "lines": [
+        " [<time>]  <Peer> Hello @Native and @Peer",
+        ""
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_888_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_778899_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Peer",
+            "foreground": "LayeredAttr('micron_778899_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "     ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ],
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "            ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "                                   ",
+            "foreground": "None",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": true,
+      "timestamp": true,
+      "justify": false,
+      "spacing": false,
+      "lines": [
+        " [<time>] <Peer> Hello @Native and @Peer"
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_778899_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Peer",
+            "foreground": "LayeredAttr('micron_778899_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "      ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": true,
+      "timestamp": true,
+      "justify": false,
+      "spacing": true,
+      "lines": [
+        " [<time>] <Peer> Hello @Native and @Peer",
+        ""
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_778899_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Peer",
+            "foreground": "LayeredAttr('micron_778899_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "      ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ],
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "                                               ",
+            "foreground": "None",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": true,
+      "timestamp": true,
+      "justify": true,
+      "spacing": false,
+      "lines": [
+        " [<time>]  <Peer> Hello @Native and @Peer"
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_778899_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Peer",
+            "foreground": "LayeredAttr('micron_778899_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "     ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ]
+      ]
+    },
+    {
+      "colors": true,
+      "timestamp": true,
+      "justify": true,
+      "spacing": true,
+      "lines": [
+        " [<time>]  <Peer> Hello @Native and @Peer",
+        ""
+      ],
+      "segments": [
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "[17:13:20] ",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "<Peer>",
+            "foreground": "LayeredAttr('micron_778899_default_', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " Hello ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Native",
+            "foreground": "LayeredAttr('micron_ABCDEF_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": " and ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          },
+          {
+            "text": "@Peer",
+            "foreground": "LayeredAttr('micron_778899_default_,bold', 'micron_ddd_default_')",
+            "bold": false
+          },
+          {
+            "text": "     ",
+            "foreground": "micron_ddd_default_",
+            "bold": false
+          }
+        ],
+        [
+          {
+            "text": " ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "            ",
+            "foreground": "None",
+            "bold": false
+          },
+          {
+            "text": "                                   ",
+            "foreground": "None",
+            "bold": false
+          }
+        ]
+      ]
+    }
+  ],
+  "gutters": [
+    {
+      "usersVisible": false,
+      "gutters": false,
+      "columns": 1
+    },
+    {
+      "usersVisible": false,
+      "gutters": true,
+      "columns": 2
+    },
+    {
+      "usersVisible": true,
+      "gutters": false,
+      "columns": 2
+    },
+    {
+      "usersVisible": true,
+      "gutters": true,
+      "columns": 2
+    }
+  ],
+  "mentionScans": [
+    {
+      "nick": "N\u00e4tive Name",
+      "text": "Hello @N\u00c4TIVE NAME! x@N\u00e4tive Name @N\u00e4tive Names",
+      "matches": [
+        "@N\u00c4TIVE NAME"
+      ]
+    },
+    {
+      "nick": "Native",
+      "text": "Hello @native @Native_ x@Native @Native!",
+      "matches": [
+        "@native",
+        "@Native"
+      ]
+    }
+  ],
+  "esotericRuntimeAttributeReads": 0,
+  "method": "Actual createDefaultConfig/applyConfig; RRCManager/RRCHub constructors and real bounded synthetic history files using _record_message/_load_history/_clean_history; actual Channels._message_widget rendered by Urwid and _apply_users_visibility on synthetic owner. Headless UI host only; no replaced core methods, sockets or copied assets. Esoterics consumers inventoried with AST. Cleanup uses real clock with one-second age margins, not an injected clock."
+}

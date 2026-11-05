@@ -20,6 +20,8 @@ public sealed class RrcSessionState(byte[] identityHash)
     private readonly HashSet<string> _pendingParts = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ResourceExpectation> _resources = new(StringComparer.Ordinal);
     private readonly List<RrcChatMessage> _history = [];
+    internal Action<RrcChatMessage>? Recorded { get; set; }
+    private DateTimeOffset _lastHistoryClean = DateTimeOffset.MinValue;
     private int _historyBytes;
     private long _roomFragmentExpires;
     private int _silentLists;
@@ -77,6 +79,18 @@ public sealed class RrcSessionState(byte[] identityHash)
         _history.RemoveAll(message => message.Room == room);
         _historyBytes = _history.Sum(message => Encoding.UTF8.GetByteCount(message.Text));
         MarkRead(room);
+    }
+
+    public void CleanEphemeralNotices(DateTimeOffset now, double minutes)
+    {
+        if (!double.IsFinite(minutes) || minutes is < 0 or > 43200) throw new ArgumentOutOfRangeException(nameof(minutes));
+        if ((now - _lastHistoryClean).TotalSeconds > 5)
+        {
+            _history.RemoveAll(message => message.Kind is "notice" or "system" &&
+                now.ToUnixTimeMilliseconds() - (double)message.Timestamp > minutes * 60000);
+            _historyBytes = _history.Sum(message => Encoding.UTF8.GetByteCount(message.Text));
+        }
+        _lastHistoryClean = now;
     }
 
     public void SetHistoryPerRoomCap(int cap)
@@ -371,6 +385,7 @@ public sealed class RrcSessionState(byte[] identityHash)
             _historyBytes -= Encoding.UTF8.GetByteCount(_history[0].Text);
             _history.RemoveAt(0);
         }
+        Recorded?.Invoke(message);
     }
 
     private void TrimRoom(string? room)

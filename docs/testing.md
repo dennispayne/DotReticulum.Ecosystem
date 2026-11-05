@@ -8,7 +8,29 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
-The integrated configuration/appearance candidate builds with zero warnings
+The integrated RRC configuration candidate builds with zero warnings/errors and
+passes2775 managed cases/151 explicit skips on Windows:
+
+```powershell
+& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-rrc-settings-unified -OutputDirectory artifacts\tests\fleet-rrc-settings-unified
+```
+
+Ordinary Pester/tooling and strict compatibility aggregation pass with91
+claims/449 selectors/five pins. Coverage unions10 reports:
+21411/28821 production lines and14420/23264 branches. Full Nomad passes367/17.
+Parent-independent frozen Windows NativeAOT/reference acceptance passes4/0/0
+on `e359f1b226aae1b24d67278b88f5d3f38894f0751eef6c818d9565fb822a0cca`,
+including actual primary/rrcd messages both ways, identity-preserving restart
+and the existing Python-hop presentation regression. Exact primary local
+widget/history observations are separate from wire evidence. Changed operators
+pass the repository-configured PowerShell analysis rules. Ten RRC controls are
+functional; `enable_esoterics` has no runtime consumer in the pinned primary.
+Nine TextUI controls, utility visibility and other inventoried software gaps
+remain; the stack is still the accepted `e52da394...` pin. Current Linux replay,
+physical terminal and arbitrary display-cell/case-fold equivalence are not
+inferred from these checks. See [NomadNet](nomadnet.md#current-configuration-acceptance).
+
+The preceding integrated configuration/appearance candidate builds with zero warnings
 and errors and passes2768 managed cases/151 explicit skips on Windows:
 
 ```powershell

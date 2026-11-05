@@ -52,5 +52,6 @@
     <EmbeddedResource Include="NomadNetFolderVectors.json" />
     <EmbeddedResource Include="NomadNetFolderPermissionVectors.json" />
     <EmbeddedResource Include="NomadNetConfigurationFormVectors.json" />
+    <EmbeddedResource Include="NomadNetRrcSettingsVectors.json" />
   </ItemGroup>
 </Project>

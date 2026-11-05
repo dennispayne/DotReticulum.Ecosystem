@@ -37,7 +37,7 @@ public static class NomadNetConfigImport
         var values = Read(text);
         var settings = new NomadNetSettings { EnableClient = false, NodeAnnounceIntervalMinutes = 720, NodeAnnounceAtStart = false,
             NodePageRefreshIntervalMinutes = 0, NodeFileRefreshIntervalMinutes = 0, LogLevel = null, LogDestination = null,
-            CompactAnnounceStream = false };
+            CompactAnnounceStream = false, RrcShowGutters = false };
         if (values.TryGetValue("logging.loglevel", out var logLevel))
             settings.LogLevel = NomadNetLogging.ParseLevel(Scalar(logLevel));
         if (values.TryGetValue("logging.destination", out var logDestination))
@@ -51,6 +51,7 @@ public static class NomadNetConfigImport
         var disablePropagation = true;
         foreach (var (key, raw) in values)
         {
+            if (ApplyRrcSetting(key, raw, settings)) continue;
             if (key is "logging.loglevel" or "logging.destination" or "logging.logfile") continue;
             if (key is "printing.print_messages" or "printing.print_command" or "printing.print_from" or "printing.message_template") continue;
             if (key is "node.static_peers" or "node.prioritise_destinations")
@@ -133,7 +134,32 @@ public static class NomadNetConfigImport
         _ = NomadNetNodeConfiguration.CreateOptions(settings);
         settings.ValidateAttachmentPath();
         settings.ValidatePrinting();
+        NomadNetRrcPolicy.Validate(settings);
         return new(settings, unsupported.Order(StringComparer.Ordinal).ToArray()) { Warnings = warnings.ToArray() };
+    }
+
+    private static bool ApplyRrcSetting(string key, string raw, NomadNetSettings settings)
+    {
+        switch (key)
+        {
+            case "rrc.history_per_room_cap": settings.RrcHistoryPerRoomCap = Integer(Scalar(raw)); break;
+            case "rrc.filter_loaded_history": settings.RrcFilterLoadedHistory = Boolean(Scalar(raw)); break;
+            case "rrc.ephemeral_notices":
+                if (!double.TryParse(Scalar(raw), NumberStyles.Float, CultureInfo.InvariantCulture, out var minutes))
+                    throw new InvalidDataException("Invalid RRC ephemeral notice minutes.");
+                settings.RrcEphemeralNoticeMinutes = minutes;
+                break;
+            case "rrc.color_mention_timestamps": settings.RrcColorMentionTimestamps = Boolean(Scalar(raw)); break;
+            case "rrc.nick_colors": settings.RrcNickColors = Boolean(Scalar(raw)); break;
+            case "rrc.justify_msgs": settings.RrcJustifyMessages = Boolean(Scalar(raw)); break;
+            case "rrc.space_msgs": settings.RrcSpaceMessages = Boolean(Scalar(raw)); break;
+            case "rrc.show_gutters": settings.RrcShowGutters = Boolean(Scalar(raw)); break;
+            case "rrc.mention_color": settings.RrcMentionColor = Scalar(raw); break;
+            case "rrc.nick_colors_theme": settings.RrcNickColorsTheme = CommaValues(raw); break;
+            case "rrc.enable_esoterics": settings.RrcEnableEsoterics = Boolean(Scalar(raw)); break;
+            default: return false;
+        }
+        return true;
     }
 
     public static async Task<NomadNetConfigImportResult> ImportAsync(string configFile, string targetDirectory,

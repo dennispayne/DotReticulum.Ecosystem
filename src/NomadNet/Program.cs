@@ -512,6 +512,8 @@ internal static partial class Program
               rrc status | rrc history [room] | rrc disconnect | rrc reconnect
               rrc active <room|off> | rrc read <room> | rrc clear <room>
               rrc history-limit <0-1000>      Persist per-room retention (0: aggregate cap only)
+              rrc view [room] [color]         Styled bounded history; explicit color also emits ANSI to pipes
+              rrc pane users|channels on|off  Show/hide original view panes and configured gutters
               rrc auto-list <on|off> | rrc auto-who <on|off>
               help | quit
 
@@ -1346,6 +1348,7 @@ internal static partial class Program
 
         private async Task ExecuteRrcAsync(string command, CancellationToken cancellationToken)
         {
+            if (await TryHandleRrcViewAsync(command, cancellationToken).ConfigureAwait(false)) return;
             var rendering = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (rendering is ["render", "markdown" or "micron", "on" or "off"])
             {
@@ -1370,11 +1373,10 @@ internal static partial class Program
             {
                 if (parts.Length < 2) throw new ArgumentException("Use rrc connect <hub> [nick].");
                 if (_rrc is not null) await _rrc.DisposeAsync().ConfigureAwait(false);
-                _rrc = await RrcClient.OpenAsync(node, identity, dataDirectory, parts[1], cancellationToken).ConfigureAwait(false);
+                _rrc = await RrcClient.OpenAsync(node, identity, dataDirectory, parts[1], cancellationToken,
+                    propagation.Settings).ConfigureAwait(false);
                 _rrc.Log = message => { logging.Write(3, message); Console.WriteLine(NomadNetTerminalText.Safe(message)); };
-                _rrc.MessageReceived += message => Console.WriteLine($"RRC [{NomadNetTerminalText.Safe(message.Room ?? "hub")}] " +
-                    $"{NomadNetTerminalText.Safe(message.Nick ?? message.Source)}: " + NomadNetPresentation.Rrc(message.Text,
-                        propagation.Settings.RrcRenderMarkdown, propagation.Settings.RrcRenderMicron, message.Kind));
+                _rrc.MessageReceived += message => PrintRrcMessage(message, false);
                 if (parts.Length == 3) await _rrc.SetNickAsync(parts[2], cancellationToken).ConfigureAwait(false);
                 if (parts[0].Equals("connect", StringComparison.OrdinalIgnoreCase))
                     await _rrc.ConnectAsync(cancellationToken).ConfigureAwait(false);
@@ -1434,10 +1436,7 @@ internal static partial class Program
                     case "ping": await client.PingAsync(cancellationToken).ConfigureAwait(false); break;
                     case "history":
                         foreach (var message in await client.HistoryAsync(parts.Length >= 2 ? parts[1] : null, cancellationToken).ConfigureAwait(false))
-                            Console.WriteLine($"RRC history [{NomadNetTerminalText.Safe(message.Room ?? "hub")}] " +
-                                (message.ImportedHistory ? "(imported; unauthenticated) " : "") +
-                                $"{NomadNetTerminalText.Safe(message.Nick ?? message.Source)}: " + NomadNetPresentation.Rrc(message.Text,
-                                    propagation.Settings.RrcRenderMarkdown, propagation.Settings.RrcRenderMicron, message.Kind));
+                            PrintRrcMessage(message, true);
                         break;
                     default: throw new ArgumentException("Unknown/incomplete RRC command; use help.");
                 }

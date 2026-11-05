@@ -1,0 +1,71 @@
+{
+    "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+    "source_sha256": "9b2580f76310356d2e1a30b038857fbad4ee346aad9e2a25ab237515fff39928",
+    "method": "Actual AST-extracted gen_copy; actual menu supplies message_source.decode('utf-8') where source is saved content, before renderer transformations. Synthetic observing Clipboard/menu only; no Kivy renderer, OS clipboard, store or live-node claim",
+    "cases": [
+        {
+            "name": "unicode",
+            "content_hex": "52617720c3a60a6c696e6520cebb",
+            "copied": [
+                "Raw \u00e6\nline \u03bb"
+            ],
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error": null
+        },
+        {
+            "name": "markup",
+            "content_hex": "5b625d7261775b2f625d202a2a6d61726b646f776e2a2a2068747470733a2f2f6578616d706c652e696e76616c6964",
+            "copied": [
+                "[b]raw[/b] **markdown** https://example.invalid"
+            ],
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error": null
+        },
+        {
+            "name": "empty",
+            "content_hex": "",
+            "copied": [
+                ""
+            ],
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error": null
+        },
+        {
+            "name": "controls",
+            "content_hex": "72617700090d0a656e64",
+            "copied": [
+                "raw\u0000\t\r\nend"
+            ],
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error": null
+        },
+        {
+            "name": "clipboard-error",
+            "content_hex": "52657461696e2073656c65637465642074657874",
+            "copied": [],
+            "events": [
+                "copy"
+            ],
+            "error": "RuntimeError"
+        },
+        {
+            "name": "invalid-utf8",
+            "content_hex": "ff",
+            "copied": [],
+            "events": [],
+            "error": "UnicodeDecodeError"
+        }
+    ]
+}

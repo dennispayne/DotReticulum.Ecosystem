@@ -406,7 +406,7 @@ internal static class Program
         --smoke-announces  Render saved announce history offline; empty history fails; requires --smoke-ui and --data-dir.
         --smoke-voice-history  Render saved call assertions offline; empty history fails; requires --smoke-ui and --data-dir.
         --smoke-voice-peers  Render saved voice-only identities offline; empty lists fail; requires --smoke-ui and --data-dir.
-        --smoke-message-actions  Delete one saved message in an explicit test profile through normal UI controls offline; requires --smoke-ui.
+        --smoke-message-actions  Copy text into a private observation port and delete one test-profile entry offline; never touches the OS clipboard; requires --smoke-ui.
         --smoke-discovery  Connect to an explicit isolated config and render a cached discovery marker; empty caches fail.
         --smoke-remote  Explicit native-window command/reply/cancellation acceptance against a test peer; changes test-profile policy.
         --export-paper  Export a saved outgoing paper URI offline, or its QR PNG with --paper-qr; never overwrite.

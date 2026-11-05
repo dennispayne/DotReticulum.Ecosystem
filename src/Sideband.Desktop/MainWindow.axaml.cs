@@ -51,11 +51,14 @@ public sealed partial class MainWindow : Window
 
     public MainWindow(string dataDirectory, bool smokeUi = false) : this(dataDirectory, null, smokeUi) { }
 
-    public MainWindow(string dataDirectory, string? reticulumConfig, bool smokeUi = false, IAudioDeviceBackend? mediaBackend = null)
+    public MainWindow(string dataDirectory, string? reticulumConfig, bool smokeUi = false, IAudioDeviceBackend? mediaBackend = null,
+        Func<string, Task>? clipboardWriter = null)
     {
         InitializeComponent();
         _commandLineRnsConfig = string.IsNullOrWhiteSpace(reticulumConfig) ? null : Path.GetFullPath(reticulumConfig);
         _smokeUi = smokeUi;
+        _clipboardWriter = _smokeUi && Program.SmokeMessageActionsMode ? WriteSmokeClipboardAsync :
+            clipboardWriter ?? WriteDesktopClipboardAsync;
         _mediaBackend = mediaBackend;
         _store = new SidebandStateStore(dataDirectory);
         _client = new SidebandClient(_store, mediaBackend);

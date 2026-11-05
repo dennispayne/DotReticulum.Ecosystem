@@ -114,6 +114,7 @@ runtime evidence.
 
 | Contract | Status | Upstream contract and source |
 |---|---|---|
+| Selected raw-message text copy | implemented bounded subset | Exact saved content, not title/media/rendered markup, goes to the desktop clipboard provider. One pending provider operation, a five-second wait deadline, close cancellation and explicit errors also bound announcement copying. Executed primary callback, headless failure/ownership tests and selected Windows NativeAOT private-provider windows are separate from unverified OS clipboard round trips; `MainWindow.Clipboard.cs`, `sbapp/ui/messages.py:gen_copy`. |
 | Selected active-message cancellation | implemented bounded subset | Current-runtime peer/local-ID ownership and exact pending LXMF object checks stop queued/stamp work through a bounded API, original desktop action and native console extension. Historical/terminal/restarted refusal, capacity/identity cleanup, no-subscriber persistence, selected Windows NativeAOT actual-primary recovery/restart and headless draft preservation are separate evidence. Best effort is not recall/nonreceipt, primary GUI or current Linux replay acceptance. `SidebandClient.MessageCancellation.cs`, `LxmRouter.Policy.cs`, `sbapp/sideband/core.py:5136`, `LXMF/LXMRouter.py:1729`. |
 | Explicit failed-message text retry | implemented bounded subset | Confirmed desktop and native console extension create a new ordinary message with current settings, atomically replacing only a matching failed outgoing text entry after validation. Eight-request admission, cancellation/disconnect, duplicate selection, draft protection, current-policy queue refusal/recovery, actual primary reception/return and native restart are separately tested. No old media/title/hash replay, exactly-once crash guarantee or primary Kivy invocation; see selected retry below; `SidebandClient.MessageActions.cs`, `MainWindow.Messages.cs`, `sbapp/ui/messages.py:gen_retry`. |
 | App shell and interaction | partial | Original Avalonia UI provides Conversations, Contacts, Objects, Announce Stream, Connectivity, Backup & Keys, Preferences, Utilities, Guide, Voice, Telemetry, Map and Remote screens. Supported screens expose real local state and explicit errors; hardware/plugin management remain unavailable rather than simulated. Upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
@@ -2999,8 +3000,8 @@ owned cancellable console operation. Retry creates a fresh LXMF message with
 current direct/propagated, telemetry and reply-ticket policies; it does not
 replay the saved title, attachments, image, audio, timestamp or LXMF hash.
 The UI refuses to overwrite an existing text/media draft or silently reattach
-its content. Copy and complete rich-message/menu presentation remain
-separate required contracts.
+its content. Raw-text copying is separately implemented below; complete
+rich-message/menu presentation remains required.
 
 At primary `d069122af14880e43607aed0b71add4c7806fbe0`,
 `sbapp/ui/messages.py:895-906` copies UTF-8 content into the current composer,
@@ -3151,3 +3152,65 @@ changed announcements by1.1seconds; original cost, cancellation, delivery and
 restart assertions remain. No production transport guard was changed.
 The preceding accepted `1f9c8ad73de657c0039a46a6dde02de339034eb378bd9681cafa4a189f36bfee`
 candidate does not establish the final offline disposal-waiter correction.
+
+## Selected-message raw-text copy
+
+The original Conversations action copies the selected message's exact saved
+content, not its title, attachments, display fallback or rendered markup.
+Empty strings, Unicode and control characters are passed unchanged to the
+provider, up to the existing65,536-character message limit. Selection, drafts,
+history and media are not changed. The default provider is Avalonia's desktop
+clipboard; the application does not read it.
+
+At primary `d069122af14880e43607aed0b71add4c7806fbe0`,
+`sbapp/ui/messages.py:gen_copy` calls `Clipboard.copy` then dismisses its menu.
+The menu supplies saved UTF-8 content before rendering transformations. A
+clipboard exception prevents dismissal; invalid UTF-8 fails before callback
+creation. `GenerateMessageCopyVectors.py` executes that exact AST-extracted
+factory with observing Clipboard/menu boundaries, not Kivy, the OS clipboard
+or a live node. Source SHA-256 is
+`9b2580f76310356d2e1a30b038857fbad4ee346aad9e2a25ab237515fff39928`;
+the six-observation fixture SHA-256 is
+`447c0d4821e447aa9244fce6c68d6e2f424b248fc8245b89de00e668d1f5cc41`.
+
+Message and announcement copies share one backend-operation slot. A five-second
+wait timeout reports an error without admitting another write while the first
+backend remains pending. Window closure cancels the wait; it cannot recall an
+already accepted provider request. Late failures are observed/logged, and late
+completion does not update a closed window. Provider failure and recovery are
+explicit. This bounded ownership is an intentional native safety difference.
+
+C90/T470-T475 separates executed observations, headless exact-content/state
+checks, pending/error/recovery/deadline/closure checks, selected native windows
+and independent reference regeneration. Windows full Sideband2097/76 explicit
+skips, primary console4/0, strict NativeAOT/help and ordinary native console5/0
+pass. The same guarded executable passes additional cancellation/retry/deletion
+Pester5/0, including two actual-primary nested native cases and both regenerated
+fixtures. Separate copy/reference Pester2/0 includes four actual native window
+lifetimes with raw markup/Unicode, empty, NUL/control and maximum-length text.
+The existing two-restart deletion case also preserves identity, policy and
+shared attachment bytes.
+
+The explicit `--smoke-ui --smoke-message-actions --data-dir <synthetic-profile>`
+flow uses a **private observation provider**, verifies exact copied content,
+prints `SMOKE_UI_MESSAGE_COPY=private-port-exact-raw` and then exercises its
+existing confirmed local deletion. It never reads or changes the shared OS
+clipboard. These are native UI-path checks, **not OS-provider round-trip,
+primary GUI, new messaging/topology or physical clipboard acceptance**.
+Actual provider/platform behavior, including NUL handling, remains unverified;
+current Linux replay is blocked by WSL storage EIO.
+
+```powershell
+& artifacts\tests\sideband-console\Parent-CurrentConsole.ps1 -Managed -Run message-copy-final
+& artifacts\tests\sideband-message-copy\Accept-SelectedNative.ps1
+& artifacts\tests\sideband-message-cancellation\Accept-SelectedNative.ps1 -CandidateRun message-copy-final -Run parent-copy-final
+```
+
+Final executable SHA-256:
+`0c746481287d636b11f9fa257cf25773d8bf69f2ba07ffa515d33e54d67c2e33`;
+verification assembly SHA-256:
+`901ce3e75a0dc15521df342cd20c470913df4d0da610f5bb8402dedcba5294a4`.
+Exact source guards/logs and selected receipts are retained under
+`artifacts\tests\sideband-console\windows-message-copy-final`,
+`artifacts\tests\sideband-message-copy\parent-final` and
+`artifacts\tests\sideband-message-cancellation\parent-copy-final`.

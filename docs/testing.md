@@ -8,7 +8,39 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
-The current folder-permissions/pending-cancellation solution builds with zero warnings/errors and
+The copy/configuration development worktree passes2763 managed cases/151
+explicit skips, ordinary Pester/tooling, strict catalog aggregation and merged
+coverage with88 claims/419 selectors/five reference pins:
+
+```powershell
+& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-message-copy-unified -OutputDirectory artifacts\tests\fleet-message-copy-unified
+```
+
+This dirty-source run includes in-progress Nomad configuration contracts;
+their presence in a green whole-suite run does not accept or complete C89.
+Coverage unions10 reports by source identity:21091/28423 production lines
+and14124/22846 branches. Native/live/GUI opt-ins remain separate below.
+
+The C90 Sideband raw-copy candidate independently passes full2097/76,
+primary console4/0, strict NativeAOT/help and native console5/0 on Windows.
+Selected copy/reference Pester2/0 exercises four real native windows through a
+private clipboard observation provider, never the shared OS clipboard.
+Additional selected cancellation/retry/deletion Pester5/0 includes both
+actual-primary native/restart flows, both regenerated fixtures and real
+desktop deletion. Exact binary SHA-256:
+`0c746481287d636b11f9fa257cf25773d8bf69f2ba07ffa515d33e54d67c2e33`.
+Raw/empty/control/maximum content, one pending operation, five-second wait,
+failure recovery, close cancellation and state preservation have separate
+headless evidence. OS-provider round trips, primary Kivy and current Linux
+replay remain unverified; see [Sideband's reference](sideband.md#selected-message-raw-text-copy).
+
+```powershell
+& artifacts\tests\sideband-console\Parent-CurrentConsole.ps1 -Managed -Run message-copy-final
+& artifacts\tests\sideband-message-copy\Accept-SelectedNative.ps1
+& artifacts\tests\sideband-message-cancellation\Accept-SelectedNative.ps1 -CandidateRun message-copy-final -Run parent-copy-final
+```
+
+The preceding folder-permissions/pending-cancellation solution builds with zero warnings/errors and
 passes2748 managed cases/151 explicit skips on Windows:
 
 ```powershell

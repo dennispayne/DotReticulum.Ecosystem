@@ -100,6 +100,8 @@
                 <ListBox x:Name="MessageList" MinHeight="240" SelectionChanged="MessageSelectionChanged" />
                 <TextBox x:Name="MessageDetailsBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
                          MaxHeight="160" PlaceholderText="Select a message to inspect its saved text and metadata." />
+                <Button x:Name="CopyMessageButton" Content="Copy selected message text" IsEnabled="False" Click="CopyMessageClicked"
+                         ToolTip.Tip="Copies the exact saved text, including raw markup or empty content. Does not copy title, attachments or a paper URI." />
                 <CheckBox x:Name="ConfirmDeleteMessageBox" Content="Confirm removal of this selected local history entry" />
                 <Button x:Name="DeleteMessageButton" Content="Delete selected message" Click="DeleteMessageClicked"
                         ToolTip.Tip="Removes local history only. Does not recall or cancel delivery, erase shared media files or delete the conversation." />

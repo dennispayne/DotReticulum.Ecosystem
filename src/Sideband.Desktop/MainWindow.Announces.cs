@@ -1,7 +1,6 @@
 using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.Input.Platform;
 using Sideband;
 
 namespace Sideband.Desktop;
@@ -114,8 +113,7 @@ public sealed partial class MainWindow
 
     private void CopyAnnounceClicked(object? sender, RoutedEventArgs e) => RunAnnounceOperation(async () =>
     {
-        var clipboard = GetTopLevel(this)?.Clipboard ?? throw new InvalidOperationException("The desktop clipboard is unavailable.");
-        await clipboard.SetTextAsync(SelectedAnnounce().DestinationHash);
+        await WriteClipboardTextAsync(SelectedAnnounce().DestinationHash);
         AnnouncesStatusText.Text = "Destination address copied.";
     });
 

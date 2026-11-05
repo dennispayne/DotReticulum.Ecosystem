@@ -11,6 +11,7 @@ public sealed partial class MainWindow
     private void UpdateRetryAvailability()
     {
         var index = MessageList.SelectedIndex;
+        CopyMessageButton.IsEnabled = !_closing && _clipboardWriteTask.IsCompleted && index >= 0 && index < _visibleMessages.Count;
         RetryMessageButton.IsEnabled = !_closing && !_messageRetryRunning && _client.IsConnected &&
             index >= 0 && index < _visibleMessages.Count && SidebandMessageActions.CanRetryText(_visibleMessages[index]);
         CancelMessageButton.IsEnabled = !_closing && index >= 0 && index < _visibleMessages.Count &&
@@ -92,6 +93,10 @@ public sealed partial class MainWindow
             MessageList.SelectedIndex = _visibleMessages.ToList().FindIndex(message => message.Id == selected.Id);
             if (MessageDetailsBox.Text?.Contains(selected.Id.ToString(), StringComparison.Ordinal) != true)
                 throw new InvalidOperationException("Selected message details were not populated.");
+            await CopySelectedMessageTextAsync();
+            if (_smokeClipboardText != selected.Content)
+                throw new InvalidOperationException("Message copy did not preserve the exact selected raw text in the private observation port.");
+            Console.WriteLine("SMOKE_UI_MESSAGE_COPY=private-port-exact-raw");
             try
             {
                 await DeleteSelectedMessageAsync();

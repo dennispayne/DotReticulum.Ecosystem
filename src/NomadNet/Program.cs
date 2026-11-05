@@ -365,7 +365,8 @@ internal static partial class Program
                         try
                         {
                             Console.WriteLine($"Conversation received: {NomadNetTerminalText.Safe(message.Title)} " +
-                                NomadNetPresentation.Conversation(content, NomadNetPresentation.Renderer(message.Fields)));
+                                NomadNetPresentation.Conversation(content, NomadNetPresentation.Renderer(message.Fields),
+                                    settings(), !headless && !Console.IsOutputRedirected));
                             await observeImage(stored, cancellationToken).ConfigureAwait(false);
                         }
                         catch (Exception exception)
@@ -476,12 +477,14 @@ internal static partial class Program
               bookmark [title] | bookmarks | open-bookmark <number>
               fetch <hash> <file-path> <name> Download a bounded /file response
               node paths|refresh|announce     Inspect, refresh or announce hosted content
+              node stats [reset]             Show counters or reset connections/pages/files; retain media
               node-config                    Show saved hosting limits (applied at startup)
               node-config transfer|sync <KB> | node-config storage <MB>
               node-config cost <13-256> | node-config peers <default|0-65536>
               node-config static|priority <hash> <on|off>
               node-peers                     Inspect actual hosted propagation peers
               node-peer-sync <hash>          Request peer transfer through LXMF (three-minute deadline)
+              node-unpeer <hash>             Remove an active or retained unresolved propagation peer
               edit open|new <pages|files> <relative-path> | edit resume
               edit text <JSON-string> | edit insert <offset> <JSON-string>
               edit show|preview|save|status | edit close save|discard|cancel
@@ -506,7 +509,8 @@ internal static partial class Program
               edit folder permissions inspect <pages|files> <relative>
               edit folder permissions apply <token> confirm <JSON-identities>
               edit folder permissions public <token> confirm
-              guide [topics|links|open <number>|back|<topic>#<anchor>]
+              guide [topics|links|open <number>|select <number>|back|forward|next|<topic>#<anchor>]
+              guide view [1–100] | guide scroll <-10000..10000> | guide find <words>
                                              Original local documentation, no upstream assets
               rrc connect <hub> [nick]        Connect to an identified rrc.hub
               rrc hubs | rrc open <hub>       List or inspect saved hubs/history without connecting
@@ -717,6 +721,8 @@ internal static partial class Program
                 if (router.PropagationNode is { } stored) Console.WriteLine($"Propagation stored messages: {stored.MessageCount}");
                 return false;
             }
+            if (await HandleHostedStatisticsAsync(command, host, cancellationToken).ConfigureAwait(false))
+                return false;
             if (command.Equals("node-config", StringComparison.OrdinalIgnoreCase) ||
                 command.StartsWith("node-config ", StringComparison.OrdinalIgnoreCase))
             {
@@ -741,16 +747,34 @@ internal static partial class Program
             {
                 if (router.PropagationNode is not { } running) throw new InvalidOperationException("Propagation hosting is disabled.");
                 foreach (var peer in running.Peers)
+                {
                     Console.WriteLine($"Peer {Convert.ToHexStringLower(peer.DestinationHash)}: alive={peer.Alive}; state={peer.State}; handled={peer.HandledCount}; unhandled={peer.UnhandledCount}; outgoing={peer.Outgoing}; incoming={peer.Incoming}; tx={peer.TxBytes}; rx={peer.RxBytes}.");
+                    Console.WriteLine(FormattableString.Invariant($"  last-heard={peer.LastHeard}; last-sync-attempt={peer.LastSyncAttempt}; next-sync-attempt={peer.NextSyncAttempt}; backoff={peer.SyncBackoff}; transfer-limit-KB={peer.TransferLimitKilobytes}; sync-limit-KB={peer.SyncLimitKilobytes}; stamp-cost={peer.StampCost}; stamp-flexibility={peer.StampFlexibility}; acceptance-percent={peer.AcceptanceRate * 100:F2}; sync-rate-bps={peer.SyncTransferRate}; link-rate-bps={peer.LinkEstablishmentRate}."));
+                }
                 Console.WriteLine($"Propagation peers: {running.Peers.Count}.");
+                Console.WriteLine($"Unresolved propagation peers: {running.UnresolvedPeers.Count}.");
+                return false;
+            }
+            if (command.StartsWith("node-unpeer ", StringComparison.OrdinalIgnoreCase))
+            {
+                if (router.PropagationNode is not { } running) throw new InvalidOperationException("Propagation hosting is disabled.");
+                cancellationToken.ThrowIfCancellationRequested();
+                var hash = Convert.FromHexString(NomadNetAddress.NormalizeHash(command["node-unpeer ".Length..].Trim()));
+                if (!running.Unpeer(hash, DateTimeOffset.UtcNow.ToUnixTimeSeconds()))
+                    throw new InvalidOperationException("Propagation peer was not removed: it is absent or its peering timebase is newer than the current clock.");
+                Console.WriteLine("Propagation peer removed: " + Convert.ToHexStringLower(hash) +
+                    ". This does not blacklist it or edit configured static peers; later discovery or restart can peer again.");
                 return false;
             }
             if (command.StartsWith("node-peer-sync ", StringComparison.OrdinalIgnoreCase))
             {
                 if (router.PropagationNode is not { } running) throw new InvalidOperationException("Propagation hosting is disabled.");
                 var hash = Convert.FromHexString(NomadNetAddress.NormalizeHash(command["node-peer-sync ".Length..].Trim()));
-                if (!running.Peers.Any(peer => peer.DestinationHash.AsSpan().SequenceEqual(hash)))
+                var peer = running.Peers.FirstOrDefault(peer => peer.DestinationHash.AsSpan().SequenceEqual(hash));
+                if (peer is null)
                     throw new InvalidOperationException("Select an existing propagation peer.");
+                if (!NomadNetPeerControls.CanSynchronize((DateTimeOffset.UtcNow - DateTimeOffset.UnixEpoch).TotalSeconds, peer.LastSyncAttempt))
+                    throw new InvalidOperationException("Propagation peer sync requires more than ten seconds since the last attempt.");
                 using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 deadline.CancelAfter(TimeSpan.FromMinutes(3));
                 var transferred = await running.SynchronizePeerAsync(hash, deadline.Token).ConfigureAwait(false);
@@ -1136,7 +1160,7 @@ internal static partial class Program
             if (command.Equals("links", StringComparison.OrdinalIgnoreCase)) { ShowLinks(); return false; }
             if (command.Equals("page", StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine((_page ?? throw new InvalidOperationException("Browse a page first.")).DisplayText);
+                Console.WriteLine(PresentPage(_page ?? throw new InvalidOperationException("Browse a page first.")));
                 return false;
             }
             if (command.Equals("partials", StringComparison.OrdinalIgnoreCase))
@@ -1166,14 +1190,14 @@ internal static partial class Program
             }
             if (command.StartsWith("anchor ", StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine((_browser ?? throw new InvalidOperationException("Browse a page first.")).AtAnchor(command[7..]));
+                Console.WriteLine(PresentAnchor(command[7..]));
                 return false;
             }
             if (command.StartsWith("fold ", StringComparison.OrdinalIgnoreCase))
             {
                 var page = _page ?? throw new InvalidOperationException("Browse a page first.");
                 _browser!.ToggleFold(ParseIndex(command[5..], page.Folds.Count));
-                Console.WriteLine(_inlineImages?.Render(page) ?? page.DisplayText);
+                Console.WriteLine(PresentPage(page));
                 return false;
             }
             if (command.StartsWith("partial ", StringComparison.OrdinalIgnoreCase))
@@ -1256,7 +1280,7 @@ internal static partial class Program
                 var target = link.Target;
                 if (target.StartsWith('#'))
                 {
-                    Console.WriteLine(_browser!.AtAnchor(target[1..]));
+                    Console.WriteLine(PresentAnchor(target[1..]));
                     return false;
                 }
                 if (target.StartsWith("p:", StringComparison.Ordinal))
@@ -1557,7 +1581,8 @@ internal static partial class Program
             foreach (var message in messages)
             {
                 Console.WriteLine($"{message.Timestamp:u} {message.Direction} {message.PeerHash} [{message.Status}] {NomadNetTerminalText.Safe(message.Title)}");
-                Console.WriteLine(NomadNetPresentation.Conversation(message.Content, message.Renderer));
+                Console.WriteLine(NomadNetPresentation.Conversation(message.Content, message.Renderer,
+                    propagation.Settings, !Console.IsOutputRedirected));
                 if (message.HistoricalAuthentication is { } authentication)
                     Console.WriteLine($"Imported history {message.Id}: {authentication}; cached primary signature claim: {message.HistoricalSignatureValidated?.ToString() ?? "absent"} (not fresh verification).");
                 try
@@ -1669,11 +1694,11 @@ internal static partial class Program
                 if (!ReferenceEquals(_browser, browser)) return;
                 _inlineImages?.Show(updated, ShouldLoadInlineImages(origin));
                 Console.WriteLine("--- partials updated ---");
-                Console.WriteLine(_inlineImages?.Render(updated) ?? updated.DisplayText);
+                Console.WriteLine(PresentPage(updated));
             };
             Console.WriteLine($"--- {_currentNode}:{_currentPath} ---");
             if (cached is not null) Console.WriteLine("(cached page)");
-            Console.WriteLine(page.DisplayText);
+            Console.WriteLine(PresentPage(page));
             ShowLinks();
             StartInlineImages(page, origin);
             browser.Start();
@@ -1681,6 +1706,20 @@ internal static partial class Program
 
         private bool ShouldLoadInlineImages(string origin) => NomadNetImagePolicy.ShouldLoad(propagation.Settings.ImageLoading,
             host is not null && host.DestinationHash == origin, _pageMetrics);
+
+        private int MicronColumns => Console.IsOutputRedirected ? 80 : Math.Clamp(Console.WindowWidth, 8, 160);
+
+        private string PresentPage(NomadNetRenderedPage page, int startRow = 0) =>
+            _inlineImages?.Render(page, propagation.Settings, !Console.IsOutputRedirected, MicronColumns, startRow)
+            ?? page.Present(propagation.Settings, !Console.IsOutputRedirected, MicronColumns, startRow: startRow);
+
+        private string PresentAnchor(string name)
+        {
+            var browser = _browser ?? throw new InvalidOperationException("Browse a page first.");
+            var page = browser.Current;
+            _ = page.AtAnchor(name);
+            return PresentPage(page, page.Anchors[name]);
+        }
 
         private void StartInlineImages(NomadNetRenderedPage page, string origin)
         {
@@ -1693,13 +1732,14 @@ internal static partial class Program
                     new Dictionary<object, object?> { ["path"] = target.Path, ["key"] = null }, NomadNetHost.MaximumFileBytes, ct),
                     reload, token).ConfigureAwait(false);
                 return await new NomadNetImages(propagation.Settings.MediaConverter, Path.Combine(dataDirectory, "storage", "image-work"))
-                    .PreviewAsync(bytes, cancellationToken: token).ConfigureAwait(false);
+                    .PreviewAsync(bytes, columns: MicronColumns, cancellationToken: token, descriptor: image,
+                        terminalRows: Console.IsOutputRedirected ? 32 : Math.Clamp(Console.WindowHeight, 1, 4096)).ConfigureAwait(false);
             }) { Log = message => logging.Write(1, message) };
             images.Changed += updated =>
             {
                 if (!ReferenceEquals(_inlineImages, images)) return;
                 Console.WriteLine("--- inline images updated ---");
-                Console.WriteLine(images.Render(updated));
+                Console.WriteLine(PresentPage(updated));
             };
             _inlineImages = images;
             images.Start();

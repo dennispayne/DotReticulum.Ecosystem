@@ -24,6 +24,8 @@ public sealed class NomadNetPageFold(int row, int endRow, int depth, bool collap
     public int Row { get; } = row;
     public int EndRow { get; internal set; } = endRow;
     public int Depth { get; } = depth;
+    public string OpenGlyph { get; init; } = "▾";
+    public string ClosedGlyph { get; init; } = "▸";
     public bool Collapsed
     {
         get => Source?.Collapsed ?? _collapsed;
@@ -35,7 +37,7 @@ public sealed record NomadNetPagePartial(string? Id, string Target, double? Refr
 {
     internal int Row { get; init; }
 }
-public sealed record NomadNetPageMedia(string Alt, string Target);
+public sealed partial record NomadNetPageMedia(string Alt, string Target);
 internal sealed record MicronInlineToken(int Row, int Column, int Length, string Kind, int Index);
 
 public sealed partial record NomadNetRenderedPage
@@ -46,6 +48,8 @@ public sealed partial record NomadNetRenderedPage
     public IReadOnlyList<NomadNetPagePartial> Partials { get; init; } = [];
     public IReadOnlyList<NomadNetPageMedia> Media { get; init; } = [];
     internal IReadOnlyList<MicronInlineToken> Tokens { get; init; } = [];
+    public IReadOnlyList<MicronStyleSpan> Styles { get; init; } = [];
+    public IReadOnlyList<MicronRowStyle> RowStyles { get; init; } = [];
 
     public string DisplayText => string.Join('\n', DisplayRows().Where((_, row) =>
         !Folds.Any(fold => fold.Collapsed && row > fold.Row && row < fold.EndRow)));

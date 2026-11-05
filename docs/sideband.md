@@ -63,6 +63,219 @@ policies, telemetry and drafts; deletion additionally removes peer telemetry
 and conversation policies, and explicitly refuses an unsent draft/attachment.
 Neither action cancels delivery, recalls remote copies or erases shared media.
 
+## Explicit automatic propagation telemetry (C105)
+
+The original Telemetry screen offers a default-off propagation source and an
+explicit identity-file path. Native settings
+`dotreticulum_propagation_telemetry` and `dotreticulum_propagation_identity`
+round-trip through existing settings exchange; these are **native extensions**,
+not primary plugin settings or implicit activation of an imported Python plugin.
+Paths are normalized and bounded to4096 characters. Saving while offline or with
+master telemetry disabled never reads or creates the selected file. Connected
+collection requires both opt-ins and an existing64-byte identity file; no
+Sideband/default-daemon identity fallback exists.
+
+The source borrows the current router and owns the separately loaded identity.
+Disabling, disconnecting, replacing the path or disposing joins the exact pending
+query before disposing that identity and clears obsolete readings. Background
+queries preserve primary sensor0x18's status-map shape,300-second **last-attempt**
+throttle and18-second worker wake; ordinary refresh/status inspection never
+forces network work. Last successful data may remain stale after a failed query.
+Original desktop and `telemetry sensors` diagnostics distinguish disabled,
+disconnected, unavailable identity and active states without exposing key bytes
+or raw exception/path details.
+
+```text
+config set sensors propagation_identity 'C:\explicit\identity'
+config set sensors propagation true
+telemetry on
+telemetry sensors
+config set sensors propagation false
+```
+
+Independent vectors execute pinned `sense.py:LXMFPropagation`,
+`docs/example_plugins/lxmd_telemetry.py` and actual LXMF status compilation.
+The sensor source SHA-256 is
+`80418b1aa4de638f2c65f1bd64e5ea0466378a6f0bc682781672ef89b93a7dab`;
+the example plugin is
+`c79515d650e3ccd09d511c92e5f0010fd417f95d86e534bdad62845fd0123277`.
+Synthetic clocks/query results and suppressed worker launch are disclosed in
+the fixture; runtime single-flight, cadence, stale retention, cancellation,
+replacement and observer isolation are separate tests. Actual primary
+`lxmd.program_setup`/`query_status` run unmodified on their required Python main
+thread. Denial changes only the allowed-list policy: the pinned
+`disallow_control` helper itself has a `list.pop(bytes)` defect.
+Primary unauthorized queries time out; existing native control explicitly
+returns access denied. Application recovery toggles source opt-in rather than
+bypassing cadence. Direct Windows published-application evidence is separate
+from live five-minute stale-error retention, hop/loss, hardware, current Linux,
+primary GUI and arbitrary Python-plugin ABI, none of which this slice proves.
+
+Parent-independent current-source application acceptance passes30 selected cases
+without skips on Windows NativeAOT SHA-256
+`e7fd33ac23008bf393e53fe2ca32427866d368d3d094edc09f5758c8a9f4e239`:
+
+```powershell
+pwsh -NoProfile -File tests\Pester\Invoke-SidebandPropagationTelemetryApplicationAcceptance.ps1 -Candidate artifacts\tests\sideband-propagation-telemetry\parent-current\candidate.json -OutputDirectory artifacts\tests\sideband-propagation-telemetry\parent-current\independent
+```
+
+The candidate guards452 production inputs, including five shared printing
+helpers. It includes sanitized unavailable-identity desktop/console diagnostics;
+older pre-integration application receipts are not reused.
+
+## Explicit local selected-paper printing (C108)
+
+Preferences holds a local default-off print policy and a reviewed executable/
+argument string. Enabling or changing it requires explicit executable approval;
+each selected original outgoing paper requires fresh confirmation bound to its
+saved URI and the exact reviewed command. Selection/policy changes consume
+consent. Historical imported envelopes remain warning-bearing export-only
+records. Passive imported `print_command` never activates or replaces an
+approved executable. Printing does not alter drafts, attachments, delivery state
+or history.
+
+The same profile-owned service supports the native maintenance extension:
+
+```text
+sideband --print-paper <saved-message-id> --data-dir <profile> --confirm-print-command <exact-reviewed-local-command>
+```
+
+It reuses five original source-linked `Shared\Printing` helpers extracted from
+NomadNet, without a new dependency/project or a second printing implementation.
+No shell is used; exactly one private PNG filename is appended to parsed argv.
+Bounds are4096 command characters,64 arguments,2MiB per job,64KiB output per
+stream, eight admitted operations/eight queue slots and a15-second default
+deadline (at most one minute). Private jobs, exclusive workspace ownership,
+process-tree containment, cancellation/disposal joining, stale recovery and
+explicit failure/recovery are software contracts. Successful process exit is
+not proof that paper emerged from a printer or that a message was delivered.
+
+Actual primary `messages.py:gen_print_qr` and settings/default observations use
+real LXMF packing/QR generation, `shlex`, subprocess and unlink, with synthetic
+surrounding owner/menu state. Original connected headless controls and published
+private process sinks are separate evidence; no physical printer/scanner,
+primary GUI, new live delivery or current Linux execution is claimed.
+
+Parent-independent frozen Windows acceptance passes16 selected cases without
+skips,34 shared printing cases/1 Linux skip and5 Pester cases without skips.
+Full Sideband2380/95 and Nomad491/35 explicit skips pass separately; the
+receipt counts individual TRX results and records every skip reason, not the
+adapter's aggregate zero. Native SHA-256 is
+`fbd27623c8a0e2ec35aad6b73dd90e563c3dae697d0215979fa380f221f273bb`:
+
+```powershell
+pwsh -NoProfile -File tests\Pester\Invoke-SidebandPrintingAcceptance.ps1 -Candidate artifacts\tests\sideband-printing\parent-final\candidate.json -OutputDirectory artifacts\tests\sideband-printing\parent-final\independent
+```
+
+## Measured native messaging service endurance (C106)
+
+The explicitly enabled `SidebandEnduranceNativeTests` workload passes against
+the exact C103 native binary
+`f94d8847230f7a4a86d842abcaae93cdc49860760de71dfa43d51adc8a36f2bb`.
+Ten minute-spaced bidirectional actual-primary application exchanges keep the
+same two processes alive for600.027 seconds. The complete case takes10m53s.
+After a clean primary exit, a native send reaches terminal `Failed` without
+disabling the router. A replacement primary with a different identity exchanges
+messages both ways; native restart retains its identity, all23 messages and
+their captured telemetry snapshots. Hash checks precede and follow execution.
+
+```powershell
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --no-build --no-restore --artifacts-path artifacts\builds\sideband-endurance --filter FullyQualifiedName~SidebandEnduranceNativeTests --logger "trx;LogFileName=service.trx" --results-directory artifacts\tests\sideband-endurance\selected
+```
+
+In addition to the documented live reference variables, select
+`DOTRETICULUM_SIDEBAND_ENDURANCE=1`, `DOTRETICULUM_SIDEBAND_BINARY`,
+`DOTRETICULUM_SIDEBAND_ENDURANCE_SHA256` and
+`DOTRETICULUM_SIDEBAND_ENDURANCE_RESULTS`. The dedicated managed assembly must
+first be built at that artifacts path. The default ordinary run explicitly
+skips this fifteen-minute-deadline workload.
+Actual primary import verification remains mandatory. This additional workload
+does not retroactively change C103's earlier frozen managed-input manifest.
+The retained `selected\service-25ae341de88042469bd7cd4b05372cc0` receipts record
+the measured duration and recovered state; `selected\service.trx` records1/0/0.
+This is direct loopback TCP, not same-peer restart, packet loss, a transport
+hop, physical sensors, days-long service or current Linux acceptance.
+
+## Selected-message captured telemetry and copy (C103)
+
+Each ordinary outgoing message saves its exact included telemetry field.
+Authorized, signature-validated incoming messages save their own normalized
+report, including received/link observations, independently of the global
+latest-source telemetry store. A later report, clearing that store or restarting
+does not replace this immutable message snapshot. Invalid stream metadata is
+reported separately and no longer discards a valid own-message snapshot.
+Existing text/media admission and telemetry privacy gates remain authoritative;
+legacy history without a snapshot does not invent one from newer reports.
+
+The original **Copy selected telemetry** control copies the selected report's
+readings, not rendered presentation or the current source report. It shares the
+existing single owned clipboard write, five-second wait deadline, close
+cancellation and explicit failure/recovery behavior with raw-text copying.
+No sensor or network query is made. Decoding retains the262144-byte packed
+limit and16-level nesting limit; copy text is bounded to1048576 characters
+and never silently truncated. Supported values retain Python-style readable
+dictionary/list/bytes/string/finite-number representations and insertion order.
+Unknown sensors are omitted like primary `Telemeter.read_all()`.
+
+Offline primary-profile import prefers valid `extras.packed_telemetry` over
+the raw field, retaining a valid fallback and reporting malformed extras.
+Observed `q/rssi/snr` extras replace/synthesize physical-link data using the
+primary UI's one-decimal float rounding. Live snapshots apply the same copy
+rounding without changing the existing global telemetry observation store.
+The primary's all-zero observation non-persistence is retained; explicitly
+saved zero extras still activate during import. Unknown extras remain inert.
+The optional native `TelemetryHex` history property is backward-loadable under
+schema1; existing history is not retroactively matched to telemetry.
+
+Sixty-nine executed primary observations preceded the initial implementation;
+an additional executed UI-rounding case brings the corpus to70, covering all
+sensor shapes, unknowns, physical-link replacement/zero/rounding, missing data,
+float boundaries, Unicode/control strings and binary values.
+`GenerateMessageTelemetryVectors.py` executes the actual AST-extracted
+`gen_copy_telemetry` callback and UI link-rounding assignments plus imported
+`Telemeter.from_packed/read_all`. Synthetic Clipboard/menu/logger ownership
+does not establish primary GUI or OS clipboard acceptance. Primary
+`messages.py` SHA-256 is
+`9b2580f76310356d2e1a30b038857fbad4ee346aad9e2a25ab237515fff39928`;
+`sense.py` is
+`80418b1aa4de638f2c65f1bd64e5ea0466378a6f0bc682781672ef89b93a7dab`,
+at Sideband `d069122af14880e43607aed0b71add4c7806fbe0`.
+Unlike the primary's error-string clipboard fallback, native errors are visible
+without writing success-shaped replacement content.
+
+Strict managed/Windows NativeAOT builds pass without warnings/errors using
+SDK10.0.403/ILCompiler10.0.14. Exact native SHA-256:
+`df44e6a9cef21ac012deeda2f51b9163dcd721e4fcca2a336a7f44d3347e2e97`,
+versioning HEAD `10e890f`, stack `4989f050aed865d16ed9f1460071c1a63cd4c7e9`.
+Parent-independent frozen acceptance passes **84 selected cases/0 skips and
+4 Pester cases/0 skips**. Normal application messages carry telemetry both
+ways over direct TCP to the actual primary core; newer reports, clean/abrupt
+native restart, malformed-stream isolation and native import of actual primary
+SQLite backups retain independently observed per-message readings. The primary
+is unchanged; new adapter commands only inspect actual saved messages/call
+`Telemeter`. Its same-second send suppression is respected by waiting for a new
+source timestamp, not weakening snapshot assertions.
+
+Six separate offline native windows use a private clipboard port: two copy
+different snapshots across restart against primary-generated hashes while
+preserving a legacy message; four regress exact raw/empty/control/bounded text.
+They never touch the shared OS clipboard. Full Sideband regression separately
+passes2380 cases/95 explicit skips; ordinary skips are not native/live passes.
+Repository-configured PowerShell analysis passes for both new PowerShell files.
+
+```powershell
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --no-build --no-restore --artifacts-path artifacts\builds\sideband-message-telemetry --nologo -v:q --logger "trx;LogFileName=full.trx" --results-directory artifacts\tests\sideband-message-telemetry\full
+pwsh -NoProfile -File tests\Pester\Invoke-SidebandMessageTelemetryAcceptance.ps1 -Candidate artifacts\tests\sideband-message-telemetry\final\candidate.json -OutputDirectory artifacts\tests\sideband-message-telemetry\parent-final
+```
+
+The final receipt freezes437 production/toolchain inputs,305 acceptance inputs,
+1179 reference inputs and91 managed artifacts, with before/after guards and
+the exact candidate/native/SDK/compiler identities. The earlier failed live
+same-second harness, overly specific limit-exception expectation and quoted
+Unicode Git-path freeze attempt remain recorded, not relabelled as passes.
+No new hop/loss, primary GUI, OS clipboard, physical sensor or current Linux
+replay is claimed. Existing telemetry/collector/hop evidence remains separate.
+
 ## Bounded rich-message formatting
 
 Ordinary text/file/image/audio sends now apply the actual primary selection
@@ -272,6 +485,7 @@ runtime evidence.
 | Local conversation clearing/deletion | implemented bounded subset | Actual primary clear/delete and three SQL methods execute on private SQLite, including repeated/unknown targets. Original desktop controls reuse the existing native client, admit one pending action and reset confirmation on selection changes. Real telemetry, unrelated history, draft protection, headless controls, offline restart and selected Windows NativeAOT window checks are separate from new network/primary GUI/Linux evidence; see below; `MainWindow.ConversationActions.cs`, `sbapp/sideband/core.py:1346-1358,3061-3092`, `sbapp/ui/conversations.py:168-220`. |
 | Conversation appearance policies | implemented bounded subset | `display_style_in_contact_list` and `display_style_from_all` activate strict atomic settings/profile persistence and original Preferences. Original text badges show effective icon names/colors while preserving explicit trust/unread labels.96 executed primary policy observations, headless immediate-save/state/restart and selected Windows NativeAOT rendering are separate from copied assets, full schema/presentation, primary GUI or current Linux evidence; `SidebandConversationAppearance.cs`, `MainWindow.ConversationAppearance.cs`, `sbapp/ui/conversations.py:trust_icon,get_icon_colors`. |
 | Selected raw-message text copy | implemented bounded subset | Exact saved content, not title/media/rendered markup, goes to the desktop clipboard provider. One pending provider operation, a five-second wait deadline, close cancellation and explicit errors also bound announcement copying. Executed primary callback, headless failure/ownership tests and selected Windows NativeAOT private-provider windows are separate from unverified OS clipboard round trips; `MainWindow.Clipboard.cs`, `sbapp/ui/messages.py:gen_copy`. |
+| Selected-message telemetry copy | implemented bounded subset | Immutable outgoing/raw and authorized incoming/normalized snapshots survive newer global reports, clearing and restart. Primary extras precedence/link rounding activate during offline import. Seventy actual-primary callback/readings observations, bounded formatter/storage/profile/headless tests, selected Windows NativeAOT actual-primary normal messages both ways/clean-abrupt restart/malformed-stream/native-profile import and private-provider windows are separate evidence. Legacy messages never borrow latest-source telemetry; explicit native errors replace primary error-string clipboard fallback. No new hop/loss, OS clipboard, physical sensor, primary GUI or current Linux claim; see C103 above; `SidebandMessageTelemetry.cs`, `MainWindow.Clipboard.cs`, `sbapp/ui/messages.py:590–638,670–691,gen_copy_telemetry`. |
 | Selected active-message cancellation | implemented bounded subset | Current-runtime peer/local-ID ownership and exact pending LXMF object checks stop queued/stamp work through a bounded API, original desktop action and native console extension. Historical/terminal/restarted refusal, capacity/identity cleanup, no-subscriber persistence, selected Windows NativeAOT actual-primary recovery/restart and headless draft preservation are separate evidence. Best effort is not recall/nonreceipt, primary GUI or current Linux replay acceptance. `SidebandClient.MessageCancellation.cs`, `LxmRouter.Policy.cs`, `sbapp/sideband/core.py:5136`, `LXMF/LXMRouter.py:1729`. |
 | Explicit failed-message text retry | implemented bounded subset | Confirmed desktop and native console extension create a new ordinary message with current settings, atomically replacing only a matching failed outgoing text entry after validation. Eight-request admission, cancellation/disconnect, duplicate selection, draft protection, current-policy queue refusal/recovery, actual primary reception/return and native restart are separately tested. No old media/title/hash replay, exactly-once crash guarantee or primary Kivy invocation; see selected retry below; `SidebandClient.MessageActions.cs`, `MainWindow.Messages.cs`, `sbapp/ui/messages.py:gen_retry`. |
 | App shell and interaction | partial | Original Avalonia UI provides Conversations, Contacts, Objects, Announce Stream, Connectivity, Backup & Keys, Preferences, Utilities, Guide, Voice, Telemetry, Map and Remote screens. Supported screens expose real local state and explicit errors; hardware/plugin management remain unavailable rather than simulated. Upstream layouts/assets are not copied; `src/Sideband.Desktop/MainWindow.axaml`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py`, `sbapp/ui/*.py`, `sbapp/*.kv`. |
@@ -281,6 +495,7 @@ runtime evidence.
 | Incoming transfer-size configuration | implemented bounded subset | Primary `lxm_limit_1mb` maps decimal1000/128000KB onto startup and mutable router admission/retrieval, atomic settings/profile persistence and original Preferences. Windows/Linux actual primary oversize refusal, larger-policy recovery both ways and native identity restart pass direct/Python-hop/.NET-hop; separate native offline settings/profile flows pass.128MB payload acceptance is not established, and existing attachment/local-storage bounds remain; `SidebandDeliveryConfiguration.cs`, `SidebandClient.Delivery.cs`, `MainWindow.Delivery.cs`, `sbapp/sideband/core.py:start_reticulum,_update_delivery_limits`. |
 | Text, image/file and audio messages | implemented bounded subset | Text/files, WebP image preparation/preview, Ogg Opus and Codec2 composition/decoding, explicit 10-second recording/playback/cancellation, content-addressed persistence and explicit exports. Actual Python Sideband core sends/receives images and both audio families directly/through a Python propagation transport; actual Pillow/audioproc decode native output. Published binaries decode imported media and render images. Device tests use fakes; physical capture/acoustics remain unverified. Unknown audio is retained/exportable but playback fails explicitly; no autoplay. See media limits below; `src/Sideband/SidebandMedia*.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py:message_send_dispatch`, `sbapp/sideband/audioproc.py`, `sbapp/sideband/core.py:5189–5196`. |
 | Paper messages and `lxm://` imports | implemented bounded subset | Connected paper text creation and local duplicate-aware import reuse LXMF; saved URI/QR display and non-overwriting exports work offline and survive restart. Bounded historical outgoing primary envelopes restore exact exports with persisted imported provenance and CLI/UI warnings. Actual primary daemon-core creation/ingestion both ways, trust on/off and process restart pass separately from historical migration/export/recipient-ingestion acceptance. Nonlocal envelopes are unauthenticated and not forwarded. Hardware camera/printer, desktop OS URI registration and other historical paper-field semantics remain unverified/missing; `SidebandClient.Paper.cs`, `SidebandPaperProfile.cs`, `MainWindow.Paper.cs`, `PaperExportCommand.cs`, `sbapp/sideband/core.py:paper_message,lxm_ingest_uri,_db_message`. |
+| Local selected-paper printing | implemented bounded subset | Explicit default-off reviewed command, per-selected-paper consent, original saved outgoing QR ownership and shared private bounded no-shell process lifecycle. Passive imported commands never activate execution; historical imported envelopes remain export-only. Primary callback observations, connected headless controls and published private software sinks are separate evidence. Physical printing/scanning, primary GUI and current Linux remain unverified; see C108. |
 | LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Voice-only names/trust import, editing and deletion are operational independently of contacts; existing LXMF conversation policy wins, but discovery-only metadata does not. Optional primary call-log migration retains labelled historical assertions separately from authenticated call events. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux; separate actual calls verify voice-only policy removal/recovery and delivery overrides. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
 | Telemetry, location and situational awareness | partial | All 27 sensor wire formats, exact values, bounded atomic storage and reference-executed geometry exist. Original desktop controls configure manual information/location/sensors, opted-in Reticulum runtime and Linux battery collection, privacy/collector/tracking policies, inspect trusted reports, explicitly delete and show reported locations on the map. Actual primary reports/collector streams, requests, restart, supported profile import, schedules and propagation recovery pass separately on Windows/Linux. Runtime collection/rendering/receive normalization is independently verified below. Battery's separate C101 synthetic/private-file and Windows unavailable-provider evidence is not physical battery or current Linux acceptance. Other automatic sensors, hardware and advanced presentation remain absent/unverified; `SidebandTelemetry*.cs`, `SidebandRuntimeTelemetry.cs`, `SidebandBatteryTelemetry.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/ui/telemetry.py`. |
 | Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default/provider/layer, overlay and passive discovery vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, source zoom limits and persisted view. Reported peers/interfaces/connection points, bounded selected-cache discovery advertisements, clustering, high-zoom scatter, local fixed overrides and marker inspection are integrated. Thirteen provider presets and supported offline-profile activation exist. Broader map migration/presentation remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
@@ -2040,9 +2255,33 @@ pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1
 ```
 
 Explicit Linux battery collection is implemented under C101 below.
-Other automatic sensors, LXMF-propagation collection and complete sensor/plugin
-configuration remain required gaps; Processor's primary automatic collector is
-itself a placeholder, not a license to invent CPU collection.
+LXMF-propagation collection and complete sensor/plugin configuration remain
+required software until separately accepted. The acquisition inventory below
+distinguishes Android-only drivers and primary supplied-data placeholders from
+missing desktop collectors; it does not invent CPU acquisition.
+
+### Desktop sensor acquisition dispositions
+
+The pinned `sense.py` SHA-256 is
+`80418b1aa4de638f2c65f1bd64e5ea0466378a6f0bc682781672ef89b93a7dab`.
+Wire support for all27 IDs is not evidence that27 automatic device drivers
+exist in either application.
+
+| Primary source contract | Windows/Linux desktop disposition |
+|---|---|
+| `Time`, `Information`, `Received`, `PhysicalLink`; lines306–496,994–1065 | Native timestamps, explicit information and received/link observations are implemented under their separate evidence. Link observations are not a physical sensor driver or fresh RF measurement. |
+| `Battery`; lines497–637 | Primary acquisition is Android/Linux only. Native explicit Linux collection has C101 synthetic/private-file evidence; Windows unavailable is expected. Current Linux and physical battery acceptance remain unverified. Android acquisition is deferred. |
+| `Pressure`, `Temperature`, `Humidity`, `MagneticField`, `AmbientLight`, `Gravity`, `AngularVelocity`, `Acceleration`, `Proximity`; lines638–717,1066–1649 | Primary automatic acquisition is guarded by `is_android()`. Those device paths are explicitly mobile-deferred, not missing Windows/Linux automatic implementations. Native manual/received wire values do not prove device acquisition. |
+| `Location`; lines718–993 | Primary synthesized values and Android GPS are separate paths. Native fixed/manual and received locations are implemented; Android GPS is deferred. No physical desktop GPS driver or acquisition is inferred. |
+| `PowerConsumption`, `PowerProduction`, `Processor`, RAM, NVM, `Custom`, `Tank`, `Fuel`; lines1650–2493 | Primary `update_data()` is `pass`; public mutators receive externally supplied data. Automatic acquisition is an upstream placeholder. Native manual/received values support the wire contracts, not arbitrary Python-plugin/mutator ABI compatibility or invented host sampling. |
+| `RNSTransport`; lines2494–2716 | Explicit native collection and primary-interoperable report normalization are implemented under C62; current-source platform acceptance remains separately bounded. |
+| `LXMFPropagation`; lines2717–2977 | Explicit signing identity, authenticated status query and independent polling cadence are genuine desktop software contracts. Provider/application integration requires separate acceptance, not attribution to Android or hardware. |
+| `ConnectionMap`, `Interfaces`; lines2978 onward | Primary mutators supply map points/interface descriptions; `update_data()` publishes their held dictionaries, not hardware discovery. Native reported overlays and explicit cached-RNS-discovery projection have separate evidence. These are not Python-plugin ABI compatibility, physical network scanning or universal mutator/aging-API parity. |
+
+This classification does not defer a desktop implementation merely because
+its reference can also run on Android. Required plugin-driven integration and
+provider/mutation behavior remain explicit; unavailable hardware is not a
+substitute for implementing independently achievable software.
 
 ## Raster maps and manual telemetry desktop
 
@@ -3684,7 +3923,7 @@ calling telemetry plugins. Source audit at the same pin distinguishes:
 | Pressure, temperature, humidity, magnetic field, ambient light, gravity, angular velocity, acceleration, proximity and live GPS | Primary automatic acquisition is Android-only (`setup_sensor`/`update_data` platform guards), not an absent Windows/Linux hardware implementation. Android/mobile remains deferred; wire/manual data support is separate. Their unsupported desktop settings are not silently activated by import. |
 | Reticulum transport | Implemented opted-in native runtime observations; its separate acceptance does not prove physical sensors. |
 | Processor, RAM, NVM, power, tank, fuel, custom, connection map and interface entries | Primary `update_data` is a placeholder or copies explicitly supplied entries, not automatic host CPU/memory/device discovery. Native bounded manual wire/report support is implemented; primary plugin mutation/API compatibility remains required and unresolved. |
-| LXMF propagation | Primary explicit identity plus local `lxmd.query_status`,300-second stale interval and18-second worker wake; enabled through plugins, not the desktop's thirteen-name settings loop. Wire support is implemented; automatic status-query/plugin configuration remains a required software gap. |
+| LXMF propagation | Primary explicit identity plus local `lxmd.query_status`,300-second last-attempt interval and18-second worker wake; primary activation is through plugins, not the desktop's thirteen-name settings loop. Native default-off explicit-identity automatic collection/settings/status are implemented under C105. This does not implement Python-plugin loading or infer activation from archived plugin configuration. |
 
 This source classification does not turn deferred Android behavior, missing
 plugin contracts or unexecuted platform/hardware checks into passes.

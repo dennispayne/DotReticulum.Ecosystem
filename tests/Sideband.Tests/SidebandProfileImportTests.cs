@@ -309,7 +309,8 @@ public sealed partial class SidebandProfileImportTests
         Assert.Equal("Python attachment\n", await File.ReadAllTextAsync(Path.Combine(profile.Target, "attachments", attachment.ContentHash), TestContext.Current.CancellationToken));
     }
 
-    private static void AddMessage(Profile profile, string scenario, object? renderer = null)
+    private static void AddMessage(Profile profile, string scenario, object? renderer = null,
+        byte[]? telemetry = null, byte[]? extra = null)
     {
         using var own = IdentityFile.Load(Path.Combine(profile.Source, "primary_identity"));
         using var peer = Identity.Generate();
@@ -323,6 +324,7 @@ public sealed partial class SidebandProfileImportTests
             },
         };
         if (renderer is not null) fields[LxmField.Renderer] = renderer;
+        if (telemetry is not null) fields[LxmField.Telemetry] = telemetry;
         var message = LxMessage.Create(peerHash, scenario == "unrelated-message" ? peer : own,
             "Test content", fields: fields, method: LxmMethod.Propagated, timestamp: 1760000000.25);
         var packed = message.Pack(destinationIdentity: peer);
@@ -330,7 +332,7 @@ public sealed partial class SidebandProfileImportTests
         var sql = "";
         if (scenario != "missing-conversation")
             sql += $"INSERT INTO conv VALUES (X'{Convert.ToHexString(peerHash)}',0,0,1,1,1,X'{Convert.ToHexString("Reference contact"u8.ToArray())}',X'C0');";
-        sql += $"INSERT INTO lxm VALUES(X'{Convert.ToHexString(message.Hash!)}',X'{Convert.ToHexString(message.DestinationHash)}',X'{Convert.ToHexString(message.SourceHash)}',X'',0,0,8,3,1,0,X'{Convert.ToHexString(packed)}',X'80');";
+        sql += $"INSERT INTO lxm VALUES(X'{Convert.ToHexString(message.Hash!)}',X'{Convert.ToHexString(message.DestinationHash)}',X'{Convert.ToHexString(message.SourceHash)}',X'',0,0,8,3,1,0,X'{Convert.ToHexString(packed)}',X'{Convert.ToHexString(extra ?? [0x80])}');";
         WriteSql(Path.Combine(profile.Source, "sideband.db"), sql);
     }
 

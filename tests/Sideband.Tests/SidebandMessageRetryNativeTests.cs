@@ -165,6 +165,8 @@ public sealed class SidebandMessageRetryNativeTests
             await _process.StandardInput.FlushAsync(token);
         }
 
+        public bool ContainsLine(string text) => _lines.Any(line => line.Contains(text, StringComparison.Ordinal));
+
         public async Task<string> WaitAsync(string text, CancellationToken token)
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);

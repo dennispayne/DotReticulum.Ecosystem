@@ -1,0 +1,295 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sources": {
+    "nomadnet/Node.py": "1e2ba96f6dc040fcbe19e55bd2eb33961d9fb9443f7e590e02aeb32894aa695c",
+    "nomadnet/NomadNetworkApp.py": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2",
+    "nomadnet/ui/textui/Network.py": "94837c9aa4a5cb7ee14c8fe48809cb5b7eb71fbb5fd41da0b6e14f50f715139c"
+  },
+  "cases": [
+    {
+      "name": "default-index",
+      "handler": "serve_default_index",
+      "path": "/page/index.mu",
+      "data": null,
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 0,
+        "served_file_requests": 0,
+        "served_media_requests": 0
+      },
+      "dirty": false,
+      "result": "bytes"
+    },
+    {
+      "name": "page-ok",
+      "handler": "serve_page",
+      "path": "/page/ok.mu",
+      "data": null,
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 1,
+        "served_file_requests": 0,
+        "served_media_requests": 0
+      },
+      "dirty": true,
+      "result": "bytes"
+    },
+    {
+      "name": "page-denied",
+      "handler": "serve_page",
+      "path": "/page/denied.mu",
+      "data": null,
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 1,
+        "served_file_requests": 0,
+        "served_media_requests": 0
+      },
+      "dirty": true,
+      "result": "bytes"
+    },
+    {
+      "name": "page-missing",
+      "handler": "serve_page",
+      "path": "/page/missing.mu",
+      "data": null,
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 1,
+        "served_file_requests": 0,
+        "served_media_requests": 0
+      },
+      "dirty": true,
+      "result": "none"
+    },
+    {
+      "name": "file-ok",
+      "handler": "serve_file",
+      "path": "/file/ok.bin",
+      "data": null,
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 0,
+        "served_file_requests": 1,
+        "served_media_requests": 0
+      },
+      "dirty": true,
+      "result": "file"
+    },
+    {
+      "name": "file-denied",
+      "handler": "serve_file",
+      "path": "/file/denied.bin",
+      "data": null,
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 0,
+        "served_file_requests": 1,
+        "served_media_requests": 0
+      },
+      "dirty": true,
+      "result": "bytes"
+    },
+    {
+      "name": "file-missing",
+      "handler": "serve_file",
+      "path": "/file/missing.bin",
+      "data": null,
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 0,
+        "served_file_requests": 1,
+        "served_media_requests": 0
+      },
+      "dirty": true,
+      "result": "none"
+    },
+    {
+      "name": "media-not-map",
+      "handler": "serve_media",
+      "path": "/media",
+      "data": null,
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 0,
+        "served_file_requests": 0,
+        "served_media_requests": 0
+      },
+      "dirty": false,
+      "result": "none"
+    },
+    {
+      "name": "media-missing-key",
+      "handler": "serve_media",
+      "path": "/media",
+      "data": {
+        "path": "/media/ok.webp"
+      },
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 0,
+        "served_file_requests": 0,
+        "served_media_requests": 0
+      },
+      "dirty": false,
+      "result": "none"
+    },
+    {
+      "name": "media-missing-path",
+      "handler": "serve_media",
+      "path": "/media",
+      "data": {
+        "key": null
+      },
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 0,
+        "served_file_requests": 0,
+        "served_media_requests": 0
+      },
+      "dirty": false,
+      "result": "none"
+    },
+    {
+      "name": "media-wrong-type",
+      "handler": "serve_media",
+      "path": "/media",
+      "data": {
+        "path": "/media/ok.txt",
+        "key": null
+      },
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 0,
+        "served_file_requests": 0,
+        "served_media_requests": 0
+      },
+      "dirty": false,
+      "result": "false"
+    },
+    {
+      "name": "media-escape",
+      "handler": "serve_media",
+      "path": "/media",
+      "data": {
+        "path": "/media/../outside.webp",
+        "key": null
+      },
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 0,
+        "served_file_requests": 0,
+        "served_media_requests": 0
+      },
+      "dirty": false,
+      "result": "false"
+    },
+    {
+      "name": "media-long",
+      "handler": "serve_media",
+      "path": "/media",
+      "data": {
+        "path": "/media/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.webp",
+        "key": null
+      },
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 0,
+        "served_file_requests": 0,
+        "served_media_requests": 0
+      },
+      "dirty": false,
+      "result": "false"
+    },
+    {
+      "name": "media-ok",
+      "handler": "serve_media",
+      "path": "/media",
+      "data": {
+        "path": "/media/ok.webp",
+        "key": null
+      },
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 0,
+        "served_file_requests": 0,
+        "served_media_requests": 1
+      },
+      "dirty": true,
+      "result": "file"
+    },
+    {
+      "name": "media-denied",
+      "handler": "serve_media",
+      "path": "/media",
+      "data": {
+        "path": "/media/denied.webp",
+        "key": null
+      },
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 0,
+        "served_file_requests": 0,
+        "served_media_requests": 1
+      },
+      "dirty": true,
+      "result": "false"
+    },
+    {
+      "name": "media-missing",
+      "handler": "serve_media",
+      "path": "/media",
+      "data": {
+        "path": "/media/missing.webp",
+        "key": null
+      },
+      "delta": {
+        "node_connects": 0,
+        "served_page_requests": 0,
+        "served_file_requests": 0,
+        "served_media_requests": 1
+      },
+      "dirty": true,
+      "result": "false"
+    }
+  ],
+  "afterConnection": {
+    "node_connects": 1,
+    "served_page_requests": 3,
+    "served_file_requests": 3,
+    "served_media_requests": 3
+  },
+  "jobs": [
+    {
+      "now": 60,
+      "dirty": true,
+      "saved": false
+    },
+    {
+      "now": 60.001,
+      "dirty": false,
+      "saved": true
+    }
+  ],
+  "persisted": {
+    "node_connects": 1,
+    "served_page_requests": 3,
+    "served_file_requests": 3,
+    "served_media_requests": 3
+  },
+  "reset": {
+    "node_connects": 0,
+    "served_page_requests": 0,
+    "served_file_requests": 0,
+    "served_media_requests": 3
+  },
+  "reloaded": {
+    "node_connects": 0,
+    "served_page_requests": 0,
+    "served_file_requests": 0,
+    "served_media_requests": 3
+  },
+  "jobInterval": 5,
+  "flushInterval": 60,
+  "boundary": "Execute actual primary Node handlers, jobs, persistence and nested UI reset.\n\nNode construction/network/audio/UI are not started. A synthetic loaded-profile\napp initializes all counters and owns private files and a synthetic clock; the\nactual handlers and save_peer_settings execute. This does not reproduce the\nfresh primary constructor's omitted media counter (observed by the live adapter).\nThe nested stats_query code object is invoked with its real self closure without\nconstructing the Urwid screen. No primary source or response assets are copied.\n"
+}

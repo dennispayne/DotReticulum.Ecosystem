@@ -425,6 +425,25 @@ def main():
                 else:
                     result["audio"]["decoded_samples"] = len(audioproc.decode_codec2(data, mode)) // 2
             emit({"event": "media-inspected", **result})
+        elif parts[0] == "inspect-message-telemetry" and len(parts) == 3:
+            from sbapp.sideband.sense import Telemeter
+            messages = core.list_messages(bytes.fromhex(parts[1]), limit=32) or []
+            matches = [message for message in messages if hashlib.sha256(message["content"]).hexdigest() == parts[2]]
+            if len(matches) != 1:
+                raise ValueError("Expected exactly one actual saved message for telemetry inspection")
+            message = matches[0]
+            packed = message["lxm"].fields[LXMF.FIELD_TELEMETRY]
+            saved = message.get("extras", {}).get("packed_telemetry", packed)
+            emit({"event": "message-telemetry", "field_hex": packed.hex(),
+                  "field_copy": str(Telemeter.from_packed(packed).read_all()),
+                  "saved_hex": saved.hex(), "saved_copy": str(Telemeter.from_packed(saved).read_all())})
+        elif parts[0] == "telemetry-verify-copy" and len(parts) == 3:
+            from sbapp.sideband.sense import Telemeter
+            actual = str(Telemeter.from_packed(base64.b64decode(parts[1], validate=True)).read_all())
+            expected = base64.b64decode(parts[2], validate=True).decode("utf-8")
+            if actual != expected:
+                raise ValueError("Native selected-message copy differs from actual Telemeter.read_all")
+            emit({"event": "telemetry-copy-verified"})
         elif parts[0] == "snapshot" and len(parts) == 2:
             messages = core.list_messages(bytes.fromhex(parts[1]), limit=32)
             if messages is None:

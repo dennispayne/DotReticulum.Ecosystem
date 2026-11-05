@@ -58,5 +58,7 @@
     <EmbeddedResource Include="NomadNetEditorPresentationVectors.json" />
     <EmbeddedResource Include="NomadNetEditorScrollingVectors.json" />
     <EmbeddedResource Include="NomadNetEditorStateImportVectors.json" />
+    <EmbeddedResource Include="NomadNetGuideVectors.json" />
+    <EmbeddedResource Include="NomadNetHostedStatisticsVectors.json" />
   </ItemGroup>
 </Project>

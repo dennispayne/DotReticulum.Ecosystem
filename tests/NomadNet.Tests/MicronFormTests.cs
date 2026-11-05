@@ -75,7 +75,7 @@ public sealed class MicronFormTests
     {
         var page = MicronText.Render(">:top Header\n`->Folded\nhidden\n>>Nested\nnested-hidden\n>Visible\n`= \n`t\n| A | B |\n|--|--|\n| 1 | 2 |\n`t\n`{/page/update.mu`2`*|pid=summary}\n`[update`p:summary]\n"u8);
         Assert.DoesNotContain("hidden", page.DisplayText);
-        Assert.Contains("| 1 | 2 |", page.DisplayText);
+        Assert.Contains("│ 1   │ 2   │", page.DisplayText);
         Assert.Contains("hidden", page.AtAnchor("nested"));
         Assert.Contains("hidden", page.DisplayText);
         page.ToggleFold(1);

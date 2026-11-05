@@ -1,0 +1,234 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sources": {
+    "nomadnet/ui/textui/Guide.py": "cff869dfd8834fa55ccc25e1ddbece06a61d72329589e77c62236f72220bd2c5",
+    "nomadnet/ui/textui/Main.py": "a36de955e21e94261fefd6eebe5a6b471e1072db6f79e1833f19dc7d1fb762a5",
+    "nomadnet/ui/textui/MicronParser.py": "995a8fd8883ec57cd173d117b6758447e508ca2ddf96d8521260cc70e18a8e4e",
+    "nomadnet/vendor/Scrollable.py": "afa1da21a9d330c718394bcc9cd2ebe1449436fdb2e04d11b7be7ea50d65c6a4"
+  },
+  "listedTopics": [
+    "Introduction",
+    "Concepts & Terminology",
+    "Channels & RRC",
+    "Interfaces",
+    "Hosting a Node",
+    "Configuration Options",
+    "Keyboard Shortcuts",
+    "Micron Markup",
+    "First Run",
+    "Network Configuration",
+    "Display Test",
+    "Credits & Licenses"
+  ],
+  "topics": [
+    {
+      "name": "Introduction",
+      "listed": true,
+      "characters": 1393,
+      "utf8Sha256": "8e73871c601d205e68e164d3499c1576132013b5864cf2256779384d30ec185a",
+      "widgets": 13,
+      "anchors": 1,
+      "headings": 1,
+      "focusAfterSelection": 1
+    },
+    {
+      "name": "Concepts & Terminology",
+      "listed": true,
+      "characters": 5263,
+      "utf8Sha256": "efa83aea0abd8c619ee66551c4ac9f93d0a90a7c4593524acd0ac5fb3e3c5a12",
+      "widgets": 55,
+      "anchors": 5,
+      "headings": 5,
+      "focusAfterSelection": 1
+    },
+    {
+      "name": "Channels & RRC",
+      "listed": true,
+      "characters": 2908,
+      "utf8Sha256": "0b959df99e162fbbef6097bcc0b17de62b8ed6400e7a4f949399ed278751a98c",
+      "widgets": 47,
+      "anchors": 6,
+      "headings": 6,
+      "focusAfterSelection": 1
+    },
+    {
+      "name": "Conversations",
+      "listed": false,
+      "characters": 47,
+      "utf8Sha256": "6e876817968dcbf1fb233c6b972e2351ad9e72ee9775d9baa1ba150143490ec4",
+      "widgets": 4,
+      "anchors": 1,
+      "headings": 1,
+      "focusAfterSelection": 1
+    },
+    {
+      "name": "Interfaces",
+      "listed": true,
+      "characters": 9541,
+      "utf8Sha256": "2e15c946f3f2dd2ad88b752de8fd930fe78f729ffbe2261b9642fa9f15fe0dec",
+      "widgets": 220,
+      "anchors": 18,
+      "headings": 18,
+      "focusAfterSelection": 1
+    },
+    {
+      "name": "Hosting a Node",
+      "listed": true,
+      "characters": 7175,
+      "utf8Sha256": "ceb58014aa02fee0f31169c5e5d0e3bea913a57cbb8723e84d3408f748ac96a2",
+      "widgets": 83,
+      "anchors": 7,
+      "headings": 7,
+      "focusAfterSelection": 1
+    },
+    {
+      "name": "Configuration Options",
+      "listed": true,
+      "characters": 14035,
+      "utf8Sha256": "67470ec3d8e5d146c774c7f662ac2d01e56deefc28abfb5f63c4b3f5df24033c",
+      "widgets": 235,
+      "anchors": 8,
+      "headings": 8,
+      "focusAfterSelection": 1
+    },
+    {
+      "name": "Keyboard Shortcuts",
+      "listed": true,
+      "characters": 3242,
+      "utf8Sha256": "1ba091c7e84a56a31a8ea14bab6ebfa2fafe6bbb4452d2cd9467eea8621edbbe",
+      "widgets": 98,
+      "anchors": 13,
+      "headings": 15,
+      "focusAfterSelection": 1
+    },
+    {
+      "name": "Micron Markup",
+      "listed": true,
+      "characters": 39170,
+      "utf8Sha256": "d07a95e86edcf600c32b7544d3408fc5afc1cf1ef7f242ad8df94790069e6fe5",
+      "widgets": 1032,
+      "anchors": 36,
+      "headings": 37,
+      "focusAfterSelection": 1
+    },
+    {
+      "name": "Display Test",
+      "listed": true,
+      "characters": 2631,
+      "utf8Sha256": "5016d9b05067e9b6ea56c2560222af7d1ce02373fde75c27b82f13207e5832be",
+      "widgets": 53,
+      "anchors": 3,
+      "headings": 3,
+      "focusAfterSelection": 1
+    },
+    {
+      "name": "Network Configuration",
+      "listed": true,
+      "characters": 2756,
+      "utf8Sha256": "d56c83f61d1074c99f6c839fb6005f2a5ab0b5fb5bdc7f47928a137ddcb3d4a8",
+      "widgets": 28,
+      "anchors": 2,
+      "headings": 2,
+      "focusAfterSelection": 1
+    },
+    {
+      "name": "Credits & Licenses",
+      "listed": true,
+      "characters": 896,
+      "utf8Sha256": "a8526512eea302c6fe8049cf600c53e373bd5606cd82d721268587772ed1389b",
+      "widgets": 32,
+      "anchors": 1,
+      "headings": 1,
+      "focusAfterSelection": 1
+    },
+    {
+      "name": "First Run",
+      "listed": true,
+      "characters": 3240,
+      "utf8Sha256": "01a7652c1978ab798d551d938e4ad3cf9b02f33ed14fadb41686802606437136",
+      "widgets": 47,
+      "anchors": 1,
+      "headings": 1,
+      "focusAfterSelection": 1
+    }
+  ],
+  "initial": {
+    "focus": 0,
+    "hasContent": false
+  },
+  "firstRun": {
+    "hasContent": true,
+    "focus": 1,
+    "selected": "First Run"
+  },
+  "syntheticAnchorPositions": [
+    {
+      "anchor": "destination",
+      "before": 0,
+      "after": 82
+    },
+    {
+      "anchor": "missing",
+      "before": 82,
+      "after": 82
+    },
+    {
+      "anchor": "",
+      "before": 82,
+      "after": 82
+    }
+  ],
+  "focus": {
+    "topics": 0,
+    "reader": 1
+  },
+  "delegate": {
+    "calls": [
+      {
+        "showNetwork": true
+      },
+      {
+        "target": "0123456789abcdef0123456789abcdef:/page/synthetic.mu",
+        "fields": {
+          "field_sample": "synthetic"
+        }
+      }
+    ],
+    "alarms": [
+      0.0,
+      0.0
+    ]
+  },
+  "activation": {
+    "keys": [
+      {
+        "key": "x",
+        "returned": "x"
+      },
+      {
+        "key": "enter",
+        "returned": null
+      },
+      {
+        "key": " ",
+        "returned": null
+      }
+    ],
+    "mouse": [
+      {
+        "button": 1,
+        "accepted": true
+      },
+      {
+        "button": 2,
+        "accepted": false
+      },
+      {
+        "button": 3,
+        "accepted": false
+      }
+    ],
+    "clicks": 3
+  },
+  "boundary": "Execute the pinned Guide reader, topic selection and delegates without emitting assets.\n\nThe real GuideDisplay/GuideEntry and MicronParser execute on every real topic.\nA synthetic app singleton, Urwid screen/palette and immediate alarm owner replace\nthe terminal/application shell. Browser handoffs are observed, not fetched.\nThe image resolver returns None: upstream demo assets are neither decoded nor\ncopied; image-bearing topics exercise the primary's unresolved-image placeholder.\nSynthetic markup exercises anchor offsets and scrolling without copying a demo.\nThis is headless reader evidence, not an unmodified primary fullscreen session.\n"
+}

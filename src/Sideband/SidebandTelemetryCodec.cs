@@ -272,6 +272,9 @@ public static class SidebandTelemetryCodec
 
     private static V UnpackInterfaces(V wire)
     {
+        string[] fieldOrder = ["name", "type", "reachable_on", "port", "frequency", "bandwidth", "modulation",
+            "spreadingfactor", "codingrate", "channel", "lat", "lon", "height", "transport", "transport_id",
+            "ifac_netname", "ifac_netkey", "network_id"];
         var interfaces = new List<KeyValuePair<V, V>>();
         foreach (var pair in wire.Members)
         {
@@ -288,7 +291,8 @@ public static class SidebandTelemetryCodec
                 else ValidateInterfaceField(name, value);
                 fields.Add((name, value));
             }
-            interfaces.Add(KeyValuePair.Create(pair.Key, V.Fields(fields.ToArray())));
+            interfaces.Add(KeyValuePair.Create(pair.Key,
+                V.Fields(fields.OrderBy(field => Array.IndexOf(fieldOrder, field.Item1)).ToArray())));
         }
         return V.Map(interfaces.ToArray());
     }

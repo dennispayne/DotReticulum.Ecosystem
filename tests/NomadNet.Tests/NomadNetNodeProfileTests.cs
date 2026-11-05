@@ -12,6 +12,77 @@ namespace NomadNet.Tests;
 [Trait("Category", "Integration")]
 public sealed class NomadNetNodeProfileTests
 {
+    [PeerControlsNativeFact]
+    [Trait("TestId", "T1052")]
+    public async Task NativePeerRemovalPersistsAndDoesNotInventPeersOrEditStaticConfiguration()
+    {
+        using var profile = new Profile();
+        var peerMap = profile.PeerMap();
+        peerMap["peering_timebase"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 1;
+        profile.WritePeer(peerMap);
+        await profile.ImportAsync();
+        var imported = LxmPeer.FromBytes(profile.RawPeer, _ => true);
+        var hash = Convert.ToHexStringLower(imported.DestinationHash);
+        var settings = await NomadNetSettings.OpenAsync(profile.Target);
+        await (settings with { PropagationStaticPeers = [hash] }).SaveAsync(profile.Target);
+        var rns = Path.Combine(profile.Target, "isolated-rns");
+        Directory.CreateDirectory(rns);
+        await File.WriteAllTextAsync(Path.Combine(rns, "config"),
+            "[reticulum]\nenable_transport=no\nshare_instance=no\n[interfaces]\n");
+        var output = await RunAsync($"node-peers\nnode-peer-sync {hash}\nnode-unpeer {hash}\nnode-peers\nnode-unpeer {hash}\nstatus\nquit\n");
+        Assert.Contains("Unresolved propagation peers: 1.", output);
+        Assert.Contains("Select an existing propagation peer.", output);
+        Assert.Contains("Propagation peer removed: " + hash, output);
+        Assert.Contains("Unresolved propagation peers: 0.", output);
+        Assert.Contains("Reticulum identity:", output);
+        Assert.Empty((object?[])MsgPack.UnpackApplicationValue(
+            await File.ReadAllBytesAsync(Path.Combine(profile.Target, "storage", "lxmf", "peers")))!);
+        Assert.Equal([hash], (await NomadNetSettings.OpenAsync(profile.Target)).PropagationStaticPeers);
+        var restarted = await RunAsync("node-peers\nstatus\nquit\n");
+        Assert.Contains("Unresolved propagation peers: 0.", restarted);
+        Assert.Contains("Reticulum identity:", restarted);
+        Assert.Equal([hash], (await NomadNetSettings.OpenAsync(profile.Target)).PropagationStaticPeers);
+
+        async Task<string> RunAsync(string commands)
+        {
+            var binary = Environment.GetEnvironmentVariable("DOTRETICULUM_NOMADNET_BINARY");
+            Assert.True(File.Exists(binary), "Set DOTRETICULUM_NOMADNET_BINARY to the frozen native candidate.");
+            var start = new System.Diagnostics.ProcessStartInfo(binary!)
+            { UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
+            foreach (var argument in new[] { "--config", profile.Target, "--rnsconfig", rns, "--console" })
+                start.ArgumentList.Add(argument);
+            using var process = System.Diagnostics.Process.Start(start)!;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+            var stdout = process.StandardOutput.ReadToEndAsync(timeout.Token);
+            var stderr = process.StandardError.ReadToEndAsync(timeout.Token);
+            try
+            {
+                await process.StandardInput.WriteAsync(commands.AsMemory(), timeout.Token);
+                process.StandardInput.Close();
+                await process.WaitForExitAsync(timeout.Token);
+                Assert.True(process.ExitCode == 0, await stderr);
+                return await stdout;
+            }
+            finally
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    await process.WaitForExitAsync();
+                }
+            }
+        }
+    }
+
+    private sealed class PeerControlsNativeFactAttribute : FactAttribute
+    {
+        public PeerControlsNativeFactAttribute()
+        {
+            if (Environment.GetEnvironmentVariable("DOTRETICULUM_NOMADNET_PEER_CONTROLS") != "1")
+                Skip = "Enable DOTRETICULUM_NOMADNET_PEER_CONTROLS=1 with the frozen native NomadNet binary.";
+        }
+    }
+
     [Fact]
     public void ExecutedPrimaryFixtureRecordsOpaqueStampedNodeStorageAndPeerIndices()
     {

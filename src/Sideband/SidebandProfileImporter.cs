@@ -129,7 +129,7 @@ public static class SidebandProfileImporter
                             { NameIsUserDefined = !string.IsNullOrWhiteSpace(name) }, row[5]));
                     }
                     var attachments = new SidebandAttachmentStore(staging);
-                    foreach (var row in database.Rows("SELECT lxm_hash, dest, source, state, method, data FROM lxm LIMIT 10001", 10_000))
+                    foreach (var row in database.Rows("SELECT lxm_hash, dest, source, state, method, data, extra FROM lxm LIMIT 10001", 10_000))
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         var hash = Bytes(row[0], 32, "message hash");
@@ -191,7 +191,8 @@ public static class SidebandProfileImporter
                             ((LxmState)state).ToString(), importedAttachments.Count == 0 ? null : importedAttachments,
                             DeliveryMethod: ((LxmMethod)method).ToString(), Image: image, Audio: audio,
                             PaperUri: incoming ? null : paperUri, ImportedPaperEnvelope: !incoming && paperUri is not null,
-                            Renderer: SidebandMessageFormatting.ReadRenderer(message)));
+                            Renderer: SidebandMessageFormatting.ReadRenderer(message),
+                            TelemetryHex: SidebandMessageTelemetry.Import(message, row[6], notices)));
                         if (paperUri is not null)
                             notices.Add(incoming
                                 ? "An incoming paper envelope remains archive-only; native paper exports are outgoing only."

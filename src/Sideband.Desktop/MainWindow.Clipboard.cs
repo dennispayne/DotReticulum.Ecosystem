@@ -27,6 +27,23 @@ public sealed partial class MainWindow
         SetStatus("Selected raw message text copied; title and attachments were not copied.");
     }
 
+    private void CopyMessageTelemetryClicked(object? sender, RoutedEventArgs e) => TrackOperation(async () =>
+    {
+        try { await CopySelectedMessageTelemetryAsync(); }
+        catch (OperationCanceledException) when (_windowCancellation.IsCancellationRequested) { }
+        catch (TimeoutException) when (!_clipboardWriteTask.IsCompleted)
+        { ShowError("Could not copy selected telemetry: clipboard did not complete within five seconds; one write remains pending."); }
+        catch (Exception ex) { ShowError("Could not copy selected telemetry: " + ex.Message); }
+    });
+
+    private async Task CopySelectedMessageTelemetryAsync()
+    {
+        var snapshot = SelectedMessage().TelemetryHex ??
+            throw new InvalidOperationException("The selected message has no captured telemetry; a newer source report will not be substituted.");
+        await WriteClipboardTextAsync(SidebandMessageTelemetry.CopyText(snapshot));
+        SetStatus("Selected message's captured telemetry copied; no latest source report or sensor was queried.");
+    }
+
     private async Task WriteClipboardTextAsync(string text)
     {
         _windowCancellation.Token.ThrowIfCancellationRequested();

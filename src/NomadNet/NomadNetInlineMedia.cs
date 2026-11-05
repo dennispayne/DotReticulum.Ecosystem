@@ -44,11 +44,11 @@ public sealed class NomadNetInlineMedia(
         }
     }
 
-    public string Render(NomadNetRenderedPage page)
+    public string Render(NomadNetRenderedPage page, NomadNetSettings? settings = null, bool ansi = false, int width = 80, int startRow = 0)
     {
         Dictionary<NomadNetPageMedia, string> images;
         lock (_gate) images = _previews.Where(pair => pair.Value is not null).ToDictionary(pair => pair.Key, pair => pair.Value!);
-        return page.DisplayWithImages(images);
+        return settings is null ? page.DisplayWithImages(images) : page.Present(settings, ansi, width, images, startRow);
     }
 
     public Task LoadAsync(bool reload = false, CancellationToken cancellationToken = default)

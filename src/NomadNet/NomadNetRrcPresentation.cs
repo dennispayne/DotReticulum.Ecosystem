@@ -4,7 +4,10 @@ using System.Text.RegularExpressions;
 
 namespace NomadNet;
 
-public sealed record RrcTextSpan(string Text, string? Color = null, bool Bold = false);
+public sealed record RrcTextSpan(string Text, string? Color = null, bool Bold = false)
+{
+    public MicronStyle? Formatting { get; init; }
+}
 public sealed record RrcStyledMessage(string TimestampColor, string NickColor, IReadOnlyList<RrcTextSpan> Body);
 
 /// <summary>Original bounded console presentation; not an Urwid layout or copied theme.</summary>
@@ -36,7 +39,8 @@ public static partial class NomadNetRrcPresentation
             return new(stamp, nickColor, [new(NomadNetTerminalText.Safe(message.Text), message.Kind == "error" ? "ee6655" : "999999")]);
         var source = message.Text;
         var code = CodeBlocks().Matches(source);
-        var rendered = NomadNetPresentation.Rrc(source, settings.RrcRenderMarkdown, settings.RrcRenderMicron, message.Kind);
+        var document = NomadNetPresentation.RrcDocument(source, settings.RrcRenderMarkdown, settings.RrcRenderMicron, message.Kind);
+        var rendered = document.Text;
         var unprotected = rendered;
         if (code.Count != 0)
         {
@@ -48,7 +52,32 @@ public static partial class NomadNetRrcPresentation
             unprotected = NomadNetPresentation.Rrc(new string(masked), settings.RrcRenderMarkdown, settings.RrcRenderMicron, message.Kind);
         }
         Add();
-        return new(stamp, nickColor, spans.AsReadOnly());
+        var formatting = new MicronStyle?[rendered.Length];
+        var offsets = new List<int> { 0 };
+        for (var index = 0; index < rendered.Length; index++) if (rendered[index] == '\n') offsets.Add(index + 1);
+        foreach (var span in document.Styles)
+        {
+            if (span.Row >= offsets.Count || span.Style == new MicronStyle()) continue;
+            var start = offsets[span.Row] + span.Column;
+            if (start >= formatting.Length) continue;
+            Array.Fill(formatting, span.Style, start, Math.Min(span.Length, formatting.Length - start));
+        }
+        var combined = new List<RrcTextSpan>();
+        var offset = 0;
+        foreach (var span in spans)
+        {
+            var start = 0;
+            while (start < span.Text.Length)
+            {
+                var style = formatting[offset + start];
+                var end = start + 1;
+                while (end < span.Text.Length && formatting[offset + end] == style) end++;
+                combined.Add(span with { Text = span.Text[start..end], Formatting = style });
+                start = end;
+            }
+            offset += span.Text.Length;
+        }
+        return new(stamp, nickColor, combined.AsReadOnly());
 
         void Add()
         {
@@ -105,11 +134,12 @@ public static partial class NomadNetRrcPresentation
         var column = settings.RrcJustifyMessages ? prefixWidth : timestamp.Length;
         Wrapped(nickname, style.NickColor, message.Kind == "action");
         foreach (var span in style.Body)
-            Wrapped(span.Text, message.Kind == "action" ? style.NickColor : span.Color, message.Kind == "action" || span.Bold);
+            Wrapped(span.Text, message.Kind == "action" ? style.NickColor : span.Color, message.Kind == "action" || span.Bold,
+                message.Kind == "action" ? new(Italic: true) : span.Formatting);
         if (settings.RrcSpaceMessages && message.Kind is "message" or "action") output.Append('\n');
         return output.ToString();
 
-        void Wrapped(string text, string? color, bool bold)
+        void Wrapped(string text, string? color, bool bold, MicronStyle? formatting = null)
         {
             foreach (var rune in text.EnumerateRunes())
             {
@@ -120,18 +150,15 @@ public static partial class NomadNetRrcPresentation
                     column = prefixWidth;
                     if (rune.Value == '\n') continue;
                 }
-                Write(rune.ToString(), color, bold);
+                Write(rune.ToString(), color, bold, formatting);
                 column++;
             }
         }
-        void Write(string text, string? color, bool bold = false)
+        void Write(string text, string? color, bool bold = false, MicronStyle? formatting = null)
         {
             if (output.Length > 4 * 1024 * 1024) throw new InvalidDataException("RRC styled output exceeds4 MiB.");
-            if (ansi && color is not null)
-            {
-                output.Append(NomadNetTerminalControls.Color(text, color, settings, true, bold));
-            }
-            else output.Append(text);
+            var effective = formatting ?? new();
+            output.Append((effective with { Foreground = color ?? effective.Foreground, Bold = bold || effective.Bold }).Apply(text, settings, ansi));
         }
     }
 
@@ -147,17 +174,17 @@ public static partial class NomadNetRrcPresentation
         Append(NomadNetTerminalControls.Name(message.Nick ?? message.Source, settings.SanitizeNames) + ": ", style.NickColor);
         if (message.Kind == "action") Append("* ", style.NickColor);
         foreach (var span in style.Body)
-            Append(span.Text, message.Kind == "action" ? style.NickColor : span.Color, message.Kind == "action" || span.Bold);
+            Append(span.Text, message.Kind == "action" ? style.NickColor : span.Color, message.Kind == "action" || span.Bold,
+                message.Kind == "action" ? new(Italic: true) : span.Formatting);
         if (settings.RrcSpaceMessages && message.Kind is "message" or "action") output.Append('\n');
         return output.ToString();
 
-        void Append(string text, string? color, bool bold = false)
+        void Append(string text, string? color, bool bold = false, MicronStyle? formatting = null)
         {
-            if (ansi && color is not null)
-            {
-                output.Append(NomadNetTerminalControls.Color(text, color, settings, true, bold));
-            }
-            else output.Append(text);
+            var effective = formatting ?? new();
+            output.Append((effective with { Foreground = color ?? effective.Foreground, Bold = bold || effective.Bold }).Apply(text, settings, ansi));
+            if (output.Length > NomadNetMicronComposition.MaximumBytes)
+                throw new InvalidDataException("RRC styled output exceeds four MiB.");
         }
     }
 

@@ -4,10 +4,10 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
-namespace NomadNet;
+namespace SharedPrinting;
 
 /// <summary>Starts suspended so no descendant can escape the private print job before assignment.</summary>
-internal sealed partial class NomadNetWindowsPrintProcess : IDisposable
+internal sealed partial class WindowsPrintProcess : IDisposable
 {
     private readonly SafeFileHandle _job;
     private readonly SafeFileHandle _completion;
@@ -17,10 +17,10 @@ internal sealed partial class NomadNetWindowsPrintProcess : IDisposable
     public Stream StandardOutput { get; }
     public Stream StandardError { get; }
 
-    private NomadNetWindowsPrintProcess(SafeFileHandle job, SafeFileHandle completion, Process process, Stream output, Stream error) =>
+    private WindowsPrintProcess(SafeFileHandle job, SafeFileHandle completion, Process process, Stream output, Stream error) =>
         (_job, _completion, Process, StandardOutput, StandardError) = (job, completion, process, output, error);
 
-    public static unsafe NomadNetWindowsPrintProcess Start(IReadOnlyList<string> arguments)
+    public static unsafe WindowsPrintProcess Start(IReadOnlyList<string> arguments)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         using var handles = new StartHandles();
@@ -80,7 +80,7 @@ internal sealed partial class NomadNetWindowsPrintProcess : IDisposable
             handles.OutputStream = new FileStream(handles.OutputRead!, FileAccess.Read, 4096, false);
             handles.ErrorStream = new FileStream(handles.ErrorRead!, FileAccess.Read, 4096, false);
             if (ResumeThread(info.Thread) == uint.MaxValue) throw new Win32Exception();
-            var result = new NomadNetWindowsPrintProcess(handles.Job, handles.Completion, process, handles.OutputStream, handles.ErrorStream);
+            var result = new WindowsPrintProcess(handles.Job, handles.Completion, process, handles.OutputStream, handles.ErrorStream);
             handles.Transferred = true;
             return result;
         }

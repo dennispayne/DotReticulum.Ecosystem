@@ -516,6 +516,7 @@ public sealed partial class SidebandStateStore
         if (state.Contacts.Count > 1_000 || state.Messages.Count > MaximumMessages)
             throw new InvalidDataException("Sideband state exceeds its contact or message count limit.");
         _ = state.Telemetry.Validate();
+        _ = state.Printing.Validate();
         _ = SidebandRemoteCommands.Authorization(state);
         _ = SidebandStampConfiguration.FromState(state);
         _ = SidebandDeliveryConfiguration.FromState(state);
@@ -597,6 +598,8 @@ public sealed partial class SidebandStateStore
             throw new InvalidDataException("A saved message has an unsupported delivery method.");
         if (message.ImportedPaperEnvelope && message.PaperUri is null)
             throw new InvalidDataException("An imported paper-envelope marker requires a saved outgoing paper URI.");
+        if (message.TelemetryHex is { } telemetry)
+            _ = SidebandMessageTelemetry.Decode(telemetry);
         if (message.PaperUri is { } uri)
         {
             byte[] destination;

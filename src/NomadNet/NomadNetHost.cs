@@ -22,11 +22,14 @@ public sealed class NomadNetHost : IAsyncDisposable
     private readonly object _lifecycle = new();
     private readonly object _refresh = new();
     private bool _disposed;
+    private Task? _disposal;
 
     public NomadNetHost(TransportRouter router, Identity identity, string directory, NomadNetSettings settings,
         Func<CancellationToken, ValueTask>? announcePropagation = null)
     {
         _router = router;
+        Statistics = NomadNetHostedStatistics.Open(directory);
+        Statistics.Log = Report;
         _content = new NomadNetContent(directory, settings.EnableExecutablePages, settings.MediaConverter, settings.PagesPath, settings.FilesPath);
         _announceAtStart = settings.NodeAnnounceAtStart;
         _announcePropagation = announcePropagation;
@@ -36,12 +39,18 @@ public sealed class NomadNetHost : IAsyncDisposable
         {
             AppData = Encoding.UTF8.GetBytes(settings.NodeName ?? settings.DisplayName + "'s Node"),
             MaxRequestSize = 64 * 1024,
+            LinkEstablished = _ =>
+            {
+                lock (_lifecycle)
+                    if (!_disposed) Statistics.Record(NomadNetHostedRequestKind.Connection);
+            },
         };
         Refresh();
         _router.RegisterLocalDestination(_destination);
     }
 
     public string DestinationHash => Convert.ToHexStringLower(_destination.Destination.Hash);
+    public NomadNetHostedStatistics Statistics { get; }
     public Action<string>? Log { get; set; }
     public IReadOnlyList<string> RegisteredPaths
     {
@@ -61,6 +70,7 @@ public sealed class NomadNetHost : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_jobs is not null) throw new InvalidOperationException("The node is already started.");
+            Statistics.Start();
             _jobs = RunAsync(_stop.Token);
         }
     }
@@ -85,9 +95,11 @@ public sealed class NomadNetHost : IAsyncDisposable
     private void RefreshCore(bool pages = true, bool files = true)
     {
         var paths = new HashSet<string>(StringComparer.Ordinal);
+        var indexIsHosted = false;
         foreach (var path in _content.RequestPaths(pages, files))
         {
-            paths.Add(path);
+            // RequestPaths emits the fallback first, then a second index only if the scan found a file.
+            if (!paths.Add(path) && path == "/page/index.mu") indexIsHosted = true;
             if (paths.Count > MaximumPaths) throw new InvalidDataException("Hosted request-path limit exceeded.");
         }
         var selected = _registered.Where(path => path.StartsWith("/file/", StringComparison.Ordinal) ? files : pages);
@@ -100,9 +112,25 @@ public sealed class NomadNetHost : IAsyncDisposable
         }
         foreach (var path in paths)
         {
-            _destination.RegisterAsyncRequestHandler(path, _content.RespondAsync, RequestPolicy.All);
+            var defaultIndex = path == "/page/index.mu" && !indexIsHosted;
+            _destination.RegisterAsyncRequestHandler(path, (request, token) => RespondAsync(request, token, defaultIndex), RequestPolicy.All);
             _registered.Add(path);
         }
+    }
+
+    internal ValueTask<object?> RespondAsync(RequestContext request, CancellationToken token, bool defaultIndex)
+    {
+        lock (_lifecycle)
+        {
+            if (_disposed) return ValueTask.FromResult<object?>(null);
+            token.ThrowIfCancellationRequested();
+            if (defaultIndex) return ValueTask.FromResult<object?>(NomadNetContent.DefaultIndex.ToArray());
+            if (request.Path.StartsWith("/page/", StringComparison.Ordinal)) Statistics.Record(NomadNetHostedRequestKind.Page);
+            else if (request.Path.StartsWith("/file/", StringComparison.Ordinal)) Statistics.Record(NomadNetHostedRequestKind.File);
+            else if (request.Path == "/media" && _content.IsCountedMediaRequest(request))
+                Statistics.Record(NomadNetHostedRequestKind.Media);
+        }
+        return _content.RespondRegisteredAsync(request, token);
     }
 
     private async Task RunAsync(CancellationToken cancellationToken)
@@ -154,19 +182,25 @@ public sealed class NomadNetHost : IAsyncDisposable
             catch (Exception exception) { Trace.TraceError("NomadNet node log observer: {0}", exception.Message); }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         lock (_lifecycle)
         {
-            if (_disposed) return;
+            if (_disposal is not null) return new(_disposal);
             _disposed = true;
+            return new(_disposal = DisposeCoreAsync());
         }
+    }
+
+    private async Task DisposeCoreAsync()
+    {
         await _stop.CancelAsync().ConfigureAwait(false);
         if (_jobs is not null) await _jobs.ConfigureAwait(false);
         _destination.AcceptLinks = false;
         lock (_refresh)
             foreach (var path in _registered) _destination.DeregisterRequestHandler(path);
-        _stop.Dispose();
+        try { await Statistics.DisposeAsync().ConfigureAwait(false); }
+        finally { _stop.Dispose(); }
     }
 }
 
@@ -177,6 +211,7 @@ public sealed class NomadNetContent
     private readonly bool _execute;
     private readonly NomadNetImageCache _images;
     private static readonly byte[] Denied = ">Request Not Allowed\n\nThis identity is not authorised for this resource.\n"u8.ToArray();
+    internal static ReadOnlySpan<byte> DefaultIndex => ">Home\n\nCreate storage/pages/index.mu to publish a home page.\n"u8;
 
     public NomadNetContent(string directory, bool enableExecutablePages = false, string mediaConverter = "ffmpeg",
         string? pagesPath = null, string? filesPath = null)
@@ -214,7 +249,13 @@ public sealed class NomadNetContent
         }
     }
 
-    public async ValueTask<object?> RespondAsync(RequestContext request, CancellationToken cancellationToken)
+    public ValueTask<object?> RespondAsync(RequestContext request, CancellationToken cancellationToken) =>
+        RespondCoreAsync(request, cancellationToken, allowDefaultIndex: true);
+
+    internal ValueTask<object?> RespondRegisteredAsync(RequestContext request, CancellationToken cancellationToken) =>
+        RespondCoreAsync(request, cancellationToken, allowDefaultIndex: false);
+
+    private async ValueTask<object?> RespondCoreAsync(RequestContext request, CancellationToken cancellationToken, bool allowDefaultIndex)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var media = request.Path == "/media";
@@ -229,16 +270,17 @@ public sealed class NomadNetContent
         if (file is null) return media ? false : null;
         if (media && !new[] { ".webp", ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff" }
             .Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)) return false;
+        if (media && file.Length > 512) return false;
         if (!await IsAllowedAsync(file, request.RemoteIdentity, request, cancellationToken).ConfigureAwait(false))
             return media ? false : Denied.ToArray();
         if (!File.Exists(file))
-            return request.Path == "/page/index.mu"
-                ? ">Home\n\nCreate storage/pages/index.mu to publish a home page.\n"u8.ToArray() : null;
+            return allowDefaultIndex && request.Path == "/page/index.mu" ? DefaultIndex.ToArray() : null;
         if (page && IsExecutable(file))
         {
             if (!_execute) return ">Executable page disabled\n\nEnable executable pages explicitly in settings.json.\n"u8.ToArray();
             return await ExecuteAsync(file, request, MicronText.MaximumPageBytes, cancellationToken).ConfigureAwait(false);
         }
+
         if (page) return await ReadBoundedAsync(file, MicronText.MaximumPageBytes, cancellationToken).ConfigureAwait(false);
         if (media && !Path.GetExtension(file).Equals(".webp", StringComparison.OrdinalIgnoreCase))
         {
@@ -248,6 +290,17 @@ public sealed class NomadNetContent
         }
         var bytes = await ReadBoundedAsync(file, NomadNetHost.MaximumFileBytes, cancellationToken).ConfigureAwait(false);
         return new FileResponse(bytes, new Dictionary<object, object?> { ["name"] = Encoding.UTF8.GetBytes(Path.GetFileName(file)) });
+    }
+
+    internal bool IsCountedMediaRequest(RequestContext request)
+    {
+        if (request.Data is not Dictionary<object, object?> data || !data.ContainsKey("key") ||
+            data.GetValueOrDefault("path") is not string path) return false;
+        var relative = path.StartsWith("/media/", StringComparison.Ordinal) ? path[7..] : path.TrimStart('/');
+        var file = Resolve(_pages, relative);
+        return file is not null && file.Length <= 512 &&
+            new[] { ".webp", ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff" }
+                .Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase);
     }
 
     private static string? Resolve(string root, string relative)

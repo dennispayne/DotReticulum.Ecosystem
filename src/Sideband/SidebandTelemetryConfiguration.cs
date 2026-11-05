@@ -13,6 +13,8 @@ public sealed record SidebandTelemetryConfiguration
     public bool Enabled { get; init; }
     public bool RnsTransportEnabled { get; init; }
     public bool BatteryEnabled { get; init; }
+    public bool PropagationEnabled { get; init; }
+    public string? PropagationIdentityPath { get; init; }
     public bool RnsTransportIncludeTables { get; init; }
     public SidebandMqttConfiguration Mqtt { get; init; } = new();
     public bool SendToTrusted { get; init; }
@@ -61,6 +63,16 @@ public sealed record SidebandTelemetryConfiguration
         ValidateAppearance(Appearance);
         if (Mqtt is null) throw new InvalidDataException("MQTT configuration cannot be null.");
         _ = Mqtt.Validate();
+        if (PropagationEnabled && string.IsNullOrWhiteSpace(PropagationIdentityPath) ||
+            PropagationIdentityPath is not null && (string.IsNullOrWhiteSpace(PropagationIdentityPath) ||
+                PropagationIdentityPath.Length > 4096 || PropagationIdentityPath.Any(char.IsControl)))
+            throw new InvalidDataException("Propagation telemetry requires an explicit bounded identity file path.");
+        string? propagationIdentityPath;
+        try { propagationIdentityPath = PropagationIdentityPath is null ? null : Path.GetFullPath(PropagationIdentityPath); }
+        catch (Exception error) when (error is ArgumentException or NotSupportedException or PathTooLongException)
+        { throw new InvalidDataException("Invalid propagation telemetry identity file path."); }
+        if (propagationIdentityPath?.Length > 4096)
+            throw new InvalidDataException("Propagation telemetry identity file path exceeds the bound.");
         _ = SidebandGeo.ToCartesian(FixedLocation);
         if (FixedLocationEnabled)
             _ = SidebandTelemetryCodec.FromLocation(new(FixedLocation.Latitude, FixedLocation.Longitude, FixedLocation.Altitude, 0, 0, 0, 0));
@@ -75,6 +87,8 @@ public sealed record SidebandTelemetryConfiguration
                 throw new InvalidDataException("Automatic and manual Reticulum transport sensors cannot both be enabled.");
             if (BatteryEnabled && sensor.SensorId == (byte)SidebandTelemetrySensorId.Battery)
                 throw new InvalidDataException("Automatic and manual battery sensors cannot both be enabled.");
+            if (PropagationEnabled && sensor.SensorId == (byte)SidebandTelemetrySensorId.LxmfPropagation)
+                throw new InvalidDataException("Automatic and manual propagation sensors cannot both be enabled.");
             var reading = SidebandTelemetryCodec.FromWireValue(sensor.SensorId, SidebandTelemetryValue.Decode(Convert.FromHexString(sensor.WireHex)));
             if (reading.Status == SidebandTelemetryStatus.Malformed) throw new InvalidDataException("Malformed manual sensor.");
         }
@@ -87,6 +101,7 @@ public sealed record SidebandTelemetryConfiguration
         return this with
         {
             Collector = Collector?.ToLowerInvariant(), ManualSensors = Array.AsReadOnly(ManualSensors.ToArray()),
+            PropagationIdentityPath = propagationIdentityPath,
             ExcludedSources = Array.AsReadOnly(ExcludedSources.Select(s => s.ToLowerInvariant()).Distinct().ToArray()),
             Tracking = Array.AsReadOnly(Tracking.Select(t => t with { DeliveryHash = t.DeliveryHash.ToLowerInvariant() }).ToArray())
         };

@@ -291,7 +291,10 @@ public sealed class SidebandConsole : IAsyncDisposable
         }
         else if (name == "telemetry sensors")
         {
+            var sourceStatus = _client.PropagationTelemetryStatus;
             _output($"information: {state.Telemetry.InformationEnabled}\nfixed_location: {state.Telemetry.FixedLocationEnabled}\nrns_transport: {state.Telemetry.RnsTransportEnabled}\n" +
+                $"battery (native Linux provider): {state.Telemetry.BatteryEnabled}\npropagation (native explicit identity): {state.Telemetry.PropagationEnabled}\n" +
+                $"propagation_status: {sourceStatus.State}; {sourceStatus.Diagnostic}\n" +
                 "Other automatic sensors: unsupported (manual supplied data is not automatic collection).");
         }
         else if (name == "telemetry" && args.Length == 0)

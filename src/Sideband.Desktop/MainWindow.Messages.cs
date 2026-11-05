@@ -10,8 +10,10 @@ public sealed partial class MainWindow
 
     private void UpdateRetryAvailability()
     {
+        UpdatePaperPrintingAvailability();
         var index = MessageList.SelectedIndex;
         CopyMessageButton.IsEnabled = !_closing && _clipboardWriteTask.IsCompleted && index >= 0 && index < _visibleMessages.Count;
+        CopyMessageTelemetryButton.IsEnabled = CopyMessageButton.IsEnabled && _visibleMessages[index].TelemetryHex is not null;
         RetryMessageButton.IsEnabled = !_closing && !_messageRetryRunning && _client.IsConnected &&
             index >= 0 && index < _visibleMessages.Count && SidebandMessageActions.CanRetryText(_visibleMessages[index]);
         CancelMessageButton.IsEnabled = !_closing && index >= 0 && index < _visibleMessages.Count &&
@@ -97,6 +99,14 @@ public sealed partial class MainWindow
             if (_smokeClipboardText != selected.Content)
                 throw new InvalidOperationException("Message copy did not preserve the exact selected raw text in the private observation port.");
             Console.WriteLine("SMOKE_UI_MESSAGE_COPY=private-port-exact-raw");
+            if (selected.TelemetryHex is not null)
+            {
+                await CopySelectedMessageTelemetryAsync();
+                if (_smokeClipboardText is not { } copied || copied != SidebandMessageTelemetry.CopyText(selected.TelemetryHex))
+                    throw new InvalidOperationException("Selected telemetry copy did not use this message's immutable snapshot.");
+                Console.WriteLine("SMOKE_UI_MESSAGE_TELEMETRY_SHA256=" +
+                    Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(copied))));
+            }
             try
             {
                 await DeleteSelectedMessageAsync();

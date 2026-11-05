@@ -89,7 +89,8 @@ public static class NomadNetProfileImport
                         PropagationNode = peers.GetValueOrDefault("propagation_node") is byte[] { Length: 16 } pn
                             ? Convert.ToHexStringLower(pn) : peers.GetValueOrDefault("propagation_node") is null ? null
                             : throw new InvalidDataException("Invalid saved propagation node.") };
-                    warnings.Add("Peer settings counters, node announce timestamp, quit-confirm and unknown peer keys are archived, not active native settings.");
+                    await NomadNetHostedStatistics.InitializeFromPrimaryAsync(staging, peers, cancellationToken).ConfigureAwait(false);
+                    warnings.Add("Node announce timestamp, quit-confirm and unknown peer keys are archived, not active native settings.");
                 }
                 await settings.SaveAsync(staging, cancellationToken).ConfigureAwait(false);
                 await NomadNetEditorStateImport.ImportAsync(source, staging, settings, snapshot, activated,

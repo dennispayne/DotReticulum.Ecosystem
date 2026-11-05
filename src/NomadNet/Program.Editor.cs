@@ -14,21 +14,7 @@ internal static partial class Program
         private async Task<bool> TryHandleEditorAsync(string command, CancellationToken cancellationToken)
         {
             var parts = Split(command, 3);
-            if (parts[0] == "guide")
-            {
-                if (parts.Length == 1) Console.WriteLine(Heading(_guide.Open("start")));
-                else if (parts[1] == "topics")
-                    foreach (var topic in NomadNetGuide.Topics.Keys) Console.WriteLine(topic);
-                else if (parts[1] == "links")
-                    foreach (var (link, index) in _guide.Page.Links.Select((link, index) => (link, index)))
-                        Console.WriteLine($"{index + 1}: {link.Label} ({link.Target})");
-                else if (parts[1] == "open" && parts.Length == 3 && int.TryParse(parts[2], out var number))
-                    Console.WriteLine(Heading(_guide.Follow(number)));
-                else if (parts[1] == "back") Console.WriteLine(Heading(_guide.Back()));
-                else if (parts.Length == 2) Console.WriteLine(Heading(_guide.Open(parts[1])));
-                else throw new ArgumentException("Usage: guide [topics|links|open <number>|back|<topic>#<anchor>]");
-                return true;
-            }
+            if (TryHandleGuide(command, cancellationToken)) return true;
             if (parts[0] == "config")
             {
                 if (await TryHandleConfigurationFormAsync(parts, cancellationToken).ConfigureAwait(false)) return true;
@@ -248,7 +234,7 @@ internal static partial class Program
                     Console.WriteLine(NomadNetTerminalText.Safe(Editor.Buffer.Text));
                     break;
                 case "preview":
-                    Console.WriteLine(Editor.Preview());
+                    Console.WriteLine(Editor.Preview(propagation.Settings, !Console.IsOutputRedirected));
                     break;
                 case "save":
                     if (Editor.IsConfiguration)

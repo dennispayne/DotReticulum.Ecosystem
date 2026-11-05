@@ -130,6 +130,7 @@ public sealed partial class MainWindow
     {
         CreatePaperButton.IsEnabled = ShowPaperButton.IsEnabled = ExportPaperButton.IsEnabled =
             ExportPaperQrButton.IsEnabled = ImportPaperButton.IsEnabled = enabled;
+        UpdatePaperPrintingAvailability();
     }
 }
 

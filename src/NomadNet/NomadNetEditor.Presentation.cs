@@ -225,7 +225,12 @@ public sealed partial class NomadNetEditor
                 default:
                     var text = PreviewViewportText();
                     _previewScroll.Clamp(text.Count(character => character == '\n') + 1, rows);
-                    columns.Add(text.Split('\n').Skip(PreviewScrollPosition).Take(rows).Select(line => Cell(line, size)).ToArray());
+                    var styled = AutomaticPreview is { Error: null } preview && preview.Revision == PreviewRevision &&
+                        IsOpen && Buffer.Editable && !IsConfiguration && !Executable && Buffer.Text.Length <= 100_000;
+                    columns.Add(styled
+                        ? MicronText.Render(Encoding.UTF8.GetBytes(Buffer.Text)).PresentLines(settings, ansi, size, pad: true, wrap: false)
+                            .Skip(PreviewScrollPosition).Take(rows).ToArray()
+                        : text.Split('\n').Skip(PreviewScrollPosition).Take(rows).Select(line => Cell(line, size)).ToArray());
                     break;
             }
         }

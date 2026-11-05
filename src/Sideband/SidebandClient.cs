@@ -39,12 +39,14 @@ public sealed partial class SidebandClient : IAsyncDisposable
     public SidebandClient(SidebandStateStore store, IAudioDeviceBackend? voiceDevices = null)
         : this(store, voiceDevices, new SidebandBatterySource()) { }
 
-    public SidebandClient(SidebandStateStore store, IAudioDeviceBackend? voiceDevices, ISidebandBatterySource batterySource)
+    public SidebandClient(SidebandStateStore store, IAudioDeviceBackend? voiceDevices, ISidebandBatterySource batterySource,
+        Func<ReticulumNode, ISidebandPropagationTelemetrySource>? propagationTelemetrySourceFactory = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _attachments = new SidebandAttachmentStore(store.DataDirectory);
         _voiceDevices = voiceDevices;
         _batterySource = batterySource ?? throw new ArgumentNullException(nameof(batterySource));
+        _propagationTelemetrySourceFactory = propagationTelemetrySourceFactory;
     }
 
     public event Action<SidebandState>? StateChanged;
@@ -579,7 +581,8 @@ public sealed partial class SidebandClient : IAsyncDisposable
             RegisterTelemetryOutcome(message, new(normalized, false, OwnsPending: false), SidebandTelemetryCodec.Decode(reportBytes).TimestampUtcSeconds ?? 0, false);
         message.IncludeTicket = state.Contacts.Any(contact => contact.DeliveryHash == normalized && contact.Trusted);
         var local = new SidebandChatMessage(Guid.NewGuid(), normalized, false, string.Empty, content, DateTimeOffset.UtcNow, "Queued",
-            attachments, method.ToString(), storedImage, storedAudio, Renderer: formatted.Renderer);
+            attachments, method.ToString(), storedImage, storedAudio, Renderer: formatted.Renderer,
+            TelemetryHex: SidebandMessageTelemetry.Capture(message));
         var updates = _inbound;
         var eligibleForRetry = state.TryPropagationOnFail && router.OutboundPropagationNode is not null;
         message.StateChanged += changed =>
@@ -920,7 +923,8 @@ public sealed partial class SidebandClient : IAsyncDisposable
                         Report($"LXMF message from {hash} rejected: sender not authorized (unknown conversation or command policy).");
                         continue;
                     }
-                    try { await ReceiveTelemetryAsync(received.Message, CancellationToken.None).ConfigureAwait(false); }
+                    string? messageTelemetry = null;
+                    try { messageTelemetry = await ReceiveTelemetryAsync(received.Message, CancellationToken.None).ConfigureAwait(false); }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     { Report("Received telemetry metadata was rejected; text/media are retained: " + ex.Message); }
                     if (received.Message.TryGetField(LxmField.Commands, out _)) continue;
@@ -997,7 +1001,8 @@ public sealed partial class SidebandClient : IAsyncDisposable
                         received.Message.Method.ToString(),
                         image,
                         audio,
-                        Renderer: SidebandMessageFormatting.ReadRenderer(received.Message));
+                        Renderer: SidebandMessageFormatting.ReadRenderer(received.Message),
+                        TelemetryHex: messageTelemetry);
                     await _store.AddMessageAsync(stored, !telemetryOnly).ConfigureAwait(false);
                     await RefreshVoicePolicyCoreAsync(CancellationToken.None).ConfigureAwait(false);
                 }

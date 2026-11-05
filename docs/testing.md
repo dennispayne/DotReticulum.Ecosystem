@@ -8,16 +8,62 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
-The integrated battery/editor-state candidate builds with zero warnings/errors
-and passes3000 managed cases/176 explicit skips on Windows:
+The integrated guide/Micron/statistics/peer-control and desktop telemetry/printing
+candidate builds with zero warnings/errors and passes3178 managed cases/
+188 explicit skips on Windows:
 
 ```powershell
 dotnet build DotReticulum.Ecosystem.slnx -c Release -warnaserror --nologo -v:q
-dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build --nologo -v:q --logger trx --results-directory artifacts\tests\root-editor-import-battery
+dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build --nologo -v:q --logger trx --results-directory artifacts\tests\root-current-native-integration
 ```
 
-Full suites pass LXMF163/28, LXST141/30, Nomad439/28,
-Sideband2254/90 and Telemetry3/0. Earlier MQTT ordinary coverage/Pester/catalog gate
+Full suites pass LXMF163/28, LXST141/30, Nomad491/35,
+Sideband2380/95 and Telemetry3/0. The current unified ordinary gate uses:
+
+```powershell
+pwsh -NoProfile -File tests\run-tests.ps1 -Coverage -Pester -OutputDirectory artifacts\tests\fleet-current-native-integration-final
+```
+
+It passes with108 scoped claims/689 selectors/five pins validated. The ten-report
+source-identity union is24993/33095 production lines and17362/27152 branches.
+Ordinary skipped native/live cases and unmapped records remain explicitly
+unavailable evidence, not passing compatibility.
+
+Separately executed parent-independent Windows NativeAOT closures are:
+
+| Claim | Current candidate | Scoped result |
+| --- | --- | --- |
+| C102 guide | `nomad-guide\parent-final\candidate.json` |13 focused,493 full/33 explicit skips,4 Pester; exact primary vectors regenerate |
+| C103 message telemetry | `sideband-message-telemetry\parent-current\candidate.json` |84 selected,4 Pester; actual primary messages both ways, clean/abrupt native restart, import and private clipboard windows |
+| C104 Micron/C109 peer controls | `nomad-micron-contracts\final-candidate.json` |15 focused,507 full/19 explicit skips,4 Pester; existing editor regressions and T1052 native persisted removal pass |
+| C105 propagation telemetry | `sideband-propagation-telemetry\parent-current\candidate.json` |30 selected without skips; actual primary lxmd and published application, configuration, identity failure and recovery |
+| C107 hosted statistics | `nomad-host-statistics\final2\candidate.json` |23 selected,3 Pester without skips; actual primary requests native host, reset/restart and strict import |
+| C108 printing | `sideband-printing\parent-final\candidate.json` |16 selected without skips,34 shared/1 Linux skip,2380 Sideband/95 skips,491 Nomad/35 skips,5 Pester |
+
+Candidate paths are relative to `artifacts\tests`. Their corresponding checked-in
+`tests\Pester\Invoke-*Acceptance.ps1` operators require fresh replay output
+directories and guard exact production, acceptance and compiled inputs before/
+after execution. C102 additionally freezes acceptance sources **before build**
+and identifies every ordinary Windows skip by name/reason; C108 counts individual
+TRX outcomes rather than the adapter's misleading aggregate `notExecuted=0`.
+No scoped receipt accepts another candidate, later source changes or skipped
+live/platform cases. Native hashes and replay commands are in each project's
+reference. C106's ten-minute workload retains its earlier exact executable;
+it is not silently attributed to these new binaries.
+
+The first current unified attempt passed all selected checks but failed report
+aggregation on the old T312 method name after its native-extension assertion was
+renamed. T312 now retains its original stable catalog ID and selects the renamed
+case, which is also the C105/T919 regression. Earlier failed native freeze/build
+attempts retain their evidence: an explicitly selected LXMF checkout disagreed
+with the installed reference import, and local cache copies exhausted disk.
+Correct reference selection and transparent compression/targeted removal of
+completed linker intermediates preserve frozen binaries, references and receipts.
+The first C102 replay also refused its stale full-suite skip ceiling; the current
+operator requires the exact inventoried Windows outcomes rather than raising a
+generic allowance.
+
+Earlier MQTT ordinary coverage/Pester/catalog gate
 also passes with97 scoped claims/545 selectors/five pins:
 
 ```powershell
@@ -92,8 +138,59 @@ Hosted evidence was rechecked without dispatching workflows: latest
 Build41502113530 succeeds at `89e948a90e9606bed331b71da6b787cace0bbd81`;
 Test41643993895 succeeds at `0e49bee87c932fdf404949812a8420f83cb49e4a`,
 including its Windows/Linux Unit, Integration and Compatibility jobs.
-These earlier commits do not accept the current local MQTT/editor changes.
+These earlier commits do not accept the current local integrations.
 The xUnit3.2.2 Avalonia-compatible pin remains unchanged.
+
+Parent-independent frozen C103 acceptance passes84 selected managed cases
+without skips and4/0/0 Pester, including actual primary normal messages both
+ways, newer reports, clean/abrupt native restart, malformed-stream isolation
+and native import of actual primary SQLite backups. Six offline Windows
+windows verify private-provider telemetry/raw copying separately:
+
+```powershell
+pwsh -NoProfile -File tests\Pester\Invoke-SidebandMessageTelemetryAcceptance.ps1 -Candidate artifacts\tests\sideband-message-telemetry\parent-current\candidate.json -OutputDirectory artifacts\tests\sideband-message-telemetry\parent-current\independent
+```
+
+Exact native SHA-256 is
+`df44e6a9cef21ac012deeda2f51b9163dcd721e4fcca2a336a7f44d3347e2e97`,
+SDK10.0.403/ILCompiler10.0.14 at versioning HEAD `10e890f`.
+The receipt guards exact production/toolchain and acceptance inputs,
+1179 reference inputs and91 managed artifacts. Seventy actual-primary
+callback/readings/link-rounding observations regenerate byte-identically.
+Full Sideband separately passes2380/95 explicit skips. Primary same-second
+send suppression is respected by a source-timebase wait; earlier failed
+harness/limit-type/Unicode Git-path attempts remain failures.
+No OS clipboard, primary GUI, physical sensor, new hop/loss or current Linux
+acceptance is inferred.
+
+Additional opt-in C106 service endurance on the earlier C103 native hash
+`f94d8847230f7a4a86d842abcaae93cdc49860760de71dfa43d51adc8a36f2bb` passes
+1/0/0 in10m53s:600.027 steady seconds, ten same-process minute-spaced
+bidirectional actual-primary exchanges, terminal failed delivery after peer
+exit, different-primary recovery and identity/history/snapshot-preserving
+native restart. Its direct-loopback, ten-minute boundary and exact command
+are recorded in [Sideband's reference](sideband.md#measured-native-messaging-service-endurance-c106).
+This later workload is not retroactively part of C103's earlier frozen
+managed-input closure; no days-long, loss/hop, physical or Linux claim follows.
+
+Parent-independent C102 frozen guide replay passes13 focused cases,
+493 full Nomad cases/33 explicit skips and4/0/0 Pester, with exact-primary
+observations independently byte-identical:
+
+```powershell
+pwsh -NoProfile -File tests\Pester\Invoke-NomadNetGuideAcceptance.ps1 -Candidate artifacts\tests\nomad-guide\parent-final\candidate.json -OutputDirectory artifacts\tests\nomad-guide\parent-final\independent
+```
+
+Native SHA-256 is
+`00b16603d1969db1d292502e8446c7a8da00c335a0872e05a910ef755afc69d0`,
+SDK10.0.403/ILCompiler10.0.14, versioning HEAD `10e890f`.
+The guard covers354 scoped production/toolchain inputs,113 acceptance inputs
+and44 managed artifacts. Native ordinary and actual ConPTY navigation,
+guide-driven authoring/access/handler registration and identity-preserving
+restart are not full Urwid/keyboard/mouse, remote-topology, current Linux or
+physical-hardware acceptance. Thirteen actual primary topic bodies are parsed
+with disclosed singleton/screen/palette/alarm and unresolved-demo-image seams;
+the18-topic native guide is original, not copied primary content.
 
 Parent-frozen C101 acceptance independently passes150 selected managed cases
 without skips and4/0/0 Pester, including previous actual-primary MQTT flows and

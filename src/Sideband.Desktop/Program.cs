@@ -27,10 +27,15 @@ internal static class Program
     {
         try
         {
+            if (SidebandPrintingService.TryRunSupervisorAsync(args).GetAwaiter().GetResult() is { } supervisorResult)
+                return supervisorResult;
+            if (SidebandPrintingCommand.TryRunAsync(args, Console.Out).GetAwaiter().GetResult() is { } printingResult)
+                return printingResult;
             var options = Parse(args);
             if (options.Help)
             {
                 Console.WriteLine(Usage);
+                Console.WriteLine(SidebandPrintingCommand.Usage);
                 return 0;
             }
 

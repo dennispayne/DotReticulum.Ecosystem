@@ -4,8 +4,9 @@ Experimental, independently authored .NET terminal application targeting primary
 NomadNet **1.4.4**, not an official implementation or a full port. The application
 reuses `ReticulumNode`, `ClientLinks` and `LxmRouter`; it does not duplicate LXMF,
 paper encryption, propagation, Reticulum links or Resource protocols.
-**Required software remains missing**, including complete primary editor/UI,
-remaining configuration and terminal workflows. A bounded original page/file/
+Required software and evidence gaps remain individually inventoried, including
+Windows executable authorization generators and complete migration/configuration
+semantics. A bounded original page/file/
 native-configuration editor and local guide are implemented and Windows-native
 verified below; they are not the primary editor or copied guide. Scoped primary-peer utilities
 and ten-minute transfer endurance now have separate Windows/Linux evidence;
@@ -14,6 +15,105 @@ software gaps, not hardware or optional-platform blockers. Original terminal/RRC
 Kitty presentation differences do not establish full upstream UI parity.
 Sideband has its own implementation and
 inventory in [sideband.md](sideband.md); this document does not track it.
+
+## Functional Micron and hosted-node controls
+
+### Bounded Micron grammar and original rendering (C104)
+
+The original browser, editor preview, conversation and RRC renderers now activate
+source-observed font/foreground/background controls, row alignment, headings,
+custom folds, buffered actionable tables and per-image width/height/alignment.
+Existing fields, submissions, anchors and partial replacement retain their
+actionable metadata. Conversation/RRC consumers preserve primary-specific
+alignment suppression. Monochrome and redirected output retain safe plain text;
+original themes and bounded ASCII images do not copy primary assets or implement
+Kitty graphics.
+
+The independently executed corpus contains76 primary grammar inputs (75
+successes and an explicit primary empty-heading `TypeError`), six partials, nine
+image property/layout observations and three consumer pipelines. Native empty
+headings safely omit the invalid fold and continue. Singleton/palette,
+image-metadata and terminal-query seams are disclosed in
+`GenerateNomadNetMicronGrammarVectors.py`; vectors are not a live-node or primary
+fullscreen GUI claim. Native source/table/image/output bounds and Rune-safe
+clipping do not reproduce the optional exhaustive `wcwidth` database.
+Canonical Git parser SHA-256 is
+`995a8fd8883ec57cd173d117b6758447e508ca2ddf96d8521260cc70e18a8e4e`;
+the CRLF Windows checkout fingerprint is
+`9932db8038b6380742e2586250dc77b2509b72d7ed8a6fdfd954f03602cf4e03`.
+Both identify the same pinned source after line-ending normalization.
+
+```powershell
+pwsh -NoProfile -File tests\Pester\Invoke-NomadNetMicronGrammarAcceptance.ps1 -Candidate artifacts\tests\nomad-micron-contracts\final-candidate.json -OutputDirectory artifacts\tests\nomad-micron-contracts\parent-independent
+```
+
+Parent-independent replay passes15 focused cases,507 full Nomad cases/
+19 explicit skips and4 Pester cases. T1052 and the eight previously accepted
+editor regressions pass against this actual NativeAOT binary, SHA-256
+`72e3b37b6dc2b959df225f5fbc2ef7f0cea5001902eb24475284de2de591860a`.
+No required selected case skips; ordinary platform/other opt-in skips retain
+individual reasons. The guard covers354 production,117 acceptance,1615
+reference,10 toolchain and111 managed inputs.
+
+### Hosted request statistics and profile activation (C107)
+
+`node stats` shows actual hosted connections/page/file/media counters;
+`node stats reset` durably resets connections/pages/files and deliberately
+retains media, matching primary `NodeInfo`. Default-index handling does not
+count as a page-file attempt. Registered page/file handlers count before
+authorization/open failures; media counts only after path/key/extension/jail/
+length validation, before authorization/open failures. A deleted real index
+retains its registered-handler attempt semantics until rescan.
+
+`storage\hosted-statistics.json` is a strict, bounded1KiB schema with four
+nonnegative Int64 counters and atomic private publication. Five-second jobs
+flush strictly after60seconds; clean disposal flushes even without a started
+worker. Failed writes retain dirty state and report/retry; corruption refuses
+startup without overwriting evidence. Saturation reports overflow instead of
+Python's arbitrary-precision growth. Reset preserves media, including restart.
+Offline profile import activates validated primary counters inside its existing
+private staging transaction; invalid counters roll back the entire import and
+never modify the source. These application counters are distinct from LXMF's
+propagation-node counters.
+
+Vectors execute actual primary handler/reset methods with disclosed synthetic
+request/owner boundaries. Separate direct-TCP acceptance uses the actual primary
+application/RNS client to request the published native host, including rejection,
+reset and restart. It is not Urwid Browser, new hop/loss, image-decoder, physical
+RF, current Linux or macOS evidence.
+
+```powershell
+pwsh -NoProfile -File tests\Pester\Invoke-NomadNetHostedStatisticsAcceptance.ps1 -Candidate artifacts\tests\nomad-host-statistics\final2\candidate.json -OutputDirectory artifacts\tests\nomad-host-statistics\final2\parent-independent
+```
+
+Parent-independent replay passes23 selected cases and3 Pester cases without
+skips. Native SHA-256 is
+`aba658dc1723e50c006da23573ed5bcd61c49f0a6deb707e48c400fc170a5383`.
+Strict positive four-counter whole-profile activation and negative-counter
+atomic rollback are also part of the full ordinary suite.
+
+### Existing-peer synchronization and removal (C109)
+
+`node-peers` exposes actual peer state, rates, transfer/sync limits, stamp
+cost/flexibility, acceptance percentage, timing and retained unresolved count.
+`node-peer-sync <hash>` selects only an existing resolved peer, requires strictly
+more than10seconds since its last attempt and retains the three-minute
+cancellation deadline. It does not create an unknown peer. `node-unpeer <hash>`
+uses existing LXMF removal/persistence with the current-time peering guard and
+supports a retained unresolved peer. It does not blacklist the destination or
+edit static configuration: subsequent discovery/restart can peer again.
+
+`GeneratePeerControlVectors.py` executes nine actual pinned `LXMFPeers`
+callbacks; synthetic selection/router/clock/thread boundaries stop before dialog
+construction and are not scheduling or wire evidence. The source filesystem
+SHA-256 is
+`7566c413f1d7b298dec6c764e0e8a14f7f7d6c2ec7825e93c595db2137063949`.
+T1050 checks strict before/equal/after timing; T1051 rejects invalid timestamps.
+T1052 is an explicit opt-in published-process check using a synthetic imported
+unresolved peer with a current-clock timebase, missing-peer refusal, removal,
+unchanged static settings and restart. Its development managed-apphost preflight
+is not NativeAOT acceptance; the C104 operator separately requires the actual
+published case to pass. No new active-peer Python wire/topology claim follows.
 
 ### Current configuration acceptance
 
@@ -80,7 +180,7 @@ and `parent-lxmf-admission-broader`.
 
 All75 form fields have explicit functional editing/reset/persistence
 dispositions. TextUI/utility effects have separate bounded C95 acceptance below;
-complete grammar/presentation and current Linux replay
+bounded grammar/rendering now has the separate C104 disposition; current Linux replay
 remain required/unverified as detailed below. Native form cases use actual
 piped processes; separate ConPTY cases are not full Urwid or physical terminal
 acceptance. The broader29 repeat actual primary multi-megabyte node
@@ -134,14 +234,14 @@ Underlying-library acceptance is not automatically application acceptance.
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Typed image references support explicit/automatic original ASCII conversation previews, using the existing converter/cache and never/manual/auto/always controls; this is not primary UI parity. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
 | Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. `paper-qr`/`paper-save` save PNG/URI and outbound history; `paper-print` passes the shared-codec PNG to an explicit local print command and saves outbound history only on successful process exit. `qr` exports an existing URI, `qr-show` renders explicit black-on-white half-blocks. All QR encoding uses shared `LxPaperQr`, not a second codec. Executed primary save-QR vectors and terminal module tests exist; selected application acceptance is recorded below. Image-import/scanner and physical scanning/printing remain unverified. |
 | Printing; `NomadNetworkApp.should_print`, `print_file`, `print_message`, `applyConfig`; `Conversation.paper_output` | **implemented bounded software subset**: persisted/imported opt-in incoming filters, explicit stored-message print and success-only paper-QR print. Original text template, five safe named placeholders, local sent/received calendar times, saved-directory classification, no-shell argv, bounded private jobs/queue/process lifecycle, explicit failure and recovery. Default printer is never invoked without explicit manual action or enabled matching incoming policy. Native safety/template differences and selected software evidence are described under C78; no physical printer/scanner claim. |
-| Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; hosted propagation uses `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Configured static-peer transfers are now application-verified both ways on Windows/Linux through a separate Python transport, with restart, real loss and2.2MB attachment assertions. Storage/limit/cost/static/priority settings are imported/persisted through existing LXMF options. Full peer management, storage-pressure eviction-order acceptance and additional peer failure/topology cases remain missing/unverified. |
+| Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; hosted propagation uses `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Configured static-peer transfers are application-verified both ways on Windows/Linux through a Python transport, with restart, real loss and2.2MB attachment assertions. Storage/limit/cost/static/priority settings use existing LXMF options. C109 adds actual peer inspection, strict manual-sync grace and durable unpeering without rewriting static settings. Storage-pressure eviction-order acceptance and additional peer failure/topology cases remain unverified. |
 | Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Saved-node listing/opening, primary rank/trust/name ordering, explicit browser identification consent and existing associated-node trust updates are operational. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Current and legacy primary saved-directory/ignored-list import is operational through offline CLI and terminal, with atomic additive merging, idempotence and conflict rejection. Bounded compact/full announce history, separate explicit transient import, per-type/search/name-or-address terminal presentation and restart persistence are implemented below. Complete Urwid stream/node-directory presentation remains missing. |
-| Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **partial**: `nomadnetwork.node`, UTF-8 name app-data, default index, nested static pages, configurable six-second startup announce and periodic node announce; independent configurable page/file rescan intervals, explicit refresh and bounded handler inspection. New/deleted paths update handlers. `.allowed` identity lists enforced. Node announces chain the existing hosted propagation announce rather than duplicate its protocol. Source-specific counters and upstream default assets remain missing. |
+| Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **implemented bounded subset**: `nomadnetwork.node`, UTF-8 name app-data, original default index, nested static pages, six-second startup/configured periodic announces, independent page/file rescans, explicit refresh and bounded handler inspection. New/deleted paths update handlers; static `.allowed` identity lists are enforced. Node announces chain existing propagation behavior. C107 implements source-specific attempt counters, reset, persistence and profile activation. Original default content deliberately replaces upstream assets; executable platform boundaries are separately inventoried below. |
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
 | Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. OS-process tests cover native execution; selected Linux native browser also submits real forms to unmodified Python executable pages across a Python transport. Python-to-native executable-form browser acceptance remains unverified. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
 | Media; `Node.serve_media`, `convert_media_to_webp` | **partial, live-verified core**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` responses and PNG/JPEG/BMP/GIF/TIFF conversion through configured external FFmpeg. Primary quality85/dimension1200 and content-hash cache naming, 256-file/192-MiB quota, corruption regeneration and restart/cache-only serving are exercised. `show-media` provides ASCII/explicit ANSI previews; bounded browser inline ASCII uses imported/runtime never/manual/auto/always policy, a separate durable remote cache and joined cancellation. Original conversation previews reuse the conversion cache and attachment storage. Actual primary `ImageData` decodes native-served images and native previews primary-served images on Windows/Linux; exact additional inline acceptance is recorded below. Native conversion explicitly selects one frame; complete animated/multipage, alpha/EXIF behavior and Kitty graphics remain unverified/missing. |
 | Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file/media retrieval with explicit identification consent, links/bookmarks, reload, session navigation history with back/forward and submitted-field replay, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Automatic/manual inline ASCII previews preserve descriptor/form indices and collapsed visibility, including partial media; a local interactive file picker supports transactional attachment composition. Upstream Kitty widgets and complete layout remain missing. |
-| Micron; `ui/textui/MicronParser.py` | **partial**: textual headings, literal blocks/comments/dividers, true backtick-prefixed links, escaping; formatting/color controls stripped rather than leaked. Primary-executed inline, field, submission and heading-slug vectors. Text/password/multiline fields, grouped checkbox/radio selection, `*`/selected-field submission, variable assignment, heading/explicit anchors and collapsible sections are functional in the terminal. Table rows remain readable text, not upstream column layout. Partial/media descriptors are bounded and actionable. No pixel-identical style/layout or visual image widget claim. |
+| Micron; `ui/textui/MicronParser.py` | **implemented, bounded functional scope**: source-observed line/inline grammar, fonts/foreground/background, row alignment, headings/custom folds, fields/actions/anchors, buffered actionable tables, per-image width/height/alignment and partial metadata composition. Browser/preview/conversation/RRC owners activate applicable controls while retaining source-specific filtering, monochrome and pipe sanitation. Executed independent reference and native-owner evidence remain distinct from live-node or identical Urwid/wcwidth/Kitty behavior; see C104. |
 | RRC; `RRC.py`, `ui/textui/Channels.py` | **partial, live-verified core**: identified `rrc.hub` link, CBOR v1 HELLO/WELCOME and negotiated limits; join/part; messages/actions/notices/errors; nicknames, bounded full-hash/prefix membership with promotion and mentions; ping/pong; bounded hashed notice/MOTD resources; `/list`/`/who` and parsed directory state including fragmented notices; persisted automatic list/who policy with silent replies; session-local active/read/unread/mention state; bounded per-room retention; manual reconnect and opt-in exponential reconnect; durable hub nick/rooms/history. Actual primary client and real rrcd exchange messages/actions both ways, including hub/client restarts, automatic roster learning and active/unread transitions. Markdown/Micron switches render live/history bodies against executed primary widget vectors; JSON string composition preserves multiline/raw content. Global retention/load filtering/notice cleanup and original functional nick/mention/timestamp colours, spacing, wrapping and collapsed-pane gutters are implemented below. `enable_esoterics` is a primary placeholder, not a missing invented feature. Complete Channels/Urwid layout remains missing. RRC is its own upstream CBOR-over-Link protocol, not LXMF multicast. |
 | UI; `ui/TextUI.py`, `ui/textui/*`, guides/examples | **partial**: original standard-console command loop, local attachment picker, bounded notification policy and opt-in OSC52 content/URL copying. Original bounded page/file/native-config editing, explicit Micron preview and local guide navigation pass separate Windows NativeAOT acceptance below. Complete primary editor/ConfigObj/Urwid/guide-asset workflows remain missing or intentionally different, as individually inventoried below. Current Linux native replay is blocked by WSL storage failure. Utilities have their separate bounded contract below; original presentation is not Urwid layout parity. GraphicalUI/WebUI abort upstream: **upstream-placeholder**, not an implemented or required invented GUI. |
 | Network utilities; `ui/textui/Utilities.py`, `ui/textui/Transport.py` | **implemented bounded subset**: current-owner tables, identity/path resolution/expiry, receipt-backed probes, named rncp sending and identified streamed speed tests. Executed reference vectors, managed TCP and native-pair evidence are separate from independently replayed actual-primary Windows/Linux direct-loopback gates, including unchanged-process ten-minute service operation. Stack callback ownership is fixed in the selected local stack commit; see C79 below. No new hop/loss, maximum-size, full primary GUI or physical-RF claim. |
@@ -3303,6 +3403,60 @@ Those clipboard-suite editor observations are reference research; the separate
 bounded implementation, additional executed observations and native acceptance
 are described in the editor/guide section below.
 
+### Original complete bounded local guide workflows (C102)
+
+The local guide has18 independently authored topics, with topic/link selection,
+anchors/next-heading, bounded search, logical-line viewports and32-position
+back/forward history. All13 actual pinned primary topic bodies have factual
+counterparts; upstream lists only12, omitting Conversations from its topic list.
+No upstream guide prose, demos, display assets, fonts, templates or UI source
+are copied. Original instructions cover setup, trust, conversations/media/paper,
+RRC, authoring/Micron, hosting/access, configuration/restart, propagation,
+browsing, network interfaces, presentation and recovery.
+
+Use `guide topics`, `guide select <number>`, `guide <topic>`, `guide links`,
+`guide open <number>`, `guide <topic>#<anchor>`, `guide next`, `guide back/forward`,
+`guide view [1-100]`, `guide scroll <-10000..10000>` and `guide find <words>`.
+Targets are limited to256 characters; searches to1–128 characters/64 results.
+Links stay local and never execute instructions or fetch from the network.
+Browser history and private editor buffers keep separate ownership.
+First client-state creation still shows `start`; `hide_guide` changes only
+menu visibility. Unknown anchors fail explicitly rather than silently doing
+nothing. History is session-local, not an upstream persistence claim.
+
+Actual pinned `GuideDisplay`, `GuideEntry`, `TopicList`, `ListEntry`,
+`GuideLinkDelegate` and `MicronParser` execute in the reference generator.
+Exact Git-blob hashes and imports are recorded. The synthetic singleton,
+screen/palette and immediate alarm callbacks are disclosed seams. Image
+resolution returns `None`, exercising the unresolved-image placeholder rather
+than decoding/copying primary demo assets. Browser handoffs are observed, not
+fetched. This is not unmodified-primary fullscreen or image-demo acceptance.
+The existing primary RNS/LXMF dependency-minimum discrepancy remains.
+
+Parent-independent frozen Windows acceptance passes **13 focused cases,
+493 full Nomad cases/33 explicit skips and4 Pester cases**, without failures.
+Strict builds/publish have zero warnings/errors with SDK10.0.403 and
+ILCompiler10.0.14 at versioning HEAD `10e890f08b9d7b6111309c7786e3b19c4f461998`
+and stack `4989f050aed865d16ed9f1460071c1a63cd4c7e9`.
+Native SHA-256:
+`00b16603d1969db1d292502e8446c7a8da00c335a0872e05a910ef755afc69d0`.
+Help/version, actual ConPTY selection/navigation/errors/hidden menu/Ctrl+C,
+ordinary all-topic/search/history and guide-driven create/preview/save/access/
+handler registration survive identity-preserving restart. Exact-primary
+observations independently regenerate byte-identically.
+
+```powershell
+pwsh -NoProfile -File tests\Pester\Invoke-NomadNetGuideAcceptance.ps1 -Candidate artifacts\tests\nomad-guide\parent-final\candidate.json -OutputDirectory artifacts\tests\nomad-guide\parent-final\independent
+```
+
+The receipt guards354 scoped production/toolchain inputs,113 acceptance inputs,
+44 managed artifacts, exact native/SDK/HEAD/stack and clean primary references,
+with unchanged before/after hashes. Original viewports use logical lines,
+not wrapped terminal/Unicode columns. Full terminal keyboard/mouse/focus,
+editor interaction and unexercised terminal/Unicode-column contracts remain distinct,
+not physical-hardware deferrals. No new wire topology, physical display/RF/audio/
+printing or current Linux replay is claimed; WSL read-only/EIO remains blocked.
+
 ### Bounded original document/configuration editor and guide
 
 Current folder-candidate validation and fresh cross-slice regressions are recorded
@@ -3349,7 +3503,7 @@ method, or copy its guide/snippet content. The existing
 | `_state_file`, `load_state`, `save_state`, `start` | **implemented bounded original controls / local-format difference**: extended schema1 `editor_state.json` stores relative selection, `.mu` filter, expanded folders and visible panes, bounded to32 KiB. Editor activation reopens an existing saved file; `edit resume` remains explicit. Old native schema1 selections still load. Folder moves/removal rebase/clear live and persisted expansions/selections. No document text, secrets or unsaved drafts are persisted. Malformed/oversized state is reported rather than silently ignored. Bounded primary state/document import is independently accepted under C100 below; external/custom roots are not rebound. |
 | `ConfigSectionView.on_save`, reset/validation and `util.write_config_atomic` | **implemented bounded functional subset / safety difference**: native JSON/raw selected-RNS editing plus all75 primary form fields across eight sections, explicitly opted-in primary ConfigObj source, confirmed staged reset/save and cancel. Exact field/runtime/grammar dispositions and reference evidence appear below. Atomic saves require restart and serialize with runtime settings writes; later runtime-setting edits are refused and automatic announce/sync timestamps stay in memory, preventing stale restart-configuration overwrite. Active service options/identity are not hot-reloaded. TextUI/utility controls have bounded functional effects under C95; complete ConfigObj/Urwid parity remains a gap. Panic failure ownership is an intentional safety difference, not a missing implementation. |
 | `Config.EditorTerminal`, `[textui] editor` | **implemented bounded original workflow / safety difference**: imported/native `editor`, default `nano`, is one executable argv element, not a shell command. `config external [native|rns]` uses the public `RnshProcess` PTY/ConPTY API, a private working copy, validation and snapshot-checked atomic commit, then returns to the console. Explicit Ctrl+] cancellation, child failure and conflict refuse commit. Redirected input/output is explicitly unsupported; interactive commands and child input have one owner rather than mixing `Console.In` with raw stdin. C95 uses Win32 console records for Windows command/mouse input, restores the exact input mode before child activation, and retains `Console.ReadKey` child forwarding. No embedded Urwid/widget, complete keyboard/mouse/termios or cross-platform terminal parity is claimed. Details and actual Windows terminal evidence follow below. |
-| `GuideEntry.display_topic`, `GuideLinkDelegate.handle_link`, topic reader | **implemented original subset / safety difference**: eight original local topics, local links, anchors, topic list and bounded32-topic back history, using the existing Micron renderer. No remote link is followed implicitly. C95 displays the local start topic on first client-state creation, even with its menu entry hidden, and wires `hide_guide` to menu visibility only. Explicit `guide` remains usable. Primary display/demo assets and full keyboard/mouse reader behavior remain **missing**. Network browsing stays explicit. |
+| `GuideEntry.display_topic`, `GuideLinkDelegate.handle_link`, topic reader | **implemented bounded original workflow / safety difference**:18 original topics cover all13 primary factual areas; topic/link selection, anchors/next-heading, search, logical-line viewports and32-position back/forward use the existing Micron renderer. C102 has separate frozen Windows NativeAOT ordinary/ConPTY/restart acceptance above. C95 first-state/start and menu-only `hide_guide` behavior remain. Links stay local; unknown anchors fail explicitly; history is session-only. Original assets replace primary demos; complete terminal keyboard/mouse/focus/Unicode-column behavior remains **missing/unverified**, not a new wire or current Linux claim. |
 
 ### Original editor presentation (C97)
 
@@ -3577,7 +3731,8 @@ no repair/remount/shutdown was attempted, and older Linux receipts do not accept
 this binary. macOS, physical terminals and primary GUI remain unverified.
 Bounded primary editor-state migration is accepted under C100 below.
 Remaining required software includes full
-keyboard/mouse/cursor/terminal-column, guide and configuration-grammar contracts;
+keyboard/mouse/cursor/terminal-column and configuration-grammar contracts;
+the bounded original guide is independently accepted under C102 above;
 this is a bounded vertical-scrolling slice, **not full editor/Urwid parity**.
 
 Example, using JSON strings for text without invoking a shell or executable page:
@@ -4220,7 +4375,8 @@ same pinned primary/RNS/LXMF, converter and runtime prerequisites as directory
 acceptance below. Older recipes explicitly clear the new opt-in. The application
 artifact records `hostPolicy=true`. Client announcement acceptance is recorded
 separately below; node
-counters and other unsupported configuration remain required gaps.
+statistics are implemented under C107; other unsupported configuration retains
+its explicit inventory disposition.
 
 The isolated integrated checkpoint `dotnet build DotReticulum.Ecosystem.slnx
 -c Release --artifacts-path artifacts\builds\nomadnet-host-policy-integrated -v:q`

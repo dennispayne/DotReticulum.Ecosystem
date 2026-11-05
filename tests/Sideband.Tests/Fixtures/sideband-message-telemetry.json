@@ -1,0 +1,1074 @@
+{
+    "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+    "source_sha256": {
+        "sbapp/ui/messages.py": "9b2580f76310356d2e1a30b038857fbad4ee346aad9e2a25ab237515fff39928",
+        "sbapp/sideband/sense.py": "80418b1aa4de638f2c65f1bd64e5ea0466378a6f0bc682781672ef89b93a7dab"
+    },
+    "method": "Actual AST-extracted gen_copy_telemetry and UI lq/lr/ls rounding assignments; imported Telemeter.from_packed/read_all and existing independently executed corpus; synthetic Clipboard/menu/logger only. No latest-source lookup, primary GUI, OS clipboard, device frames or network.",
+    "cases": [
+        {
+            "name": "time",
+            "wire_hex": "8101ce6553f100",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "81a474696d6581a3757463ce6553f100",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "time-nil",
+            "wire_hex": "8101c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "81a474696d65c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "information",
+            "wire_hex": "8201ce6553f1000fbf53796e746865746963206465736b746f702074656c656d6574727920e29883",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'information': {'contents': 'Synthetic desktop telemetry \u2603'}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ab696e666f726d6174696f6e81a8636f6e74656e7473bf53796e746865746963206465736b746f702074656c656d6574727920e29883",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "information-nil",
+            "wire_hex": "8201ce6553f1000fc0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'information': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ab696e666f726d6174696f6ec0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "received",
+            "wire_hex": "8201ce6553f1001094c410000102030405060708090a0b0c0d0e0fc410101112131415161718191a1b1c1d1e1fcb40938a0000000000cb4093850000000000",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'received': {'by': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'via': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'distance': {'geodesic': 1250.5, 'euclidian': 1249.25}}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a8726563656976656483a26279c410000102030405060708090a0b0c0d0e0fa3766961c410101112131415161718191a1b1c1d1e1fa864697374616e636582a867656f6465736963cb40938a0000000000a96575636c696469616ecb4093850000000000",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "received-nil",
+            "wire_hex": "8201ce6553f10010c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'received': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a87265636569766564c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "battery",
+            "wire_hex": "8201ce6553f1000493cb4052200000000000c3cb403f400000000000",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'battery': {'charge_percent': 72.5, 'charging': True, 'temperature': 31.25}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a76261747465727983ae6368617267655f70657263656e74cb4052200000000000a86368617267696e67c3ab74656d7065726174757265cb403f400000000000",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "battery-nil",
+            "wire_hex": "8201ce6553f10004c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'battery': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a762617474657279c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "pressure",
+            "wire_hex": "8201ce6553f10003cb408faa0000000000",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'pressure': {'mbar': 1013.25}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a8707265737375726581a46d626172cb408faa0000000000",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "pressure-nil",
+            "wire_hex": "8201ce6553f10003c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'pressure': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a87072657373757265c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "location",
+            "wire_hex": "8201ce6553f1000297c4040311d3e0c404fffe17b8c404fffffb1ec40400000e10c40400006978c4020145ce6553f0f9",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'location': {'latitude': 51.5, 'longitude': -0.125, 'altitude': -12.5, 'speed': 36.0, 'bearing': 270.0, 'accuracy': 3.25, 'last_update': 1699999993}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a86c6f636174696f6e87a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cbc029000000000000a57370656564cb4042000000000000a762656172696e67cb4070e00000000000a86163637572616379cb400a000000000000ab6c6173745f757064617465ce6553f0f9",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "location-nil",
+            "wire_hex": "8201ce6553f10002c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'location': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a86c6f636174696f6ec0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "physical_link",
+            "wire_hex": "8201ce6553f1000593cbc055e00000000000cb401d000000000000cb4056c00000000000",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'physical_link': {'rssi': -87.5, 'snr': 7.25, 'q': 91.0}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ad706879736963616c5f6c696e6b83a472737369cbc055e00000000000a3736e72cb401d000000000000a171cb4056c00000000000",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "physical_link-nil",
+            "wire_hex": "8201ce6553f10005c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'physical_link': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ad706879736963616c5f6c696e6bc0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "temperature",
+            "wire_hex": "8201ce6553f10007cbc011000000000000",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'temperature': {'c': -4.25}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ab74656d706572617475726581a163cbc011000000000000",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "temperature-nil",
+            "wire_hex": "8201ce6553f10007c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'temperature': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ab74656d7065726174757265c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "humidity",
+            "wire_hex": "8201ce6553f10008cb4050e00000000000",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'humidity': {'percent_relative': 67.5}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a868756d696469747981b070657263656e745f72656c6174697665cb4050e00000000000",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "humidity-nil",
+            "wire_hex": "8201ce6553f10008c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'humidity': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a868756d6964697479c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "magnetic_field",
+            "wire_hex": "8201ce6553f1000993cb3ff4000000000000cbc004000000000000cb400e000000000000",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'magnetic_field': {'x': 1.25, 'y': -2.5, 'z': 3.75}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ae6d61676e657469635f6669656c6483a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "magnetic_field-nil",
+            "wire_hex": "8201ce6553f10009c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'magnetic_field': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ae6d61676e657469635f6669656c64c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "ambient_light",
+            "wire_hex": "8201ce6553f1000acb405e200000000000",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'ambient_light': {'lux': 120.5}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ad616d6269656e745f6c6967687481a36c7578cb405e200000000000",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "ambient_light-nil",
+            "wire_hex": "8201ce6553f1000ac0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'ambient_light': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ad616d6269656e745f6c69676874c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "gravity",
+            "wire_hex": "8201ce6553f1000b93cb3ff4000000000000cbc004000000000000cb400e000000000000",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'gravity': {'x': 1.25, 'y': -2.5, 'z': 3.75}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a76772617669747983a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "gravity-nil",
+            "wire_hex": "8201ce6553f1000bc0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'gravity': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a767726176697479c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "angular_velocity",
+            "wire_hex": "8201ce6553f1000c93cb3ff4000000000000cbc004000000000000cb400e000000000000",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'angular_velocity': {'x': 1.25, 'y': -2.5, 'z': 3.75}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100b0616e67756c61725f76656c6f6369747983a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "angular_velocity-nil",
+            "wire_hex": "8201ce6553f1000cc0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'angular_velocity': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100b0616e67756c61725f76656c6f63697479c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "acceleration",
+            "wire_hex": "8201ce6553f1000693cb3ff4000000000000cbc004000000000000cb400e000000000000",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'acceleration': {'x': 1.25, 'y': -2.5, 'z': 3.75}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ac616363656c65726174696f6e83a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "acceleration-nil",
+            "wire_hex": "8201ce6553f10006c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'acceleration': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ac616363656c65726174696f6ec0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "proximity",
+            "wire_hex": "8201ce6553f1000ec3",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'proximity': True}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a970726f78696d697479c3",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "proximity-nil",
+            "wire_hex": "8201ce6553f1000ec0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'proximity': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a970726f78696d697479c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "power_consumption",
+            "wire_hex": "8201ce6553f1001192920092cb4029000000000000a973796e74686574696392a5526164696f92cb4008000000000000c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'power_consumption': {0: [12.5, 'synthetic'], 'Radio': [3.0, None]}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100b1706f7765725f636f6e73756d7074696f6e820092cb4029000000000000a973796e746865746963a5526164696f92cb4008000000000000c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "power_consumption-nil",
+            "wire_hex": "8201ce6553f10011c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'power_consumption': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100b1706f7765725f636f6e73756d7074696f6ec0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "power_production",
+            "wire_hex": "8201ce6553f1001291920092cb4046800000000000a973796e746865746963",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'power_production': {0: [45.0, 'synthetic']}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100b0706f7765725f70726f64756374696f6e810092cb4046800000000000a973796e746865746963",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "power_production-nil",
+            "wire_hex": "8201ce6553f10012c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'power_production': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100b0706f7765725f70726f64756374696f6ec0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "processor",
+            "wire_hex": "8201ce6553f1001391920093cb3fd000000000000093cb3fb999999999999acb3fc999999999999acb3fd3333333333333ce8f0d1800",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'processor': {0: [0.25, [0.1, 0.2, 0.3], 2400000000]}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a970726f636573736f72810093cb3fd000000000000093cb3fb999999999999acb3fc999999999999acb3fd3333333333333ce8f0d1800",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "processor-nil",
+            "wire_hex": "8201ce6553f10013c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'processor': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a970726f636573736f72c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "ram",
+            "wire_hex": "8201ce6553f1001492920092cd2000cd080092a95365636f6e6461727992cd0400cd0400",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'ram': {0: [8192, 2048], 'Secondary': [1024, 1024]}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a372616d820092cd2000cd0800a95365636f6e6461727992cd0400cd0400",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "ram-nil",
+            "wire_hex": "8201ce6553f10014c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'ram': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a372616dc0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "nvm",
+            "wire_hex": "8201ce6553f1001592920092cd2000cd080092a95365636f6e6461727992cd0400cd0400",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'nvm': {0: [8192, 2048], 'Secondary': [1024, 1024]}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a36e766d820092cd2000cd0800a95365636f6e6461727992cd0400cd0400",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "nvm-nil",
+            "wire_hex": "8201ce6553f10015c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'nvm': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a36e766dc0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "custom",
+            "wire_hex": "8201ce6553f100ccff9192009282a46d6f6465a973796e746865746963a5636f756e7402a572756c6572",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'custom': {0: [{'mode': 'synthetic', 'count': 2}, 'ruler']}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a6637573746f6d81009282a46d6f6465a973796e746865746963a5636f756e7402a572756c6572",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "custom-nil",
+            "wire_hex": "8201ce6553f100ccffc0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'custom': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a6637573746f6dc0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "tank",
+            "wire_hex": "8201ce6553f1001692920094cb4059000000000000cb4039000000000000c0c092a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'tank': {0: [100.0, 25.0, None, None], 'Reserve': [50.0, 10.0, 'kg', 'synthetic']}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a474616e6b820094cb4059000000000000cb4039000000000000c0c0a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "tank-nil",
+            "wire_hex": "8201ce6553f10016c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'tank': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a474616e6bc0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "fuel",
+            "wire_hex": "8201ce6553f1001792920094cb4059000000000000cb4039000000000000c0c092a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'fuel': {0: [100.0, 25.0, None, None], 'Reserve': [50.0, 10.0, 'kg', 'synthetic']}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a46675656c820094cb4059000000000000cb4039000000000000c0c0a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "fuel-nil",
+            "wire_hex": "8201ce6553f10017c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'fuel': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a46675656cc0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "rns_transport",
+            "wire_hex": "8201ce6553f100198fb17472616e73706f72745f656e61626c6564c3b27472616e73706f72745f6964656e74697479c410000102030405060708090a0b0c0d0e0fb07472616e73706f72745f757074696d65cb40ac210000000000ab747261666669635f727862cd03e8ab747261666669635f747862cd07d0a873706565645f7278cb4054000000000000a873706565645f7478cb4064000000000000ad73706565645f72785f696e7374cb4056000000000000ad73706565645f74785f696e7374cb4065000000000000ab6d656d6f72795f75736564cd1000a769667374617473c0aa706174685f7461626c65c0af696e746572666163655f636f756e7401aa6c696e6b5f636f756e7402aa706174685f636f756e7401",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'rns_transport': {'transport_enabled': True, 'transport_identity': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'transport_uptime': 3600.5, 'traffic_rxb': 1000, 'traffic_txb': 2000, 'speed_rx': 80.0, 'speed_tx': 160.0, 'speed_rx_inst': 88.0, 'speed_tx_inst': 168.0, 'memory_used': 4096, 'ifstats': None, 'path_table': None, 'interface_count': 1, 'link_count': 2, 'path_count': 1}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ad726e735f7472616e73706f72748fb17472616e73706f72745f656e61626c6564c3b27472616e73706f72745f6964656e74697479c410000102030405060708090a0b0c0d0e0fb07472616e73706f72745f757074696d65cb40ac210000000000ab747261666669635f727862cd03e8ab747261666669635f747862cd07d0a873706565645f7278cb4054000000000000a873706565645f7478cb4064000000000000ad73706565645f72785f696e7374cb4056000000000000ad73706565645f74785f696e7374cb4065000000000000ab6d656d6f72795f75736564cd1000a769667374617473c0aa706174685f7461626c65c0af696e746572666163655f636f756e7401aa6c696e6b5f636f756e7402aa706174685f636f756e7401",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "rns_transport-nil",
+            "wire_hex": "8201ce6553f10019c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'rns_transport': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ad726e735f7472616e73706f7274c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "lxmf_propagation",
+            "wire_hex": "8201ce6553f100188fb064657374696e6174696f6e5f68617368c410000102030405060708090a0b0c0d0e0fad6964656e746974795f68617368c410101112131415161718191a1b1c1d1e1fa6757074696d65cd1c20ae64656c69766572795f6c696d6974cb408f400000000000b170726f7061676174696f6e5f6c696d6974cb409f400000000000b16175746f706565725f6d6178646570746804b066726f6d5f7374617469635f6f6e6c79c2ac6d65737361676573746f726583a5636f756e7403a56279746573cd03e8a56c696d6974cd2710a7636c69656e747382d924636c69656e745f70726f7061676174696f6e5f6d657373616765735f726563656976656407d922636c69656e745f70726f7061676174696f6e5f6d657373616765735f73657276656405bd756e7065657265645f70726f7061676174696f6e5f696e636f6d696e6702bd756e7065657265645f70726f7061676174696f6e5f72785f627974657364ac7374617469635f706565727301ab746f74616c5f706565727301a96d61785f706565727308a5706565727381c410000102030405060708090a0b0c0d0e0f8fa474797065a6737461746963a5737461746501a5616c697665c3aa6c6173745f6865617264ce6553f0ffb16e6578745f73796e635f617474656d7074ce6553f10ab16c6173745f73796e635f617474656d7074ce6553f0f6ac73796e635f6261636b6f666600b070656572696e675f74696d6562617365ce6553f09ca36c6572cb3fb999999999999aa3737472cb4000000000000000ae7472616e736665725f6c696d6974cb408f400000000000b06e6574776f726b5f64697374616e636502a872785f6279746573cd01f4a874785f6279746573cd0190a86d6573736167657384a76f66666572656402a86f7574676f696e6701a8696e636f6d696e6701a9756e68616e646c656400",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'lxmf_propagation': {'destination_hash': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'identity_hash': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'uptime': 7200, 'delivery_limit': 1000.0, 'propagation_limit': 2000.0, 'autopeer_maxdepth': 4, 'from_static_only': False, 'messagestore': {'count': 3, 'bytes': 1000, 'limit': 10000}, 'clients': {'client_propagation_messages_received': 7, 'client_propagation_messages_served': 5}, 'unpeered_propagation_incoming': 2, 'unpeered_propagation_rx_bytes': 100, 'static_peers': 1, 'total_peers': 1, 'max_peers': 8, 'peers': {b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f': {'type': 'static', 'state': 1, 'alive': True, 'last_heard': 1699999999, 'next_sync_attempt': 1700000010, 'last_sync_attempt': 1699999990, 'sync_backoff': 0, 'peering_timebase': 1699999900, 'ler': 0.1, 'str': 2.0, 'transfer_limit': 1000.0, 'network_distance': 2, 'rx_bytes': 500, 'tx_bytes': 400, 'messages': {'offered': 2, 'outgoing': 1, 'incoming': 1, 'unhandled': 0}}}}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100b06c786d665f70726f7061676174696f6e8fb064657374696e6174696f6e5f68617368c410000102030405060708090a0b0c0d0e0fad6964656e746974795f68617368c410101112131415161718191a1b1c1d1e1fa6757074696d65cd1c20ae64656c69766572795f6c696d6974cb408f400000000000b170726f7061676174696f6e5f6c696d6974cb409f400000000000b16175746f706565725f6d6178646570746804b066726f6d5f7374617469635f6f6e6c79c2ac6d65737361676573746f726583a5636f756e7403a56279746573cd03e8a56c696d6974cd2710a7636c69656e747382d924636c69656e745f70726f7061676174696f6e5f6d657373616765735f726563656976656407d922636c69656e745f70726f7061676174696f6e5f6d657373616765735f73657276656405bd756e7065657265645f70726f7061676174696f6e5f696e636f6d696e6702bd756e7065657265645f70726f7061676174696f6e5f72785f627974657364ac7374617469635f706565727301ab746f74616c5f706565727301a96d61785f706565727308a5706565727381c410000102030405060708090a0b0c0d0e0f8fa474797065a6737461746963a5737461746501a5616c697665c3aa6c6173745f6865617264ce6553f0ffb16e6578745f73796e635f617474656d7074ce6553f10ab16c6173745f73796e635f617474656d7074ce6553f0f6ac73796e635f6261636b6f666600b070656572696e675f74696d6562617365ce6553f09ca36c6572cb3fb999999999999aa3737472cb4000000000000000ae7472616e736665725f6c696d6974cb408f400000000000b06e6574776f726b5f64697374616e636502a872785f6279746573cd01f4a874785f6279746573cd0190a86d6573736167657384a76f66666572656402a86f7574676f696e6701a8696e636f6d696e6701a9756e68616e646c656400",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "lxmf_propagation-nil",
+            "wire_hex": "8201ce6553f10018c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'lxmf_propagation': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100b06c786d665f70726f7061676174696f6ec0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "connection_map",
+            "wire_hex": "8201ce6553f1001a81a46d617073810082a46e616d6500a6706f696e747381c4104b5a0eb53740518b06e84a158add011287a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cb4024000000000000aa747970655f6c6162656ca46e6f6465a46e616d65a953796e746865746963a67369676e616c83a472737369d0b0a3736e72c0a171c0a56164646564ce6553f100",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'connection_map': {'maps': {0: {'name': 0, 'points': {b'KZ\\x0e\\xb57@Q\\x8b\\x06\\xe8J\\x15\\x8a\\xdd\\x01\\x12': {'latitude': 51.5, 'longitude': -0.125, 'altitude': 10.0, 'type_label': 'node', 'name': 'Synthetic', 'signal': {'rssi': -80, 'snr': None, 'q': None}, 'added': 1700000000}}}}}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ae636f6e6e656374696f6e5f6d617081a46d617073810082a46e616d6500a6706f696e747381c4104b5a0eb53740518b06e84a158add011287a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cb4024000000000000aa747970655f6c6162656ca46e6f6465a46e616d65a953796e746865746963a67369676e616c83a472737369d0b0a3736e72c0a171c0a56164646564ce6553f100",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "connection_map-nil",
+            "wire_hex": "8201ce6553f1001ac0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'connection_map': None}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ae636f6e6e656374696f6e5f6d6170c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "interfaces",
+            "wire_hex": "8201ce6553f1001b88ad53796e746865746963205443508600b2544350536572766572496e7465726661636501c3ccfec410000102030405060708090a0b0c0d0e0fccfdc410101112131415161718191a1b1c1d1e1f02af6578616d706c652e696e76616c696406cd1092bb53796e746865746963204261636b626f6e65496e746572666163658f00b14261636b626f6e65496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579bc53796e74686574696320544350536572766572496e746572666163658f00b2544350536572766572496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579bc53796e74686574696320544350436c69656e74496e746572666163658f00b2544350436c69656e74496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b853796e74686574696320524e6f6465496e746572666163658f00ae524e6f6465496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b853796e746865746963205765617665496e746572666163658f00ae5765617665496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b653796e74686574696320493250496e746572666163658f00ac493250496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02d93c616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161612e6233322e69327006cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b753796e746865746963204b495353496e746572666163658f00ad4b495353496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'interfaces': {'interfaces': {'Synthetic TCP': {'name': 'Synthetic TCP', 'type': 'TCPServerInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': None, 'bandwidth': None, 'modulation': None, 'spreadingfactor': None, 'codingrate': None, 'channel': None, 'lat': None, 'lon': None, 'height': None, 'transport': True, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': None, 'ifac_netkey': None, 'network_id': '101112131415161718191a1b1c1d1e1f'}, 'Synthetic BackboneInterface': {'name': 'Synthetic BackboneInterface', 'type': 'BackboneInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic TCPServerInterface': {'name': 'Synthetic TCPServerInterface', 'type': 'TCPServerInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic TCPClientInterface': {'name': 'Synthetic TCPClientInterface', 'type': 'TCPClientInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic RNodeInterface': {'name': 'Synthetic RNodeInterface', 'type': 'RNodeInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic WeaveInterface': {'name': 'Synthetic WeaveInterface', 'type': 'WeaveInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic I2PInterface': {'name': 'Synthetic I2PInterface', 'type': 'I2PInterface', 'reachable_on': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.b32.i2p', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic KISSInterface': {'name': 'Synthetic KISSInterface', 'type': 'KISSInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}}}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100aa696e746572666163657381aa696e746572666163657388ad53796e74686574696320544350de0012a46e616d65ad53796e74686574696320544350a474797065b2544350536572766572496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379c0a962616e647769647468c0aa6d6f64756c6174696f6ec0af737072656164696e67666163746f72c0aa636f64696e6772617465c0a76368616e6e656cc0a36c6174c0a36c6f6ec0a6686569676874c0a97472616e73706f7274c3ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65c0ab696661635f6e65746b6579c0aa6e6574776f726b5f6964d9203130313131323133313431353136313731383139316131623163316431653166bb53796e746865746963204261636b626f6e65496e74657266616365de0012a46e616d65bb53796e746865746963204261636b626f6e65496e74657266616365a474797065b14261636b626f6e65496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0bc53796e74686574696320544350536572766572496e74657266616365de0012a46e616d65bc53796e74686574696320544350536572766572496e74657266616365a474797065b2544350536572766572496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0bc53796e74686574696320544350436c69656e74496e74657266616365de0012a46e616d65bc53796e74686574696320544350436c69656e74496e74657266616365a474797065b2544350436c69656e74496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b853796e74686574696320524e6f6465496e74657266616365de0012a46e616d65b853796e74686574696320524e6f6465496e74657266616365a474797065ae524e6f6465496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b853796e746865746963205765617665496e74657266616365de0012a46e616d65b853796e746865746963205765617665496e74657266616365a474797065ae5765617665496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b653796e74686574696320493250496e74657266616365de0012a46e616d65b653796e74686574696320493250496e74657266616365a474797065ac493250496e74657266616365ac726561636861626c655f6f6ed93c616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161612e6233322e693270a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b753796e746865746963204b495353496e74657266616365de0012a46e616d65b753796e746865746963204b495353496e74657266616365a474797065ad4b495353496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "interfaces-nil",
+            "wire_hex": "8201ce6553f1001bc0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'interfaces': {}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100aa696e746572666163657380",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "battery-legacy-two",
+            "wire_hex": "8201ce6553f1000492cb4049000000000000c2",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'battery': {'charge_percent': 50.0, 'charging': False, 'temperature': None}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a76261747465727983ae6368617267655f70657263656e74cb4049000000000000a86368617267696e67c2ab74656d7065726174757265c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "physical-link-partial",
+            "wire_hex": "8201ce6553f1000593c0cb0000000000000000c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'physical_link': {'rssi': None, 'snr': 0.0, 'q': None}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ad706879736963616c5f6c696e6b83a472737369c0a3736e72cb0000000000000000a171c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "battery-rounding-72.55",
+            "wire_hex": "8201ce6553f1000493cb4052200000000000c2c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'battery': {'charge_percent': 72.5, 'charging': False, 'temperature': None}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a76261747465727983ae6368617267655f70657263656e74cb4052200000000000a86368617267696e67c2ab74656d7065726174757265c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "battery-rounding--0.05",
+            "wire_hex": "8201ce6553f1000493cbbfb999999999999ac2c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'battery': {'charge_percent': -0.1, 'charging': False, 'temperature': None}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a76261747465727983ae6368617267655f70657263656e74cbbfb999999999999aa86368617267696e67c2ab74656d7065726174757265c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "battery-rounding-2.675",
+            "wire_hex": "8201ce6553f1000493cb400599999999999ac2c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'battery': {'charge_percent': 2.7, 'charging': False, 'temperature': None}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a76261747465727983ae6368617267655f70657263656e74cb400599999999999aa86368617267696e67c2ab74656d7065726174757265c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "battery-rounding-100.0",
+            "wire_hex": "8201ce6553f1000493cb4059000000000000c2c0",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'battery': {'charge_percent': 100.0, 'charging': False, 'temperature': None}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a76261747465727983ae6368617267655f70657263656e74cb4059000000000000a86368617267696e67c2ab74656d7065726174757265c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "location-rounding",
+            "wire_hex": "8201ce6553f1000297c404ffed2978c40400bc614ec4040000010bc40400000e10c40400001c58c402007dce6553f0f9",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'location': {'latitude': -1.234568, 'longitude': 12.345678, 'altitude': 2.67, 'speed': 36.0, 'bearing': 72.56, 'accuracy': 1.25, 'last_update': 1699999993}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100a86c6f636174696f6e87a86c61746974756465cbbff3c0ca600b0293a96c6f6e676974756465cb4028b0fcb4f1e4b4a8616c746974756465cb40055c28f5c28f5ca57370656564cb4042000000000000a762656172696e67cb405223d70a3d70a4a86163637572616379cb3ff4000000000000ab6c6173745f757064617465ce6553f0f9",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "rns-transport-detailed",
+            "wire_hex": "8201ce6553f100198fb17472616e73706f72745f656e61626c6564c3b27472616e73706f72745f6964656e74697479c410000102030405060708090a0b0c0d0e0fb07472616e73706f72745f757074696d65cb40ac210000000000ab747261666669635f727862cd03e8ab747261666669635f747862cd07d0a873706565645f7278cb4054000000000000a873706565645f7478cb4064000000000000ad73706565645f72785f696e7374cb4056000000000000ad73706565645f74785f696e7374cb4065000000000000ab6d656d6f72795f75736564cd1000a76966737461747381aa696e74657266616365739182a46e616d65b353796e74686574696320696e74657266616365a3727862cd03e8aa706174685f7461626c659184a9696e74657266616365b353796e74686574696320696e74657266616365a3766961c410000102030405060708090a0b0c0d0e0fa468617368c410101112131415161718191a1b1c1d1e1fa4686f707302af696e746572666163655f636f756e7401aa6c696e6b5f636f756e7402aa706174685f636f756e7401",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'rns_transport': {'transport_enabled': True, 'transport_identity': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'transport_uptime': 3600.5, 'traffic_rxb': 1000, 'traffic_txb': 2000, 'speed_rx': 80.0, 'speed_tx': 160.0, 'speed_rx_inst': 88.0, 'speed_tx_inst': 168.0, 'memory_used': 4096, 'ifstats': {'interfaces': [{'name': 'Synthetic interface', 'rxb': 1000}]}, 'path_table': [{'interface': 'Synthetic interface', 'via': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'hash': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'hops': 2}], 'interface_count': 1, 'link_count': 2, 'path_count': 1}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ad726e735f7472616e73706f72748fb17472616e73706f72745f656e61626c6564c3b27472616e73706f72745f6964656e74697479c410000102030405060708090a0b0c0d0e0fb07472616e73706f72745f757074696d65cb40ac210000000000ab747261666669635f727862cd03e8ab747261666669635f747862cd07d0a873706565645f7278cb4054000000000000a873706565645f7478cb4064000000000000ad73706565645f72785f696e7374cb4056000000000000ad73706565645f74785f696e7374cb4065000000000000ab6d656d6f72795f75736564cd1000a76966737461747381aa696e74657266616365739182a46e616d65b353796e74686574696320696e74657266616365a3727862cd03e8aa706174685f7461626c659184a9696e74657266616365b353796e74686574696320696e74657266616365a3766961c410000102030405060708090a0b0c0d0e0fa468617368c410101112131415161718191a1b1c1d1e1fa4686f707302af696e746572666163655f636f756e7401aa6c696e6b5f636f756e7402aa706174685f636f756e7401",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "connection-map-expiration",
+            "wire_hex": "8201ce6553f1001a81a46d617073810082a46e616d6500a6706f696e747381c41061e828dc0908801ecb8e8858e89bc9b287a86c61746974756465cb0000000000000000a96c6f6e676974756465cb0000000000000000a8616c746974756465c0aa747970655f6c6162656cc0a46e616d65a8626f756e64617279a67369676e616c83a472737369c0a3736e72c0a171c0a56164646564ce654ffc80",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'connection_map': {'maps': {0: {'name': 0, 'points': {b'a\\xe8(\\xdc\\t\\x08\\x80\\x1e\\xcb\\x8e\\x88X\\xe8\\x9b\\xc9\\xb2': {'latitude': 0.0, 'longitude': 0.0, 'altitude': None, 'type_label': None, 'name': 'boundary', 'signal': {'rssi': None, 'snr': None, 'q': None}, 'added': 1699740800}}}}}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "82a474696d6581a3757463ce6553f100ae636f6e6e656374696f6e5f6d617081a46d617073810082a46e616d6500a6706f696e747381c41061e828dc0908801ecb8e8858e89bc9b287a86c61746974756465cb0000000000000000a96c6f6e676974756465cb0000000000000000a8616c746974756465c0aa747970655f6c6162656cc0a46e616d65a8626f756e64617279a67369676e616c83a472737369c0a3736e72c0a171c0a56164646564ce654ffc80",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "all-sensors",
+            "wire_hex": "de001b01ce6553f1000fbf53796e746865746963206465736b746f702074656c656d6574727920e298831094c410000102030405060708090a0b0c0d0e0fc410101112131415161718191a1b1c1d1e1fcb40938a0000000000cb40938500000000000493cb4052200000000000c3cb403f40000000000003cb408faa00000000000297c4040311d3e0c404fffe17b8c404fffffb1ec40400000e10c40400006978c4020145ce6553f0f90593cbc055e00000000000cb401d000000000000cb4056c0000000000007cbc01100000000000008cb4050e000000000000993cb3ff4000000000000cbc004000000000000cb400e0000000000000acb405e2000000000000b93cb3ff4000000000000cbc004000000000000cb400e0000000000000c93cb3ff4000000000000cbc004000000000000cb400e0000000000000693cb3ff4000000000000cbc004000000000000cb400e0000000000000ec31192920092cb4029000000000000a973796e74686574696392a5526164696f92cb4008000000000000c01291920092cb4046800000000000a973796e7468657469631391920093cb3fd000000000000093cb3fb999999999999acb3fc999999999999acb3fd3333333333333ce8f0d18001492920092cd2000cd080092a95365636f6e6461727992cd0400cd04001592920092cd2000cd080092a95365636f6e6461727992cd0400cd0400ccff9192009282a46d6f6465a973796e746865746963a5636f756e7402a572756c65721692920094cb4059000000000000cb4039000000000000c0c092a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e7468657469631792920094cb4059000000000000cb4039000000000000c0c092a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963198fb17472616e73706f72745f656e61626c6564c3b27472616e73706f72745f6964656e74697479c410000102030405060708090a0b0c0d0e0fb07472616e73706f72745f757074696d65cb40ac210000000000ab747261666669635f727862cd03e8ab747261666669635f747862cd07d0a873706565645f7278cb4054000000000000a873706565645f7478cb4064000000000000ad73706565645f72785f696e7374cb4056000000000000ad73706565645f74785f696e7374cb4065000000000000ab6d656d6f72795f75736564cd1000a76966737461747381aa696e74657266616365739182a46e616d65b353796e74686574696320696e74657266616365a3727862cd03e8aa706174685f7461626c659184a9696e74657266616365b353796e74686574696320696e74657266616365a3766961c410000102030405060708090a0b0c0d0e0fa468617368c410101112131415161718191a1b1c1d1e1fa4686f707302af696e746572666163655f636f756e7401aa6c696e6b5f636f756e7402aa706174685f636f756e7401188fb064657374696e6174696f6e5f68617368c410000102030405060708090a0b0c0d0e0fad6964656e746974795f68617368c410101112131415161718191a1b1c1d1e1fa6757074696d65cd1c20ae64656c69766572795f6c696d6974cb408f400000000000b170726f7061676174696f6e5f6c696d6974cb409f400000000000b16175746f706565725f6d6178646570746804b066726f6d5f7374617469635f6f6e6c79c2ac6d65737361676573746f726583a5636f756e7403a56279746573cd03e8a56c696d6974cd2710a7636c69656e747382d924636c69656e745f70726f7061676174696f6e5f6d657373616765735f726563656976656407d922636c69656e745f70726f7061676174696f6e5f6d657373616765735f73657276656405bd756e7065657265645f70726f7061676174696f6e5f696e636f6d696e6702bd756e7065657265645f70726f7061676174696f6e5f72785f627974657364ac7374617469635f706565727301ab746f74616c5f706565727301a96d61785f706565727308a5706565727381c410000102030405060708090a0b0c0d0e0f8fa474797065a6737461746963a5737461746501a5616c697665c3aa6c6173745f6865617264ce6553f0ffb16e6578745f73796e635f617474656d7074ce6553f10ab16c6173745f73796e635f617474656d7074ce6553f0f6ac73796e635f6261636b6f666600b070656572696e675f74696d6562617365ce6553f09ca36c6572cb3fb999999999999aa3737472cb4000000000000000ae7472616e736665725f6c696d6974cb408f400000000000b06e6574776f726b5f64697374616e636502a872785f6279746573cd01f4a874785f6279746573cd0190a86d6573736167657384a76f66666572656402a86f7574676f696e6701a8696e636f6d696e6701a9756e68616e646c6564001a81a46d617073810082a46e616d6500a6706f696e747381c4104b5a0eb53740518b06e84a158add011287a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cb4024000000000000aa747970655f6c6162656ca46e6f6465a46e616d65a953796e746865746963a67369676e616c83a472737369d0b0a3736e72c0a171c0a56164646564ce6553f1001b88ad53796e746865746963205443508600b2544350536572766572496e7465726661636501c3ccfec410000102030405060708090a0b0c0d0e0fccfdc410101112131415161718191a1b1c1d1e1f02af6578616d706c652e696e76616c696406cd1092bb53796e746865746963204261636b626f6e65496e746572666163658f00b14261636b626f6e65496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579bc53796e74686574696320544350536572766572496e746572666163658f00b2544350536572766572496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579bc53796e74686574696320544350436c69656e74496e746572666163658f00b2544350436c69656e74496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b853796e74686574696320524e6f6465496e746572666163658f00ae524e6f6465496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b853796e746865746963205765617665496e746572666163658f00ae5765617665496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b653796e74686574696320493250496e746572666163658f00ac493250496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02d93c616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161612e6233322e69327006cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b753796e746865746963204b495353496e746572666163658f00ad4b495353496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579",
+            "extra_link": {},
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'information': {'contents': 'Synthetic desktop telemetry \u2603'}, 'received': {'by': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'via': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'distance': {'geodesic': 1250.5, 'euclidian': 1249.25}}, 'battery': {'charge_percent': 72.5, 'charging': True, 'temperature': 31.25}, 'pressure': {'mbar': 1013.25}, 'location': {'latitude': 51.5, 'longitude': -0.125, 'altitude': -12.5, 'speed': 36.0, 'bearing': 270.0, 'accuracy': 3.25, 'last_update': 1699999993}, 'physical_link': {'rssi': -87.5, 'snr': 7.25, 'q': 91.0}, 'temperature': {'c': -4.25}, 'humidity': {'percent_relative': 67.5}, 'magnetic_field': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'ambient_light': {'lux': 120.5}, 'gravity': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'angular_velocity': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'acceleration': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'proximity': True, 'power_consumption': {0: [12.5, 'synthetic'], 'Radio': [3.0, None]}, 'power_production': {0: [45.0, 'synthetic']}, 'processor': {0: [0.25, [0.1, 0.2, 0.3], 2400000000]}, 'ram': {0: [8192, 2048], 'Secondary': [1024, 1024]}, 'nvm': {0: [8192, 2048], 'Secondary': [1024, 1024]}, 'custom': {0: [{'mode': 'synthetic', 'count': 2}, 'ruler']}, 'tank': {0: [100.0, 25.0, None, None], 'Reserve': [50.0, 10.0, 'kg', 'synthetic']}, 'fuel': {0: [100.0, 25.0, None, None], 'Reserve': [50.0, 10.0, 'kg', 'synthetic']}, 'rns_transport': {'transport_enabled': True, 'transport_identity': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'transport_uptime': 3600.5, 'traffic_rxb': 1000, 'traffic_txb': 2000, 'speed_rx': 80.0, 'speed_tx': 160.0, 'speed_rx_inst': 88.0, 'speed_tx_inst': 168.0, 'memory_used': 4096, 'ifstats': {'interfaces': [{'name': 'Synthetic interface', 'rxb': 1000}]}, 'path_table': [{'interface': 'Synthetic interface', 'via': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'hash': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'hops': 2}], 'interface_count': 1, 'link_count': 2, 'path_count': 1}, 'lxmf_propagation': {'destination_hash': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'identity_hash': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'uptime': 7200, 'delivery_limit': 1000.0, 'propagation_limit': 2000.0, 'autopeer_maxdepth': 4, 'from_static_only': False, 'messagestore': {'count': 3, 'bytes': 1000, 'limit': 10000}, 'clients': {'client_propagation_messages_received': 7, 'client_propagation_messages_served': 5}, 'unpeered_propagation_incoming': 2, 'unpeered_propagation_rx_bytes': 100, 'static_peers': 1, 'total_peers': 1, 'max_peers': 8, 'peers': {b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f': {'type': 'static', 'state': 1, 'alive': True, 'last_heard': 1699999999, 'next_sync_attempt': 1700000010, 'last_sync_attempt': 1699999990, 'sync_backoff': 0, 'peering_timebase': 1699999900, 'ler': 0.1, 'str': 2.0, 'transfer_limit': 1000.0, 'network_distance': 2, 'rx_bytes': 500, 'tx_bytes': 400, 'messages': {'offered': 2, 'outgoing': 1, 'incoming': 1, 'unhandled': 0}}}}, 'connection_map': {'maps': {0: {'name': 0, 'points': {b'KZ\\x0e\\xb57@Q\\x8b\\x06\\xe8J\\x15\\x8a\\xdd\\x01\\x12': {'latitude': 51.5, 'longitude': -0.125, 'altitude': 10.0, 'type_label': 'node', 'name': 'Synthetic', 'signal': {'rssi': -80, 'snr': None, 'q': None}, 'added': 1700000000}}}}}, 'interfaces': {'interfaces': {'Synthetic TCP': {'name': 'Synthetic TCP', 'type': 'TCPServerInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': None, 'bandwidth': None, 'modulation': None, 'spreadingfactor': None, 'codingrate': None, 'channel': None, 'lat': None, 'lon': None, 'height': None, 'transport': True, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': None, 'ifac_netkey': None, 'network_id': '101112131415161718191a1b1c1d1e1f'}, 'Synthetic BackboneInterface': {'name': 'Synthetic BackboneInterface', 'type': 'BackboneInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic TCPServerInterface': {'name': 'Synthetic TCPServerInterface', 'type': 'TCPServerInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic TCPClientInterface': {'name': 'Synthetic TCPClientInterface', 'type': 'TCPClientInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic RNodeInterface': {'name': 'Synthetic RNodeInterface', 'type': 'RNodeInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic WeaveInterface': {'name': 'Synthetic WeaveInterface', 'type': 'WeaveInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic I2PInterface': {'name': 'Synthetic I2PInterface', 'type': 'I2PInterface', 'reachable_on': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.b32.i2p', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic KISSInterface': {'name': 'Synthetic KISSInterface', 'type': 'KISSInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}}}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "de001ba474696d6581a3757463ce6553f100ab696e666f726d6174696f6e81a8636f6e74656e7473bf53796e746865746963206465736b746f702074656c656d6574727920e29883a8726563656976656483a26279c410000102030405060708090a0b0c0d0e0fa3766961c410101112131415161718191a1b1c1d1e1fa864697374616e636582a867656f6465736963cb40938a0000000000a96575636c696469616ecb4093850000000000a76261747465727983ae6368617267655f70657263656e74cb4052200000000000a86368617267696e67c3ab74656d7065726174757265cb403f400000000000a8707265737375726581a46d626172cb408faa0000000000a86c6f636174696f6e87a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cbc029000000000000a57370656564cb4042000000000000a762656172696e67cb4070e00000000000a86163637572616379cb400a000000000000ab6c6173745f757064617465ce6553f0f9ad706879736963616c5f6c696e6b83a472737369cbc055e00000000000a3736e72cb401d000000000000a171cb4056c00000000000ab74656d706572617475726581a163cbc011000000000000a868756d696469747981b070657263656e745f72656c6174697665cb4050e00000000000ae6d61676e657469635f6669656c6483a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000ad616d6269656e745f6c6967687481a36c7578cb405e200000000000a76772617669747983a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000b0616e67756c61725f76656c6f6369747983a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000ac616363656c65726174696f6e83a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000a970726f78696d697479c3b1706f7765725f636f6e73756d7074696f6e820092cb4029000000000000a973796e746865746963a5526164696f92cb4008000000000000c0b0706f7765725f70726f64756374696f6e810092cb4046800000000000a973796e746865746963a970726f636573736f72810093cb3fd000000000000093cb3fb999999999999acb3fc999999999999acb3fd3333333333333ce8f0d1800a372616d820092cd2000cd0800a95365636f6e6461727992cd0400cd0400a36e766d820092cd2000cd0800a95365636f6e6461727992cd0400cd0400a6637573746f6d81009282a46d6f6465a973796e746865746963a5636f756e7402a572756c6572a474616e6b820094cb4059000000000000cb4039000000000000c0c0a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963a46675656c820094cb4059000000000000cb4039000000000000c0c0a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963ad726e735f7472616e73706f72748fb17472616e73706f72745f656e61626c6564c3b27472616e73706f72745f6964656e74697479c410000102030405060708090a0b0c0d0e0fb07472616e73706f72745f757074696d65cb40ac210000000000ab747261666669635f727862cd03e8ab747261666669635f747862cd07d0a873706565645f7278cb4054000000000000a873706565645f7478cb4064000000000000ad73706565645f72785f696e7374cb4056000000000000ad73706565645f74785f696e7374cb4065000000000000ab6d656d6f72795f75736564cd1000a76966737461747381aa696e74657266616365739182a46e616d65b353796e74686574696320696e74657266616365a3727862cd03e8aa706174685f7461626c659184a9696e74657266616365b353796e74686574696320696e74657266616365a3766961c410000102030405060708090a0b0c0d0e0fa468617368c410101112131415161718191a1b1c1d1e1fa4686f707302af696e746572666163655f636f756e7401aa6c696e6b5f636f756e7402aa706174685f636f756e7401b06c786d665f70726f7061676174696f6e8fb064657374696e6174696f6e5f68617368c410000102030405060708090a0b0c0d0e0fad6964656e746974795f68617368c410101112131415161718191a1b1c1d1e1fa6757074696d65cd1c20ae64656c69766572795f6c696d6974cb408f400000000000b170726f7061676174696f6e5f6c696d6974cb409f400000000000b16175746f706565725f6d6178646570746804b066726f6d5f7374617469635f6f6e6c79c2ac6d65737361676573746f726583a5636f756e7403a56279746573cd03e8a56c696d6974cd2710a7636c69656e747382d924636c69656e745f70726f7061676174696f6e5f6d657373616765735f726563656976656407d922636c69656e745f70726f7061676174696f6e5f6d657373616765735f73657276656405bd756e7065657265645f70726f7061676174696f6e5f696e636f6d696e6702bd756e7065657265645f70726f7061676174696f6e5f72785f627974657364ac7374617469635f706565727301ab746f74616c5f706565727301a96d61785f706565727308a5706565727381c410000102030405060708090a0b0c0d0e0f8fa474797065a6737461746963a5737461746501a5616c697665c3aa6c6173745f6865617264ce6553f0ffb16e6578745f73796e635f617474656d7074ce6553f10ab16c6173745f73796e635f617474656d7074ce6553f0f6ac73796e635f6261636b6f666600b070656572696e675f74696d6562617365ce6553f09ca36c6572cb3fb999999999999aa3737472cb4000000000000000ae7472616e736665725f6c696d6974cb408f400000000000b06e6574776f726b5f64697374616e636502a872785f6279746573cd01f4a874785f6279746573cd0190a86d6573736167657384a76f66666572656402a86f7574676f696e6701a8696e636f6d696e6701a9756e68616e646c656400ae636f6e6e656374696f6e5f6d617081a46d617073810082a46e616d6500a6706f696e747381c4104b5a0eb53740518b06e84a158add011287a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cb4024000000000000aa747970655f6c6162656ca46e6f6465a46e616d65a953796e746865746963a67369676e616c83a472737369d0b0a3736e72c0a171c0a56164646564ce6553f100aa696e746572666163657381aa696e746572666163657388ad53796e74686574696320544350de0012a46e616d65ad53796e74686574696320544350a474797065b2544350536572766572496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379c0a962616e647769647468c0aa6d6f64756c6174696f6ec0af737072656164696e67666163746f72c0aa636f64696e6772617465c0a76368616e6e656cc0a36c6174c0a36c6f6ec0a6686569676874c0a97472616e73706f7274c3ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65c0ab696661635f6e65746b6579c0aa6e6574776f726b5f6964d9203130313131323133313431353136313731383139316131623163316431653166bb53796e746865746963204261636b626f6e65496e74657266616365de0012a46e616d65bb53796e746865746963204261636b626f6e65496e74657266616365a474797065b14261636b626f6e65496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0bc53796e74686574696320544350536572766572496e74657266616365de0012a46e616d65bc53796e74686574696320544350536572766572496e74657266616365a474797065b2544350536572766572496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0bc53796e74686574696320544350436c69656e74496e74657266616365de0012a46e616d65bc53796e74686574696320544350436c69656e74496e74657266616365a474797065b2544350436c69656e74496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b853796e74686574696320524e6f6465496e74657266616365de0012a46e616d65b853796e74686574696320524e6f6465496e74657266616365a474797065ae524e6f6465496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b853796e746865746963205765617665496e74657266616365de0012a46e616d65b853796e746865746963205765617665496e74657266616365a474797065ae5765617665496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b653796e74686574696320493250496e74657266616365de0012a46e616d65b653796e74686574696320493250496e74657266616365a474797065ac493250496e74657266616365ac726561636861626c655f6f6ed93c616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161612e6233322e693270a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b753796e746865746963204b495353496e74657266616365de0012a46e616d65b753796e746865746963204b495353496e74657266616365a474797065ad4b495353496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "link-zero",
+            "wire_hex": "de001b01ce6553f1000fbf53796e746865746963206465736b746f702074656c656d6574727920e298831094c410000102030405060708090a0b0c0d0e0fc410101112131415161718191a1b1c1d1e1fcb40938a0000000000cb40938500000000000493cb4052200000000000c3cb403f40000000000003cb408faa00000000000297c4040311d3e0c404fffe17b8c404fffffb1ec40400000e10c40400006978c4020145ce6553f0f90593cbc055e00000000000cb401d000000000000cb4056c0000000000007cbc01100000000000008cb4050e000000000000993cb3ff4000000000000cbc004000000000000cb400e0000000000000acb405e2000000000000b93cb3ff4000000000000cbc004000000000000cb400e0000000000000c93cb3ff4000000000000cbc004000000000000cb400e0000000000000693cb3ff4000000000000cbc004000000000000cb400e0000000000000ec31192920092cb4029000000000000a973796e74686574696392a5526164696f92cb4008000000000000c01291920092cb4046800000000000a973796e7468657469631391920093cb3fd000000000000093cb3fb999999999999acb3fc999999999999acb3fd3333333333333ce8f0d18001492920092cd2000cd080092a95365636f6e6461727992cd0400cd04001592920092cd2000cd080092a95365636f6e6461727992cd0400cd0400ccff9192009282a46d6f6465a973796e746865746963a5636f756e7402a572756c65721692920094cb4059000000000000cb4039000000000000c0c092a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e7468657469631792920094cb4059000000000000cb4039000000000000c0c092a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963198fb17472616e73706f72745f656e61626c6564c3b27472616e73706f72745f6964656e74697479c410000102030405060708090a0b0c0d0e0fb07472616e73706f72745f757074696d65cb40ac210000000000ab747261666669635f727862cd03e8ab747261666669635f747862cd07d0a873706565645f7278cb4054000000000000a873706565645f7478cb4064000000000000ad73706565645f72785f696e7374cb4056000000000000ad73706565645f74785f696e7374cb4065000000000000ab6d656d6f72795f75736564cd1000a76966737461747381aa696e74657266616365739182a46e616d65b353796e74686574696320696e74657266616365a3727862cd03e8aa706174685f7461626c659184a9696e74657266616365b353796e74686574696320696e74657266616365a3766961c410000102030405060708090a0b0c0d0e0fa468617368c410101112131415161718191a1b1c1d1e1fa4686f707302af696e746572666163655f636f756e7401aa6c696e6b5f636f756e7402aa706174685f636f756e7401188fb064657374696e6174696f6e5f68617368c410000102030405060708090a0b0c0d0e0fad6964656e746974795f68617368c410101112131415161718191a1b1c1d1e1fa6757074696d65cd1c20ae64656c69766572795f6c696d6974cb408f400000000000b170726f7061676174696f6e5f6c696d6974cb409f400000000000b16175746f706565725f6d6178646570746804b066726f6d5f7374617469635f6f6e6c79c2ac6d65737361676573746f726583a5636f756e7403a56279746573cd03e8a56c696d6974cd2710a7636c69656e747382d924636c69656e745f70726f7061676174696f6e5f6d657373616765735f726563656976656407d922636c69656e745f70726f7061676174696f6e5f6d657373616765735f73657276656405bd756e7065657265645f70726f7061676174696f6e5f696e636f6d696e6702bd756e7065657265645f70726f7061676174696f6e5f72785f627974657364ac7374617469635f706565727301ab746f74616c5f706565727301a96d61785f706565727308a5706565727381c410000102030405060708090a0b0c0d0e0f8fa474797065a6737461746963a5737461746501a5616c697665c3aa6c6173745f6865617264ce6553f0ffb16e6578745f73796e635f617474656d7074ce6553f10ab16c6173745f73796e635f617474656d7074ce6553f0f6ac73796e635f6261636b6f666600b070656572696e675f74696d6562617365ce6553f09ca36c6572cb3fb999999999999aa3737472cb4000000000000000ae7472616e736665725f6c696d6974cb408f400000000000b06e6574776f726b5f64697374616e636502a872785f6279746573cd01f4a874785f6279746573cd0190a86d6573736167657384a76f66666572656402a86f7574676f696e6701a8696e636f6d696e6701a9756e68616e646c6564001a81a46d617073810082a46e616d6500a6706f696e747381c4104b5a0eb53740518b06e84a158add011287a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cb4024000000000000aa747970655f6c6162656ca46e6f6465a46e616d65a953796e746865746963a67369676e616c83a472737369d0b0a3736e72c0a171c0a56164646564ce6553f1001b88ad53796e746865746963205443508600b2544350536572766572496e7465726661636501c3ccfec410000102030405060708090a0b0c0d0e0fccfdc410101112131415161718191a1b1c1d1e1f02af6578616d706c652e696e76616c696406cd1092bb53796e746865746963204261636b626f6e65496e746572666163658f00b14261636b626f6e65496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579bc53796e74686574696320544350536572766572496e746572666163658f00b2544350536572766572496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579bc53796e74686574696320544350436c69656e74496e746572666163658f00b2544350436c69656e74496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b853796e74686574696320524e6f6465496e746572666163658f00ae524e6f6465496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b853796e746865746963205765617665496e746572666163658f00ae5765617665496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b653796e74686574696320493250496e746572666163658f00ac493250496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02d93c616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161612e6233322e69327006cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b753796e746865746963204b495353496e746572666163658f00ad4b495353496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579",
+            "extra_link": {
+                "rssi": 0.0,
+                "snr": 0.0,
+                "quality": 0.0
+            },
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'information': {'contents': 'Synthetic desktop telemetry \u2603'}, 'received': {'by': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'via': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'distance': {'geodesic': 1250.5, 'euclidian': 1249.25}}, 'battery': {'charge_percent': 72.5, 'charging': True, 'temperature': 31.25}, 'pressure': {'mbar': 1013.25}, 'location': {'latitude': 51.5, 'longitude': -0.125, 'altitude': -12.5, 'speed': 36.0, 'bearing': 270.0, 'accuracy': 3.25, 'last_update': 1699999993}, 'physical_link': {'rssi': 0.0, 'snr': 0.0, 'q': 0.0}, 'temperature': {'c': -4.25}, 'humidity': {'percent_relative': 67.5}, 'magnetic_field': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'ambient_light': {'lux': 120.5}, 'gravity': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'angular_velocity': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'acceleration': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'proximity': True, 'power_consumption': {0: [12.5, 'synthetic'], 'Radio': [3.0, None]}, 'power_production': {0: [45.0, 'synthetic']}, 'processor': {0: [0.25, [0.1, 0.2, 0.3], 2400000000]}, 'ram': {0: [8192, 2048], 'Secondary': [1024, 1024]}, 'nvm': {0: [8192, 2048], 'Secondary': [1024, 1024]}, 'custom': {0: [{'mode': 'synthetic', 'count': 2}, 'ruler']}, 'tank': {0: [100.0, 25.0, None, None], 'Reserve': [50.0, 10.0, 'kg', 'synthetic']}, 'fuel': {0: [100.0, 25.0, None, None], 'Reserve': [50.0, 10.0, 'kg', 'synthetic']}, 'rns_transport': {'transport_enabled': True, 'transport_identity': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'transport_uptime': 3600.5, 'traffic_rxb': 1000, 'traffic_txb': 2000, 'speed_rx': 80.0, 'speed_tx': 160.0, 'speed_rx_inst': 88.0, 'speed_tx_inst': 168.0, 'memory_used': 4096, 'ifstats': {'interfaces': [{'name': 'Synthetic interface', 'rxb': 1000}]}, 'path_table': [{'interface': 'Synthetic interface', 'via': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'hash': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'hops': 2}], 'interface_count': 1, 'link_count': 2, 'path_count': 1}, 'lxmf_propagation': {'destination_hash': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'identity_hash': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'uptime': 7200, 'delivery_limit': 1000.0, 'propagation_limit': 2000.0, 'autopeer_maxdepth': 4, 'from_static_only': False, 'messagestore': {'count': 3, 'bytes': 1000, 'limit': 10000}, 'clients': {'client_propagation_messages_received': 7, 'client_propagation_messages_served': 5}, 'unpeered_propagation_incoming': 2, 'unpeered_propagation_rx_bytes': 100, 'static_peers': 1, 'total_peers': 1, 'max_peers': 8, 'peers': {b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f': {'type': 'static', 'state': 1, 'alive': True, 'last_heard': 1699999999, 'next_sync_attempt': 1700000010, 'last_sync_attempt': 1699999990, 'sync_backoff': 0, 'peering_timebase': 1699999900, 'ler': 0.1, 'str': 2.0, 'transfer_limit': 1000.0, 'network_distance': 2, 'rx_bytes': 500, 'tx_bytes': 400, 'messages': {'offered': 2, 'outgoing': 1, 'incoming': 1, 'unhandled': 0}}}}, 'connection_map': {'maps': {0: {'name': 0, 'points': {b'KZ\\x0e\\xb57@Q\\x8b\\x06\\xe8J\\x15\\x8a\\xdd\\x01\\x12': {'latitude': 51.5, 'longitude': -0.125, 'altitude': 10.0, 'type_label': 'node', 'name': 'Synthetic', 'signal': {'rssi': -80, 'snr': None, 'q': None}, 'added': 1700000000}}}}}, 'interfaces': {'interfaces': {'Synthetic TCP': {'name': 'Synthetic TCP', 'type': 'TCPServerInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': None, 'bandwidth': None, 'modulation': None, 'spreadingfactor': None, 'codingrate': None, 'channel': None, 'lat': None, 'lon': None, 'height': None, 'transport': True, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': None, 'ifac_netkey': None, 'network_id': '101112131415161718191a1b1c1d1e1f'}, 'Synthetic BackboneInterface': {'name': 'Synthetic BackboneInterface', 'type': 'BackboneInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic TCPServerInterface': {'name': 'Synthetic TCPServerInterface', 'type': 'TCPServerInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic TCPClientInterface': {'name': 'Synthetic TCPClientInterface', 'type': 'TCPClientInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic RNodeInterface': {'name': 'Synthetic RNodeInterface', 'type': 'RNodeInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic WeaveInterface': {'name': 'Synthetic WeaveInterface', 'type': 'WeaveInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic I2PInterface': {'name': 'Synthetic I2PInterface', 'type': 'I2PInterface', 'reachable_on': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.b32.i2p', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic KISSInterface': {'name': 'Synthetic KISSInterface', 'type': 'KISSInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}}}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "de001ba474696d6581a3757463ce6553f100ab696e666f726d6174696f6e81a8636f6e74656e7473bf53796e746865746963206465736b746f702074656c656d6574727920e29883a8726563656976656483a26279c410000102030405060708090a0b0c0d0e0fa3766961c410101112131415161718191a1b1c1d1e1fa864697374616e636582a867656f6465736963cb40938a0000000000a96575636c696469616ecb4093850000000000a76261747465727983ae6368617267655f70657263656e74cb4052200000000000a86368617267696e67c3ab74656d7065726174757265cb403f400000000000a8707265737375726581a46d626172cb408faa0000000000a86c6f636174696f6e87a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cbc029000000000000a57370656564cb4042000000000000a762656172696e67cb4070e00000000000a86163637572616379cb400a000000000000ab6c6173745f757064617465ce6553f0f9ad706879736963616c5f6c696e6b83a472737369cb0000000000000000a3736e72cb0000000000000000a171cb0000000000000000ab74656d706572617475726581a163cbc011000000000000a868756d696469747981b070657263656e745f72656c6174697665cb4050e00000000000ae6d61676e657469635f6669656c6483a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000ad616d6269656e745f6c6967687481a36c7578cb405e200000000000a76772617669747983a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000b0616e67756c61725f76656c6f6369747983a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000ac616363656c65726174696f6e83a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000a970726f78696d697479c3b1706f7765725f636f6e73756d7074696f6e820092cb4029000000000000a973796e746865746963a5526164696f92cb4008000000000000c0b0706f7765725f70726f64756374696f6e810092cb4046800000000000a973796e746865746963a970726f636573736f72810093cb3fd000000000000093cb3fb999999999999acb3fc999999999999acb3fd3333333333333ce8f0d1800a372616d820092cd2000cd0800a95365636f6e6461727992cd0400cd0400a36e766d820092cd2000cd0800a95365636f6e6461727992cd0400cd0400a6637573746f6d81009282a46d6f6465a973796e746865746963a5636f756e7402a572756c6572a474616e6b820094cb4059000000000000cb4039000000000000c0c0a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963a46675656c820094cb4059000000000000cb4039000000000000c0c0a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963ad726e735f7472616e73706f72748fb17472616e73706f72745f656e61626c6564c3b27472616e73706f72745f6964656e74697479c410000102030405060708090a0b0c0d0e0fb07472616e73706f72745f757074696d65cb40ac210000000000ab747261666669635f727862cd03e8ab747261666669635f747862cd07d0a873706565645f7278cb4054000000000000a873706565645f7478cb4064000000000000ad73706565645f72785f696e7374cb4056000000000000ad73706565645f74785f696e7374cb4065000000000000ab6d656d6f72795f75736564cd1000a76966737461747381aa696e74657266616365739182a46e616d65b353796e74686574696320696e74657266616365a3727862cd03e8aa706174685f7461626c659184a9696e74657266616365b353796e74686574696320696e74657266616365a3766961c410000102030405060708090a0b0c0d0e0fa468617368c410101112131415161718191a1b1c1d1e1fa4686f707302af696e746572666163655f636f756e7401aa6c696e6b5f636f756e7402aa706174685f636f756e7401b06c786d665f70726f7061676174696f6e8fb064657374696e6174696f6e5f68617368c410000102030405060708090a0b0c0d0e0fad6964656e746974795f68617368c410101112131415161718191a1b1c1d1e1fa6757074696d65cd1c20ae64656c69766572795f6c696d6974cb408f400000000000b170726f7061676174696f6e5f6c696d6974cb409f400000000000b16175746f706565725f6d6178646570746804b066726f6d5f7374617469635f6f6e6c79c2ac6d65737361676573746f726583a5636f756e7403a56279746573cd03e8a56c696d6974cd2710a7636c69656e747382d924636c69656e745f70726f7061676174696f6e5f6d657373616765735f726563656976656407d922636c69656e745f70726f7061676174696f6e5f6d657373616765735f73657276656405bd756e7065657265645f70726f7061676174696f6e5f696e636f6d696e6702bd756e7065657265645f70726f7061676174696f6e5f72785f627974657364ac7374617469635f706565727301ab746f74616c5f706565727301a96d61785f706565727308a5706565727381c410000102030405060708090a0b0c0d0e0f8fa474797065a6737461746963a5737461746501a5616c697665c3aa6c6173745f6865617264ce6553f0ffb16e6578745f73796e635f617474656d7074ce6553f10ab16c6173745f73796e635f617474656d7074ce6553f0f6ac73796e635f6261636b6f666600b070656572696e675f74696d6562617365ce6553f09ca36c6572cb3fb999999999999aa3737472cb4000000000000000ae7472616e736665725f6c696d6974cb408f400000000000b06e6574776f726b5f64697374616e636502a872785f6279746573cd01f4a874785f6279746573cd0190a86d6573736167657384a76f66666572656402a86f7574676f696e6701a8696e636f6d696e6701a9756e68616e646c656400ae636f6e6e656374696f6e5f6d617081a46d617073810082a46e616d6500a6706f696e747381c4104b5a0eb53740518b06e84a158add011287a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cb4024000000000000aa747970655f6c6162656ca46e6f6465a46e616d65a953796e746865746963a67369676e616c83a472737369d0b0a3736e72c0a171c0a56164646564ce6553f100aa696e746572666163657381aa696e746572666163657388ad53796e74686574696320544350de0012a46e616d65ad53796e74686574696320544350a474797065b2544350536572766572496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379c0a962616e647769647468c0aa6d6f64756c6174696f6ec0af737072656164696e67666163746f72c0aa636f64696e6772617465c0a76368616e6e656cc0a36c6174c0a36c6f6ec0a6686569676874c0a97472616e73706f7274c3ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65c0ab696661635f6e65746b6579c0aa6e6574776f726b5f6964d9203130313131323133313431353136313731383139316131623163316431653166bb53796e746865746963204261636b626f6e65496e74657266616365de0012a46e616d65bb53796e746865746963204261636b626f6e65496e74657266616365a474797065b14261636b626f6e65496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0bc53796e74686574696320544350536572766572496e74657266616365de0012a46e616d65bc53796e74686574696320544350536572766572496e74657266616365a474797065b2544350536572766572496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0bc53796e74686574696320544350436c69656e74496e74657266616365de0012a46e616d65bc53796e74686574696320544350436c69656e74496e74657266616365a474797065b2544350436c69656e74496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b853796e74686574696320524e6f6465496e74657266616365de0012a46e616d65b853796e74686574696320524e6f6465496e74657266616365a474797065ae524e6f6465496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b853796e746865746963205765617665496e74657266616365de0012a46e616d65b853796e746865746963205765617665496e74657266616365a474797065ae5765617665496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b653796e74686574696320493250496e74657266616365de0012a46e616d65b653796e74686574696320493250496e74657266616365a474797065ac493250496e74657266616365ac726561636861626c655f6f6ed93c616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161612e6233322e693270a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b753796e746865746963204b495353496e74657266616365de0012a46e616d65b753796e746865746963204b495353496e74657266616365a474797065ad4b495353496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "link-replacement",
+            "wire_hex": "de001b01ce6553f1000fbf53796e746865746963206465736b746f702074656c656d6574727920e298831094c410000102030405060708090a0b0c0d0e0fc410101112131415161718191a1b1c1d1e1fcb40938a0000000000cb40938500000000000493cb4052200000000000c3cb403f40000000000003cb408faa00000000000297c4040311d3e0c404fffe17b8c404fffffb1ec40400000e10c40400006978c4020145ce6553f0f90593cbc055e00000000000cb401d000000000000cb4056c0000000000007cbc01100000000000008cb4050e000000000000993cb3ff4000000000000cbc004000000000000cb400e0000000000000acb405e2000000000000b93cb3ff4000000000000cbc004000000000000cb400e0000000000000c93cb3ff4000000000000cbc004000000000000cb400e0000000000000693cb3ff4000000000000cbc004000000000000cb400e0000000000000ec31192920092cb4029000000000000a973796e74686574696392a5526164696f92cb4008000000000000c01291920092cb4046800000000000a973796e7468657469631391920093cb3fd000000000000093cb3fb999999999999acb3fc999999999999acb3fd3333333333333ce8f0d18001492920092cd2000cd080092a95365636f6e6461727992cd0400cd04001592920092cd2000cd080092a95365636f6e6461727992cd0400cd0400ccff9192009282a46d6f6465a973796e746865746963a5636f756e7402a572756c65721692920094cb4059000000000000cb4039000000000000c0c092a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e7468657469631792920094cb4059000000000000cb4039000000000000c0c092a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963198fb17472616e73706f72745f656e61626c6564c3b27472616e73706f72745f6964656e74697479c410000102030405060708090a0b0c0d0e0fb07472616e73706f72745f757074696d65cb40ac210000000000ab747261666669635f727862cd03e8ab747261666669635f747862cd07d0a873706565645f7278cb4054000000000000a873706565645f7478cb4064000000000000ad73706565645f72785f696e7374cb4056000000000000ad73706565645f74785f696e7374cb4065000000000000ab6d656d6f72795f75736564cd1000a76966737461747381aa696e74657266616365739182a46e616d65b353796e74686574696320696e74657266616365a3727862cd03e8aa706174685f7461626c659184a9696e74657266616365b353796e74686574696320696e74657266616365a3766961c410000102030405060708090a0b0c0d0e0fa468617368c410101112131415161718191a1b1c1d1e1fa4686f707302af696e746572666163655f636f756e7401aa6c696e6b5f636f756e7402aa706174685f636f756e7401188fb064657374696e6174696f6e5f68617368c410000102030405060708090a0b0c0d0e0fad6964656e746974795f68617368c410101112131415161718191a1b1c1d1e1fa6757074696d65cd1c20ae64656c69766572795f6c696d6974cb408f400000000000b170726f7061676174696f6e5f6c696d6974cb409f400000000000b16175746f706565725f6d6178646570746804b066726f6d5f7374617469635f6f6e6c79c2ac6d65737361676573746f726583a5636f756e7403a56279746573cd03e8a56c696d6974cd2710a7636c69656e747382d924636c69656e745f70726f7061676174696f6e5f6d657373616765735f726563656976656407d922636c69656e745f70726f7061676174696f6e5f6d657373616765735f73657276656405bd756e7065657265645f70726f7061676174696f6e5f696e636f6d696e6702bd756e7065657265645f70726f7061676174696f6e5f72785f627974657364ac7374617469635f706565727301ab746f74616c5f706565727301a96d61785f706565727308a5706565727381c410000102030405060708090a0b0c0d0e0f8fa474797065a6737461746963a5737461746501a5616c697665c3aa6c6173745f6865617264ce6553f0ffb16e6578745f73796e635f617474656d7074ce6553f10ab16c6173745f73796e635f617474656d7074ce6553f0f6ac73796e635f6261636b6f666600b070656572696e675f74696d6562617365ce6553f09ca36c6572cb3fb999999999999aa3737472cb4000000000000000ae7472616e736665725f6c696d6974cb408f400000000000b06e6574776f726b5f64697374616e636502a872785f6279746573cd01f4a874785f6279746573cd0190a86d6573736167657384a76f66666572656402a86f7574676f696e6701a8696e636f6d696e6701a9756e68616e646c6564001a81a46d617073810082a46e616d6500a6706f696e747381c4104b5a0eb53740518b06e84a158add011287a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cb4024000000000000aa747970655f6c6162656ca46e6f6465a46e616d65a953796e746865746963a67369676e616c83a472737369d0b0a3736e72c0a171c0a56164646564ce6553f1001b88ad53796e746865746963205443508600b2544350536572766572496e7465726661636501c3ccfec410000102030405060708090a0b0c0d0e0fccfdc410101112131415161718191a1b1c1d1e1f02af6578616d706c652e696e76616c696406cd1092bb53796e746865746963204261636b626f6e65496e746572666163658f00b14261636b626f6e65496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579bc53796e74686574696320544350536572766572496e746572666163658f00b2544350536572766572496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579bc53796e74686574696320544350436c69656e74496e746572666163658f00b2544350436c69656e74496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b853796e74686574696320524e6f6465496e746572666163658f00ae524e6f6465496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b853796e746865746963205765617665496e746572666163658f00ae5765617665496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b653796e74686574696320493250496e746572666163658f00ac493250496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02d93c616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161612e6233322e69327006cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b753796e746865746963204b495353496e746572666163658f00ad4b495353496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579",
+            "extra_link": {
+                "rssi": -91.5,
+                "quality": 77.0
+            },
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'information': {'contents': 'Synthetic desktop telemetry \u2603'}, 'received': {'by': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'via': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'distance': {'geodesic': 1250.5, 'euclidian': 1249.25}}, 'battery': {'charge_percent': 72.5, 'charging': True, 'temperature': 31.25}, 'pressure': {'mbar': 1013.25}, 'location': {'latitude': 51.5, 'longitude': -0.125, 'altitude': -12.5, 'speed': 36.0, 'bearing': 270.0, 'accuracy': 3.25, 'last_update': 1699999993}, 'physical_link': {'rssi': -91.5, 'snr': None, 'q': 77.0}, 'temperature': {'c': -4.25}, 'humidity': {'percent_relative': 67.5}, 'magnetic_field': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'ambient_light': {'lux': 120.5}, 'gravity': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'angular_velocity': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'acceleration': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'proximity': True, 'power_consumption': {0: [12.5, 'synthetic'], 'Radio': [3.0, None]}, 'power_production': {0: [45.0, 'synthetic']}, 'processor': {0: [0.25, [0.1, 0.2, 0.3], 2400000000]}, 'ram': {0: [8192, 2048], 'Secondary': [1024, 1024]}, 'nvm': {0: [8192, 2048], 'Secondary': [1024, 1024]}, 'custom': {0: [{'mode': 'synthetic', 'count': 2}, 'ruler']}, 'tank': {0: [100.0, 25.0, None, None], 'Reserve': [50.0, 10.0, 'kg', 'synthetic']}, 'fuel': {0: [100.0, 25.0, None, None], 'Reserve': [50.0, 10.0, 'kg', 'synthetic']}, 'rns_transport': {'transport_enabled': True, 'transport_identity': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'transport_uptime': 3600.5, 'traffic_rxb': 1000, 'traffic_txb': 2000, 'speed_rx': 80.0, 'speed_tx': 160.0, 'speed_rx_inst': 88.0, 'speed_tx_inst': 168.0, 'memory_used': 4096, 'ifstats': {'interfaces': [{'name': 'Synthetic interface', 'rxb': 1000}]}, 'path_table': [{'interface': 'Synthetic interface', 'via': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'hash': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'hops': 2}], 'interface_count': 1, 'link_count': 2, 'path_count': 1}, 'lxmf_propagation': {'destination_hash': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'identity_hash': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'uptime': 7200, 'delivery_limit': 1000.0, 'propagation_limit': 2000.0, 'autopeer_maxdepth': 4, 'from_static_only': False, 'messagestore': {'count': 3, 'bytes': 1000, 'limit': 10000}, 'clients': {'client_propagation_messages_received': 7, 'client_propagation_messages_served': 5}, 'unpeered_propagation_incoming': 2, 'unpeered_propagation_rx_bytes': 100, 'static_peers': 1, 'total_peers': 1, 'max_peers': 8, 'peers': {b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f': {'type': 'static', 'state': 1, 'alive': True, 'last_heard': 1699999999, 'next_sync_attempt': 1700000010, 'last_sync_attempt': 1699999990, 'sync_backoff': 0, 'peering_timebase': 1699999900, 'ler': 0.1, 'str': 2.0, 'transfer_limit': 1000.0, 'network_distance': 2, 'rx_bytes': 500, 'tx_bytes': 400, 'messages': {'offered': 2, 'outgoing': 1, 'incoming': 1, 'unhandled': 0}}}}, 'connection_map': {'maps': {0: {'name': 0, 'points': {b'KZ\\x0e\\xb57@Q\\x8b\\x06\\xe8J\\x15\\x8a\\xdd\\x01\\x12': {'latitude': 51.5, 'longitude': -0.125, 'altitude': 10.0, 'type_label': 'node', 'name': 'Synthetic', 'signal': {'rssi': -80, 'snr': None, 'q': None}, 'added': 1700000000}}}}}, 'interfaces': {'interfaces': {'Synthetic TCP': {'name': 'Synthetic TCP', 'type': 'TCPServerInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': None, 'bandwidth': None, 'modulation': None, 'spreadingfactor': None, 'codingrate': None, 'channel': None, 'lat': None, 'lon': None, 'height': None, 'transport': True, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': None, 'ifac_netkey': None, 'network_id': '101112131415161718191a1b1c1d1e1f'}, 'Synthetic BackboneInterface': {'name': 'Synthetic BackboneInterface', 'type': 'BackboneInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic TCPServerInterface': {'name': 'Synthetic TCPServerInterface', 'type': 'TCPServerInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic TCPClientInterface': {'name': 'Synthetic TCPClientInterface', 'type': 'TCPClientInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic RNodeInterface': {'name': 'Synthetic RNodeInterface', 'type': 'RNodeInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic WeaveInterface': {'name': 'Synthetic WeaveInterface', 'type': 'WeaveInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic I2PInterface': {'name': 'Synthetic I2PInterface', 'type': 'I2PInterface', 'reachable_on': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.b32.i2p', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic KISSInterface': {'name': 'Synthetic KISSInterface', 'type': 'KISSInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}}}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "de001ba474696d6581a3757463ce6553f100ab696e666f726d6174696f6e81a8636f6e74656e7473bf53796e746865746963206465736b746f702074656c656d6574727920e29883a8726563656976656483a26279c410000102030405060708090a0b0c0d0e0fa3766961c410101112131415161718191a1b1c1d1e1fa864697374616e636582a867656f6465736963cb40938a0000000000a96575636c696469616ecb4093850000000000a76261747465727983ae6368617267655f70657263656e74cb4052200000000000a86368617267696e67c3ab74656d7065726174757265cb403f400000000000a8707265737375726581a46d626172cb408faa0000000000a86c6f636174696f6e87a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cbc029000000000000a57370656564cb4042000000000000a762656172696e67cb4070e00000000000a86163637572616379cb400a000000000000ab6c6173745f757064617465ce6553f0f9ad706879736963616c5f6c696e6b83a472737369cbc056e00000000000a3736e72c0a171cb4053400000000000ab74656d706572617475726581a163cbc011000000000000a868756d696469747981b070657263656e745f72656c6174697665cb4050e00000000000ae6d61676e657469635f6669656c6483a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000ad616d6269656e745f6c6967687481a36c7578cb405e200000000000a76772617669747983a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000b0616e67756c61725f76656c6f6369747983a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000ac616363656c65726174696f6e83a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000a970726f78696d697479c3b1706f7765725f636f6e73756d7074696f6e820092cb4029000000000000a973796e746865746963a5526164696f92cb4008000000000000c0b0706f7765725f70726f64756374696f6e810092cb4046800000000000a973796e746865746963a970726f636573736f72810093cb3fd000000000000093cb3fb999999999999acb3fc999999999999acb3fd3333333333333ce8f0d1800a372616d820092cd2000cd0800a95365636f6e6461727992cd0400cd0400a36e766d820092cd2000cd0800a95365636f6e6461727992cd0400cd0400a6637573746f6d81009282a46d6f6465a973796e746865746963a5636f756e7402a572756c6572a474616e6b820094cb4059000000000000cb4039000000000000c0c0a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963a46675656c820094cb4059000000000000cb4039000000000000c0c0a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963ad726e735f7472616e73706f72748fb17472616e73706f72745f656e61626c6564c3b27472616e73706f72745f6964656e74697479c410000102030405060708090a0b0c0d0e0fb07472616e73706f72745f757074696d65cb40ac210000000000ab747261666669635f727862cd03e8ab747261666669635f747862cd07d0a873706565645f7278cb4054000000000000a873706565645f7478cb4064000000000000ad73706565645f72785f696e7374cb4056000000000000ad73706565645f74785f696e7374cb4065000000000000ab6d656d6f72795f75736564cd1000a76966737461747381aa696e74657266616365739182a46e616d65b353796e74686574696320696e74657266616365a3727862cd03e8aa706174685f7461626c659184a9696e74657266616365b353796e74686574696320696e74657266616365a3766961c410000102030405060708090a0b0c0d0e0fa468617368c410101112131415161718191a1b1c1d1e1fa4686f707302af696e746572666163655f636f756e7401aa6c696e6b5f636f756e7402aa706174685f636f756e7401b06c786d665f70726f7061676174696f6e8fb064657374696e6174696f6e5f68617368c410000102030405060708090a0b0c0d0e0fad6964656e746974795f68617368c410101112131415161718191a1b1c1d1e1fa6757074696d65cd1c20ae64656c69766572795f6c696d6974cb408f400000000000b170726f7061676174696f6e5f6c696d6974cb409f400000000000b16175746f706565725f6d6178646570746804b066726f6d5f7374617469635f6f6e6c79c2ac6d65737361676573746f726583a5636f756e7403a56279746573cd03e8a56c696d6974cd2710a7636c69656e747382d924636c69656e745f70726f7061676174696f6e5f6d657373616765735f726563656976656407d922636c69656e745f70726f7061676174696f6e5f6d657373616765735f73657276656405bd756e7065657265645f70726f7061676174696f6e5f696e636f6d696e6702bd756e7065657265645f70726f7061676174696f6e5f72785f627974657364ac7374617469635f706565727301ab746f74616c5f706565727301a96d61785f706565727308a5706565727381c410000102030405060708090a0b0c0d0e0f8fa474797065a6737461746963a5737461746501a5616c697665c3aa6c6173745f6865617264ce6553f0ffb16e6578745f73796e635f617474656d7074ce6553f10ab16c6173745f73796e635f617474656d7074ce6553f0f6ac73796e635f6261636b6f666600b070656572696e675f74696d6562617365ce6553f09ca36c6572cb3fb999999999999aa3737472cb4000000000000000ae7472616e736665725f6c696d6974cb408f400000000000b06e6574776f726b5f64697374616e636502a872785f6279746573cd01f4a874785f6279746573cd0190a86d6573736167657384a76f66666572656402a86f7574676f696e6701a8696e636f6d696e6701a9756e68616e646c656400ae636f6e6e656374696f6e5f6d617081a46d617073810082a46e616d6500a6706f696e747381c4104b5a0eb53740518b06e84a158add011287a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cb4024000000000000aa747970655f6c6162656ca46e6f6465a46e616d65a953796e746865746963a67369676e616c83a472737369d0b0a3736e72c0a171c0a56164646564ce6553f100aa696e746572666163657381aa696e746572666163657388ad53796e74686574696320544350de0012a46e616d65ad53796e74686574696320544350a474797065b2544350536572766572496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379c0a962616e647769647468c0aa6d6f64756c6174696f6ec0af737072656164696e67666163746f72c0aa636f64696e6772617465c0a76368616e6e656cc0a36c6174c0a36c6f6ec0a6686569676874c0a97472616e73706f7274c3ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65c0ab696661635f6e65746b6579c0aa6e6574776f726b5f6964d9203130313131323133313431353136313731383139316131623163316431653166bb53796e746865746963204261636b626f6e65496e74657266616365de0012a46e616d65bb53796e746865746963204261636b626f6e65496e74657266616365a474797065b14261636b626f6e65496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0bc53796e74686574696320544350536572766572496e74657266616365de0012a46e616d65bc53796e74686574696320544350536572766572496e74657266616365a474797065b2544350536572766572496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0bc53796e74686574696320544350436c69656e74496e74657266616365de0012a46e616d65bc53796e74686574696320544350436c69656e74496e74657266616365a474797065b2544350436c69656e74496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b853796e74686574696320524e6f6465496e74657266616365de0012a46e616d65b853796e74686574696320524e6f6465496e74657266616365a474797065ae524e6f6465496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b853796e746865746963205765617665496e74657266616365de0012a46e616d65b853796e746865746963205765617665496e74657266616365a474797065ae5765617665496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b653796e74686574696320493250496e74657266616365de0012a46e616d65b653796e74686574696320493250496e74657266616365a474797065ac493250496e74657266616365ac726561636861626c655f6f6ed93c616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161612e6233322e693270a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b753796e746865746963204b495353496e74657266616365de0012a46e616d65b753796e746865746963204b495353496e74657266616365a474797065ad4b495353496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "missing-report",
+            "wire_hex": null,
+            "extra_link": {},
+            "copied": [
+                "Could not decode telemetry"
+            ],
+            "raw_link": {},
+            "readings_hex": "c0",
+            "events": [
+                "copy"
+            ],
+            "error_count": 1
+        },
+        {
+            "name": "link-ui-rounding",
+            "wire_hex": "de001b01ce6553f1000fbf53796e746865746963206465736b746f702074656c656d6574727920e298831094c410000102030405060708090a0b0c0d0e0fc410101112131415161718191a1b1c1d1e1fcb40938a0000000000cb40938500000000000493cb4052200000000000c3cb403f40000000000003cb408faa00000000000297c4040311d3e0c404fffe17b8c404fffffb1ec40400000e10c40400006978c4020145ce6553f0f90593cbc055e00000000000cb401d000000000000cb4056c0000000000007cbc01100000000000008cb4050e000000000000993cb3ff4000000000000cbc004000000000000cb400e0000000000000acb405e2000000000000b93cb3ff4000000000000cbc004000000000000cb400e0000000000000c93cb3ff4000000000000cbc004000000000000cb400e0000000000000693cb3ff4000000000000cbc004000000000000cb400e0000000000000ec31192920092cb4029000000000000a973796e74686574696392a5526164696f92cb4008000000000000c01291920092cb4046800000000000a973796e7468657469631391920093cb3fd000000000000093cb3fb999999999999acb3fc999999999999acb3fd3333333333333ce8f0d18001492920092cd2000cd080092a95365636f6e6461727992cd0400cd04001592920092cd2000cd080092a95365636f6e6461727992cd0400cd0400ccff9192009282a46d6f6465a973796e746865746963a5636f756e7402a572756c65721692920094cb4059000000000000cb4039000000000000c0c092a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e7468657469631792920094cb4059000000000000cb4039000000000000c0c092a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963198fb17472616e73706f72745f656e61626c6564c3b27472616e73706f72745f6964656e74697479c410000102030405060708090a0b0c0d0e0fb07472616e73706f72745f757074696d65cb40ac210000000000ab747261666669635f727862cd03e8ab747261666669635f747862cd07d0a873706565645f7278cb4054000000000000a873706565645f7478cb4064000000000000ad73706565645f72785f696e7374cb4056000000000000ad73706565645f74785f696e7374cb4065000000000000ab6d656d6f72795f75736564cd1000a76966737461747381aa696e74657266616365739182a46e616d65b353796e74686574696320696e74657266616365a3727862cd03e8aa706174685f7461626c659184a9696e74657266616365b353796e74686574696320696e74657266616365a3766961c410000102030405060708090a0b0c0d0e0fa468617368c410101112131415161718191a1b1c1d1e1fa4686f707302af696e746572666163655f636f756e7401aa6c696e6b5f636f756e7402aa706174685f636f756e7401188fb064657374696e6174696f6e5f68617368c410000102030405060708090a0b0c0d0e0fad6964656e746974795f68617368c410101112131415161718191a1b1c1d1e1fa6757074696d65cd1c20ae64656c69766572795f6c696d6974cb408f400000000000b170726f7061676174696f6e5f6c696d6974cb409f400000000000b16175746f706565725f6d6178646570746804b066726f6d5f7374617469635f6f6e6c79c2ac6d65737361676573746f726583a5636f756e7403a56279746573cd03e8a56c696d6974cd2710a7636c69656e747382d924636c69656e745f70726f7061676174696f6e5f6d657373616765735f726563656976656407d922636c69656e745f70726f7061676174696f6e5f6d657373616765735f73657276656405bd756e7065657265645f70726f7061676174696f6e5f696e636f6d696e6702bd756e7065657265645f70726f7061676174696f6e5f72785f627974657364ac7374617469635f706565727301ab746f74616c5f706565727301a96d61785f706565727308a5706565727381c410000102030405060708090a0b0c0d0e0f8fa474797065a6737461746963a5737461746501a5616c697665c3aa6c6173745f6865617264ce6553f0ffb16e6578745f73796e635f617474656d7074ce6553f10ab16c6173745f73796e635f617474656d7074ce6553f0f6ac73796e635f6261636b6f666600b070656572696e675f74696d6562617365ce6553f09ca36c6572cb3fb999999999999aa3737472cb4000000000000000ae7472616e736665725f6c696d6974cb408f400000000000b06e6574776f726b5f64697374616e636502a872785f6279746573cd01f4a874785f6279746573cd0190a86d6573736167657384a76f66666572656402a86f7574676f696e6701a8696e636f6d696e6701a9756e68616e646c6564001a81a46d617073810082a46e616d6500a6706f696e747381c4104b5a0eb53740518b06e84a158add011287a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cb4024000000000000aa747970655f6c6162656ca46e6f6465a46e616d65a953796e746865746963a67369676e616c83a472737369d0b0a3736e72c0a171c0a56164646564ce6553f1001b88ad53796e746865746963205443508600b2544350536572766572496e7465726661636501c3ccfec410000102030405060708090a0b0c0d0e0fccfdc410101112131415161718191a1b1c1d1e1f02af6578616d706c652e696e76616c696406cd1092bb53796e746865746963204261636b626f6e65496e746572666163658f00b14261636b626f6e65496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579bc53796e74686574696320544350536572766572496e746572666163658f00b2544350536572766572496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579bc53796e74686574696320544350436c69656e74496e746572666163658f00b2544350436c69656e74496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b853796e74686574696320524e6f6465496e746572666163658f00ae524e6f6465496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b853796e746865746963205765617665496e746572666163658f00ae5765617665496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b653796e74686574696320493250496e746572666163658f00ac493250496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02d93c616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161612e6233322e69327006cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579b753796e746865746963204b495353496e746572666163658f00ad4b495353496e74657266616365ccfec410000102030405060708090a0b0c0d0e0f02af6578616d706c652e696e76616c696406cd109209ce33bca1000ace0001e8480da44c6f52610b070c050e0103cb4049c0000000000004cbbfc000000000000005cb402500000000000007b87075626c69632d73796e7468657469632d6e6574776f726b08b47075626c69632d73796e7468657469632d6b6579",
+            "extra_link": {
+                "quality": 77.5,
+                "rssi": -91.5,
+                "snr": 3.2
+            },
+            "copied": [
+                "{'time': {'utc': 1700000000}, 'information': {'contents': 'Synthetic desktop telemetry \u2603'}, 'received': {'by': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'via': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'distance': {'geodesic': 1250.5, 'euclidian': 1249.25}}, 'battery': {'charge_percent': 72.5, 'charging': True, 'temperature': 31.25}, 'pressure': {'mbar': 1013.25}, 'location': {'latitude': 51.5, 'longitude': -0.125, 'altitude': -12.5, 'speed': 36.0, 'bearing': 270.0, 'accuracy': 3.25, 'last_update': 1699999993}, 'physical_link': {'rssi': -91.5, 'snr': 3.2, 'q': 77.5}, 'temperature': {'c': -4.25}, 'humidity': {'percent_relative': 67.5}, 'magnetic_field': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'ambient_light': {'lux': 120.5}, 'gravity': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'angular_velocity': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'acceleration': {'x': 1.25, 'y': -2.5, 'z': 3.75}, 'proximity': True, 'power_consumption': {0: [12.5, 'synthetic'], 'Radio': [3.0, None]}, 'power_production': {0: [45.0, 'synthetic']}, 'processor': {0: [0.25, [0.1, 0.2, 0.3], 2400000000]}, 'ram': {0: [8192, 2048], 'Secondary': [1024, 1024]}, 'nvm': {0: [8192, 2048], 'Secondary': [1024, 1024]}, 'custom': {0: [{'mode': 'synthetic', 'count': 2}, 'ruler']}, 'tank': {0: [100.0, 25.0, None, None], 'Reserve': [50.0, 10.0, 'kg', 'synthetic']}, 'fuel': {0: [100.0, 25.0, None, None], 'Reserve': [50.0, 10.0, 'kg', 'synthetic']}, 'rns_transport': {'transport_enabled': True, 'transport_identity': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'transport_uptime': 3600.5, 'traffic_rxb': 1000, 'traffic_txb': 2000, 'speed_rx': 80.0, 'speed_tx': 160.0, 'speed_rx_inst': 88.0, 'speed_tx_inst': 168.0, 'memory_used': 4096, 'ifstats': {'interfaces': [{'name': 'Synthetic interface', 'rxb': 1000}]}, 'path_table': [{'interface': 'Synthetic interface', 'via': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'hash': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'hops': 2}], 'interface_count': 1, 'link_count': 2, 'path_count': 1}, 'lxmf_propagation': {'destination_hash': b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f', 'identity_hash': b'\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f', 'uptime': 7200, 'delivery_limit': 1000.0, 'propagation_limit': 2000.0, 'autopeer_maxdepth': 4, 'from_static_only': False, 'messagestore': {'count': 3, 'bytes': 1000, 'limit': 10000}, 'clients': {'client_propagation_messages_received': 7, 'client_propagation_messages_served': 5}, 'unpeered_propagation_incoming': 2, 'unpeered_propagation_rx_bytes': 100, 'static_peers': 1, 'total_peers': 1, 'max_peers': 8, 'peers': {b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f': {'type': 'static', 'state': 1, 'alive': True, 'last_heard': 1699999999, 'next_sync_attempt': 1700000010, 'last_sync_attempt': 1699999990, 'sync_backoff': 0, 'peering_timebase': 1699999900, 'ler': 0.1, 'str': 2.0, 'transfer_limit': 1000.0, 'network_distance': 2, 'rx_bytes': 500, 'tx_bytes': 400, 'messages': {'offered': 2, 'outgoing': 1, 'incoming': 1, 'unhandled': 0}}}}, 'connection_map': {'maps': {0: {'name': 0, 'points': {b'KZ\\x0e\\xb57@Q\\x8b\\x06\\xe8J\\x15\\x8a\\xdd\\x01\\x12': {'latitude': 51.5, 'longitude': -0.125, 'altitude': 10.0, 'type_label': 'node', 'name': 'Synthetic', 'signal': {'rssi': -80, 'snr': None, 'q': None}, 'added': 1700000000}}}}}, 'interfaces': {'interfaces': {'Synthetic TCP': {'name': 'Synthetic TCP', 'type': 'TCPServerInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': None, 'bandwidth': None, 'modulation': None, 'spreadingfactor': None, 'codingrate': None, 'channel': None, 'lat': None, 'lon': None, 'height': None, 'transport': True, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': None, 'ifac_netkey': None, 'network_id': '101112131415161718191a1b1c1d1e1f'}, 'Synthetic BackboneInterface': {'name': 'Synthetic BackboneInterface', 'type': 'BackboneInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic TCPServerInterface': {'name': 'Synthetic TCPServerInterface', 'type': 'TCPServerInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic TCPClientInterface': {'name': 'Synthetic TCPClientInterface', 'type': 'TCPClientInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic RNodeInterface': {'name': 'Synthetic RNodeInterface', 'type': 'RNodeInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic WeaveInterface': {'name': 'Synthetic WeaveInterface', 'type': 'WeaveInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic I2PInterface': {'name': 'Synthetic I2PInterface', 'type': 'I2PInterface', 'reachable_on': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.b32.i2p', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}, 'Synthetic KISSInterface': {'name': 'Synthetic KISSInterface', 'type': 'KISSInterface', 'reachable_on': 'example.invalid', 'port': 4242, 'frequency': 868000000, 'bandwidth': 125000, 'modulation': 'LoRa', 'spreadingfactor': 7, 'codingrate': 5, 'channel': 1, 'lat': 51.5, 'lon': -0.125, 'height': 10.5, 'transport': None, 'transport_id': '000102030405060708090a0b0c0d0e0f', 'ifac_netname': 'public-synthetic-network', 'ifac_netkey': 'public-synthetic-key', 'network_id': None}}}}"
+            ],
+            "raw_link": {
+                "q": 77.45,
+                "rssi": -91.55,
+                "snr": 3.25
+            },
+            "readings_hex": "de001ba474696d6581a3757463ce6553f100ab696e666f726d6174696f6e81a8636f6e74656e7473bf53796e746865746963206465736b746f702074656c656d6574727920e29883a8726563656976656483a26279c410000102030405060708090a0b0c0d0e0fa3766961c410101112131415161718191a1b1c1d1e1fa864697374616e636582a867656f6465736963cb40938a0000000000a96575636c696469616ecb4093850000000000a76261747465727983ae6368617267655f70657263656e74cb4052200000000000a86368617267696e67c3ab74656d7065726174757265cb403f400000000000a8707265737375726581a46d626172cb408faa0000000000a86c6f636174696f6e87a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cbc029000000000000a57370656564cb4042000000000000a762656172696e67cb4070e00000000000a86163637572616379cb400a000000000000ab6c6173745f757064617465ce6553f0f9ad706879736963616c5f6c696e6b83a472737369cbc056e00000000000a3736e72cb400999999999999aa171cb4053600000000000ab74656d706572617475726581a163cbc011000000000000a868756d696469747981b070657263656e745f72656c6174697665cb4050e00000000000ae6d61676e657469635f6669656c6483a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000ad616d6269656e745f6c6967687481a36c7578cb405e200000000000a76772617669747983a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000b0616e67756c61725f76656c6f6369747983a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000ac616363656c65726174696f6e83a178cb3ff4000000000000a179cbc004000000000000a17acb400e000000000000a970726f78696d697479c3b1706f7765725f636f6e73756d7074696f6e820092cb4029000000000000a973796e746865746963a5526164696f92cb4008000000000000c0b0706f7765725f70726f64756374696f6e810092cb4046800000000000a973796e746865746963a970726f636573736f72810093cb3fd000000000000093cb3fb999999999999acb3fc999999999999acb3fd3333333333333ce8f0d1800a372616d820092cd2000cd0800a95365636f6e6461727992cd0400cd0400a36e766d820092cd2000cd0800a95365636f6e6461727992cd0400cd0400a6637573746f6d81009282a46d6f6465a973796e746865746963a5636f756e7402a572756c6572a474616e6b820094cb4059000000000000cb4039000000000000c0c0a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963a46675656c820094cb4059000000000000cb4039000000000000c0c0a75265736572766594cb4049000000000000cb4024000000000000a26b67a973796e746865746963ad726e735f7472616e73706f72748fb17472616e73706f72745f656e61626c6564c3b27472616e73706f72745f6964656e74697479c410000102030405060708090a0b0c0d0e0fb07472616e73706f72745f757074696d65cb40ac210000000000ab747261666669635f727862cd03e8ab747261666669635f747862cd07d0a873706565645f7278cb4054000000000000a873706565645f7478cb4064000000000000ad73706565645f72785f696e7374cb4056000000000000ad73706565645f74785f696e7374cb4065000000000000ab6d656d6f72795f75736564cd1000a76966737461747381aa696e74657266616365739182a46e616d65b353796e74686574696320696e74657266616365a3727862cd03e8aa706174685f7461626c659184a9696e74657266616365b353796e74686574696320696e74657266616365a3766961c410000102030405060708090a0b0c0d0e0fa468617368c410101112131415161718191a1b1c1d1e1fa4686f707302af696e746572666163655f636f756e7401aa6c696e6b5f636f756e7402aa706174685f636f756e7401b06c786d665f70726f7061676174696f6e8fb064657374696e6174696f6e5f68617368c410000102030405060708090a0b0c0d0e0fad6964656e746974795f68617368c410101112131415161718191a1b1c1d1e1fa6757074696d65cd1c20ae64656c69766572795f6c696d6974cb408f400000000000b170726f7061676174696f6e5f6c696d6974cb409f400000000000b16175746f706565725f6d6178646570746804b066726f6d5f7374617469635f6f6e6c79c2ac6d65737361676573746f726583a5636f756e7403a56279746573cd03e8a56c696d6974cd2710a7636c69656e747382d924636c69656e745f70726f7061676174696f6e5f6d657373616765735f726563656976656407d922636c69656e745f70726f7061676174696f6e5f6d657373616765735f73657276656405bd756e7065657265645f70726f7061676174696f6e5f696e636f6d696e6702bd756e7065657265645f70726f7061676174696f6e5f72785f627974657364ac7374617469635f706565727301ab746f74616c5f706565727301a96d61785f706565727308a5706565727381c410000102030405060708090a0b0c0d0e0f8fa474797065a6737461746963a5737461746501a5616c697665c3aa6c6173745f6865617264ce6553f0ffb16e6578745f73796e635f617474656d7074ce6553f10ab16c6173745f73796e635f617474656d7074ce6553f0f6ac73796e635f6261636b6f666600b070656572696e675f74696d6562617365ce6553f09ca36c6572cb3fb999999999999aa3737472cb4000000000000000ae7472616e736665725f6c696d6974cb408f400000000000b06e6574776f726b5f64697374616e636502a872785f6279746573cd01f4a874785f6279746573cd0190a86d6573736167657384a76f66666572656402a86f7574676f696e6701a8696e636f6d696e6701a9756e68616e646c656400ae636f6e6e656374696f6e5f6d617081a46d617073810082a46e616d6500a6706f696e747381c4104b5a0eb53740518b06e84a158add011287a86c61746974756465cb4049c00000000000a96c6f6e676974756465cbbfc0000000000000a8616c746974756465cb4024000000000000aa747970655f6c6162656ca46e6f6465a46e616d65a953796e746865746963a67369676e616c83a472737369d0b0a3736e72c0a171c0a56164646564ce6553f100aa696e746572666163657381aa696e746572666163657388ad53796e74686574696320544350de0012a46e616d65ad53796e74686574696320544350a474797065b2544350536572766572496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379c0a962616e647769647468c0aa6d6f64756c6174696f6ec0af737072656164696e67666163746f72c0aa636f64696e6772617465c0a76368616e6e656cc0a36c6174c0a36c6f6ec0a6686569676874c0a97472616e73706f7274c3ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65c0ab696661635f6e65746b6579c0aa6e6574776f726b5f6964d9203130313131323133313431353136313731383139316131623163316431653166bb53796e746865746963204261636b626f6e65496e74657266616365de0012a46e616d65bb53796e746865746963204261636b626f6e65496e74657266616365a474797065b14261636b626f6e65496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0bc53796e74686574696320544350536572766572496e74657266616365de0012a46e616d65bc53796e74686574696320544350536572766572496e74657266616365a474797065b2544350536572766572496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0bc53796e74686574696320544350436c69656e74496e74657266616365de0012a46e616d65bc53796e74686574696320544350436c69656e74496e74657266616365a474797065b2544350436c69656e74496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b853796e74686574696320524e6f6465496e74657266616365de0012a46e616d65b853796e74686574696320524e6f6465496e74657266616365a474797065ae524e6f6465496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b853796e746865746963205765617665496e74657266616365de0012a46e616d65b853796e746865746963205765617665496e74657266616365a474797065ae5765617665496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b653796e74686574696320493250496e74657266616365de0012a46e616d65b653796e74686574696320493250496e74657266616365a474797065ac493250496e74657266616365ac726561636861626c655f6f6ed93c616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161612e6233322e693270a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0b753796e746865746963204b495353496e74657266616365de0012a46e616d65b753796e746865746963204b495353496e74657266616365a474797065ad4b495353496e74657266616365ac726561636861626c655f6f6eaf6578616d706c652e696e76616c6964a4706f7274cd1092a96672657175656e6379ce33bca100a962616e647769647468ce0001e848aa6d6f64756c6174696f6ea44c6f5261af737072656164696e67666163746f7207aa636f64696e677261746505a76368616e6e656c01a36c6174cb4049c00000000000a36c6f6ecbbfc0000000000000a6686569676874cb4025000000000000a97472616e73706f7274c0ac7472616e73706f72745f6964d9203030303130323033303430353036303730383039306130623063306430653066ac696661635f6e65746e616d65b87075626c69632d73796e7468657469632d6e6574776f726bab696661635f6e65746b6579b47075626c69632d73796e7468657469632d6b6579aa6e6574776f726b5f6964c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "float-boundaries",
+            "wire_hex": "81ccff919200929acb0000000000000000cb8000000000000000cb3f1a36e2eb1c432dcb3f1a36371ea531a8cb4341c37937e08000cb430c6bf526340000cb4376345785d8a000cb0000000000000001cb7fefffffffffffffcb0010000000000000c0",
+            "extra_link": {},
+            "copied": [
+                "{'custom': {0: [[0.0, -0.0, 0.0001, 9.999e-05, 1e+16, 1000000000000000.0, 1e+17, 5e-324, 1.7976931348623157e+308, 2.2250738585072014e-308], None]}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "81a6637573746f6d8100929acb0000000000000000cb8000000000000000cb3f1a36e2eb1c432dcb3f1a36371ea531a8cb4341c37937e08000cb430c6bf526340000cb4376345785d8a000cb0000000000000001cb7fefffffffffffffcb0010000000000000c0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        },
+        {
+            "name": "text-and-binary",
+            "wire_hex": "81ccff9192009296a82771756f74656427a82271756f74656422a6626f74682722a700070b0c090a0dafc2a0e2808be280a8e29883f09f9880c50100000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeffc0",
+            "extra_link": {},
+            "copied": [
+                "{'custom': {0: [[\"'quoted'\", '\"quoted\"', 'both\\'\"', '\\x00\\x07\\x0b\\x0c\\t\\n\\r', '\\xa0\\u200b\\u2028\u2603\ud83d\ude00', b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f !\"#$%&\\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\\x7f\\x80\\x81\\x82\\x83\\x84\\x85\\x86\\x87\\x88\\x89\\x8a\\x8b\\x8c\\x8d\\x8e\\x8f\\x90\\x91\\x92\\x93\\x94\\x95\\x96\\x97\\x98\\x99\\x9a\\x9b\\x9c\\x9d\\x9e\\x9f\\xa0\\xa1\\xa2\\xa3\\xa4\\xa5\\xa6\\xa7\\xa8\\xa9\\xaa\\xab\\xac\\xad\\xae\\xaf\\xb0\\xb1\\xb2\\xb3\\xb4\\xb5\\xb6\\xb7\\xb8\\xb9\\xba\\xbb\\xbc\\xbd\\xbe\\xbf\\xc0\\xc1\\xc2\\xc3\\xc4\\xc5\\xc6\\xc7\\xc8\\xc9\\xca\\xcb\\xcc\\xcd\\xce\\xcf\\xd0\\xd1\\xd2\\xd3\\xd4\\xd5\\xd6\\xd7\\xd8\\xd9\\xda\\xdb\\xdc\\xdd\\xde\\xdf\\xe0\\xe1\\xe2\\xe3\\xe4\\xe5\\xe6\\xe7\\xe8\\xe9\\xea\\xeb\\xec\\xed\\xee\\xef\\xf0\\xf1\\xf2\\xf3\\xf4\\xf5\\xf6\\xf7\\xf8\\xf9\\xfa\\xfb\\xfc\\xfd\\xfe\\xff'], None]}}"
+            ],
+            "raw_link": {},
+            "readings_hex": "81a6637573746f6d81009296a82771756f74656427a82271756f74656422a6626f74682722a700070b0c090a0dafc2a0e2808be280a8e29883f09f9880c50100000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeffc0",
+            "events": [
+                "copy",
+                "dismiss"
+            ],
+            "error_count": 0
+        }
+    ]
+}

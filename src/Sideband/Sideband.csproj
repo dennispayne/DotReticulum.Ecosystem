@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\Shared\Printing\*.cs" Link="Shared\Printing\%(Filename)%(Extension)" />
     <InternalsVisibleTo Include="Sideband.Tests" />
     <PackageReference Include="GeographicLib.NET" Version="2.3.2" />
     <PackageReference Include="Markdig" Version="0.41.3" />

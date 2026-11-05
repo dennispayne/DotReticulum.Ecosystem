@@ -80,6 +80,7 @@ public sealed partial class SidebandClient
         cancellationToken = operation.Token;
         var state = await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         var config = state.Telemetry;
+        await ReconcilePropagationTelemetryAsync(config, cancellationToken).ConfigureAwait(false);
         if (!config.Enabled || !config.BatteryEnabled) _batteryReading = null;
         if ((!config.Enabled || !config.RnsTransportEnabled) && _runtimeTelemetry is { } inactive)
             await inactive.ResetAsync(cancellationToken).ConfigureAwait(false);
@@ -112,6 +113,8 @@ public sealed partial class SidebandClient
                     await runtime.ReadAsync(config.RnsTransportIncludeTables, cancellationToken).ConfigureAwait(false))
                 : new((byte)S.RnsTransport, "rns_transport", SidebandTelemetryStatus.Unavailable,
                     V.Nil, V.Nil, [], [], error: "Connect before collecting Reticulum runtime telemetry.");
+        if (config.PropagationEnabled)
+            readings[(byte)S.LxmfPropagation] = ReadPropagationTelemetry();
         var report = SidebandTelemetryCodec.Create(now, readings.Values.ToArray());
         _localTelemetry = report;
         if ((_router?.DeliveryHashHex ?? state.OwnDeliveryHash) is { } own)
@@ -198,6 +201,9 @@ public sealed partial class SidebandClient
             var state = await _store.LoadAsync(cancellationToken: token).ConfigureAwait(false);
             StartMqtt(state.Telemetry.Mqtt, token);
             _runtimeTelemetry = SidebandRuntimeTelemetry.ForNode(node);
+            _propagationTelemetryNode = node;
+            _propagationTelemetryRuntimeToken = token;
+            await ReconcilePropagationTelemetryAsync(state.Telemetry, token).ConfigureAwait(false);
             var outbound = System.Threading.Channels.Channel.CreateBounded<TelemetryWork>(new BoundedChannelOptions(64)
             { SingleReader = true, SingleWriter = false, FullMode = BoundedChannelFullMode.Wait });
             _telemetryOutbound = outbound;
@@ -229,6 +235,9 @@ public sealed partial class SidebandClient
         await _telemetryRefreshGate.WaitAsync().ConfigureAwait(false);
         try
         {
+            _propagationTelemetryNode = null;
+            await StopPropagationTelemetryAsync(_propagationTelemetryConfigured
+                ? SidebandPropagationTelemetryClientState.NotConnected : SidebandPropagationTelemetryClientState.Disabled).ConfigureAwait(false);
             _localTelemetry = null;
             _batteryReading = null;
         }
@@ -409,24 +418,25 @@ public sealed partial class SidebandClient
         return result;
     }
 
-    private async Task<bool> ReceiveTelemetryAsync(LxMessage message, CancellationToken token)
+    private async Task<string?> ReceiveTelemetryAsync(LxMessage message, CancellationToken token)
     {
         var hasTelemetry = message.TryGetField(LxmField.Telemetry, out var packed);
         var hasStream = message.TryGetField(LxmField.TelemetryStream, out var stream);
         var hasCommands = message.TryGetField(LxmField.Commands, out var commands);
         var hasAppearance = message.TryGetField(LxmField.IconAppearance, out var appearance);
-        if (!(hasTelemetry || hasStream || hasCommands || hasAppearance)) return false;
+        if (!(hasTelemetry || hasStream || hasCommands || hasAppearance)) return null;
         if (hasCommands)
         {
             await ReceiveRemoteCommandsAsync(message, commands, token).ConfigureAwait(false);
-            return true;
+            return null;
         }
         // Stricter than primary ordinary-message ingestion: never act on unsigned/unverified metadata.
-        if (!message.SignatureValidated) { Report("Unverified telemetry/commands/appearance were ignored."); return true; }
+        if (!message.SignatureValidated) { Report("Unverified telemetry/commands/appearance were ignored."); return null; }
         var hash = Convert.ToHexStringLower(message.SourceHash);
         var state = await _store.LoadAsync(cancellationToken: token).ConfigureAwait(false);
         var config = state.Telemetry;
         var conversation = ConversationPolicy(state, hash);
+        string? snapshot = null;
         if (SidebandTelemetryPolicy.AcceptReceivedTelemetry(config.Policy, conversation))
         {
             if (hasAppearance && TryAppearance(appearance, out var peerAppearance))
@@ -441,10 +451,12 @@ public sealed partial class SidebandClient
                 var report = SidebandTelemetryCodec.Decode(data);
                 var enriched = SidebandTelemetryObservations.Apply(report, receiver, hash, false, own, message.Rssi, message.Snr, message.Quality);
                 var storage = await TelemetryStoreAsync(token).ConfigureAwait(false);
-                var accepted = await storage.AppendAsync(hash, SidebandTelemetryCodec.Encode(enriched), TelemetryNow, token).ConfigureAwait(false);
+                var enrichedBytes = SidebandTelemetryCodec.Encode(enriched);
+                var accepted = await storage.AppendAsync(hash, enrichedBytes, TelemetryNow, token).ConfigureAwait(false);
+                snapshot = SidebandMessageTelemetry.CaptureObserved(enriched, message);
                 if (accepted == SidebandTelemetryAppendResult.Added) QueueTelemetryToMqtt(hash, enriched);
             }
-            if (hasStream)
+            if (hasStream) try
             {
                 var value = SafeField(stream);
                 if (value.Kind != SidebandTelemetryValueKind.Array || value.Items.Count > SidebandTelemetryPolicy.MaximumStreamEntries)
@@ -480,8 +492,10 @@ public sealed partial class SidebandClient
                 await _store.UpdateTelemetryPeerAsync(hash, p => p with { LastReceivedTimebase =
                     Math.Max(SidebandTelemetryCodec.IsValidTimebase(p.LastReceivedTimebase, TelemetryNow) ? p.LastReceivedTimebase : 0, cursor) }, token).ConfigureAwait(false);
             }
+            catch (Exception ex) when (ex is FormatException or ArgumentException or InvalidDataException or OverflowException)
+            { Report("Telemetry stream rejected; accepted message telemetry is retained: " + ex.Message); }
         }
-        return hasTelemetry || hasStream || hasCommands;
+        return snapshot;
     }
 
     private async Task ProcessTelemetryScheduleAsync(CancellationToken token)
@@ -499,7 +513,7 @@ public sealed partial class SidebandClient
                     var config = state.Telemetry;
                     var now = TelemetryNow;
                     var refreshInterval = config.Mqtt.Enabled ? MqttLocalRefreshSeconds : SidebandRuntimeTelemetry.StaleSeconds;
-                    if (config.Enabled && (config.RnsTransportEnabled || config.Mqtt.Enabled || config.BatteryEnabled) &&
+                    if (config.Enabled && (config.RnsTransportEnabled || config.Mqtt.Enabled || config.BatteryEnabled || config.PropagationEnabled) &&
                         (lastLocalUpdate is null ||
                          TimeProvider.System.GetElapsedTime(lastLocalUpdate.Value) >= TimeSpan.FromSeconds(refreshInterval)))
                     {

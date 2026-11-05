@@ -21,6 +21,8 @@ public sealed partial class MainWindow
         TelemetryBatteryBox.IsChecked = config.BatteryEnabled;
         TelemetryRnsTransportBox.IsChecked = config.RnsTransportEnabled;
         TelemetryRnsTransportTablesBox.IsChecked = config.RnsTransportIncludeTables;
+        TelemetryPropagationBox.IsChecked = config.PropagationEnabled;
+        TelemetryPropagationIdentityBox.Text = config.PropagationIdentityPath;
         TelemetryMqttEnabledBox.IsChecked = config.Mqtt.Enabled;
         TelemetryMqttHostBox.Text = config.Mqtt.Host;
         TelemetryMqttPortBox.Text = config.Mqtt.Port?.ToString(CultureInfo.InvariantCulture);
@@ -59,6 +61,7 @@ public sealed partial class MainWindow
         ConversationSendTelemetryBox.IsChecked = contact?.SendTelemetry == true;
         ConversationAllowTelemetryRequestsBox.IsChecked = contact?.AllowTelemetryRequests == true;
         UpdateTelemetryTrackingView();
+        UpdatePropagationTelemetryStatus();
     }
 
     private void SaveTelemetryClicked(object? sender, RoutedEventArgs e) => RunTelemetryOperation(SaveTelemetryAsync);
@@ -80,6 +83,9 @@ public sealed partial class MainWindow
             },
             RnsTransportEnabled = TelemetryRnsTransportBox.IsChecked == true,
             RnsTransportIncludeTables = TelemetryRnsTransportTablesBox.IsChecked == true,
+            PropagationEnabled = TelemetryPropagationBox.IsChecked == true,
+            PropagationIdentityPath = string.IsNullOrWhiteSpace(TelemetryPropagationIdentityBox.Text)
+                ? null : TelemetryPropagationIdentityBox.Text,
             InformationEnabled = TelemetryInformationEnabledBox.IsChecked == true,
             Information = TelemetryInformationBox.Text ?? "",
             FixedLocationEnabled = TelemetryFixedLocationBox.IsChecked == true,
@@ -240,6 +246,7 @@ public sealed partial class MainWindow
                     TelemetryReportsList.SelectedIndex = selectedIndex;
                     if (selectedIndex < 0) TelemetryDetailsText.Text = _telemetryPreview ?? "";
                     TelemetryReportsSummaryText.Text = $"{_telemetryReports.Count} visible reports from the newest bounded 256-record query; source-trust display policy is applied.";
+                    UpdatePropagationTelemetryStatus();
                     await RefreshMapDiscoveryAsync();
                     UpdateMapMarkers();
                 } while (_refreshTelemetryAgain && !_closing);
@@ -345,6 +352,17 @@ public sealed partial class MainWindow
             SidebandContact.TryNormalizeDeliveryHash(TelemetryPeerBox.Text ?? "", out var hash) && peer.DeliveryHash == hash);
         ConversationSendTelemetryBox.IsChecked = contact?.SendTelemetry == true;
         ConversationAllowTelemetryRequestsBox.IsChecked = contact?.AllowTelemetryRequests == true;
+    }
+
+    private void RefreshPropagationTelemetryStatusClicked(object? sender, RoutedEventArgs e) =>
+        UpdatePropagationTelemetryStatus();
+
+    private void UpdatePropagationTelemetryStatus()
+    {
+        var status = _client.PropagationTelemetryStatus;
+        TelemetryPropagationStatusText.Text = status.Snapshot is { } snapshot
+            ? FormattableString.Invariant($"Explicit propagation source ({status.State}): last attempt UTC seconds {snapshot.LastAttemptUtcSeconds}; last success UTC seconds {snapshot.LastSuccessUtcSeconds}; last outcome {snapshot.Failure}. {status.Diagnostic} A previous successful reading can be stale.")
+            : $"No propagation telemetry provider is active ({status.State}). {status.Diagnostic} No implicit identity is used.";
     }
 
     private void UpdateTelemetryTrackingView() => TelemetryTrackingText.Text = _state?.Telemetry.Tracking.Count > 0

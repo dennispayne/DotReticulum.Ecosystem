@@ -38,13 +38,19 @@ public sealed class NomadNetImages(string executable = "ffmpeg", string? workDir
         return result;
     }
 
-    public async Task<string> PreviewAsync(byte[] webp, int columns = 80, bool color = false, CancellationToken cancellationToken = default)
+    public async Task<string> PreviewAsync(byte[] webp, int columns = 80, bool color = false, CancellationToken cancellationToken = default,
+        NomadNetPageMedia? descriptor = null, int terminalRows = 32)
     {
         if (columns is < 8 or > 160) throw new ArgumentOutOfRangeException(nameof(columns));
         var (width, height) = Dimensions(webp);
         var scale = Math.Min(1d, Math.Min(columns / (double)width, 120d / height));
         var outputWidth = Math.Max(1, (int)Math.Round(width * scale));
         var outputHeight = Math.Max(1, (int)Math.Round(height * scale / (color ? 1 : 2)));
+        if (descriptor is not null)
+        {
+            if (color) throw new ArgumentException("Micron image properties use the original bounded ASCII renderer.", nameof(color));
+            (outputWidth, outputHeight) = descriptor.Layout(width, height, columns, terminalRows);
+        }
         var expected = outputWidth * outputHeight * 3;
         var pixels = await RunAsync(webp, ["-vf", $"scale={outputWidth}:{outputHeight}", "-frames:v", "1",
             "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"], expected, cancellationToken).ConfigureAwait(false);
@@ -53,6 +59,13 @@ public sealed class NomadNetImages(string executable = "ffmpeg", string? workDir
         var text = new StringBuilder((outputWidth + 1) * outputHeight);
         for (var row = 0; row < outputHeight; row += color ? 2 : 1)
         {
+            var padding = descriptor?.Alignment switch
+            {
+                "right" => columns - outputWidth,
+                "center" => (columns - outputWidth) / 2,
+                _ => 0,
+            };
+            text.Append(' ', padding);
             for (var column = 0; column < outputWidth; column++)
             {
                 var index = (row * outputWidth + column) * 3;

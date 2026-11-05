@@ -109,6 +109,9 @@
                          MaxHeight="160" PlaceholderText="Select a message to inspect its saved text and metadata." />
                 <Button x:Name="CopyMessageButton" Content="Copy selected message text" IsEnabled="False" Click="CopyMessageClicked"
                          ToolTip.Tip="Copies the exact saved text, including raw markup or empty content. Does not copy title, attachments or a paper URI." />
+                <Button x:Name="CopyMessageTelemetryButton" Content="Copy selected message telemetry" IsEnabled="False"
+                        Click="CopyMessageTelemetryClicked"
+                        ToolTip.Tip="Copies this message's saved sensor readings, never a newer report from the same source. No sensor is opened." />
                 <CheckBox x:Name="ConfirmDeleteMessageBox" Content="Confirm removal of this selected local history entry" />
                 <Button x:Name="DeleteMessageButton" Content="Delete selected message" Click="DeleteMessageClicked"
                         ToolTip.Tip="Removes local history only. Does not recall or cancel delivery, erase shared media files or delete the conversation." />
@@ -150,6 +153,10 @@
                 </WrapPanel>
                 <TextBlock Text="Paper creation saves an encrypted offline text message, not a delivery confirmation. Use the export path above; existing files are never overwritten."
                            TextWrapping="Wrap" />
+                <TextBlock x:Name="PaperPrintCommandText" TextWrapping="Wrap" />
+                <CheckBox x:Name="ConfirmPaperPrintBox" Content="Confirm printing this selected original outgoing paper QR with the displayed local command" />
+                <Button x:Name="PrintPaperButton" Content="Print selected paper QR" IsEnabled="False" Click="PrintPaperClicked"
+                        ToolTip.Tip="Runs only the explicitly approved local command. Successful exit is not proof of physical output or LXMF delivery. Imported historical envelopes remain export-only." />
                 <TextBox x:Name="PaperUriBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="100"
                          PlaceholderText="Selected paper lxm:// URI (copy explicitly)" />
                 <local:PaperQrView x:Name="PaperQrPreview" MaxHeight="280" IsVisible="False" />
@@ -209,6 +216,12 @@
             <CheckBox x:Name="TelemetryBatteryBox" Content="Collect Linux battery status from BAT0..BAT9 (unavailable on other desktop platforms)" />
             <CheckBox x:Name="TelemetryRnsTransportBox" Content="Collect connected Reticulum runtime telemetry (60-second cache)" />
             <CheckBox x:Name="TelemetryRnsTransportTablesBox" Content="Include interface names/details and routing tables in outgoing reports (additional disclosure)" />
+            <CheckBox x:Name="TelemetryPropagationBox" Content="Collect LXMF propagation-node statistics using an explicitly selected signing identity" />
+            <TextBox x:Name="TelemetryPropagationIdentityBox" MaxLength="4096" PlaceholderText="Explicit local propagation-control identity-file path (never auto-discovered)" />
+            <TextBlock Text="Native opt-in, not Python-plugin execution. The selected identity signs control requests; private key bytes are never included in reports. Authorized node statistics can disclose peer, storage and traffic information. Attempts are five-minute throttled, including failures; an earlier successful value can be stale."
+                       TextWrapping="Wrap" />
+            <Button x:Name="RefreshPropagationTelemetryStatusButton" Content="Refresh source status (does not force a query)" Click="RefreshPropagationTelemetryStatusClicked" />
+            <TextBlock x:Name="TelemetryPropagationStatusText" Text="No propagation telemetry provider is active." TextWrapping="Wrap" />
             <CheckBox x:Name="TelemetryInformationEnabledBox" Content="Include information text" />
             <TextBox x:Name="TelemetryInformationBox" MaxLength="16384" PlaceholderText="Information to disclose" />
             <CheckBox x:Name="TelemetryFixedLocationBox" Content="Include an explicitly supplied fixed location" />
@@ -512,6 +525,14 @@
                        TextWrapping="Wrap" />
             <Button x:Name="SaveDeliverySettingsButton" Content="Save delivery limit" HorizontalAlignment="Left" Click="SaveDeliverySettingsClicked" />
             <TextBlock x:Name="DeliverySettingsStatusText" TextWrapping="Wrap" />
+            <TextBlock FontSize="17" FontWeight="SemiBold" Text="Explicit local paper printing" />
+            <TextBlock Text="Off by default. Review the executable and every argument before enabling. Printing runs a bounded local process without a shell; it never starts automatically for incoming messages. Imported print_command values remain inactive. A successful process exit does not prove a physical printer produced output."
+                       TextWrapping="Wrap" />
+            <TextBox x:Name="PrintCommandBox" MaxLength="4096" PlaceholderText="Reviewed local executable and arguments (default: lp)" />
+            <CheckBox x:Name="EnablePaperPrintingBox" Content="Enable explicit selected-paper QR printing" />
+            <CheckBox x:Name="ApprovePrintCommandBox" Content="I explicitly approve running this reviewed local executable and its arguments" />
+            <Button x:Name="SavePrintingButton" Content="Save reviewed local printing policy" HorizontalAlignment="Left"
+                    Click="SavePrintingClicked" />
             <TextBlock FontSize="17" FontWeight="SemiBold" Text="Upstream settings exchange" />
             <TextBlock Text="JSON settings exchange applies the documented display, propagation, stamp, voice and telemetry subset. Other keys are retained and reported, not activated. Identity and SQLite migration use the separate offline --import-profile command. Disconnect before importing settings."
                        TextWrapping="Wrap" />

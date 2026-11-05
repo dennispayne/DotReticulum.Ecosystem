@@ -217,7 +217,8 @@ public sealed class SidebandConsoleApplicationTests
     }
 
     [Fact]
-    public async Task ActivatedConfigurationAliasesArePrimaryRegistrationsAndMapValuesSurviveRestart()
+    [Trait("TestId", "T919")]
+    public async Task ActivatedConfigurationAliasesArePrimaryRegistrationsOrExplicitNativeExtensionsAndMapValuesSurviveRestart()
     {
         var root = Root();
         var token = TestContext.Current.CancellationToken;
@@ -230,7 +231,9 @@ public sealed class SidebandConsoleApplicationTests
             var aliases = fixture.RootElement.GetProperty("configuration").EnumerateArray()
                 .Select(s => s.GetProperty("category").GetString() + " " + s.GetProperty("alias").GetString()).ToHashSet();
             var configuration = new SidebandConsoleConfiguration(client);
-            foreach (var setting in configuration.Settings) Assert.Contains(setting.Category + " " + setting.Alias, aliases);
+            var nativeAliases = configuration.Settings.Select(s => s.Category + " " + s.Alias)
+                .Where(alias => !aliases.Contains(alias)).Order(StringComparer.Ordinal).ToArray();
+            Assert.Equal(["sensors propagation", "sensors propagation_identity"], nativeAliases);
             Assert.Equal(configuration.Settings.Count, configuration.Settings.Select(s => s.Category + " " + s.Alias).Distinct().Count());
             await using var console = new SidebandConsole(client, store, _ => { }, _ => { }, token);
             foreach (var line in new[] { "config set map lat 51.5", "config set map lon -0.5",

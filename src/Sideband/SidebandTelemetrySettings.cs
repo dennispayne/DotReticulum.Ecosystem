@@ -13,6 +13,7 @@ internal static class SidebandTelemetrySettings
         "telemetry_requests_only_send_latest" or "telemetry_collector" or "telemetry_send_interval" or "telemetry_request_interval" or
         "telemetry_s_information" or "telemetry_s_information_text" or "telemetry_s_fixed_location" or "telemetry_s_fixed_latlon" or
         "telemetry_s_fixed_altitude" or "telemetry_s_rns_transport" or "telemetry_s_battery" or "dotreticulum_runtime_telemetry_tables" or
+        "dotreticulum_propagation_telemetry" or "dotreticulum_propagation_identity" or
         "telemetry_icon" or "telemetry_fg" or "telemetry_bg" or "telemetry_to_mqtt" or
         "telemetry_mqtt_host" or "telemetry_mqtt_port" or "telemetry_mqtt_user" or "telemetry_mqtt_pass";
 
@@ -60,6 +61,9 @@ internal static class SidebandTelemetrySettings
             },
             RnsTransportEnabled = Flag("telemetry_s_rns_transport", prior.RnsTransportEnabled),
             BatteryEnabled = Flag("telemetry_s_battery", prior.BatteryEnabled),
+            PropagationEnabled = Flag("dotreticulum_propagation_telemetry", prior.PropagationEnabled),
+            PropagationIdentityPath = settings.TryGetValue("dotreticulum_propagation_identity", out var propagationIdentity)
+                ? propagationIdentity.GetString() : prior.PropagationIdentityPath,
             RnsTransportIncludeTables = Flag("dotreticulum_runtime_telemetry_tables", prior.RnsTransportIncludeTables),
             SendToCollector = Flag("telemetry_send_to_collector", prior.SendToCollector),
             RequestFromCollector = Flag("telemetry_request_from_collector", prior.RequestFromCollector),
@@ -98,6 +102,8 @@ internal static class SidebandTelemetrySettings
             SidebandStateJsonContext.Default.NullableInt32);
         Flag("telemetry_s_rns_transport", config.RnsTransportEnabled);
         Flag("telemetry_s_battery", config.BatteryEnabled);
+        Flag("dotreticulum_propagation_telemetry", config.PropagationEnabled);
+        Text("dotreticulum_propagation_identity", config.PropagationIdentityPath);
         Flag("dotreticulum_runtime_telemetry_tables", config.RnsTransportIncludeTables);
         Flag("telemetry_send_to_collector", config.SendToCollector); Flag("telemetry_request_from_collector", config.RequestFromCollector);
         Flag("telemetry_collector_enabled", config.CollectorEnabled); Flag("telemetry_send_all_to_collector", config.SendAllToCollector);

@@ -13,6 +13,55 @@ public sealed class SidebandTelemetryUiTests
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     [AvaloniaFact]
+    [Trait("TestId", "T920")]
+    public async Task PropagationSourceRequiresExplicitSelectionAndPersistsOfflineWithoutEnablingCollectionOrChangingDraft()
+    {
+        var path = TemporaryDirectory();
+        MainWindow? window = null;
+        try
+        {
+            window = new MainWindow(path);
+            window.Show();
+            await ReadyAsync(window);
+            Click(window, "TelemetryNavButton");
+            Assert.False(window.FindControl<CheckBox>("TelemetryPropagationBox")!.IsChecked);
+            Assert.True(string.IsNullOrEmpty(window.FindControl<TextBox>("TelemetryPropagationIdentityBox")!.Text));
+            window.FindControl<TextBox>("MessageBox")!.Text = "unsent draft remains owned by the composer";
+            window.FindControl<CheckBox>("TelemetryPropagationBox")!.IsChecked = true;
+            Click(window, "SaveTelemetryButton");
+            await WaitForAsync(() => Status(window).StartsWith("Telemetry operation failed:", StringComparison.Ordinal));
+            Assert.False((await ReadStateAsync(path)).Telemetry.PropagationEnabled);
+            var identityPath = Path.Combine(path, "explicit-signing-identity");
+            window.FindControl<TextBox>("TelemetryPropagationIdentityBox")!.Text = identityPath;
+            Click(window, "SaveTelemetryButton");
+            await WaitForAsync(() => Status(window).StartsWith("Telemetry settings saved.", StringComparison.Ordinal));
+            var config = (await ReadStateAsync(path)).Telemetry;
+            Assert.True(config.PropagationEnabled);
+            Assert.Equal(identityPath, config.PropagationIdentityPath);
+            Assert.False(config.Enabled);
+            Assert.False(File.Exists(identityPath));
+            Assert.Equal("unsent draft remains owned by the composer", window.FindControl<TextBox>("MessageBox")!.Text);
+            Click(window, "RefreshPropagationTelemetryStatusButton");
+            Assert.Contains("No propagation telemetry provider is active", window.FindControl<TextBlock>("TelemetryPropagationStatusText")!.Text);
+            Assert.DoesNotContain(identityPath, window.FindControl<TextBlock>("TelemetryPropagationStatusText")!.Text);
+            Assert.DoesNotContain(identityPath, Status(window));
+            await window.CloseAndWaitAsync();
+            window = new MainWindow(path);
+            window.Show();
+            await ReadyAsync(window);
+            Assert.True(window.FindControl<CheckBox>("TelemetryPropagationBox")!.IsChecked);
+            Assert.Equal(identityPath, window.FindControl<TextBox>("TelemetryPropagationIdentityBox")!.Text);
+            Assert.False(window.FindControl<CheckBox>("TelemetryEnabledBox")!.IsChecked);
+            Assert.False(File.Exists(identityPath));
+        }
+        finally
+        {
+            if (window?.IsVisible == true) await window.CloseAndWaitAsync();
+            Directory.Delete(path, true);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task BatteryPreferencePersistsWithoutImplicitlyEnablingCollectionOrOpeningDevices()
     {
         var path = TemporaryDirectory();

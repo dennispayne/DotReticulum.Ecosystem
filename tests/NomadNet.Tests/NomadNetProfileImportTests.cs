@@ -12,6 +12,46 @@ namespace NomadNet.Tests;
 public sealed class NomadNetProfileImportTests
 {
     [Fact]
+    [Trait("TestId", "T990")]
+    public async Task HostedCountersActivateInsideTheAtomicProfileImportWithoutChangingSource()
+    {
+        await using var profile = await Profile.CreateAsync();
+        await File.WriteAllBytesAsync(Path.Combine(profile.Source, "storage", "peersettings"),
+            MsgPack.Pack(new Dictionary<object, object?>
+            {
+                ["display_name"] = "Imported primary user", ["node_connects"] = 2L,
+                ["served_page_requests"] = 3L, ["served_file_requests"] = 4L, ["served_media_requests"] = 5L,
+            }));
+        var before = Snapshot(profile.Source);
+        var report = await profile.ImportAsync();
+        Assert.DoesNotContain(report.Warnings, warning => warning.Contains("counters", StringComparison.Ordinal));
+        var counters = NomadNetHostedStatistics.ReadSnapshot(profile.Target);
+        Assert.Equal(2, counters.NodeConnects);
+        Assert.Equal(3, counters.ServedPageRequests);
+        Assert.Equal(4, counters.ServedFileRequests);
+        Assert.Equal(5, counters.ServedMediaRequests);
+        Assert.Equal(before, Snapshot(profile.Source));
+    }
+
+    [Theory]
+    [Trait("TestId", "T991")]
+    [InlineData("node_connects")]
+    [InlineData("served_page_requests")]
+    [InlineData("served_file_requests")]
+    [InlineData("served_media_requests")]
+    public async Task InvalidHostedCounterRollsBackTheWholeProfileWithoutReplacingItWithZero(string key)
+    {
+        await using var profile = await Profile.CreateAsync();
+        await File.WriteAllBytesAsync(Path.Combine(profile.Source, "storage", "peersettings"),
+            MsgPack.Pack(new Dictionary<object, object?> { ["display_name"] = "Counter failure", [key] = -1L }));
+        var before = Snapshot(profile.Source);
+        await Assert.ThrowsAsync<InvalidDataException>(() => profile.ImportAsync());
+        Assert.Equal(before, Snapshot(profile.Source));
+        Assert.False(Directory.Exists(profile.Target));
+        Assert.Empty(Directory.GetDirectories(profile.Root, "native.profile-import-*"));
+    }
+
+    [Fact]
     public async Task ImportsIdentityHistoryPaperFieldsAttachmentsSettingsAndHistoricalClaimsWithoutMutatingSource()
     {
         await using var profile = await Profile.CreateAsync();

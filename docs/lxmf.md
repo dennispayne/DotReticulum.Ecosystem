@@ -196,6 +196,15 @@ Enabling, disabling/re-enabling and `ScheduleAnnounce()` schedule propagation an
 
 The separate `lxmf.propagation.control` destination implements `/pn/get/stats`, `/pn/peer/sync` and `/pn/peer/unpeer`. It authorizes the node's own identity plus `ControlAllowedIdentities`; being allowed to download does **not** grant control. `CompileStats()` exposes the corresponding message/peer/storage map. Native daemon control queries, valid queued peer sync and successful remote unpeer have actual network acceptance. Request/resource authorization reads the core remote identity, not asynchronous identity-observer side effects.
 
+`LxmPropagationStatusClient` adds a cancellable status-query helper over an
+existing transport router, with an explicit caller-owned query identity, optional
+remote identity/deadline and bounded response (default262144 bytes). Sideband's
+default-off propagation telemetry source uses it without creating a second
+transport or falling back to another identity. Actual Python/native status
+queries, denial and recovery are separately verified under
+[C105](sideband.md#explicit-automatic-propagation-telemetry-c105); this is not
+automatic authorization, propagation synchronization or new hop/loss evidence.
+
 Client receive counters count accepted packets, including retransmitted deposits, not unique stored messages. Executed upstream duplicate-deposit observations and two native Link packets produce two received messages and one stored entry. Restart assertions preserve the observed packet count rather than incorrectly assuming that reliable delivery never retries.
 
 ## Limitations and differences from upstream

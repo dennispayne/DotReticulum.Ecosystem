@@ -1,0 +1,171 @@
+{
+  "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "source_sha256": {
+    "sbapp/ui/messages.py": "9b2580f76310356d2e1a30b038857fbad4ee346aad9e2a25ab237515fff39928",
+    "sbapp/sideband/core.py": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+    "sbapp/main.py": "5b962d9ed2ccbc066bb19865d78c77da9ecf4008900f6f0e7e9dd1eb1c4767aa",
+    "sbapp/ui/layouts.py": "da606c9c735ca92735f90e8205d545afe25dfd006a6a72a0570b169b77c3246c"
+  },
+  "defaults": [
+    "lp",
+    "lp"
+  ],
+  "settings": [
+    {
+      "text": "",
+      "focus": false,
+      "saved": "lp",
+      "displayed": "lp",
+      "save_count": 1
+    },
+    {
+      "text": "  printer --flag  ",
+      "focus": false,
+      "saved": "printer --flag",
+      "displayed": "printer --flag",
+      "save_count": 1
+    },
+    {
+      "text": "   ",
+      "focus": false,
+      "saved": "",
+      "displayed": "",
+      "save_count": 1
+    },
+    {
+      "text": "ignored",
+      "focus": true,
+      "saved": "previous",
+      "displayed": "ignored",
+      "save_count": 0
+    }
+  ],
+  "method": "Executed unchanged AST gen_print_qr and actual default assignments; synthetic image/menu/subprocess/filesystem/dialog observers. Actual shlex.split. No primary GUI, real printer, subprocess or QR codec claim.",
+  "cases": [
+    {
+      "name": "default",
+      "command": "lp",
+      "calls": [
+        [
+          "lp",
+          "private/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+        ]
+      ],
+      "events": [
+        "as_qr",
+        "save:private/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "subprocess",
+        "unlink:private/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "dismiss"
+      ],
+      "errors": []
+    },
+    {
+      "name": "quoted-options",
+      "command": "printer --flag \"two words\" \"\"",
+      "calls": [
+        [
+          "printer",
+          "--flag",
+          "two words",
+          "",
+          "private/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+        ]
+      ],
+      "events": [
+        "as_qr",
+        "save:private/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "subprocess",
+        "unlink:private/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "dismiss"
+      ],
+      "errors": []
+    },
+    {
+      "name": "literal-metacharacters",
+      "command": "printer ; $(whoami)",
+      "calls": [
+        [
+          "printer",
+          ";",
+          "$(whoami)",
+          "private/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+        ]
+      ],
+      "events": [
+        "as_qr",
+        "save:private/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "subprocess",
+        "unlink:private/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "dismiss"
+      ],
+      "errors": []
+    },
+    {
+      "name": "space-path-primary-splits",
+      "command": "printer",
+      "calls": [
+        [
+          "printer",
+          "private",
+          "folder/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+        ]
+      ],
+      "events": [
+        "as_qr",
+        "save:private folder/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "subprocess",
+        "unlink:private folder/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "dismiss"
+      ],
+      "errors": []
+    },
+    {
+      "name": "nonzero-primary-silent",
+      "command": "printer",
+      "calls": [
+        [
+          "printer",
+          "private/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+        ]
+      ],
+      "events": [
+        "as_qr",
+        "save:private/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "subprocess",
+        "unlink:private/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "dismiss"
+      ],
+      "errors": []
+    },
+    {
+      "name": "start-failure-primary-retains-file",
+      "command": "printer",
+      "calls": [
+        [
+          "printer",
+          "private/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+        ]
+      ],
+      "events": [
+        "as_qr",
+        "save:private/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "subprocess",
+        "dismiss",
+        "dialog"
+      ],
+      "errors": [
+        "Could not print the paper message QR-code.\n\nsynthetic start failure"
+      ]
+    },
+    {
+      "name": "android-dismiss-only",
+      "command": "printer",
+      "calls": [],
+      "events": [
+        "dismiss"
+      ],
+      "errors": []
+    }
+  ]
+}

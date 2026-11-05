@@ -47,22 +47,30 @@ public static class NomadNetTerminalControls
     public static string Color(string text, string rgb, NomadNetSettings settings, bool ansi, bool bold = false)
     {
         if (!ansi || settings.ColorMode == "monochrome") return text;
+        var code = ColorCode(rgb, settings, false);
+        return "\u001b[" + (bold ? "1;" : "") + code + "m" + text + "\u001b[0m";
+    }
+
+    internal static string ColorCode(string rgb, NomadNetSettings settings, bool background)
+    {
         var bytes = Convert.FromHexString(rgb);
         if (bytes.Length != 3) throw new ArgumentException("Expected an RGB color.", nameof(rgb));
-        var code = settings.ColorMode switch
+        var channel = background ? 48 : 38;
+        return settings.ColorMode switch
         {
-            "24bit" => $"38;2;{bytes[0]};{bytes[1]};{bytes[2]}",
-            "256" => "38;5;" + (16 + 36 * Cube(bytes[0], 5) + 6 * Cube(bytes[1], 5) + Cube(bytes[2], 5)),
-            "88" => "38;5;" + (16 + 16 * Cube(bytes[0], 3) + 4 * Cube(bytes[1], 3) + Cube(bytes[2], 3)),
-            _ => (30 + (bytes[0] >= 128 ? 1 : 0) + (bytes[1] >= 128 ? 2 : 0) +
+            "24bit" => $"{channel};2;{bytes[0]};{bytes[1]};{bytes[2]}",
+            "256" => $"{channel};5;" + (16 + 36 * Cube(bytes[0], 5) + 6 * Cube(bytes[1], 5) + Cube(bytes[2], 5)),
+            "88" => $"{channel};5;" + (16 + 16 * Cube(bytes[0], 3) + 4 * Cube(bytes[1], 3) + Cube(bytes[2], 3)),
+            _ => ((background ? 40 : 30) + (bytes[0] >= 128 ? 1 : 0) + (bytes[1] >= 128 ? 2 : 0) +
                 (bytes[2] >= 128 ? 4 : 0)).ToString(CultureInfo.InvariantCulture),
         };
-        return "\u001b[" + (bold ? "1;" : "") + code + "m" + text + "\u001b[0m";
         static int Cube(byte value, int maximum) => (value * maximum + 127) / 255;
     }
 
+    internal static string HeadingColor(NomadNetSettings settings) => settings.Theme == "light" ? "184060" : "90d8f8";
+
     public static string Heading(string text, NomadNetSettings settings, bool ansi) =>
-        Color(text, settings.Theme == "light" ? "184060" : "90d8f8", settings, ansi, true);
+        Color(text, HeadingColor(settings), settings, ansi, true);
 
     public static IReadOnlyList<(string Label, string Command)> Menu(NomadNetSettings settings)
     {

@@ -287,14 +287,15 @@ public sealed partial class NomadNetEditor : IDisposable, IAsyncDisposable
         return true;
     }
 
-    public string Preview()
+    public string Preview(NomadNetSettings? settings = null, bool ansi = false, int width = 80)
     {
         if (!IsOpen) throw new InvalidOperationException("Open a document first.");
         if (!Buffer.Editable) return "Binary file: read-only; no preview.";
         if (IsConfiguration) return NomadNetTerminalText.Safe(Buffer.Text);
         if (Executable) return "Executable source only; never executed by preview.\n" + NomadNetTerminalText.Safe(Buffer.Text);
         if (Buffer.Text.Length > 100_000) return "Preview disabled above 100000 characters; editing remains available.";
-        return MicronText.Render(Utf8.GetBytes(Buffer.Text)).Text;
+        var page = MicronText.Render(Utf8.GetBytes(Buffer.Text));
+        return settings is null ? page.Text : page.Present(settings, ansi, width);
     }
 
     public Task PermissionsAsync(IReadOnlyList<string>? identities, CancellationToken cancellationToken = default) =>

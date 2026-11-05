@@ -20,17 +20,21 @@ public static partial class NomadNetPresentation
         return null;
     }
 
-    public static string Conversation(string text, int? renderer)
+    public static string Conversation(string text, int? renderer, NomadNetSettings? settings = null, bool ansi = false)
     {
         Validate(text);
         if (renderer != MarkdownRenderer) return NomadNetTerminalText.Safe(text);
-        return Render(StripNonFormatting(MarkdownMicron.Format(text, urlScope: "", maxWidth: 80)), false);
+        var page = Render(StripNonFormatting(MarkdownMicron.Format(text, urlScope: "", maxWidth: 80)), false);
+        return settings is null ? page.Text : page.Present(settings, ansi);
     }
 
     public static string Rrc(string text, bool markdown = true, bool micron = true, string kind = "msg")
+        => RrcDocument(text, markdown, micron, kind).Text;
+
+    internal static NomadNetRenderedPage RrcDocument(string text, bool markdown = true, bool micron = true, string kind = "msg")
     {
         Validate(text);
-        if (kind is not ("msg" or "message" or "action")) return NomadNetTerminalText.Safe(text);
+        if (kind is not ("msg" or "message" or "action")) return new(NomadNetTerminalText.Safe(text), []);
         var first = text.Length > 0 && text[0] is '>' or '#' ? text[..1] : "";
         var remaining = first.Length == 0 ? text : text[1..];
         if (!micron) remaining = EscapedMicron().Replace(remaining, "");
@@ -65,39 +69,41 @@ public static partial class NomadNetPresentation
         return result.ToString().Trim();
     }
 
-    private static string Render(string text, bool prefixed)
+    private static NomadNetRenderedPage Render(string text, bool prefixed)
     {
         const string prefix = "message: ";
         text = Normalize(prefixed ? prefix + text : text);
         Validate(text);
-        var lines = new List<string>();
-        var literal = false;
-        foreach (var original in text.Split('\n'))
-        {
-            var line = original;
-            if (line == "`=") { literal = !literal; lines.Add(line); continue; }
-            if (!literal && line.EndsWith('`'))
-            {
-                var slashes = line.AsSpan(0, line.Length - 1).Length - line[..^1].TrimEnd('\\').Length;
-                if (slashes % 2 == 0) line = line[..^1];
-            }
-            if (!literal && line.Length > 0 && MicronText.Render(StrictUtf8.GetBytes(line)).Text.Length == 0)
-                continue;
-            lines.Add(line);
-        }
-        var page = MicronText.Render(StrictUtf8.GetBytes(string.Join('\n', lines)), dividerWidth: 80);
+        var page = MicronText.Render(StrictUtf8.GetBytes(text), dividerWidth: 80);
         var rows = page.Text.Split('\n');
+        var cuts = new List<(int Row, int Column, int Length)>();
         foreach (var token in page.Tokens.Where(token => token.Kind == "link").OrderByDescending(token => token.Column))
         {
             if (token.Row >= rows.Length) continue;
             var marker = $"[{token.Index + 1}] ";
             if (token.Column <= rows[token.Row].Length - marker.Length &&
                 rows[token.Row].AsSpan(token.Column).StartsWith(marker, StringComparison.Ordinal))
+            {
                 rows[token.Row] = rows[token.Row].Remove(token.Column, marker.Length);
+                cuts.Add((token.Row, token.Column, marker.Length));
+            }
         }
         var result = string.Join('\n', rows);
-        if (prefixed && result == prefix.TrimEnd()) return "";
-        return prefixed && result.StartsWith(prefix, StringComparison.Ordinal) ? result[prefix.Length..] : result;
+        if (prefixed && result == prefix.TrimEnd()) return new("", []);
+        if (prefixed && result.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            result = result[prefix.Length..];
+            cuts.Add((0, 0, prefix.Length));
+        }
+        var styles = page.Styles.Select(span => span with
+        {
+            Column = Map(span.Row, span.Column),
+            Length = Map(span.Row, span.Column + span.Length) - Map(span.Row, span.Column),
+        }).Where(span => span.Length > 0).ToArray();
+        return page with { Text = result, Styles = styles, Tokens = [], Links = [] };
+
+        int Map(int row, int column) => column - cuts.Where(cut => cut.Row == row)
+            .Sum(cut => Math.Clamp(column - cut.Column, 0, cut.Length));
     }
 
     [GeneratedRegex("`[<>{rcl]", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]

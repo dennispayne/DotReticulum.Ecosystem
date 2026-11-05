@@ -64,6 +64,7 @@ public sealed class NomadNetConfigTests
             [textui]
             image_loading = manual
             mouse_enabled = yes
+            future_control = retained
             [printing]
             print_from = trusted, everywhere
             """);
@@ -74,7 +75,7 @@ public sealed class NomadNetConfigTests
         Assert.Equal(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"),
             result.Settings.DownloadsPath);
         Assert.Equal(NomadNetImageLoading.Manual, result.Settings.ImageLoading);
-        Assert.Equal(["textui.mouse_enabled"], result.UnsupportedKeys);
+        Assert.Equal(["textui.future_control"], result.UnsupportedKeys);
         Assert.False(result.Settings.PrintMessages);
         Assert.False(result.Settings.PrintAllMessages);
         Assert.False(result.Settings.PrintTrustedMessages);

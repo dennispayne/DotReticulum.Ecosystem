@@ -540,6 +540,8 @@ public sealed partial class SidebandClient : IAsyncDisposable
         var identity = _identity ?? throw new InvalidOperationException("The local Reticulum identity is unavailable.");
         using var owned = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _runCancellation!.Token);
         var state = await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false);
+        var formatted = SidebandMessageFormatting.FromState(state).PrepareOutgoing(content);
+        content = formatted.Content;
         var destination = Convert.FromHexString(normalized);
         using var recipient = await _node!.ResolveIdentityAsync(destination, TimeSpan.FromSeconds(15), owned.Token).ConfigureAwait(false)
             ?? throw new InvalidOperationException("No announce or path was found for this LXMF delivery address.");
@@ -548,6 +550,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
         SidebandImage? storedImage = null;
         SidebandAudio? storedAudio = null;
         Dictionary<object, object?>? fields = await OrdinaryTelemetryFieldsAsync(state, normalized, owned.Token).ConfigureAwait(false);
+        if (formatted.Renderer is { } renderer) fields[LxmField.Renderer] = renderer;
         if (attachmentData is not null && attachmentName is not null)
         {
             attachments = [await _attachments.StoreAsync(attachmentName, attachmentData, owned.Token).ConfigureAwait(false)];
@@ -569,7 +572,7 @@ public sealed partial class SidebandClient : IAsyncDisposable
             RegisterTelemetryOutcome(message, new(normalized, false, OwnsPending: false), SidebandTelemetryCodec.Decode(reportBytes).TimestampUtcSeconds ?? 0, false);
         message.IncludeTicket = state.Contacts.Any(contact => contact.DeliveryHash == normalized && contact.Trusted);
         var local = new SidebandChatMessage(Guid.NewGuid(), normalized, false, string.Empty, content, DateTimeOffset.UtcNow, "Queued",
-            attachments, method.ToString(), storedImage, storedAudio);
+            attachments, method.ToString(), storedImage, storedAudio, Renderer: formatted.Renderer);
         var updates = _inbound;
         var eligibleForRetry = state.TryPropagationOnFail && router.OutboundPropagationNode is not null;
         message.StateChanged += changed =>
@@ -980,7 +983,8 @@ public sealed partial class SidebandClient : IAsyncDisposable
                         attachments,
                         received.Message.Method.ToString(),
                         image,
-                        audio);
+                        audio,
+                        Renderer: SidebandMessageFormatting.ReadRenderer(received.Message));
                     await _store.AddMessageAsync(stored, !telemetryOnly).ConfigureAwait(false);
                     await RefreshVoicePolicyCoreAsync(CancellationToken.None).ConfigureAwait(false);
                 }

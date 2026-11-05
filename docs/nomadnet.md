@@ -79,8 +79,8 @@ and `parent-lxmf-admission-broader`.
 ```
 
 All75 form fields have explicit functional editing/reset/persistence
-dispositions. Stored-only TextUI/utility effects, complete grammar/presentation
-and current Linux replay
+dispositions. TextUI/utility effects have separate bounded C95 acceptance below;
+complete grammar/presentation and current Linux replay
 remain required/unverified as detailed below. Native form cases use actual
 piped processes; separate ConPTY cases are not full Urwid or physical terminal
 acceptance. The broader29 repeat actual primary multi-megabyte node
@@ -1766,7 +1766,7 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   Windows/Linux, described below; generic underlying LXMF tests are not substituted.
 - `[textui]`: `intro_time`, `intro_text`, `theme`, `colormode`, `glyphs`, `image_loading`,
   `mouse_enabled`, `editor`, `hide_guide`, `sanitize_names`, `clipboard_copy`, `animation_interval`
-  — **partial**: `image_loading` is operational for original inline ASCII, not Kitty. `clipboard_copy` activates explicitly opted-in OSC52 content/URL copying and `editor` selects the installed external editor. All listed fields have bounded section editing/reset/persistence below; the remaining listed UI behaviors are **stored-only**, not implemented. Ordinary native terminal output sanitises control characters; clipboard content is Base64-framed rather than rendered.
+  — **implemented bounded functional controls / original presentation**: all12 keys have runtime effects after restart, including the nine terminal controls detailed under C95 below. `image_loading` is operational for original inline ASCII, not Kitty. `clipboard_copy` activates explicitly opted-in OSC52 content/URL copying and `editor` selects the installed external editor. Intro, original colors/icons, bounded menu/mouse interaction, guide visibility, cosmetic name sanitation and explicit active network refresh are not pixel-identical Urwid. Terminal-control injection remains refused even when cosmetic sanitation is disabled.
 - `[rrc]`: `history_per_room_cap`, `filter_loaded_history`,
   `max_accepted_resource_size`, `ephemeral_notices`, `justify_msgs`, `space_msgs`,
   `nick_colors`, `mention_color`, `color_mention_timestamps`, `nick_colors_theme`,
@@ -1777,20 +1777,20 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
   primary runtime consumer. `rrc history-limit` is a separate stricter native
   per-hub limit. Aggregate limits and original layout/palette differences remain
   explicit; this is not complete Urwid presentation parity.
-- `[utilities] enable_utilities` — **partial**: editable/resettable/preserved below;
-  primary utility-screen visibility behavior is **stored-only**.
+- `[utilities] enable_utilities` — **implemented bounded visibility control**:
+  exposes/hides the original Utilities menu entry after restart. Explicit utility
+  commands remain accessible; visibility neither starts a listener nor grants authorization.
   `[printing] print_messages`, `print_command`, `print_from`,
   `message_template` — **implemented bounded software subset**, with exact
   opt-in filter semantics and documented original-template/safety differences
   under C78; physical printer acceptance remains unverified separately.
 
 The remaining required configuration behavior is not silently deferred:
-every listed TextUI key except `image_loading`, `clipboard_copy` and `editor`;
-utilities; primary config-directory discovery
+primary config-directory discovery
 (`/etc/nomadnetwork`, `~/.config/nomadnetwork`, `~/.nomadnetwork`) versus the native
 ApplicationData default; ConfigObj edge cases beyond the bounded grammar below and
 full primary UI (functional section/reset workflows and selected-RNS forms now exist
-with explicit runtime/stored-only/safety-refused dispositions); safe external-root activation during full profile import;
+with explicit runtime/placeholder/safety-refused dispositions); safe external-root activation during full profile import;
 and remaining router/cache/peer-counter/announce-state migration. The existing
 named `[node]` application keys are imported and wired, but complete peer UI,
 storage-pressure order and exhaustive failure/restart acceptance remain separate
@@ -2943,8 +2943,8 @@ owned evidence directory. They exercise actual primary/rrcd messages both ways,
 retention, original styled view/panes, invalid input, confirmed reset/cancel,
 restart and unchanged identity, plus independently regenerated primary vectors.
 This is local-presentation evidence, not a new wire/topology/audio/hardware claim.
-Linux replay remains blocked by WSL EIO; nine TextUI controls, utility visibility,
-full ConfigObj/Urwid scope are not completed here. The selected-RNS policy
+Linux replay remains blocked by WSL EIO; terminal controls/utility visibility
+have their separate C95 acceptance below. Full ConfigObj/Urwid remains incomplete. The selected-RNS policy
 controls have their separate application acceptance below.
 
 ### Selected-RNS probe response and packet-proof policy
@@ -3020,8 +3020,101 @@ The stack's strict initial15-second/periodic7200-second probe announcements
 and link rejection remain stack-owned; this application gate observes initial
 announcements but does not claim a new two-hour scheduling or link-proof test.
 No new multi-hop/impairment, Linux, physical network or hardware claim is made.
-Linux replay remains blocked by WSL EIO. Full ConfigObj/Urwid, nine stored-only
-TextUI controls and utility visibility remain required software work.
+Linux replay remains blocked by WSL EIO. Full ConfigObj/Urwid remains required
+software work; terminal controls and utility visibility have separate C95 acceptance.
+
+### Original terminal controls and utility visibility (C95)
+
+All nine formerly stored-only TextUI controls and utility visibility now execute.
+They are **bounded original terminal behaviors**, not copied Urwid implementation,
+palette, glyph-table or guide assets. No field in this slice is a primary
+placeholder. This does not resolve full editor/grammar/presentation parity.
+
+The reference remains primary NomadNet1.4.4
+`f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2`.
+`tests\Interop\GenerateNomadNetTerminalControlVectors.py` executes actual
+`TextUI.__init__`, `set_colormode`, `Extras.IntroDisplay`, `MenuDisplay`,
+`SubDisplays._utilities_enabled`, `AnnounceTime` and both name utilities.
+Separate actual constructors start NoneUI, then actual `applyConfig` reads the
+requested ConfigObj text selection. This permits observation of fatal malformed
+TextUI cases; it is **not** primary interactive startup. Headless screen,
+main-display owner, event-loop and `stty` observers are disclosed. The generator
+emits factual observations and hashes, not upstream UI assets. Its checked fixture
+is `tests\NomadNet.Tests\NomadNetTerminalControlVectors.json`.
+
+| Primary source | Git-blob SHA256 |
+|---|---|
+| `nomadnet/ui/TextUI.py` | `9750582a0c8b0e7eb01a67f09c678bf2a9649b44968230479421bcd52288448a` |
+| `nomadnet/ui/textui/Config.py` | `13a0a531ccc2fc207dc6b4c7f644c3eff6d261bb34edf84781c1c6f76f4b0421` |
+| `nomadnet/ui/textui/Main.py` | `a36de955e21e94261fefd6eebe5a6b471e1072db6f79e1833f19dc7d1fb762a5` |
+| `nomadnet/util.py` | `77a4368c73b8a84ef2e9df41b4e423bcb1d0677e12ed18debe445996fa3a9e38` |
+
+The fixture also records exact `Extras.py`, `Network.py`,
+`NomadNetworkApp.py` and `Directory.py` hashes.
+
+| Field; primary consumer | Native effect and boundary |
+|---|---|
+| `intro_time`, `intro_text`; `TextUI.py:234–268`, `Extras.py:IntroDisplay` | Configured original title followed by cancellation-aware delay before the terminal menu. Nonpositive durations disable both. Native accepts finite −3600–60 seconds and a control-free0–256-character title; larger or malformed values fail before activation. Headless daemon mode never shows or waits for the intro. |
+| `theme`; `TextUI.py:236–239`, `THEMES`, Micron/RRC consumers | Dark/light original heading palettes color the intro, menu, local guide and network monitor. This is not a copied primary theme. Monochrome deliberately emits no color. Existing Micron/RRC rendering remains authoritative for text. |
+| `colormode`; `TextUI.set_colormode`, Micron/RRC consumers | Monochrome, ANSI16, indexed88/256 and truecolor presentation. RRC timestamp/nick/body colors are quantized to the configured depth; explicit existing `rrc view … color` does not bypass monochrome. Ordinary pipes remain escape-free; deliberate RRC color mode remains explicit. Missing primary `colormode` reproduces an actual upstream `AttributeError` (`nomadnet.ui.COLORMODE_16`); native deliberately retains its valid24bit default instead of that defect. |
+| `glyphs`; `TextUI.py:241–252`, menu/browser/Config consumers | Original plain, Unicode and Nerd Font menu/status icons. Source-loaded unknown values fall back to Unicode, matching primary selection; form dropdowns/native JSON validate the documented choices. Missing source glyphs use Unicode; native/generated form defaults use Nerd Font. Physical glyph coverage/display-cell width is unverified. |
+| `mouse_enabled`; `TextUI.py:265`, `MainFrame.mouse_event` | Interactive fixed-row original menu accepts left-button presses only, in addition to `menu select <number>`. Windows consumes actual Win32 mouse records because ConPTY converts SGR reports and `Console.ReadKey` discards them. One input owner bounds records/escape sequences and restores and verifies the exact prior console mode on every command, failure, cancellation and before external editing. Partial typed commands cannot be replaced by a click. Disabled mouse and malformed/out-of-range/wheel/release reports cannot activate entries. Unix SGR code exists but current Linux execution is unverified. |
+| `hide_guide`; `Main.py:318`, `SubDisplays.__init__` | Hides only the Guide menu entry. Explicit guide navigation remains usable. Native first client-state creation shows the original local start topic even when hidden, paralleling the primary's independent first-run guide selection; native state-file discovery is not primary config-directory/first-run migration. |
+| `sanitize_names`; `Directory.simplest_display_str`, Browser/Conversations/Channels/Network consumers | Announce labels, contact/conversation/peer/node names and RRC nick/member rendering use configured sanitation without altering stored names, trust or search inputs. Enabled: NFKC, category/spacing filtering and primary block exclusions. Disabled: modifier stripping retains ordinary symbols/emoji and compatibility characters. Terminal controls and multiline names still never execute/render, an explicit stronger safety boundary. Unicode globalization is enabled for NativeAOT; invariant mode was observed to omit NFKC in a real native test. Windows system globalization passed; other current platforms are unverified. |
+| `animation_interval`; `Network.py:AnnounceTime` and progress/status widgets | `menu watch <1–60>` is an explicit active network view: fresh clock/known-destination/background-utility status on each frame, with configured1–3600-second interval. Awaited, cancellation-joined refresh has no detached timer or writer after exit. Primary accepts0 (observed); native refuses zero/negative intervals to prevent unbounded busy refresh. This is not Urwid's widget layout or every primary progress animation. |
+| `utilities.enable_utilities`; `Main.py:SubDisplays/MenuDisplay` | Controls the visible/selectable Utilities entry only. Direct CLI utility commands remain reachable, consistent with visibility rather than authorization. No listener starts implicitly; selected-peer authorization remains unchanged. |
+
+Native JSON names are `introTime`, `introText`, `theme`, `colorMode`, `glyphs`,
+`mouseEnabled`, `hideGuide`, `sanitizeNames`, `animationInterval` and
+`enableUtilities`. The existing section forms, import/export, opted-in primary
+source, source disabling and atomic persistence project all ten values.
+Changes require full restart; no running menu/service silently hot-reloads.
+`menu`, `menu select <number>` and `menu watch <frames>` are original commands.
+The existing guide, editor, Micron, RRC and network utilities are reused.
+
+T540–T555 cover reference defaults/consumers, malformed/boundary/error paths,
+all color/glyph modes, sanitation, mouse decoding, primary projection,
+confirmed form saves/reset/cancel, persistence/source disable and real delay/
+cancellation. T556–T558 opt into actual Windows NativeAOT ConPTY interactions:
+all five color modes, all three icon sets, both themes, custom intro, mouse
+dispatch/refusal, utility selection, refresh timing, Ctrl+C and identity restart.
+T559–T563 are separate Pester cases for reference regeneration, native
+form/source restart/reset, Unicode name rendering, first-run/visibility and a
+direct-loopback receipt-backed probe to the actual primary Nomad utility
+consumer. They do not duplicate the original utility/endurance claims.
+
+Fresh-child replay, exact native/source/stack guards, compiler receipts and
+failed attempts are retained under ignored
+`artifacts\tests\nomad-terminal-controls`. The selected toolchain is
+SDK10.0.403, runtime/NativeAOT compiler10.0.14; stack pin remains
+`4989f050aed865d16ed9f1460071c1a63cd4c7e9`.
+The replay operator takes a frozen `candidate.json` and refuses changed
+production/LXMF/stack inputs or a changed native hash before and after execution.
+It also guards acceptance/operator sources and actual reference clean revisions.
+The selected binary is
+`artifacts\tests\nomad-terminal-controls\native-accepted\nomadnet.exe`,
+SHA256 `b2117d8ae472172bbd97835c84428533645123fe1b0e5ef0d21ee6241b195665`.
+Recorded commands/results:
+
+```powershell
+# Passed: strict native publish, zero warnings; help and representative flows ran.
+dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64 -o artifacts\tests\nomad-terminal-controls\native-accepted -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror -v minimal
+# Passed:390 Nomad tests,17 explicitly skipped; Pester5/0/0; configured analyzer0.
+pwsh -NoProfile -File artifacts\tests\nomad-terminal-controls\Replay-Candidate.ps1 -FullSuite -OutputDirectory artifacts\tests\nomad-terminal-controls\accepted-final-replay
+```
+
+Independent replay requires a **new** output directory; the selected manifest is
+`artifacts\tests\nomad-terminal-controls\candidate.json`. The final receipt is
+`accepted-final-replay\child\receipt.json`. A separate selected-binary actual Vim
+ConPTY regression passed2/0 (`NomadNetExternalEditorNativeTests`, opt-in editor
+path `C:\Program Files\Git\usr\bin\vim.exe`); its TRX is `accepted-vim\vim.trx`.
+Independent parent frozen replay also passes390 managed cases/17 skips and
+Pester5/0/0 in `parent-independent-replay\child`, including the three actual
+ConPTY cases and direct primary probe. Root integration is recorded separately
+in [testing provenance](testing.md#baseline-provenance).
+Current Linux replay remains blocked by WSL EIO/read-only filesystem; no WSL
+recovery/remount/shutdown was attempted. ConPTY is not evidence of physical
+terminal fonts/display cells/keyboard or hardware/network topology parity.
 
 ## Validation and reproduction
 
@@ -3254,9 +3347,9 @@ method, or copy its guide/snippet content. The existing
 | `find_next`, `replace_one`, `replace_all`, `_insert_snippet` | **implemented bounded subset**: case-sensitive ordinal search with wrapping, selected-match replacement/next-match behavior, nonoverlapping replace-all and insertion. ASCII observations match executed primary operations. Native cursor positions are UTF-16 offsets rather than Python Unicode-codepoint offsets, an explicit **difference**. Five original samples are usable; the primary's18 snippet assets are not copied or claimed. |
 | `on_edit_change`, `render_preview`, `is_executable`, syntax/gutter/panes | **partial / safety difference**: explicit textual Micron preview through the existing renderer, no network/partial/image retrieval and no executable-source execution. Executable files display source with a warning; binary files do not preview. The primary100000-character preview bound is retained. Automatic400ms preview debounce, syntax highlighting, gutter, split-pane visibility/weights and keyboard/mouse parity remain **missing**. |
 | `_state_file`, `load_state`, `save_state`, `start` | **partial / local-format difference**: bounded schema1 `editor_state.json` stores only selected relative scope/path and supports explicit `edit resume` after restart. No document text/secrets or unsaved drafts are persisted. Primary filter, expanded tree, pane settings and automatic reopen behavior remain **missing**; this is not primary editor-state migration. |
-| `ConfigSectionView.on_save`, reset/validation and `util.write_config_atomic` | **implemented bounded functional subset / safety difference**: native JSON/raw selected-RNS editing plus all75 primary form fields across eight sections, explicitly opted-in primary ConfigObj source, confirmed staged reset/save and cancel. Exact field/runtime/grammar dispositions and reference evidence appear below. Atomic saves require restart and serialize with runtime settings writes; later runtime-setting edits are refused and automatic announce/sync timestamps stay in memory, preventing stale restart-configuration overwrite. Active service options/identity are not hot-reloaded. Stored-only primary TextUI/utility fields and complete ConfigObj/Urwid parity remain gaps. Panic failure ownership is an intentional safety difference, not a missing implementation. |
-| `Config.EditorTerminal`, `[textui] editor` | **implemented bounded original workflow / safety difference**: imported/native `editor`, default `nano`, is one executable argv element, not a shell command. `config external [native|rns]` uses the public `RnshProcess` PTY/ConPTY API, a private working copy, validation and snapshot-checked atomic commit, then returns to the console. Explicit Ctrl+] cancellation, child failure and conflict refuse commit. Redirected input/output is explicitly unsupported; interactive commands and child input have one `Console.ReadKey` owner rather than mixing `Console.In` with raw stdin. No embedded Urwid/widget, complete keyboard/mouse/termios or cross-platform terminal parity is claimed. Details and actual Windows terminal evidence follow below. |
-| `GuideEntry.display_topic`, `GuideLinkDelegate.handle_link`, topic reader | **implemented original subset / safety difference**: eight original local topics, local links, anchors, topic list and bounded32-topic back history, using the existing Micron renderer. No remote link is followed implicitly. First-run guide switching, configured `hide_guide`, primary display/demo assets and full keyboard/mouse reader behavior remain **missing**. Network browsing stays an explicit existing browser command. |
+| `ConfigSectionView.on_save`, reset/validation and `util.write_config_atomic` | **implemented bounded functional subset / safety difference**: native JSON/raw selected-RNS editing plus all75 primary form fields across eight sections, explicitly opted-in primary ConfigObj source, confirmed staged reset/save and cancel. Exact field/runtime/grammar dispositions and reference evidence appear below. Atomic saves require restart and serialize with runtime settings writes; later runtime-setting edits are refused and automatic announce/sync timestamps stay in memory, preventing stale restart-configuration overwrite. Active service options/identity are not hot-reloaded. TextUI/utility controls have bounded functional effects under C95; complete ConfigObj/Urwid parity remains a gap. Panic failure ownership is an intentional safety difference, not a missing implementation. |
+| `Config.EditorTerminal`, `[textui] editor` | **implemented bounded original workflow / safety difference**: imported/native `editor`, default `nano`, is one executable argv element, not a shell command. `config external [native|rns]` uses the public `RnshProcess` PTY/ConPTY API, a private working copy, validation and snapshot-checked atomic commit, then returns to the console. Explicit Ctrl+] cancellation, child failure and conflict refuse commit. Redirected input/output is explicitly unsupported; interactive commands and child input have one owner rather than mixing `Console.In` with raw stdin. C95 uses Win32 console records for Windows command/mouse input, restores the exact input mode before child activation, and retains `Console.ReadKey` child forwarding. No embedded Urwid/widget, complete keyboard/mouse/termios or cross-platform terminal parity is claimed. Details and actual Windows terminal evidence follow below. |
+| `GuideEntry.display_topic`, `GuideLinkDelegate.handle_link`, topic reader | **implemented original subset / safety difference**: eight original local topics, local links, anchors, topic list and bounded32-topic back history, using the existing Micron renderer. No remote link is followed implicitly. C95 displays the local start topic on first client-state creation, even with its menu entry hidden, and wires `hide_guide` to menu visibility only. Explicit `guide` remains usable. Primary display/demo assets and full keyboard/mouse reader behavior remain **missing**. Network browsing stays explicit. |
 
 Example, using JSON strings for text without invoking a shell or executable page:
 
@@ -3688,7 +3781,7 @@ receipts accompany the fixture; no configuration comment/guide/UI assets are cop
 | `ConfigSectionView` population, `_default_write_value`, `_widget_write_value` | **implemented bounded subset**: missing fields show form defaults, checkbox truth normalization, scalar-to-list population, list-to-text joining and unknown dropdown fallback. JSON scalar/bool/number/string-list input avoids shell parsing. Limits:128 list items,4096 characters per item, finite floats, whole-number fields, validated hash/color/port fields and final native runtime validation. Invalid edits retain the staged value/file and permit recovery. Control characters in form values are refused; raw ConfigObj multiline editing is separate. |
 | `on_reset`, `on_back`, `on_save:1003–1070` | **implemented / safety difference**: reset requires `confirm`, stages defaults only, cancel discards, and save separately requires `confirm`. Empty keys are deleted; absent fields equal to defaults are omitted, so reset does not materialize an absent section. Existing empty sections and unknown keys survive. Forms never apply running service options; explicit full restart is required. Native snapshots reject external changes instead of the primary's reload-and-merge/swallowed reload-error behavior. |
 | Runtime node/client/logging/printing fields; `NomadNetworkApp.applyConfig` | **implemented bounded projection** onto existing runtime settings. The source loader uses the existing importer semantics and native bounds, not a new protocol. `enable_client` and `user_interface` are preserved raw controls outside the client's14 form fields, as in primary. Native-only identity/display name/trust/manual propagation/timestamps/media settings are retained. The form default is not necessarily the missing loader default: e.g. node360/starttrue versus missing node720/startfalse. Fixture records generated-default application separately. Unsupported source keys remain preserved and reported by import; they are not silently applied. |
-| TextUI12, utilities1, RRC13 operational effects | **partial, explicit per-field disposition**: `image_loading`, `editor`, `clipboard_copy` execute existing native behaviors; the other nine TextUI fields and utility visibility remain **stored-only**. Both RRC render switches and ten history/style fields are operational in the original bounded terminal service; `enable_esoterics` is an executed/inventoried **upstream-placeholder**, not an invented no-op feature. See the field-level RRC contracts below. |
+| TextUI12, utilities1, RRC13 operational effects | **implemented bounded functional controls / explicit placeholder**: TextUI and utility visibility have functional native controls, including C95's scoped Windows NativeAOT acceptance below. Both RRC render switches and ten history/style fields are operational in the original bounded terminal service; `enable_esoterics` is an executed/inventoried **upstream-placeholder**, not an invented no-op feature. Original layout/palette/safety bounds remain explicit, not full Urwid parity. |
 | Selected Reticulum12 fields, `Config.py:672–690,876–882` | **eleven runtime fields / one intentional safety difference**: selected actual RNS file, not native JSON/default-global RNS. `respond_to_probes` and `use_implicit_proof` now join the nine supported controls, validate through public `RnsdConfigParser` and activate in the running owner after full restart. `panic_on_interface_error` is **safety-refused**: fixed native top-level failure termination and child-peer failure isolation, not missing hardware or a no-op toggle. Raw explicit panic keys are refused as well, including false; remove the key to use fixed native ownership. |
 | ConfigObj root assignments, quoted names/scalars, comma lists, nested sections, comments, literal backslashes, triple quotes and interpolation | **implemented bounded grammar with executed vectors**. Root `enable_node=yes` is legal and retained/reported unsupported, not treated as `[node] enable_node`. Empty scalar, empty list, one-item list and scalar-with-comma remain distinct. Interpolation resolves section/DEFAULT/ancestor values; absent/cyclic expansion fails explicitly. Unknown nested/multiline/comment text is retained byte-for-byte when untouched. Duplicate names, malformed lists/nesting/quotes, invalid UTF8 and NUL refuse before save. |
 | Full ConfigObj grammar/serialization and RNS parser integration | **partial / safety difference**: primary source64KiB, selected RNS1,000,000 bytes,8192 characters/line,2048 entries/sections/list members,16 section levels,32 interpolation levels,64KiB expanded value and four-times-input aggregate expansion budget. Eager interpolation validation differs from ConfigObj's deferred access errors. Ambiguous dotted flattened paths and unencodable quote combinations explicitly fail. Native retains BOM/newline/comments/unknown untouched bytes instead of canonicalizing the entire file. Edited quoted keys remain safely quoted instead of reproducing the primary writer's ambiguous equals-key output. Selected RNS refuses interpolation/triple quotes because the public stack would not execute them faithfully; passing ConfigObj validation alone never grants RNS grammar parity. |
@@ -3740,7 +3833,7 @@ native-only retention, cancellation/disposal and competing runtime writers.
 T460–T463 select actual native console workflows and independent primary
 regeneration. Physical terminal/layout parity and current Linux execution are
 not claimed; WSL EIO remains blocked and no repair was attempted. Remaining
-required software includes the explicit stored-only/blocked behaviors, complete
+required software includes complete
 ConfigObj/RNS edge grammar, full editor state/tree/filter/gutter/panes/preview
 migration and primary guide/terminal presentation, not merely hardware acceptance.
 

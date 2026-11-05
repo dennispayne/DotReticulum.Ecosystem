@@ -53,6 +53,7 @@ def main():
     sys.path.insert(0, str(source))
     from sbapp.sideband.core import SidebandCore
     import RNS
+    import LXMF
     if Path(inspect.getfile(SidebandCore)).resolve() != core_path:
         raise RuntimeError("Wrong imported primary core")
     modules = [importlib.import_module("sbapp.sideband.cli." + name) for name in
@@ -106,6 +107,7 @@ def main():
                 conversations.append({"dest": dest.hex(), "name": core.peer_display_name(dest),
                                       "trust": bool(conv.get("trust")), "unread": bool(conv.get("unread")),
                                       "messages": [{"content": base64.b64encode(message["content"]).decode(),
+                                                    "renderer": message["lxm"].fields.get(LXMF.FIELD_RENDERER),
                                                     "state": message["state"], "method": message["method"],
                                                     "state_text": modules[2]._format_msg_state(message["state"], message["method"])}
                                                    for message in messages]})

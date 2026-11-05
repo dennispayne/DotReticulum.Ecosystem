@@ -1,0 +1,3255 @@
+{
+  "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+  "source_sha256": {
+    "sbapp/sideband/core.py": "8e6e650c950135f32c31769648a9859422ecf076d3c2b8e540f45889b4bbec25",
+    "sbapp/main.py": "5b962d9ed2ccbc066bb19865d78c77da9ecf4008900f6f0e7e9dd1eb1c4767aa",
+    "sbapp/ui/messages.py": "9b2580f76310356d2e1a30b038857fbad4ee346aad9e2a25ab237515fff39928",
+    "sbapp/md/md.py": "212ff9b6a5e9dd6f880ce086ec7e00c95d0ba1b288a2bc631eff728a6edd6c95"
+  },
+  "mistune_version": "3.1.3",
+  "kivy_version": "2.3.1",
+  "renderers": {
+    "field": 15,
+    "markdown": 2,
+    "bbcode": 3
+  },
+  "method": "Actual AST-extracted primary send_message/has_bb_markup, real RNS destinations/LXMF messages and synthetic router/notification boundary; actual primary mdconv, md_to_bbcode/process_bb_markup, actual pre-font update_widget statements and Kivy escape_markup. Unit font density sp(x)=x; no widgets, URL-ref/font shaping, GUI, devices or live transport claim.",
+  "sending": [
+    {
+      "markdown": false,
+      "input": "",
+      "accepted": false,
+      "content": null,
+      "renderer": null
+    },
+    {
+      "markdown": false,
+      "input": "plain",
+      "accepted": true,
+      "content": "plain",
+      "renderer": null
+    },
+    {
+      "markdown": false,
+      "input": "#!md\n",
+      "accepted": true,
+      "content": "",
+      "renderer": 2
+    },
+    {
+      "markdown": false,
+      "input": "#!md\n**bold**",
+      "accepted": true,
+      "content": "**bold**",
+      "renderer": 2
+    },
+    {
+      "markdown": false,
+      "input": "#!md\r\n**bold**",
+      "accepted": true,
+      "content": "#!md\r\n**bold**",
+      "renderer": null
+    },
+    {
+      "markdown": false,
+      "input": "[b]bold[/b]",
+      "accepted": true,
+      "content": "[b]bold[/b]",
+      "renderer": 3
+    },
+    {
+      "markdown": false,
+      "input": "before [b]bold[/b]",
+      "accepted": true,
+      "content": "before [b]bold[/b]",
+      "renderer": null
+    },
+    {
+      "markdown": false,
+      "input": " [b]bold[/b]",
+      "accepted": true,
+      "content": " [b]bold[/b]",
+      "renderer": null
+    },
+    {
+      "markdown": false,
+      "input": "[unknown]literal",
+      "accepted": true,
+      "content": "[unknown]literal",
+      "renderer": 3
+    },
+    {
+      "markdown": false,
+      "input": "[\n]",
+      "accepted": true,
+      "content": "[\n]",
+      "renderer": null
+    },
+    {
+      "markdown": false,
+      "input": "[x\ny]",
+      "accepted": true,
+      "content": "[x\ny]",
+      "renderer": null
+    },
+    {
+      "markdown": false,
+      "input": "[x]",
+      "accepted": true,
+      "content": "[x]",
+      "renderer": 3
+    },
+    {
+      "markdown": false,
+      "input": "[/]",
+      "accepted": true,
+      "content": "[/]",
+      "renderer": 3
+    },
+    {
+      "markdown": false,
+      "input": "[b",
+      "accepted": true,
+      "content": "[b",
+      "renderer": null
+    },
+    {
+      "markdown": false,
+      "input": "\n[b]x[/b]",
+      "accepted": true,
+      "content": "\n[b]x[/b]",
+      "renderer": null
+    },
+    {
+      "markdown": true,
+      "input": "",
+      "accepted": false,
+      "content": null,
+      "renderer": null
+    },
+    {
+      "markdown": true,
+      "input": "plain",
+      "accepted": true,
+      "content": "plain",
+      "renderer": 2
+    },
+    {
+      "markdown": true,
+      "input": "#!md\n",
+      "accepted": true,
+      "content": "",
+      "renderer": 2
+    },
+    {
+      "markdown": true,
+      "input": "#!md\n**bold**",
+      "accepted": true,
+      "content": "**bold**",
+      "renderer": 2
+    },
+    {
+      "markdown": true,
+      "input": "#!md\r\n**bold**",
+      "accepted": true,
+      "content": "#!md\r\n**bold**",
+      "renderer": 2
+    },
+    {
+      "markdown": true,
+      "input": "[b]bold[/b]",
+      "accepted": true,
+      "content": "[b]bold[/b]",
+      "renderer": 2
+    },
+    {
+      "markdown": true,
+      "input": "before [b]bold[/b]",
+      "accepted": true,
+      "content": "before [b]bold[/b]",
+      "renderer": 2
+    },
+    {
+      "markdown": true,
+      "input": " [b]bold[/b]",
+      "accepted": true,
+      "content": " [b]bold[/b]",
+      "renderer": 2
+    },
+    {
+      "markdown": true,
+      "input": "[unknown]literal",
+      "accepted": true,
+      "content": "[unknown]literal",
+      "renderer": 2
+    },
+    {
+      "markdown": true,
+      "input": "[\n]",
+      "accepted": true,
+      "content": "[\n]",
+      "renderer": 2
+    },
+    {
+      "markdown": true,
+      "input": "[x\ny]",
+      "accepted": true,
+      "content": "[x\ny]",
+      "renderer": 2
+    },
+    {
+      "markdown": true,
+      "input": "[x]",
+      "accepted": true,
+      "content": "[x]",
+      "renderer": 2
+    },
+    {
+      "markdown": true,
+      "input": "[/]",
+      "accepted": true,
+      "content": "[/]",
+      "renderer": 2
+    },
+    {
+      "markdown": true,
+      "input": "[b",
+      "accepted": true,
+      "content": "[b",
+      "renderer": 2
+    },
+    {
+      "markdown": true,
+      "input": "\n[b]x[/b]",
+      "accepted": true,
+      "content": "\n[b]x[/b]",
+      "renderer": 2
+    }
+  ],
+  "rendering": [
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "plain & [literal]",
+      "markup": "plain &amp; &bl;literal&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]",
+      "markup": "&bl;b&br;bold&bl;/b&br; &bl;i&br;italic&bl;/i&br; &bl;u&br;under&bl;/u&br; &bl;s&br;strike&bl;/s&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[b]nested [i]both[/i] bold[/b]",
+      "markup": "&bl;b&br;nested &bl;i&br;both&bl;/i&br; bold&bl;/b&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[size=24]large[/size]",
+      "markup": "&bl;size=24&br;large&bl;/size&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[color=#ff0000]red[/color]",
+      "markup": "&bl;color=#ff0000&br;red&bl;/color&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[code]x < y & z[/code]",
+      "markup": "&bl;code&br;x < y &amp; z&bl;/code&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[url=https://example.invalid]link[/url]",
+      "markup": "&bl;url=https://example.invalid&br;link&bl;/url&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[img]https://example.invalid/a.png[/img]",
+      "markup": "&bl;img&br;https://example.invalid/a.png&bl;/img&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[heading=1]heading[/heading]",
+      "markup": "&bl;heading=1&br;heading&bl;/heading&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[list]\n[*]one\n[*]two[/list]",
+      "markup": "&bl;list&br;\n&bl;*&br;one\n&bl;*&br;two&bl;/list&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "**bold** and *italic*",
+      "markup": "**bold** and *italic*"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "~~strike~~ ++insert++ ==mark==",
+      "markup": "~~strike~~ ++insert++ ==mark=="
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "H~2~O x^2^",
+      "markup": "H~2~O x^2^"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "`[b]code[/b]`",
+      "markup": "`&bl;b&br;code&bl;/b&br;`"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "# Heading",
+      "markup": "# Heading"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "a\n\nb",
+      "markup": "a\n\nb"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "- one\n- two",
+      "markup": "- one\n- two"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "1. one\n2. two",
+      "markup": "1. one\n2. two"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "> quote",
+      "markup": "> quote"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[link](https://example.invalid/a)",
+      "markup": "&bl;link&br;(https://example.invalid/a)"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "![alt](https://example.invalid/a.png)",
+      "markup": "!&bl;alt&br;(https://example.invalid/a.png)"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "```text\n<&>\n```",
+      "markup": "```text\n<&amp;>\n```"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "<div>block</div>",
+      "markup": "<div>block</div>"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "inline <b>HTML</b>",
+      "markup": "inline <b>HTML</b>"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "- [ ] task\n- [x] done",
+      "markup": "- &bl; &br; task\n- &bl;x&br; done"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "note[^1]\n\n[^1]: body",
+      "markup": "note&bl;^1&br;\n\n&bl;^1&br;: body"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": ">! spoiler !<",
+      "markup": ">! spoiler !<"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "---",
+      "markup": "---"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "^^underlined^^",
+      "markup": "^^underlined^^"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "inline >! hidden !< end",
+      "markup": "inline >! hidden !< end"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "```text\n'\u00e9' & \"quoted\"\n```",
+      "markup": "```text\n'\u00e9' &amp; \"quoted\"\n```"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[b]unclosed",
+      "markup": "&bl;b&br;unclosed"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[B]case sensitive[/B]",
+      "markup": "&bl;B&br;case sensitive&bl;/B&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[size=0]zero[/size]",
+      "markup": "&bl;size=0&br;zero&bl;/size&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[color=red]named[/color]",
+      "markup": "&bl;color=red&br;named&bl;/color&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "plain & [literal]",
+      "markup": "plain &amp; &bl;literal&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]",
+      "markup": "&bl;b&br;bold&bl;/b&br; &bl;i&br;italic&bl;/i&br; &bl;u&br;under&bl;/u&br; &bl;s&br;strike&bl;/s&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[b]nested [i]both[/i] bold[/b]",
+      "markup": "&bl;b&br;nested &bl;i&br;both&bl;/i&br; bold&bl;/b&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[size=24]large[/size]",
+      "markup": "&bl;size=24&br;large&bl;/size&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[color=#ff0000]red[/color]",
+      "markup": "&bl;color=#ff0000&br;red&bl;/color&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[code]x < y & z[/code]",
+      "markup": "&bl;code&br;x < y &amp; z&bl;/code&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[url=https://example.invalid]link[/url]",
+      "markup": "&bl;url=https://example.invalid&br;link&bl;/url&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[img]https://example.invalid/a.png[/img]",
+      "markup": "&bl;img&br;https://example.invalid/a.png&bl;/img&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[heading=1]heading[/heading]",
+      "markup": "&bl;heading=1&br;heading&bl;/heading&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[list]\n[*]one\n[*]two[/list]",
+      "markup": "&bl;list&br;\n&bl;*&br;one\n&bl;*&br;two&bl;/list&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "**bold** and *italic*",
+      "markup": "**bold** and *italic*"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "~~strike~~ ++insert++ ==mark==",
+      "markup": "~~strike~~ ++insert++ ==mark=="
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "H~2~O x^2^",
+      "markup": "H~2~O x^2^"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "`[b]code[/b]`",
+      "markup": "`&bl;b&br;code&bl;/b&br;`"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "# Heading",
+      "markup": "# Heading"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "a\n\nb",
+      "markup": "a\n\nb"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "- one\n- two",
+      "markup": "- one\n- two"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "1. one\n2. two",
+      "markup": "1. one\n2. two"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "> quote",
+      "markup": "> quote"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[link](https://example.invalid/a)",
+      "markup": "&bl;link&br;(https://example.invalid/a)"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "![alt](https://example.invalid/a.png)",
+      "markup": "!&bl;alt&br;(https://example.invalid/a.png)"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "```text\n<&>\n```",
+      "markup": "```text\n<&amp;>\n```"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "<div>block</div>",
+      "markup": "<div>block</div>"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "inline <b>HTML</b>",
+      "markup": "inline <b>HTML</b>"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "- [ ] task\n- [x] done",
+      "markup": "- &bl; &br; task\n- &bl;x&br; done"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "note[^1]\n\n[^1]: body",
+      "markup": "note&bl;^1&br;\n\n&bl;^1&br;: body"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": ">! spoiler !<",
+      "markup": ">! spoiler !<"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "---",
+      "markup": "---"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "^^underlined^^",
+      "markup": "^^underlined^^"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "inline >! hidden !< end",
+      "markup": "inline >! hidden !< end"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "```text\n'\u00e9' & \"quoted\"\n```",
+      "markup": "```text\n'\u00e9' &amp; \"quoted\"\n```"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[b]unclosed",
+      "markup": "&bl;b&br;unclosed"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[B]case sensitive[/B]",
+      "markup": "&bl;B&br;case sensitive&bl;/B&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[size=0]zero[/size]",
+      "markup": "&bl;size=0&br;zero&bl;/size&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[color=red]named[/color]",
+      "markup": "&bl;color=red&br;named&bl;/color&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "plain & [literal]",
+      "markup": "plain &amp; &bl;literal&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]",
+      "markup": "&bl;b&br;bold&bl;/b&br; &bl;i&br;italic&bl;/i&br; &bl;u&br;under&bl;/u&br; &bl;s&br;strike&bl;/s&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[b]nested [i]both[/i] bold[/b]",
+      "markup": "&bl;b&br;nested &bl;i&br;both&bl;/i&br; bold&bl;/b&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[size=24]large[/size]",
+      "markup": "&bl;size=24&br;large&bl;/size&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[color=#ff0000]red[/color]",
+      "markup": "&bl;color=#ff0000&br;red&bl;/color&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[code]x < y & z[/code]",
+      "markup": "&bl;code&br;x < y &amp; z&bl;/code&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[url=https://example.invalid]link[/url]",
+      "markup": "&bl;url=https://example.invalid&br;link&bl;/url&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[img]https://example.invalid/a.png[/img]",
+      "markup": "&bl;img&br;https://example.invalid/a.png&bl;/img&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[heading=1]heading[/heading]",
+      "markup": "&bl;heading=1&br;heading&bl;/heading&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[list]\n[*]one\n[*]two[/list]",
+      "markup": "&bl;list&br;\n&bl;*&br;one\n&bl;*&br;two&bl;/list&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "**bold** and *italic*",
+      "markup": "**bold** and *italic*"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "~~strike~~ ++insert++ ==mark==",
+      "markup": "~~strike~~ ++insert++ ==mark=="
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "H~2~O x^2^",
+      "markup": "H~2~O x^2^"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "`[b]code[/b]`",
+      "markup": "`&bl;b&br;code&bl;/b&br;`"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "# Heading",
+      "markup": "# Heading"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "a\n\nb",
+      "markup": "a\n\nb"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "- one\n- two",
+      "markup": "- one\n- two"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "1. one\n2. two",
+      "markup": "1. one\n2. two"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "> quote",
+      "markup": "> quote"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[link](https://example.invalid/a)",
+      "markup": "&bl;link&br;(https://example.invalid/a)"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "![alt](https://example.invalid/a.png)",
+      "markup": "!&bl;alt&br;(https://example.invalid/a.png)"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "```text\n<&>\n```",
+      "markup": "```text\n<&amp;>\n```"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "<div>block</div>",
+      "markup": "<div>block</div>"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "inline <b>HTML</b>",
+      "markup": "inline <b>HTML</b>"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "- [ ] task\n- [x] done",
+      "markup": "- &bl; &br; task\n- &bl;x&br; done"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "note[^1]\n\n[^1]: body",
+      "markup": "note&bl;^1&br;\n\n&bl;^1&br;: body"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": ">! spoiler !<",
+      "markup": ">! spoiler !<"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "---",
+      "markup": "---"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "^^underlined^^",
+      "markup": "^^underlined^^"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "inline >! hidden !< end",
+      "markup": "inline >! hidden !< end"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "```text\n'\u00e9' & \"quoted\"\n```",
+      "markup": "```text\n'\u00e9' &amp; \"quoted\"\n```"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[b]unclosed",
+      "markup": "&bl;b&br;unclosed"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[B]case sensitive[/B]",
+      "markup": "&bl;B&br;case sensitive&bl;/B&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[size=0]zero[/size]",
+      "markup": "&bl;size=0&br;zero&bl;/size&br;"
+    },
+    {
+      "renderer": null,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[color=red]named[/color]",
+      "markup": "&bl;color=red&br;named&bl;/color&br;"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "plain & [literal]",
+      "markup": "plain & [literal]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]",
+      "markup": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[b]nested [i]both[/i] bold[/b]",
+      "markup": "[b]nested [i]both[/i] bold[/b]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[size=24]large[/size]",
+      "markup": "[size=24sp]large[/size]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[color=#ff0000]red[/color]",
+      "markup": "[color=#ff0000]red[/color]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[code]x < y & z[/code]",
+      "markup": "[font=mono][size=14]x < y & z[/size][/font]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[url=https://example.invalid]link[/url]",
+      "markup": "link"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[img]https://example.invalid/a.png[/img]",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[heading=1]heading[/heading]",
+      "markup": "[b][size=20]heading[/size][/b]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[list]\n[*]one\n[*]two[/list]",
+      "markup": "\n[[i]]one\n[[/i]]two"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "**bold** and *italic*",
+      "markup": "[b]bold[/b] and [i]italic[/i]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "~~strike~~ ++insert++ ==mark==",
+      "markup": "[s]strike[/s] ++insert++ mark"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "H~2~O x^2^",
+      "markup": "H[sub]2[/sub]O x[sup]2[/sup]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "`[b]code[/b]`",
+      "markup": "[font=mono][size=14][b]code[/b][/size][/font]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "# Heading",
+      "markup": "[b][size=20]Heading[/size][/b]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "a\n\nb",
+      "markup": "a\n\nb"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "- one\n- two",
+      "markup": "\u2022 one\n\u2022 two"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "1. one\n2. two",
+      "markup": "\u2022 one\n\u2022 two"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "> quote",
+      "markup": "| [i]quote\n\n[/i]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[link](https://example.invalid/a)",
+      "markup": "[u]link[/u] (https://example.invalid/a)"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "![alt](https://example.invalid/a.png)",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "```text\n<&>\n```",
+      "markup": "[font=mono][size=14]&lt;&amp;&gt;\n[/size][/font]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "<div>block</div>",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "inline <b>HTML</b>",
+      "markup": "inline <b>HTML</b>"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "- [ ] task\n- [x] done",
+      "markup": "\udb80\udd31 task\n\udb83\udc52 done"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "note[^1]\n\n[^1]: body",
+      "markup": "note[sup][u]1[/u][/sup]\n\n[b]Footnotes[/b]\n[ANAME=footnote-1]1[/ANAME]. body"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": ">! spoiler !<",
+      "markup": "[SPOILER]\nspoiler !<\n\n\n[/SPOILER]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "---",
+      "markup": "-------------"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "^^underlined^^",
+      "markup": "[u]underlined[/u]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "inline >! hidden !< end",
+      "markup": "inline [ISPOILER]hidden[/ISPOILER] end"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "```text\n'\u00e9' & \"quoted\"\n```",
+      "markup": "[font=mono][size=14]'\u00e9' &amp; &quot;quoted&quot;\n[/size][/font]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[b]unclosed",
+      "markup": "[b]unclosed"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[B]case sensitive[/B]",
+      "markup": "[B]case sensitive[/B]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[size=0]zero[/size]",
+      "markup": "[size=0sp]zero[/size]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[color=red]named[/color]",
+      "markup": "[color=red]named[/color]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "plain & [literal]",
+      "markup": "plain &amp; &bl;literal&br;"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]",
+      "markup": "&bl;b&br;bold&bl;/b&br; &bl;i&br;italic&bl;/i&br; &bl;u&br;under&bl;/u&br; &bl;s&br;strike&bl;/s&br;"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[b]nested [i]both[/i] bold[/b]",
+      "markup": "&bl;b&br;nested &bl;i&br;both&bl;/i&br; bold&bl;/b&br;"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[size=24]large[/size]",
+      "markup": "&bl;size=24&br;large&bl;/size&br;"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[color=#ff0000]red[/color]",
+      "markup": "&bl;color=#ff0000&br;red&bl;/color&br;"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[code]x < y & z[/code]",
+      "markup": "&bl;code&br;x < y &amp; z&bl;/code&br;"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[url=https://example.invalid]link[/url]",
+      "markup": "&bl;url=https://example.invalid&br;link&bl;/url&br;"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[img]https://example.invalid/a.png[/img]",
+      "markup": "&bl;img&br;https://example.invalid/a.png&bl;/img&br;"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[heading=1]heading[/heading]",
+      "markup": "&bl;heading=1&br;heading&bl;/heading&br;"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[list]\n[*]one\n[*]two[/list]",
+      "markup": "&bl;list&br;\n&bl;*&br;one\n&bl;*&br;two&bl;/list&br;"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "**bold** and *italic*",
+      "markup": "**bold** and *italic*"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "~~strike~~ ++insert++ ==mark==",
+      "markup": "~~strike~~ ++insert++ ==mark=="
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "H~2~O x^2^",
+      "markup": "H~2~O x^2^"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "`[b]code[/b]`",
+      "markup": "`&bl;b&br;code&bl;/b&br;`"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "# Heading",
+      "markup": "# Heading"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "a\n\nb",
+      "markup": "a\n\nb"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "- one\n- two",
+      "markup": "- one\n- two"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "1. one\n2. two",
+      "markup": "1. one\n2. two"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "> quote",
+      "markup": "> quote"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[link](https://example.invalid/a)",
+      "markup": "&bl;link&br;(https://example.invalid/a)"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "![alt](https://example.invalid/a.png)",
+      "markup": "!&bl;alt&br;(https://example.invalid/a.png)"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "```text\n<&>\n```",
+      "markup": "```text\n<&amp;>\n```"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "<div>block</div>",
+      "markup": "<div>block</div>"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "inline <b>HTML</b>",
+      "markup": "inline <b>HTML</b>"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "- [ ] task\n- [x] done",
+      "markup": "- &bl; &br; task\n- &bl;x&br; done"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "note[^1]\n\n[^1]: body",
+      "markup": "note&bl;^1&br;\n\n&bl;^1&br;: body"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": ">! spoiler !<",
+      "markup": ">! spoiler !<"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "---",
+      "markup": "---"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "^^underlined^^",
+      "markup": "^^underlined^^"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "inline >! hidden !< end",
+      "markup": "inline >! hidden !< end"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "```text\n'\u00e9' & \"quoted\"\n```",
+      "markup": "```text\n'\u00e9' &amp; \"quoted\"\n```"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[b]unclosed",
+      "markup": "&bl;b&br;unclosed"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[B]case sensitive[/B]",
+      "markup": "&bl;B&br;case sensitive&bl;/B&br;"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[size=0]zero[/size]",
+      "markup": "&bl;size=0&br;zero&bl;/size&br;"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[color=red]named[/color]",
+      "markup": "&bl;color=red&br;named&bl;/color&br;"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "plain & [literal]",
+      "markup": "plain & [literal]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]",
+      "markup": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[b]nested [i]both[/i] bold[/b]",
+      "markup": "[b]nested [i]both[/i] bold[/b]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[size=24]large[/size]",
+      "markup": "[size=24sp]large[/size]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[color=#ff0000]red[/color]",
+      "markup": "[color=#ff0000]red[/color]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[code]x < y & z[/code]",
+      "markup": "[font=mono][size=14]x < y & z[/size][/font]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[url=https://example.invalid]link[/url]",
+      "markup": "link"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[img]https://example.invalid/a.png[/img]",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[heading=1]heading[/heading]",
+      "markup": "[b][size=20]heading[/size][/b]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[list]\n[*]one\n[*]two[/list]",
+      "markup": "\n[[i]]one\n[[/i]]two"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "**bold** and *italic*",
+      "markup": "[b]bold[/b] and [i]italic[/i]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "~~strike~~ ++insert++ ==mark==",
+      "markup": "[s]strike[/s] ++insert++ mark"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "H~2~O x^2^",
+      "markup": "H[sub]2[/sub]O x[sup]2[/sup]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "`[b]code[/b]`",
+      "markup": "[font=mono][size=14][b]code[/b][/size][/font]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "# Heading",
+      "markup": "[b][size=20]Heading[/size][/b]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "a\n\nb",
+      "markup": "a\n\nb"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "- one\n- two",
+      "markup": "\u2022 one\n\u2022 two"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "1. one\n2. two",
+      "markup": "\u2022 one\n\u2022 two"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "> quote",
+      "markup": "| [i]quote\n\n[/i]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[link](https://example.invalid/a)",
+      "markup": "[u]link[/u] (https://example.invalid/a)"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "![alt](https://example.invalid/a.png)",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "```text\n<&>\n```",
+      "markup": "[font=mono][size=14]&lt;&amp;&gt;\n[/size][/font]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "<div>block</div>",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "inline <b>HTML</b>",
+      "markup": "inline <b>HTML</b>"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "- [ ] task\n- [x] done",
+      "markup": "\udb80\udd31 task\n\udb83\udc52 done"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "note[^1]\n\n[^1]: body",
+      "markup": "note[sup][u]1[/u][/sup]\n\n[b]Footnotes[/b]\n[ANAME=footnote-1]1[/ANAME]. body"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": ">! spoiler !<",
+      "markup": "[SPOILER]\nspoiler !<\n\n\n[/SPOILER]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "---",
+      "markup": "-------------"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "^^underlined^^",
+      "markup": "[u]underlined[/u]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "inline >! hidden !< end",
+      "markup": "inline [ISPOILER]hidden[/ISPOILER] end"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "```text\n'\u00e9' & \"quoted\"\n```",
+      "markup": "[font=mono][size=14]'\u00e9' &amp; &quot;quoted&quot;\n[/size][/font]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[b]unclosed",
+      "markup": "[b]unclosed"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[B]case sensitive[/B]",
+      "markup": "[B]case sensitive[/B]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[size=0]zero[/size]",
+      "markup": "[size=0sp]zero[/size]"
+    },
+    {
+      "renderer": 2,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[color=red]named[/color]",
+      "markup": "[color=red]named[/color]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "plain & [literal]",
+      "markup": "plain & [literal]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]",
+      "markup": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[b]nested [i]both[/i] bold[/b]",
+      "markup": "[b]nested [i]both[/i] bold[/b]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[size=24]large[/size]",
+      "markup": "[size=24sp]large[/size]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[color=#ff0000]red[/color]",
+      "markup": "[color=#ff0000]red[/color]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[code]x < y & z[/code]",
+      "markup": "[font=mono][size=14]x < y & z[/size][/font]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[url=https://example.invalid]link[/url]",
+      "markup": "link"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[img]https://example.invalid/a.png[/img]",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[heading=1]heading[/heading]",
+      "markup": "[b][size=20]heading[/size][/b]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[list]\n[*]one\n[*]two[/list]",
+      "markup": "\n - one\n - two"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "**bold** and *italic*",
+      "markup": "**bold** and *italic*"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "~~strike~~ ++insert++ ==mark==",
+      "markup": "~~strike~~ ++insert++ ==mark=="
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "H~2~O x^2^",
+      "markup": "H~2~O x^2^"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "`[b]code[/b]`",
+      "markup": "`[b]code[/b]`"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "# Heading",
+      "markup": "# Heading"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "a\n\nb",
+      "markup": "a\n\nb"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "- one\n- two",
+      "markup": "- one\n- two"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "1. one\n2. two",
+      "markup": "1. one\n2. two"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "> quote",
+      "markup": "> quote"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[link](https://example.invalid/a)",
+      "markup": "[link](https://example.invalid/a)"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "![alt](https://example.invalid/a.png)",
+      "markup": "![alt](https://example.invalid/a.png)"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "```text\n<&>\n```",
+      "markup": "```text\n<&>\n```"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "<div>block</div>",
+      "markup": "<div>block</div>"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "inline <b>HTML</b>",
+      "markup": "inline <b>HTML</b>"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "- [ ] task\n- [x] done",
+      "markup": "- [ ] task\n- [x] done"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "note[^1]\n\n[^1]: body",
+      "markup": "note[^1]\n\n[^1]: body"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": ">! spoiler !<",
+      "markup": ">! spoiler !<"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "---",
+      "markup": "---"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "^^underlined^^",
+      "markup": "^^underlined^^"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "inline >! hidden !< end",
+      "markup": "inline >! hidden !< end"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "```text\n'\u00e9' & \"quoted\"\n```",
+      "markup": "```text\n'\u00e9' & \"quoted\"\n```"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[b]unclosed",
+      "markup": "[b]unclosed"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[B]case sensitive[/B]",
+      "markup": "[B]case sensitive[/B]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[size=0]zero[/size]",
+      "markup": "[size=0sp]zero[/size]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[color=red]named[/color]",
+      "markup": "[color=red]named[/color]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "plain & [literal]",
+      "markup": "plain &amp; &bl;literal&br;"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]",
+      "markup": "&bl;b&br;bold&bl;/b&br; &bl;i&br;italic&bl;/i&br; &bl;u&br;under&bl;/u&br; &bl;s&br;strike&bl;/s&br;"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[b]nested [i]both[/i] bold[/b]",
+      "markup": "&bl;b&br;nested &bl;i&br;both&bl;/i&br; bold&bl;/b&br;"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[size=24]large[/size]",
+      "markup": "&bl;size=24&br;large&bl;/size&br;"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[color=#ff0000]red[/color]",
+      "markup": "&bl;color=#ff0000&br;red&bl;/color&br;"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[code]x < y & z[/code]",
+      "markup": "&bl;code&br;x < y &amp; z&bl;/code&br;"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[url=https://example.invalid]link[/url]",
+      "markup": "&bl;url=https://example.invalid&br;link&bl;/url&br;"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[img]https://example.invalid/a.png[/img]",
+      "markup": "&bl;img&br;https://example.invalid/a.png&bl;/img&br;"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[heading=1]heading[/heading]",
+      "markup": "&bl;heading=1&br;heading&bl;/heading&br;"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[list]\n[*]one\n[*]two[/list]",
+      "markup": "&bl;list&br;\n&bl;*&br;one\n&bl;*&br;two&bl;/list&br;"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "**bold** and *italic*",
+      "markup": "**bold** and *italic*"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "~~strike~~ ++insert++ ==mark==",
+      "markup": "~~strike~~ ++insert++ ==mark=="
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "H~2~O x^2^",
+      "markup": "H~2~O x^2^"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "`[b]code[/b]`",
+      "markup": "`&bl;b&br;code&bl;/b&br;`"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "# Heading",
+      "markup": "# Heading"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "a\n\nb",
+      "markup": "a\n\nb"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "- one\n- two",
+      "markup": "- one\n- two"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "1. one\n2. two",
+      "markup": "1. one\n2. two"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "> quote",
+      "markup": "> quote"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[link](https://example.invalid/a)",
+      "markup": "&bl;link&br;(https://example.invalid/a)"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "![alt](https://example.invalid/a.png)",
+      "markup": "!&bl;alt&br;(https://example.invalid/a.png)"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "```text\n<&>\n```",
+      "markup": "```text\n<&amp;>\n```"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "<div>block</div>",
+      "markup": "<div>block</div>"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "inline <b>HTML</b>",
+      "markup": "inline <b>HTML</b>"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "- [ ] task\n- [x] done",
+      "markup": "- &bl; &br; task\n- &bl;x&br; done"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "note[^1]\n\n[^1]: body",
+      "markup": "note&bl;^1&br;\n\n&bl;^1&br;: body"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": ">! spoiler !<",
+      "markup": ">! spoiler !<"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "---",
+      "markup": "---"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "^^underlined^^",
+      "markup": "^^underlined^^"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "inline >! hidden !< end",
+      "markup": "inline >! hidden !< end"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "```text\n'\u00e9' & \"quoted\"\n```",
+      "markup": "```text\n'\u00e9' &amp; \"quoted\"\n```"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[b]unclosed",
+      "markup": "&bl;b&br;unclosed"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[B]case sensitive[/B]",
+      "markup": "&bl;B&br;case sensitive&bl;/B&br;"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[size=0]zero[/size]",
+      "markup": "&bl;size=0&br;zero&bl;/size&br;"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[color=red]named[/color]",
+      "markup": "&bl;color=red&br;named&bl;/color&br;"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "plain & [literal]",
+      "markup": "plain & [literal]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]",
+      "markup": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[b]nested [i]both[/i] bold[/b]",
+      "markup": "[b]nested [i]both[/i] bold[/b]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[size=24]large[/size]",
+      "markup": "[size=24sp]large[/size]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[color=#ff0000]red[/color]",
+      "markup": "[color=#ff0000]red[/color]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[code]x < y & z[/code]",
+      "markup": "[font=mono][size=14]x < y & z[/size][/font]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[url=https://example.invalid]link[/url]",
+      "markup": "link"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[img]https://example.invalid/a.png[/img]",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[heading=1]heading[/heading]",
+      "markup": "[b][size=20]heading[/size][/b]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[list]\n[*]one\n[*]two[/list]",
+      "markup": "\n - one\n - two"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "**bold** and *italic*",
+      "markup": "**bold** and *italic*"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "~~strike~~ ++insert++ ==mark==",
+      "markup": "~~strike~~ ++insert++ ==mark=="
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "H~2~O x^2^",
+      "markup": "H~2~O x^2^"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "`[b]code[/b]`",
+      "markup": "`[b]code[/b]`"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "# Heading",
+      "markup": "# Heading"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "a\n\nb",
+      "markup": "a\n\nb"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "- one\n- two",
+      "markup": "- one\n- two"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "1. one\n2. two",
+      "markup": "1. one\n2. two"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "> quote",
+      "markup": "> quote"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[link](https://example.invalid/a)",
+      "markup": "[link](https://example.invalid/a)"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "![alt](https://example.invalid/a.png)",
+      "markup": "![alt](https://example.invalid/a.png)"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "```text\n<&>\n```",
+      "markup": "```text\n<&>\n```"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "<div>block</div>",
+      "markup": "<div>block</div>"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "inline <b>HTML</b>",
+      "markup": "inline <b>HTML</b>"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "- [ ] task\n- [x] done",
+      "markup": "- [ ] task\n- [x] done"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "note[^1]\n\n[^1]: body",
+      "markup": "note[^1]\n\n[^1]: body"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": ">! spoiler !<",
+      "markup": ">! spoiler !<"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "---",
+      "markup": "---"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "^^underlined^^",
+      "markup": "^^underlined^^"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "inline >! hidden !< end",
+      "markup": "inline >! hidden !< end"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "```text\n'\u00e9' & \"quoted\"\n```",
+      "markup": "```text\n'\u00e9' & \"quoted\"\n```"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[b]unclosed",
+      "markup": "[b]unclosed"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[B]case sensitive[/B]",
+      "markup": "[B]case sensitive[/B]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[size=0]zero[/size]",
+      "markup": "[size=0sp]zero[/size]"
+    },
+    {
+      "renderer": 3,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[color=red]named[/color]",
+      "markup": "[color=red]named[/color]"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "plain & [literal]",
+      "markup": "plain &amp; &bl;literal&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]",
+      "markup": "&bl;b&br;bold&bl;/b&br; &bl;i&br;italic&bl;/i&br; &bl;u&br;under&bl;/u&br; &bl;s&br;strike&bl;/s&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[b]nested [i]both[/i] bold[/b]",
+      "markup": "&bl;b&br;nested &bl;i&br;both&bl;/i&br; bold&bl;/b&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[size=24]large[/size]",
+      "markup": "&bl;size=24&br;large&bl;/size&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[color=#ff0000]red[/color]",
+      "markup": "&bl;color=#ff0000&br;red&bl;/color&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[code]x < y & z[/code]",
+      "markup": "&bl;code&br;x < y &amp; z&bl;/code&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[url=https://example.invalid]link[/url]",
+      "markup": "&bl;url=https://example.invalid&br;link&bl;/url&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[img]https://example.invalid/a.png[/img]",
+      "markup": "&bl;img&br;https://example.invalid/a.png&bl;/img&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[heading=1]heading[/heading]",
+      "markup": "&bl;heading=1&br;heading&bl;/heading&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[list]\n[*]one\n[*]two[/list]",
+      "markup": "&bl;list&br;\n&bl;*&br;one\n&bl;*&br;two&bl;/list&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "**bold** and *italic*",
+      "markup": "**bold** and *italic*"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "~~strike~~ ++insert++ ==mark==",
+      "markup": "~~strike~~ ++insert++ ==mark=="
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "H~2~O x^2^",
+      "markup": "H~2~O x^2^"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "`[b]code[/b]`",
+      "markup": "`&bl;b&br;code&bl;/b&br;`"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "# Heading",
+      "markup": "# Heading"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "a\n\nb",
+      "markup": "a\n\nb"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "- one\n- two",
+      "markup": "- one\n- two"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "1. one\n2. two",
+      "markup": "1. one\n2. two"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "> quote",
+      "markup": "> quote"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[link](https://example.invalid/a)",
+      "markup": "&bl;link&br;(https://example.invalid/a)"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "![alt](https://example.invalid/a.png)",
+      "markup": "!&bl;alt&br;(https://example.invalid/a.png)"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "```text\n<&>\n```",
+      "markup": "```text\n<&amp;>\n```"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "<div>block</div>",
+      "markup": "<div>block</div>"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "inline <b>HTML</b>",
+      "markup": "inline <b>HTML</b>"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "- [ ] task\n- [x] done",
+      "markup": "- &bl; &br; task\n- &bl;x&br; done"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "note[^1]\n\n[^1]: body",
+      "markup": "note&bl;^1&br;\n\n&bl;^1&br;: body"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": ">! spoiler !<",
+      "markup": ">! spoiler !<"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "---",
+      "markup": "---"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "^^underlined^^",
+      "markup": "^^underlined^^"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "inline >! hidden !< end",
+      "markup": "inline >! hidden !< end"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "```text\n'\u00e9' & \"quoted\"\n```",
+      "markup": "```text\n'\u00e9' &amp; \"quoted\"\n```"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[b]unclosed",
+      "markup": "&bl;b&br;unclosed"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[B]case sensitive[/B]",
+      "markup": "&bl;B&br;case sensitive&bl;/B&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[size=0]zero[/size]",
+      "markup": "&bl;size=0&br;zero&bl;/size&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": false,
+      "trusted": false,
+      "content": "[color=red]named[/color]",
+      "markup": "&bl;color=red&br;named&bl;/color&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "plain & [literal]",
+      "markup": "plain &amp; &bl;literal&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]",
+      "markup": "&bl;b&br;bold&bl;/b&br; &bl;i&br;italic&bl;/i&br; &bl;u&br;under&bl;/u&br; &bl;s&br;strike&bl;/s&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[b]nested [i]both[/i] bold[/b]",
+      "markup": "&bl;b&br;nested &bl;i&br;both&bl;/i&br; bold&bl;/b&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[size=24]large[/size]",
+      "markup": "&bl;size=24&br;large&bl;/size&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[color=#ff0000]red[/color]",
+      "markup": "&bl;color=#ff0000&br;red&bl;/color&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[code]x < y & z[/code]",
+      "markup": "&bl;code&br;x < y &amp; z&bl;/code&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[url=https://example.invalid]link[/url]",
+      "markup": "&bl;url=https://example.invalid&br;link&bl;/url&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[img]https://example.invalid/a.png[/img]",
+      "markup": "&bl;img&br;https://example.invalid/a.png&bl;/img&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[heading=1]heading[/heading]",
+      "markup": "&bl;heading=1&br;heading&bl;/heading&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[list]\n[*]one\n[*]two[/list]",
+      "markup": "&bl;list&br;\n&bl;*&br;one\n&bl;*&br;two&bl;/list&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "**bold** and *italic*",
+      "markup": "**bold** and *italic*"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "~~strike~~ ++insert++ ==mark==",
+      "markup": "~~strike~~ ++insert++ ==mark=="
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "H~2~O x^2^",
+      "markup": "H~2~O x^2^"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "`[b]code[/b]`",
+      "markup": "`&bl;b&br;code&bl;/b&br;`"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "# Heading",
+      "markup": "# Heading"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "a\n\nb",
+      "markup": "a\n\nb"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "- one\n- two",
+      "markup": "- one\n- two"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "1. one\n2. two",
+      "markup": "1. one\n2. two"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "> quote",
+      "markup": "> quote"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[link](https://example.invalid/a)",
+      "markup": "&bl;link&br;(https://example.invalid/a)"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "![alt](https://example.invalid/a.png)",
+      "markup": "!&bl;alt&br;(https://example.invalid/a.png)"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "```text\n<&>\n```",
+      "markup": "```text\n<&amp;>\n```"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "<div>block</div>",
+      "markup": "<div>block</div>"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "inline <b>HTML</b>",
+      "markup": "inline <b>HTML</b>"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "- [ ] task\n- [x] done",
+      "markup": "- &bl; &br; task\n- &bl;x&br; done"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "note[^1]\n\n[^1]: body",
+      "markup": "note&bl;^1&br;\n\n&bl;^1&br;: body"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": ">! spoiler !<",
+      "markup": ">! spoiler !<"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "---",
+      "markup": "---"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "^^underlined^^",
+      "markup": "^^underlined^^"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "inline >! hidden !< end",
+      "markup": "inline >! hidden !< end"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "```text\n'\u00e9' & \"quoted\"\n```",
+      "markup": "```text\n'\u00e9' &amp; \"quoted\"\n```"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[b]unclosed",
+      "markup": "&bl;b&br;unclosed"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[B]case sensitive[/B]",
+      "markup": "&bl;B&br;case sensitive&bl;/B&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[size=0]zero[/size]",
+      "markup": "&bl;size=0&br;zero&bl;/size&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": false,
+      "content": "[color=red]named[/color]",
+      "markup": "&bl;color=red&br;named&bl;/color&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "",
+      "markup": "[i]This message contains no text content[/i]"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "plain & [literal]",
+      "markup": "plain &amp; &bl;literal&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[b]bold[/b] [i]italic[/i] [u]under[/u] [s]strike[/s]",
+      "markup": "&bl;b&br;bold&bl;/b&br; &bl;i&br;italic&bl;/i&br; &bl;u&br;under&bl;/u&br; &bl;s&br;strike&bl;/s&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[b]nested [i]both[/i] bold[/b]",
+      "markup": "&bl;b&br;nested &bl;i&br;both&bl;/i&br; bold&bl;/b&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[size=24]large[/size]",
+      "markup": "&bl;size=24&br;large&bl;/size&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[color=#ff0000]red[/color]",
+      "markup": "&bl;color=#ff0000&br;red&bl;/color&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[code]x < y & z[/code]",
+      "markup": "&bl;code&br;x < y &amp; z&bl;/code&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[url=https://example.invalid]link[/url]",
+      "markup": "&bl;url=https://example.invalid&br;link&bl;/url&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[img]https://example.invalid/a.png[/img]",
+      "markup": "&bl;img&br;https://example.invalid/a.png&bl;/img&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[heading=1]heading[/heading]",
+      "markup": "&bl;heading=1&br;heading&bl;/heading&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[list]\n[*]one\n[*]two[/list]",
+      "markup": "&bl;list&br;\n&bl;*&br;one\n&bl;*&br;two&bl;/list&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "**bold** and *italic*",
+      "markup": "**bold** and *italic*"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "~~strike~~ ++insert++ ==mark==",
+      "markup": "~~strike~~ ++insert++ ==mark=="
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "H~2~O x^2^",
+      "markup": "H~2~O x^2^"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "`[b]code[/b]`",
+      "markup": "`&bl;b&br;code&bl;/b&br;`"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "# Heading",
+      "markup": "# Heading"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "a\n\nb",
+      "markup": "a\n\nb"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "- one\n- two",
+      "markup": "- one\n- two"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "1. one\n2. two",
+      "markup": "1. one\n2. two"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "> quote",
+      "markup": "> quote"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[link](https://example.invalid/a)",
+      "markup": "&bl;link&br;(https://example.invalid/a)"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "![alt](https://example.invalid/a.png)",
+      "markup": "!&bl;alt&br;(https://example.invalid/a.png)"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "```text\n<&>\n```",
+      "markup": "```text\n<&amp;>\n```"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "<div>block</div>",
+      "markup": "<div>block</div>"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "inline <b>HTML</b>",
+      "markup": "inline <b>HTML</b>"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "- [ ] task\n- [x] done",
+      "markup": "- &bl; &br; task\n- &bl;x&br; done"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "note[^1]\n\n[^1]: body",
+      "markup": "note&bl;^1&br;\n\n&bl;^1&br;: body"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": ">! spoiler !<",
+      "markup": ">! spoiler !<"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "---",
+      "markup": "---"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "^^underlined^^",
+      "markup": "^^underlined^^"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "inline >! hidden !< end",
+      "markup": "inline >! hidden !< end"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "```text\n'\u00e9' & \"quoted\"\n```",
+      "markup": "```text\n'\u00e9' &amp; \"quoted\"\n```"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[b]unclosed",
+      "markup": "&bl;b&br;unclosed"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[B]case sensitive[/B]",
+      "markup": "&bl;B&br;case sensitive&bl;/B&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[size=0]zero[/size]",
+      "markup": "&bl;size=0&br;zero&bl;/size&br;"
+    },
+    {
+      "renderer": 255,
+      "trusted_only": true,
+      "trusted": true,
+      "content": "[color=red]named[/color]",
+      "markup": "&bl;color=red&br;named&bl;/color&br;"
+    }
+  ]
+}

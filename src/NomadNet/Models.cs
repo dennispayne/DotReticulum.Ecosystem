@@ -24,6 +24,16 @@ public sealed record NomadNetSettings
     public bool NotifyOnNewMessage { get; set; } = true;
     public bool CompactAnnounceStream { get; set; } = true;
     public bool ClipboardCopy { get; set; }
+    public double IntroTime { get; set; } = 1;
+    public string IntroText { get; set; } = "Nomad Network";
+    public string Theme { get; set; } = "dark";
+    public string ColorMode { get; set; } = "24bit";
+    public string Glyphs { get; set; } = "nerdfont";
+    public bool MouseEnabled { get; set; } = true;
+    public bool HideGuide { get; set; }
+    public bool SanitizeNames { get; set; } = true;
+    public int AnimationInterval { get; set; } = 1;
+    public bool EnableUtilities { get; set; }
     public int? LogLevel { get; set; } = 4;
     public NomadNetLogDestination? LogDestination { get; set; } = NomadNetLogDestination.File;
     public string? LogFile { get; set; }
@@ -182,6 +192,7 @@ public sealed record NomadNetSettings
 
     internal void Validate()
     {
+        NomadNetTerminalControls.Validate(this);
         NomadNetRrcPolicy.Validate(this);
         ValidateNode();
         ValidateAttachmentPath();

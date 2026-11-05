@@ -53,11 +53,10 @@ internal static partial class Program
             if (_rrcUsersVisible && room is not null)
                 foreach (var member in await client.MembersAsync(room, token).ConfigureAwait(false))
                 {
-                    var name = NomadNetTerminalText.Safe(member.Nick ?? member.Hash);
+                    var name = DisplayName(member.Nick ?? member.Hash);
                     if (color && settings.RrcNickColors)
                     {
-                        var rgb = Convert.FromHexString(NomadNetRrcPresentation.NickColor(member.Hash, settings));
-                        name = $"\u001b[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m{name}\u001b[0m";
+                        name = NomadNetTerminalControls.Color(name, NomadNetRrcPresentation.NickColor(member.Hash, settings), settings, true);
                     }
                     Console.WriteLine("RRC user " + name);
                 }

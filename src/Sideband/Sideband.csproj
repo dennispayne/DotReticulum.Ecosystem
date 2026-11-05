@@ -9,11 +9,17 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Sideband.Tests" />
+    <PackageReference Include="Markdig" Version="0.41.3" />
     <PackageReference Include="SkiaSharp" Version="3.119.4" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.4" />
     <ProjectReference Include="..\LXMF\LXMF.csproj" />
     <ProjectReference Include="..\LXST\LXST.csproj" />
     <ProjectReference Include="..\..\external\DotReticulum\src\DotReticulum.Applications\DotReticulum.Applications.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="THIRD-PARTY-NOTICES.Markdig.txt" CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="Always" Pack="true" PackagePath="" />
   </ItemGroup>
 
 </Project>

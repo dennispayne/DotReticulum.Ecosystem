@@ -15,6 +15,9 @@ public static class NomadNetPrimaryConfiguration
         DeliveryTransferLimitBytes = source.DeliveryTransferLimitBytes, CompactAnnounceStream = source.CompactAnnounceStream,
         ComposeInMarkdown = source.ComposeInMarkdown, Editor = source.Editor, ImageLoading = source.ImageLoading,
         ClipboardCopy = source.ClipboardCopy, RrcRenderMarkdown = source.RrcRenderMarkdown, RrcRenderMicron = source.RrcRenderMicron,
+        IntroTime = source.IntroTime, IntroText = source.IntroText, Theme = source.Theme, ColorMode = source.ColorMode,
+        Glyphs = source.Glyphs, MouseEnabled = source.MouseEnabled, HideGuide = source.HideGuide,
+        SanitizeNames = source.SanitizeNames, AnimationInterval = source.AnimationInterval, EnableUtilities = source.EnableUtilities,
         RrcHistoryPerRoomCap = source.RrcHistoryPerRoomCap, RrcFilterLoadedHistory = source.RrcFilterLoadedHistory,
         RrcEphemeralNoticeMinutes = source.RrcEphemeralNoticeMinutes, RrcColorMentionTimestamps = source.RrcColorMentionTimestamps,
         RrcNickColors = source.RrcNickColors, RrcJustifyMessages = source.RrcJustifyMessages, RrcSpaceMessages = source.RrcSpaceMessages,
@@ -63,6 +66,16 @@ public static class NomadNetPrimaryConfiguration
         Add("textui", "editor", settings.Editor);
         Add("textui", "image_loading", settings.ImageLoading.ToString().ToLowerInvariant());
         Add("textui", "clipboard_copy", Bool(settings.ClipboardCopy));
+        Add("textui", "intro_time", Number(settings.IntroTime));
+        Add("textui", "intro_text", settings.IntroText);
+        Add("textui", "theme", settings.Theme);
+        Add("textui", "colormode", settings.ColorMode);
+        Add("textui", "glyphs", settings.Glyphs);
+        Add("textui", "mouse_enabled", Bool(settings.MouseEnabled));
+        Add("textui", "hide_guide", Bool(settings.HideGuide));
+        Add("textui", "sanitize_names", Bool(settings.SanitizeNames));
+        Add("textui", "animation_interval", Number(settings.AnimationInterval));
+        Add("utilities", "enable_utilities", Bool(settings.EnableUtilities));
         Add("rrc", "render_markdown", Bool(settings.RrcRenderMarkdown));
         Add("rrc", "render_micron", Bool(settings.RrcRenderMicron));
         Add("rrc", "history_per_room_cap", Number(settings.RrcHistoryPerRoomCap));

@@ -190,7 +190,8 @@ public static class SidebandProfileImporter
                             DateTimeOffset.UnixEpoch.AddSeconds(message.Timestamp),
                             ((LxmState)state).ToString(), importedAttachments.Count == 0 ? null : importedAttachments,
                             DeliveryMethod: ((LxmMethod)method).ToString(), Image: image, Audio: audio,
-                            PaperUri: incoming ? null : paperUri, ImportedPaperEnvelope: !incoming && paperUri is not null));
+                            PaperUri: incoming ? null : paperUri, ImportedPaperEnvelope: !incoming && paperUri is not null,
+                            Renderer: SidebandMessageFormatting.ReadRenderer(message)));
                         if (paperUri is not null)
                             notices.Add(incoming
                                 ? "An incoming paper envelope remains archive-only; native paper exports are outgoing only."

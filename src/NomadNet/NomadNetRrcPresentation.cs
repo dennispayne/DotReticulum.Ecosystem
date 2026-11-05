@@ -96,7 +96,7 @@ public static partial class NomadNetRrcPresentation
         try { time = DateTimeOffset.FromUnixTimeMilliseconds(message.Timestamp).ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture); }
         catch (ArgumentOutOfRangeException) { time = "        "; }
         var timestamp = "[" + time + "] ";
-        var name = NomadNetTerminalText.Safe(message.Nick ?? (message.Source.Length >= 12 ? message.Source[..12] : "?"));
+        var name = NomadNetTerminalControls.Name(message.Nick ?? (message.Source.Length >= 12 ? message.Source[..12] : "?"), settings.SanitizeNames);
         var nickname = message.Kind == "action" ? "* " + name + " " : "<" + name + "> ";
         var prefixWidth = 0;
         var output = new StringBuilder(" ");
@@ -129,10 +129,7 @@ public static partial class NomadNetRrcPresentation
             if (output.Length > 4 * 1024 * 1024) throw new InvalidDataException("RRC styled output exceeds4 MiB.");
             if (ansi && color is not null)
             {
-                var rgb = Convert.FromHexString(color);
-                output.Append("\u001b[").Append(bold ? "1;" : "").Append("38;2;")
-                    .Append(rgb[0]).Append(';').Append(rgb[1]).Append(';').Append(rgb[2]).Append('m')
-                    .Append(text).Append("\u001b[0m");
+                output.Append(NomadNetTerminalControls.Color(text, color, settings, true, bold));
             }
             else output.Append(text);
         }
@@ -147,7 +144,7 @@ public static partial class NomadNetRrcPresentation
         try { time = DateTimeOffset.FromUnixTimeMilliseconds(message.Timestamp).ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture); }
         catch (ArgumentOutOfRangeException) { time = "        "; }
         Append("[" + time + "] ", style.TimestampColor);
-        Append(NomadNetTerminalText.Safe(message.Nick ?? message.Source) + ": ", style.NickColor);
+        Append(NomadNetTerminalControls.Name(message.Nick ?? message.Source, settings.SanitizeNames) + ": ", style.NickColor);
         if (message.Kind == "action") Append("* ", style.NickColor);
         foreach (var span in style.Body)
             Append(span.Text, message.Kind == "action" ? style.NickColor : span.Color, message.Kind == "action" || span.Bold);
@@ -158,10 +155,7 @@ public static partial class NomadNetRrcPresentation
         {
             if (ansi && color is not null)
             {
-                var rgb = Convert.FromHexString(color);
-                output.Append("\u001b[").Append(bold ? "1;" : "").Append("38;2;")
-                    .Append(rgb[0]).Append(';').Append(rgb[1]).Append(';').Append(rgb[2]).Append('m')
-                    .Append(text).Append("\u001b[0m");
+                output.Append(NomadNetTerminalControls.Color(text, color, settings, true, bold));
             }
             else output.Append(text);
         }

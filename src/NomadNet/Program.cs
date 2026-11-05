@@ -222,6 +222,7 @@ internal static partial class Program
         NomadNetLogging logging, CancellationToken cancellationToken)
     {
         var headless = NomadNetClientRuntime.IsHeadless(settings, options.Daemon, options.TextUi);
+        var firstRun = !File.Exists(Path.Combine(options.DataDirectory, "state.json"));
         var state = await NomadNetStore.OpenAsync(options.DataDirectory, cancellationToken).ConfigureAwait(false);
         using var identity = File.Exists(Path.Combine(options.DataDirectory, "identity"))
             ? await NomadNetProfileImport.ReadIdentityAsync(options.DataDirectory, cancellationToken).ConfigureAwait(false)
@@ -308,7 +309,11 @@ internal static partial class Program
                 Console.WriteLine("Daemon ready.");
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
             }
-            else await session.RunAsync(cancellationToken).ConfigureAwait(false);
+            else
+            {
+                await session.StartTerminalAsync(firstRun, cancellationToken).ConfigureAwait(false);
+                await session.RunAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
         finally
         {
@@ -442,6 +447,8 @@ internal static partial class Program
               printing [on|off|from <filter>|command <argv>|template <file>|default-template]
                                             Edit persisted incoming print policy; default off
               utility help                  Original bounded local/network utilities
+              menu [select <number>|watch <1–60 frames>]
+                                            Configured visible entries and bounded network refresh
               qr <lxm://uri> <name.png>       Export an existing paper QR PNG
               qr-show <lxm://uri>             Display a black-on-white terminal QR
               ingest <lxm://uri>             Ingest a paper URI for this identity
@@ -592,7 +599,7 @@ internal static partial class Program
             while (!cancellationToken.IsCancellationRequested)
             {
                 Console.Write("nomadnet> ");
-                var line = await NomadNetConsoleInput.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+                var line = await NomadNetConsoleInput.ReadLineAsync(cancellationToken, propagation.Settings).ConfigureAwait(false);
                 if (line is null)
                 {
                     if (_editor?.Buffer.Dirty == true)
@@ -624,6 +631,9 @@ internal static partial class Program
 
         private async Task<bool> ExecuteAsync(string command, CancellationToken cancellationToken)
         {
+            var selected = await TerminalCommandAsync(command, cancellationToken).ConfigureAwait(false);
+            if (selected is null) return false;
+            command = selected;
             if (await TryHandleEditorAsync(command, cancellationToken).ConfigureAwait(false)) return false;
             if (await TryHandleClipboardAsync(command, cancellationToken).ConfigureAwait(false)) return false;
             if (await TryHandleUtilityAsync(command, cancellationToken).ConfigureAwait(false)) return false;
@@ -669,7 +679,7 @@ internal static partial class Program
                     foreach (var entry in shown)
                     {
                         var trust = await store.TrustLevelAsync(entry.DestinationHash, null, cancellationToken).ConfigureAwait(false);
-                        Console.WriteLine(NomadNetAnnounceStream.Label(entry, destination, DateTimeOffset.Now) + $" trust={trust}");
+                        Console.WriteLine(NomadNetAnnounceStream.Label(entry, destination, DateTimeOffset.Now, propagation.Settings.SanitizeNames) + $" trust={trust}");
                     }
                     if (shown.Length == 0) Console.WriteLine($"No {parts.ElementAtOrDefault(1) ?? "nodes"} announces");
                 }
@@ -975,7 +985,7 @@ internal static partial class Program
             if (command.Equals("contacts", StringComparison.OrdinalIgnoreCase) || command.Equals("contact list", StringComparison.OrdinalIgnoreCase))
             {
                 foreach (var contact in await store.ContactsAsync(cancellationToken).ConfigureAwait(false))
-                    Console.WriteLine($"{contact.DestinationHash}  {NomadNetTerminalText.Safe(contact.Name)} trust={contact.TrustLevel} ignored={contact.Ignored} delivery={contact.PreferredDelivery}" +
+                    Console.WriteLine($"{contact.DestinationHash}  {DisplayName(contact.Name)} trust={contact.TrustLevel} ignored={contact.Ignored} delivery={contact.PreferredDelivery}" +
                         (contact.Notes.Length == 0 ? "" : $" notes={NomadNetTerminalText.Safe(contact.Notes)}"));
                 Console.WriteLine("Contacts complete.");
                 return false;
@@ -1042,7 +1052,7 @@ internal static partial class Program
             {
                 foreach (var conversation in await store.ConversationsAsync(cancellationToken).ConfigureAwait(false))
                     Console.WriteLine($"Conversation {conversation.PeerHash} unread={conversation.Unread} failed={conversation.Failures} messages={conversation.MessageCount} " +
-                        NomadNetTerminalText.Safe(conversation.Name ?? ""));
+                        DisplayName(conversation.Name ?? ""));
                 Console.WriteLine("Conversations complete.");
                 return false;
             }
@@ -1326,7 +1336,7 @@ internal static partial class Program
                 for (var index = 0; index < entries.Count; index++)
                 {
                     var entry = entries[index];
-                    Console.WriteLine($"Node {index + 1}: {entry.DestinationHash} {NomadNetTerminalText.Safe(entry.Name)} " +
+                    Console.WriteLine($"Node {index + 1}: {entry.DestinationHash} {DisplayName(entry.Name)} " +
                         $"trust={entry.TrustLevel} rank={entry.SortRank?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "none"} identify={entry.IdentifyOnConnect}");
                 }
                 Console.WriteLine("Nodes complete.");
@@ -1428,11 +1438,11 @@ internal static partial class Program
                     case "list": await client.SendMessageAsync(null, "/list", cancellationToken: cancellationToken).ConfigureAwait(false); break;
                     case "rooms":
                         foreach (var (room, topic) in await client.RoomsAsync(cancellationToken).ConfigureAwait(false))
-                            Console.WriteLine($"RRC room {NomadNetTerminalText.Safe(room)}: {NomadNetTerminalText.Safe(topic ?? "")}");
+                            Console.WriteLine($"RRC room {DisplayName(room)}: {NomadNetTerminalText.Safe(topic ?? "")}");
                         break;
                     case "members" when parts.Length == 2:
                         foreach (var member in await client.MembersAsync(parts[1], cancellationToken).ConfigureAwait(false))
-                            Console.WriteLine($"RRC member {member.Hash}: {NomadNetTerminalText.Safe(member.Nick ?? "")}");
+                            Console.WriteLine($"RRC member {member.Hash}: {DisplayName(member.Nick ?? "")}");
                         break;
                     case "who" when parts.Length == 2:
                         await client.SendMessageAsync(parts[1], "/who " + parts[1], cancellationToken: cancellationToken).ConfigureAwait(false); break;
@@ -1614,7 +1624,7 @@ internal static partial class Program
                 var hash = Convert.ToHexStringLower(peer.DestinationHash);
                 if (await store.IsIgnoredAsync(hash, cancellationToken).ConfigureAwait(false)) continue;
                 var displayName = LxmfAppData.DisplayName(peer.Entry.AppData);
-                Console.WriteLine($"{hash}  {NomadNetTerminalText.Safe(displayName ?? "(no display name)")} trust=" +
+                Console.WriteLine($"{hash}  {DisplayName(displayName ?? "(no display name)")} trust=" +
                     await store.TrustLevelAsync(hash, displayName, cancellationToken).ConfigureAwait(false));
             }
             if (peers.Count > 256) Console.WriteLine($"Showing 256 of {peers.Count} destinations.");

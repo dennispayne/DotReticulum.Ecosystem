@@ -482,6 +482,13 @@
                        TextWrapping="Wrap" />
             <Button x:Name="SaveConversationAppearanceButton" Content="Save conversation appearance" HorizontalAlignment="Left"
                     Click="SaveConversationAppearanceClicked" />
+            <TextBlock FontSize="17" FontWeight="SemiBold" Text="Message formatting" />
+            <CheckBox x:Name="ComposeMarkdownBox" Content="Compose ordinary outgoing messages in Markdown" />
+            <CheckBox x:Name="TrustedMarkupOnlyBox" Content="Render formatting only for trusted conversations" />
+            <TextBlock Text="An exact #!md line also selects Markdown; leading bracket markup selects BBCode. Raw details/copy remain unchanged. Fonts and sizes are bounded locally; images, scripts and automatic links are not opened."
+                       TextWrapping="Wrap" />
+            <Button x:Name="SaveMessageFormattingButton" Content="Save message formatting" HorizontalAlignment="Left"
+                    Click="SaveMessageFormattingClicked" />
             <TextBlock FontSize="17" FontWeight="SemiBold" Text="Incoming LXMF stamps" />
             <CheckBox x:Name="RequireStampsBox" Content="Advertise an inbound stamp cost" />
             <TextBox x:Name="InboundStampCostBox" MaxLength="11" PlaceholderText="Cost 1–254; empty or below one clears the cost" />

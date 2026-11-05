@@ -227,14 +227,14 @@ public sealed class NomadNetAnnounceStream : IAsyncDisposable
         finally { if (File.Exists(staged)) File.Delete(staged); }
     }
 
-    public static string Label(NomadNetAnnounceEntry entry, bool destination, DateTimeOffset now)
+    public static string Label(NomadNetAnnounceEntry entry, bool destination, DateTimeOffset now, bool sanitizeNames = true)
     {
         ValidateEntry(entry);
         var date = DateTimeOffset.UnixEpoch.AddSeconds(entry.Timestamp).ToLocalTime();
         string? text;
         try { text = new UTF8Encoding(false, true).GetString(Convert.FromHexString(entry.DataHex)); }
         catch (DecoderFallbackException) { text = null; }
-        text = destination ? entry.DestinationHash : SanitizeName(text ?? "");
+        text = destination ? entry.DestinationHash : NomadNetTerminalControls.Name(text ?? "", sanitizeNames);
         if (text.Length == 0) text = "<" + entry.DestinationHash + ">";
         var runes = text.EnumerateRunes().ToArray();
         if (runes.Length > 34) text = string.Concat(runes.Take(34).Select(r => r.ToString())) + "…";
@@ -254,11 +254,12 @@ public sealed class NomadNetAnnounceStream : IAsyncDisposable
         catch (DecoderFallbackException) { return false; }
     }
 
-    private static string SanitizeName(string name)
+    internal static string SanitizeName(string name)
     {
         var result = new StringBuilder();
         foreach (var rune in name.Normalize(NormalizationForm.FormKC).EnumerateRunes())
         {
+            if (rune.Value is >= 0xf900 and <= 0xfaff or >= 0xfe10 and <= 0xfe2f) continue;
             var category = Rune.GetUnicodeCategory(rune);
             if (category is UnicodeCategory.SpaceSeparator or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator)
             { if (result.Length > 0 && result[^1] != ' ') result.Append(' '); }

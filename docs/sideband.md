@@ -57,6 +57,105 @@ policies, telemetry and drafts; deletion additionally removes peer telemetry
 and conversation policies, and explicitly refuses an unsent draft/attachment.
 Neither action cancels delivery, recalls remote copies or erases shared media.
 
+## Bounded rich-message formatting
+
+Ordinary text/file/image/audio sends now apply the actual primary selection
+order: an exact `#!md\n` prefix (removed before packing), then
+`compose_in_markdown`, then a leading bracket group selects BBCode.
+An original empty input is rejected; a prefix-only Markdown message is valid.
+Leading whitespace/text before brackets does not select BBCode.
+`FIELD_RENDERER=15` carries Markdown2 or BBCode3. Renderer metadata persists
+through receive/history/restart and bounded profile import. Known numeric2/3
+values normalize; unknown integers remain stored but render plainly, while
+other shapes do not activate formatting. Paper composition is not silently
+changed by this ordinary-send setting.
+
+Both `compose_in_markdown` and `trusted_markup_only` default false. Strict
+atomic JSON settings/profile activation, export, the actual general console
+aliases and original Preferences controls are implemented. Trusted-only
+rendering escapes untrusted text; changing trust or preferences rerenders the
+same selected message without altering raw details/copy, drafts or saved
+content. A formatting refresh must not clear an existing paper/media preview.
+Duplicate identical raw rows retain their own renderer metadata.
+
+An independently authored Markdig0.41.3 AST walker reproduces the selected
+primary Markdown-to-intermediate-markup corpus, including basic emphasis,
+headings, links, lists/tasks, code, footnotes and spoilers. An original bounded
+span parser renders bold/italic/underline/strike, local monospace, colors,
+sizes and sub/superscript in the real message list. It is not an HTML renderer:
+no scripts, image retrieval, remote fonts or automatic URL opening occur.
+Unknown directives remain literal. Invalid/unsupported style values fail
+visibly to raw text in that row without disabling other rows or changing
+history. Safety limits are65536 input characters,262144 intermediate
+characters,64 nesting/style frames,8192 tags and4096 runs. Native sizes clamp
+to8–48; arbitrary font paths/families and unmatched closing styles explicitly
+fall back. These differ from Kivy and are not exhaustive Markdown/Kivy grammar,
+glyph/font-shaping or pixel-identical presentation claims.
+
+`GenerateMessageMarkupVectors.py` executes actual primary sender/selector
+methods using real RNS destinations/LXMF messages and a disclosed synthetic
+dispatch boundary. It separately executes actual `mdconv`,
+`md_to_bbcode`/`process_bb_markup`, pre-font message-widget statements and Kivy
+escaping. The canonical fixture contains30 send observations and432 rendering
+observations; SHA256
+`02c058287a2b8d827144d3fd6e4d408cd59964fa5c8c9e55a400510b2a754f66`.
+The primary remains `d069122af14880e43607aed0b71add4c7806fbe0`;
+core/main digests are recorded below. Additional executed source digests:
+`sbapp/ui/messages.py` =
+`9b2580f76310356d2e1a30b038857fbad4ee346aad9e2a25ab237515fff39928`;
+`sbapp/md/md.py` =
+`212ff9b6a5e9dd6f880ce086ec7e00c95d0ba1b288a2bc631eff728a6edd6c95`.
+Reference dependencies are Mistune3.1.3 and Kivy2.3.1, satisfying the inspected
+declared floors. Nominal `sp(x)=x`, synthetic UI/notification dependencies,
+and absence of primary GUI/URL-ref/font shaping are explicit boundaries.
+No primary implementation/assets are distributed. Markdig's BSD2 notice ships
+with the core/package and desktop publish directory; its license is separate
+from both this repository and the primary application.
+
+The strict Windows NativeAOT candidate's SHA256 is
+`8b19a4bb879d3e2a7df7e1af6836a312927576d7310e1e171a947d531d8d0119`.
+Build/help and shipped Markdig notice pass. Selected native/reference Pester
+passes2/0/0: byte-identical independent regeneration and eight actual original
+windows across Markdown/BBCode/untrusted/trusted modes and restart, with raw
+private-port copying and history/policy preservation. Separately, actual
+unmodified primary daemon core and that native executable exchange both
+renderer fields in both directions across clean and abrupt native restart:
+2/0 enabled cases, seven saved messages per case, identity preserved.
+These are direct TCP only, not new rich-message propagation/hop/loss,
+primary Kivy, physical display/audio or current Linux replay acceptance.
+Frozen production/native/stack inputs remain unchanged across those runs.
+Earlier rejected-alias and stale observer-cache attempts are retained, not
+relabelled as protocol failures or passing results; the corrected harness uses
+explicit delivery addresses and fresh process-state reads.
+Fresh-child parent replay repeats2/0/0 Pester and2/0 actual-primary checks
+with481 production/acceptance inputs and the exact binary/committed stack
+guarded before/after. Receipt serialization preserves primary import diagnostics
+separately from actual-import JSON; an earlier serialization failure is retained
+and is not a successful replay.
+
+One earlier full application run also failed the existing voice setup readiness
+deadline. Stronger diagnostic context was added without changing production
+voice logic or relaxing the assertion. Twelve focused repetitions and a fresh
+full application run pass; the original intermittent cause remains
+unestablished, not fixed by those green replays. The initial paper-preview
+regressions were separately reproduced and corrected by preserving selected
+media during effective formatting-policy refreshes.
+
+```powershell
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path artifacts\builds\sideband-message-markup --nologo -v:q
+# Selected native opt-in and pinned environment required:
+dotnet test tests\Sideband.Tests\Sideband.Tests.csproj -c Release --artifacts-path artifacts\builds\sideband-message-markup --filter "FullyQualifiedName~SidebandMessageMarkupNativeTests"
+Invoke-Pester tests\Pester\SidebandMessageMarkup.Tests.ps1
+# Local retained frozen-candidate operator; requires the exact recorded inputs:
+& artifacts\tests\sideband-message-markup\Replay-Candidate.ps1 -OutputDirectory artifacts\tests\sideband-message-markup\parent-guarded-replay-clean-json
+```
+
+The native cases require `DOTRETICULUM_SIDEBAND_MESSAGE_MARKUP=1`,
+`DOTRETICULUM_SIDEBAND_BINARY`, `DOTRETICULUM_SIDEBAND_MESSAGE_MARKUP_SHA256`
+and a fresh `DOTRETICULUM_SIDEBAND_MESSAGE_MARKUP_RESULTS`, plus the ordinary
+live/reference paths and opt-ins. GUI acceptance uses synthetic profiles and
+a private clipboard port, not the shared OS clipboard.
+
 ## Selected local conversation actions
 
 The original Conversations screen exposes **Clear selected conversation
@@ -163,6 +262,7 @@ runtime evidence.
 
 | Contract | Status | Upstream contract and source |
 |---|---|---|
+| Rich-message selection and bounded rendering | partial, usable subset | Actual sender selection and432 pre-font primary observations precede independent Markdig/native-span implementation. Strict persisted general policies, original styled message rows, raw-details/copy preservation, known renderer migration, trust changes and selected Windows NativeAOT actual-primary fields/restart and eight native windows pass separately. Exact grammar/font/layout, remaining message-menu semantics and current Linux remain unverified; see bounded formatting above; `SidebandMessageFormatting.cs`, `SidebandMessageMarkup.cs`, `SidebandStyledText.cs`, `MainWindow.MessageFormatting.cs`, `sbapp/sideband/core.py:send_message`, `sbapp/main.py:2051-2110`, `sbapp/ui/messages.py:532-568`. |
 | Local conversation clearing/deletion | implemented bounded subset | Actual primary clear/delete and three SQL methods execute on private SQLite, including repeated/unknown targets. Original desktop controls reuse the existing native client, admit one pending action and reset confirmation on selection changes. Real telemetry, unrelated history, draft protection, headless controls, offline restart and selected Windows NativeAOT window checks are separate from new network/primary GUI/Linux evidence; see below; `MainWindow.ConversationActions.cs`, `sbapp/sideband/core.py:1346-1358,3061-3092`, `sbapp/ui/conversations.py:168-220`. |
 | Conversation appearance policies | implemented bounded subset | `display_style_in_contact_list` and `display_style_from_all` activate strict atomic settings/profile persistence and original Preferences. Original text badges show effective icon names/colors while preserving explicit trust/unread labels.96 executed primary policy observations, headless immediate-save/state/restart and selected Windows NativeAOT rendering are separate from copied assets, full schema/presentation, primary GUI or current Linux evidence; `SidebandConversationAppearance.cs`, `MainWindow.ConversationAppearance.cs`, `sbapp/ui/conversations.py:trust_icon,get_icon_colors`. |
 | Selected raw-message text copy | implemented bounded subset | Exact saved content, not title/media/rendered markup, goes to the desktop clipboard provider. One pending provider operation, a five-second wait deadline, close cancellation and explicit errors also bound announcement copying. Executed primary callback, headless failure/ownership tests and selected Windows NativeAOT private-provider windows are separate from unverified OS clipboard round trips; `MainWindow.Clipboard.cs`, `sbapp/ui/messages.py:gen_copy`. |
@@ -184,7 +284,7 @@ runtime evidence.
 | Persistence, restart and migration | partial | Atomic native JSON/settings/history persist over restart. Offline profile import reads actual identity/config/SQLite-WAL into an absent destination; activates contacts/trust/unread/object classification/text/files/images/audio/methods, known client-router tickets/own ratchets/caches, synchronization anchors, bounded delivery/PN announce history, retained call assertions, voice-only identity/name/trust and supported telemetry/settings/permissions/appearance/cursors/map-overlay settings. Unimplemented semantics remain archived; source files never change. Other voice-object metadata, other fields and unknown persistent properties remain archive-only; interfaces, foreign ratchets and propagation-node stores are excluded. See migration limits below; `src/Sideband/SidebandProfileImporter.cs`, `SidebandRouterProfile.cs`, `SidebandPersistentProfile.cs`, `SidebandTelemetryProfile.cs`, `SidebandAnnounceProfile.cs`, `SidebandVoiceProfile.cs`, `SidebandVoicePeerProfile.cs`, `sbapp/main.py:209–273`. |
 | CLI and headless operation | implemented bounded subset | The desktop/headless console has an executed inventory of all56 primary registrations, quoted arguments, longest-prefix resolution, general status, conversation/message/paper/command workflows, propagation/announce/link inspection, active native configuration and telemetry/tracking. Long network operations are owned/cancellable; Unicode pipes, malformed input, persistence and restart are tested. Runtime log-level control filters available structured host reports; log streaming is not complete capture of every stack diagnostic. Arbitrary Python evaluation/plugins fail explicitly; unsupported configuration is never activated by archiving keys. All twelve primary voice handlers are placeholders; functional native voice remains an extension. See the dedicated console section below for exact inventory, limits, evidence and core gaps; `SidebandDaemon.cs`, `SidebandConsole*.cs`, `sbapp/sideband/cli/*.py`. |
 | Repository server | implemented bounded subset | Utilities explicitly starts/stops a public unauthenticated HTTPS static mirror with a package list, persistent private certificate, visible fingerprint and joined window shutdown. Default loopback/4444; reachable LAN exposure requires explicit bind and consent. No bundled upstream assets, automatic content downloads or update execution. Original bounded GET-only service, not RNS/rngit Git hosting; safety differences and acceptance are below; `SidebandRepository*.cs`, `MainWindow.Repository.cs`, `sbapp/sideband/core.py`, `sbapp/ui/layouts.py`. |
-| Native packaging and upgrades | partial | Windows and Linux NativeAOT publishes succeed with trimming/linker warnings treated as errors. Package the full publish directory, including Windows `sideband.exe`, `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, `libSkiaSharp.dll` and desktop/shared third-party notices; Linux `sideband`, `libHarfBuzzSharp.so`, `libSkiaSharp.so`, `libSystem.IO.Ports.Native.so` and the same notices. These include Avalonia/Skia/HarfBuzz MIT texts, ANGLE's BSD license, .NET serial runtime notices and `ThirdPartyNotices/ZXing.Net.Apache-2.0.txt`. Installer/signing, self-upgrade and other upstream package formats remain absent; `src/Sideband.Desktop/Sideband.Desktop.csproj`, `src/Sideband.Desktop/THIRD-PARTY-NOTICES*.txt`, `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
+| Native packaging and upgrades | partial | Earlier scoped Windows and Linux NativeAOT publishes succeed with trimming/linker warnings treated as errors; current rich-message native replay is Windows only. Package the full publish directory, including Windows `sideband.exe`, `av_libglesv2.dll`, `libHarfBuzzSharp.dll`, `libSkiaSharp.dll` and desktop/shared third-party notices; Linux `sideband`, `libHarfBuzzSharp.so`, `libSkiaSharp.so`, `libSystem.IO.Ports.Native.so` and the same notices. These include Avalonia/Skia/HarfBuzz MIT texts, ANGLE's BSD license, .NET serial runtime notices, `ThirdPartyNotices/ZXing.Net.Apache-2.0.txt` and `THIRD-PARTY-NOTICES.Markdig.txt`. Installer/signing, self-upgrade and other upstream package formats remain absent; `src/Sideband.Desktop/Sideband.Desktop.csproj`, `src/Sideband.Desktop/THIRD-PARTY-NOTICES*.txt`, `README.md`, `setup.py`, `build_appimage.sh`, `winbuild.bat`, `sbapp/buildozer.spec`. |
 
 ## Standalone startup announcements
 

@@ -309,7 +309,7 @@ public sealed partial class SidebandProfileImportTests
         Assert.Equal("Python attachment\n", await File.ReadAllTextAsync(Path.Combine(profile.Target, "attachments", attachment.ContentHash), TestContext.Current.CancellationToken));
     }
 
-    private static void AddMessage(Profile profile, string scenario)
+    private static void AddMessage(Profile profile, string scenario, object? renderer = null)
     {
         using var own = IdentityFile.Load(Path.Combine(profile.Source, "primary_identity"));
         using var peer = Identity.Generate();
@@ -322,6 +322,7 @@ public sealed partial class SidebandProfileImportTests
                 new object?[] { scenario == "bad-attachment" ? "../unsafe" : "second.txt", "second"u8.ToArray() },
             },
         };
+        if (renderer is not null) fields[LxmField.Renderer] = renderer;
         var message = LxMessage.Create(peerHash, scenario == "unrelated-message" ? peer : own,
             "Test content", fields: fields, method: LxmMethod.Propagated, timestamp: 1760000000.25);
         var packed = message.Pack(destinationIdentity: peer);

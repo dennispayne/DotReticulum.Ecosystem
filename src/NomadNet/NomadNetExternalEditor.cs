@@ -123,16 +123,77 @@ internal static class NomadNetConsoleInput
 {
     public static bool Interactive => !Console.IsInputRedirected && !Console.IsOutputRedirected;
 
-    public static async Task<string?> ReadLineAsync(CancellationToken token)
+    public static async Task<string?> ReadLineAsync(CancellationToken token, NomadNetSettings? settings = null)
     {
         if (!Interactive) return await Console.In.ReadLineAsync(token).ConfigureAwait(false);
+        var mouse = settings?.MouseEnabled == true;
+        try
+        {
+            if (settings is not null)
+            {
+                Console.Write("\u001b7\u001b[1;1H\u001b[2K" +
+                    NomadNetTerminalControls.Heading(NomadNetTerminalControls.MenuText(settings), settings, true) + "\u001b8");
+                if (mouse) Console.Write("\u001b[?1000h\u001b[?1006h");
+                Console.Out.Flush();
+            }
+            return await ReadInteractiveAsync(token, settings).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (mouse) { Console.Write("\u001b[?1000l\u001b[?1006l"); Console.Out.Flush(); }
+        }
+    }
+
+    private static async Task<string?> ReadInteractiveAsync(CancellationToken token, NomadNetSettings? settings)
+    {
+        using var windows = OperatingSystem.IsWindows() ? new NomadNetWindowsTerminalInput(settings?.MouseEnabled == true) : null;
         var line = new StringBuilder();
         var overflow = false;
         while (true)
         {
             token.ThrowIfCancellationRequested();
-            if (!Console.KeyAvailable) { await Task.Delay(20, token).ConfigureAwait(false); continue; }
-            var key = Console.ReadKey(intercept: true);
+            ConsoleKeyInfo key;
+            if (OperatingSystem.IsWindows())
+            {
+                if (!windows!.TryRead(out var pressed, out var click))
+                { await Task.Delay(20, token).ConfigureAwait(false); continue; }
+                if (click is { } position && settings is not null && line.Length == 0 &&
+                    NomadNetTerminalControls.Mouse(settings, $"\u001b[<0;{position.Column};{position.Row}M") is { } clicked)
+                { Console.WriteLine("Mouse menu selected: " + clicked); return clicked; }
+                if (pressed is null) continue;
+                key = pressed.Value;
+            }
+            else
+            {
+                if (!Console.KeyAvailable) { await Task.Delay(20, token).ConfigureAwait(false); continue; }
+                key = Console.ReadKey(intercept: true);
+            }
+            if (key.KeyChar == '\u001b')
+            {
+                var sequence = new StringBuilder("\u001b");
+                var until = DateTime.UtcNow.AddMilliseconds(200);
+                while (sequence.Length < 32 && DateTime.UtcNow < until)
+                {
+                    char next;
+                    if (OperatingSystem.IsWindows())
+                    {
+                        if (!windows!.TryRead(out var nextKey, out _) || nextKey is null)
+                        { await Task.Delay(5, token).ConfigureAwait(false); continue; }
+                        next = nextKey.Value.KeyChar;
+                    }
+                    else
+                    {
+                        if (!Console.KeyAvailable) { await Task.Delay(5, token).ConfigureAwait(false); continue; }
+                        next = Console.ReadKey(intercept: true).KeyChar;
+                    }
+                    sequence.Append(next);
+                    if (char.IsAsciiLetter(next) || next == '~') break;
+                }
+                if (settings is not null && line.Length == 0 &&
+                    NomadNetTerminalControls.Mouse(settings, sequence.ToString()) is { } command)
+                { Console.WriteLine(); return command; }
+                continue;
+            }
             if (key.Key == ConsoleKey.Enter) { Console.WriteLine(); return overflow ? new string('x', 16 * 1024 + 1) : line.ToString(); }
             if (key.Key == ConsoleKey.D && key.Modifiers.HasFlag(ConsoleModifiers.Control) && line.Length == 0) return null;
             if (key.Key == ConsoleKey.Backspace && line.Length > 0) { line.Length--; Console.Write("\b \b"); }

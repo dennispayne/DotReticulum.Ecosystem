@@ -1,0 +1,738 @@
+{
+  "revision": "f6b56044b42f6ca08dc99b3ecb9d965a8eb5edb2",
+  "sources": {
+    "nomadnet/ui/TextUI.py": "9750582a0c8b0e7eb01a67f09c678bf2a9649b44968230479421bcd52288448a",
+    "nomadnet/ui/textui/Config.py": "13a0a531ccc2fc207dc6b4c7f644c3eff6d261bb34edf84781c1c6f76f4b0421",
+    "nomadnet/ui/textui/Main.py": "a36de955e21e94261fefd6eebe5a6b471e1072db6f79e1833f19dc7d1fb762a5",
+    "nomadnet/ui/textui/Extras.py": "6af5ffa3ce566d4105048a4e9192e1b286a7ec548de9c573cb5832d68744ef11",
+    "nomadnet/ui/textui/Network.py": "94837c9aa4a5cb7ee14c8fe48809cb5b7eb71fbb5fd41da0b6e14f50f715139c",
+    "nomadnet/util.py": "77a4368c73b8a84ef2e9df41b4e423bcb1d0677e12ed18debe445996fa3a9e38",
+    "nomadnet/NomadNetworkApp.py": "c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2",
+    "nomadnet/Directory.py": "29467f537a64feda32a1c6fe075b3836bccbeeecee1a84628075e0e8fa3c723a"
+  },
+  "fields": [
+    {
+      "key": "intro_time",
+      "default": "1",
+      "type": "edit"
+    },
+    {
+      "key": "intro_text",
+      "default": "Nomad Network",
+      "type": "edit"
+    },
+    {
+      "key": "theme",
+      "default": "dark",
+      "type": "dropdown"
+    },
+    {
+      "key": "colormode",
+      "default": "24bit",
+      "type": "dropdown"
+    },
+    {
+      "key": "image_loading",
+      "default": "auto",
+      "type": "dropdown"
+    },
+    {
+      "key": "glyphs",
+      "default": "nerdfont",
+      "type": "dropdown"
+    },
+    {
+      "key": "mouse_enabled",
+      "default": true,
+      "type": "checkbox"
+    },
+    {
+      "key": "editor",
+      "default": "nano",
+      "type": "edit"
+    },
+    {
+      "key": "hide_guide",
+      "default": false,
+      "type": "checkbox"
+    },
+    {
+      "key": "sanitize_names",
+      "default": true,
+      "type": "checkbox"
+    },
+    {
+      "key": "clipboard_copy",
+      "default": false,
+      "type": "checkbox"
+    },
+    {
+      "key": "animation_interval",
+      "default": "1",
+      "type": "edit"
+    },
+    {
+      "key": "enable_utilities",
+      "default": false,
+      "type": "checkbox"
+    }
+  ],
+  "terminal": [
+    {
+      "glyphs": "plain",
+      "mode": 1,
+      "theme": 1,
+      "mouse": false,
+      "intro": 0,
+      "introAlarm": null,
+      "introText": null,
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "plain",
+      "mode": 1,
+      "theme": 2,
+      "mouse": false,
+      "intro": 0,
+      "introAlarm": null,
+      "introText": null,
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "plain",
+      "mode": 16,
+      "theme": 1,
+      "mouse": false,
+      "intro": -1,
+      "introAlarm": null,
+      "introText": null,
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "plain",
+      "mode": 16,
+      "theme": 2,
+      "mouse": false,
+      "intro": -1,
+      "introAlarm": null,
+      "introText": null,
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "plain",
+      "mode": 88,
+      "theme": 1,
+      "mouse": false,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "plain",
+      "mode": 88,
+      "theme": 2,
+      "mouse": false,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "plain",
+      "mode": 256,
+      "theme": 1,
+      "mouse": false,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "plain",
+      "mode": 256,
+      "theme": 2,
+      "mouse": false,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "plain",
+      "mode": 16777216,
+      "theme": 1,
+      "mouse": false,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "plain",
+      "mode": 16777216,
+      "theme": 2,
+      "mouse": false,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "unicode",
+      "mode": 1,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "unicode",
+      "mode": 1,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "unicode",
+      "mode": 16,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "unicode",
+      "mode": 16,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "unicode",
+      "mode": 88,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "unicode",
+      "mode": 88,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "unicode",
+      "mode": 256,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "unicode",
+      "mode": 256,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "unicode",
+      "mode": 16777216,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "unicode",
+      "mode": 16777216,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "nerdfont",
+      "mode": 1,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "nerdfont",
+      "mode": 1,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "nerdfont",
+      "mode": 16,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "nerdfont",
+      "mode": 16,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "nerdfont",
+      "mode": 88,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "nerdfont",
+      "mode": 88,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "nerdfont",
+      "mode": 256,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "nerdfont",
+      "mode": 256,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "nerdfont",
+      "mode": 16777216,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "nerdfont",
+      "mode": 16777216,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": false
+    },
+    {
+      "glyphs": "invalid",
+      "mode": 1,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "invalid",
+      "mode": 1,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "invalid",
+      "mode": 16,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "invalid",
+      "mode": 16,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "invalid",
+      "mode": 88,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "invalid",
+      "mode": 88,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "invalid",
+      "mode": 256,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "invalid",
+      "mode": 256,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "invalid",
+      "mode": 16777216,
+      "theme": 1,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    },
+    {
+      "glyphs": "invalid",
+      "mode": 16777216,
+      "theme": 2,
+      "mouse": true,
+      "intro": 0.125,
+      "introAlarm": 0.125,
+      "introText": "Synthetic title",
+      "paletteMatchesSelectedTheme": true,
+      "glyphFallbackIsUnicode": true
+    }
+  ],
+  "menus": [
+    {
+      "utilities": false,
+      "hideGuide": false,
+      "labels": [
+        "Conversations",
+        "Network",
+        "Channels",
+        "Log",
+        "Interfaces",
+        "Config",
+        "Guide",
+        "Quit"
+      ],
+      "utilityConstructed": false,
+      "announceTimeout": 3
+    },
+    {
+      "utilities": false,
+      "hideGuide": true,
+      "labels": [
+        "Conversations",
+        "Network",
+        "Channels",
+        "Log",
+        "Interfaces",
+        "Config",
+        "Quit"
+      ],
+      "utilityConstructed": false,
+      "announceTimeout": 3
+    },
+    {
+      "utilities": true,
+      "hideGuide": false,
+      "labels": [
+        "Conversations",
+        "Network",
+        "Channels",
+        "Log",
+        "Interfaces",
+        "Utilities",
+        "Config",
+        "Guide",
+        "Quit"
+      ],
+      "utilityConstructed": true,
+      "announceTimeout": 3
+    },
+    {
+      "utilities": true,
+      "hideGuide": true,
+      "labels": [
+        "Conversations",
+        "Network",
+        "Channels",
+        "Log",
+        "Interfaces",
+        "Utilities",
+        "Config",
+        "Quit"
+      ],
+      "utilityConstructed": true,
+      "announceTimeout": 3
+    }
+  ],
+  "names": [
+    {
+      "input": "  Alice  Smith ",
+      "sanitized": "Alice Smith",
+      "modifiers": "Alice  Smith"
+    },
+    {
+      "input": "① Ⅰ Ａ",
+      "sanitized": "1 I A",
+      "modifiers": "① Ⅰ Ａ"
+    },
+    {
+      "input": "A😀€+→B",
+      "sanitized": "AB",
+      "modifiers": "A😀€+→B"
+    },
+    {
+      "input": "á̈ אְ का",
+      "sanitized": "á א का",
+      "modifiers": "a א क"
+    },
+    {
+      "input": "A B C",
+      "sanitized": "A B C",
+      "modifiers": "A B C"
+    },
+    {
+      "input": "A​‮B",
+      "sanitized": "AB",
+      "modifiers": "AB"
+    },
+    {
+      "input": "AB",
+      "sanitized": "AB",
+      "modifiers": "AB"
+    },
+    {
+      "input": "A\tB\nC\rD\u001b[31m",
+      "sanitized": "ABCD[31m",
+      "modifiers": "A\tB\nC\nD[31m"
+    },
+    {
+      "input": "🕵️☝👍🏽",
+      "sanitized": "",
+      "modifiers": "👍"
+    },
+    {
+      "input": "a﹑b",
+      "sanitized": "a、b",
+      "modifiers": "a﹑b"
+    },
+    {
+      "input": "    ",
+      "sanitized": "",
+      "modifiers": ""
+    },
+    {
+      "input": "",
+      "sanitized": "",
+      "modifiers": ""
+    }
+  ],
+  "loader": [
+    {
+      "name": "missing-defaults",
+      "input": "[textui]\ncolormode=256\n",
+      "observed": {
+        "textui": {
+          "colormode": 256,
+          "intro_time": 1,
+          "intro_text": "Nomad Network",
+          "editor": "nano",
+          "glyphs": "unicode",
+          "mouse_enabled": true,
+          "hide_guide": false,
+          "sanitize_names": true,
+          "clipboard_copy": false,
+          "animation_interval": 1,
+          "image_loading": 2,
+          "theme": 1
+        },
+        "utilities": {
+          "enable_utilities": false
+        }
+      }
+    },
+    {
+      "name": "configured",
+      "input": "[textui]\ncolormode=88\nintro_time=.125\nintro_text=Synthetic title\ntheme=light\nglyphs=plain\nmouse_enabled=no\nhide_guide=yes\nsanitize_names=no\nanimation_interval=2\n[utilities]\nenable_utilities=yes\n",
+      "observed": {
+        "textui": {
+          "colormode": 88,
+          "intro_time": 0.125,
+          "intro_text": "Synthetic title",
+          "theme": 2,
+          "glyphs": "plain",
+          "mouse_enabled": false,
+          "hide_guide": true,
+          "sanitize_names": false,
+          "animation_interval": 2,
+          "editor": "nano",
+          "clipboard_copy": false,
+          "image_loading": 2
+        },
+        "utilities": {
+          "enable_utilities": true
+        }
+      }
+    },
+    {
+      "name": "missing-colormode",
+      "input": "[textui]\nglyphs=plain\n",
+      "observed": {
+        "error": "AttributeError",
+        "message": "module 'nomadnet.ui' has no attribute 'COLORMODE_16'"
+      }
+    },
+    {
+      "name": "zero-animation",
+      "input": "[textui]\ncolormode=monochrome\nintro_time=-1\nanimation_interval=0\n",
+      "observed": {
+        "textui": {
+          "colormode": 1,
+          "intro_time": -1.0,
+          "animation_interval": 0,
+          "intro_text": "Nomad Network",
+          "editor": "nano",
+          "glyphs": "unicode",
+          "mouse_enabled": true,
+          "hide_guide": false,
+          "sanitize_names": true,
+          "clipboard_copy": false,
+          "image_loading": 2,
+          "theme": 1
+        },
+        "utilities": {
+          "enable_utilities": false
+        }
+      }
+    },
+    {
+      "name": "invalid-theme",
+      "input": "[textui]\ncolormode=256\ntheme=invalid\n",
+      "observed": {
+        "error": "ValueError",
+        "message": "The selected Text UI theme is invalid"
+      }
+    }
+  ],
+  "method": "Execute pinned primary forms, terminal constructor and name/menu consumers.\n\nHeadless screen/loop, main-display owner and stty observers replace OS presentation\nonly. Primary methods, palette/glyph selection, menu construction and timers run.\nSeparate actual constructors start NoneUI; actual applyConfig then reads a requested\nConfigObj text selection, so malformed TextUI cases can be observed without the\nconstructor's fatal exit. This is not primary interactive TextUI startup.\nNo primary implementation or assets are emitted.\n"
+}

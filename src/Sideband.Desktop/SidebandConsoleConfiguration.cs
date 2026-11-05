@@ -18,6 +18,10 @@ public sealed class SidebandConsoleConfiguration
         _client = client;
         Text("general", "display_name", s => s.DisplayName, (s, v, t) => client.ConfigurePreferencesAsync(v, s.Theme, t));
         Flag("general", "dark_ui", s => s.Theme == "Dark", (s, v, t) => client.ConfigurePreferencesAsync(s.DisplayName, v ? "Dark" : "Light", t));
+        Flag("general", "compose_in_markdown", s => SidebandMessageFormatting.FromState(s).ComposeMarkdown,
+            (s, v, t) => client.ConfigureMessageFormattingAsync(SidebandMessageFormatting.FromState(s) with { ComposeMarkdown = v }, t));
+        Flag("general", "trusted_markup_only", s => SidebandMessageFormatting.FromState(s).TrustedMarkupOnly,
+            (s, v, t) => client.ConfigureMessageFormattingAsync(SidebandMessageFormatting.FromState(s) with { TrustedMarkupOnly = v }, t));
         Flag("general", "display_style_in_contact_list", s => SidebandConversationAppearance.FromState(s).Enabled,
             (s, v, t) => client.ConfigureConversationAppearanceAsync(SidebandConversationAppearance.FromState(s) with { Enabled = v }, t));
         Flag("general", "start_announce", s => SidebandAnnounceConfiguration.FromState(s).AnnounceOnStartup,

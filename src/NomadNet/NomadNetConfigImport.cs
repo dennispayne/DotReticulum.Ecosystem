@@ -37,7 +37,7 @@ public static class NomadNetConfigImport
         var values = Read(text);
         var settings = new NomadNetSettings { EnableClient = false, NodeAnnounceIntervalMinutes = 720, NodeAnnounceAtStart = false,
             NodePageRefreshIntervalMinutes = 0, NodeFileRefreshIntervalMinutes = 0, LogLevel = null, LogDestination = null,
-            CompactAnnounceStream = false, RrcShowGutters = false };
+            CompactAnnounceStream = false, RrcShowGutters = false, Glyphs = "unicode" };
         if (values.TryGetValue("logging.loglevel", out var logLevel))
             settings.LogLevel = NomadNetLogging.ParseLevel(Scalar(logLevel));
         if (values.TryGetValue("logging.destination", out var logDestination))
@@ -51,7 +51,7 @@ public static class NomadNetConfigImport
         var disablePropagation = true;
         foreach (var (key, raw) in values)
         {
-            if (ApplyRrcSetting(key, raw, settings)) continue;
+            if (ApplyRrcSetting(key, raw, settings) || ApplyTerminalSetting(key, raw, settings)) continue;
             if (key is "logging.loglevel" or "logging.destination" or "logging.logfile") continue;
             if (key is "printing.print_messages" or "printing.print_command" or "printing.print_from" or "printing.message_template") continue;
             if (key is "node.static_peers" or "node.prioritise_destinations")
@@ -135,7 +135,35 @@ public static class NomadNetConfigImport
         settings.ValidateAttachmentPath();
         settings.ValidatePrinting();
         NomadNetRrcPolicy.Validate(settings);
+        NomadNetTerminalControls.Validate(settings);
         return new(settings, unsupported.Order(StringComparer.Ordinal).ToArray()) { Warnings = warnings.ToArray() };
+    }
+
+    private static bool ApplyTerminalSetting(string key, string raw, NomadNetSettings settings)
+    {
+        if (key is not ("textui.intro_time" or "textui.intro_text" or "textui.theme" or "textui.colormode" or
+            "textui.glyphs" or "textui.mouse_enabled" or "textui.hide_guide" or "textui.sanitize_names" or
+            "textui.animation_interval" or "utilities.enable_utilities")) return false;
+        var value = Scalar(raw);
+        switch (key)
+        {
+            case "textui.intro_time":
+                if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
+                    throw new InvalidDataException("Invalid TextUI intro time.");
+                settings.IntroTime = seconds;
+                break;
+            case "textui.intro_text": settings.IntroText = value; break;
+            case "textui.theme": settings.Theme = value.ToLowerInvariant(); break;
+            case "textui.colormode": settings.ColorMode = value.ToLowerInvariant(); break;
+            case "textui.glyphs": settings.Glyphs = value is "plain" or "unicode" or "nerdfont" ? value : "unicode"; break;
+            case "textui.mouse_enabled": settings.MouseEnabled = Boolean(value); break;
+            case "textui.hide_guide": settings.HideGuide = Boolean(value); break;
+            case "textui.sanitize_names": settings.SanitizeNames = Boolean(value); break;
+            case "textui.animation_interval": settings.AnimationInterval = Integer(value); break;
+            case "utilities.enable_utilities": settings.EnableUtilities = Boolean(value); break;
+            default: return false;
+        }
+        return true;
     }
 
     private static bool ApplyRrcSetting(string key, string raw, NomadNetSettings settings)

@@ -8,20 +8,21 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
-The integrated selected-RNS/conversation-actions candidate builds with zero
-warnings/errors and passes2782 managed cases/151 explicit skips on Windows:
+The integrated terminal-controls/rich-message candidate builds with zero
+warnings/errors and passes2812 managed cases/156 explicit skips on Windows:
 
 ```powershell
-dotnet build DotReticulum.Ecosystem.slnx -c Release -warnaserror --nologo -v:q --artifacts-path artifacts\builds\root-rns-conversation-actions-strict
-& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-rns-conversation-actions-diagnostic -OutputDirectory artifacts\tests\fleet-rns-conversation-actions-diagnostic
+dotnet build DotReticulum.Ecosystem.slnx -c Release -warnaserror --nologo -v:q --artifacts-path artifacts\builds\root-terminal-markup-strict
+& tests\run-tests.ps1 -Coverage -Pester -ArtifactsPath artifacts\builds\fleet-terminal-markup-unified -OutputDirectory artifacts\tests\fleet-terminal-markup-unified
 ```
 
-Ordinary Pester/tooling and strict compatibility aggregation pass with93
-claims/460 selectors/five pins. Coverage unions10 reports:
-21456/28916 production lines and14452/23341 branches. Full suites pass
-LXMF163/28, LXST141/30, Nomad371/17, Sideband2104/76 and Telemetry3/0.
+Ordinary Pester/tooling and strict compatibility aggregation pass with95
+claims/494 selectors/five pins. Coverage unions10 reports:
+21977/29568 production lines and15014/24087 branches. Full suites pass
+LXMF163/28, LXST141/30, Nomad387/20, Sideband2118/78 and Telemetry3/0.
 Opt-in native/live checks remain separate, not converted from skips.
-Changed operators pass repository-configured PowerShell analysis.
+Changed operators pass repository-configured PowerShell analysis; changed Python
+adapters compile. These are local results, not new hosted acceptance.
 
 The selected stack is `4989f050aed865d16ed9f1460071c1a63cd4c7e9`.
 Separately committed stack changes `64b76f6df574406f85b5ab7666b1a91dab9674fa`
@@ -31,22 +32,39 @@ Their own1855/84 suite, strict native acceptance, actual Python proof/probe
 exchange through a native hop/restart and2,200,017-byte Resource round trip
 are separate from application integration. Neither repository was pushed.
 
-Parent-independent frozen Nomad Windows NativeAOT/reference replay passes3/0/0
-on `0e41b20cedfc9c51947a63a9addf7cf9c3a10f49519f57b0293021fb31e40437`.
-Actual Python RNS observes configured owner packet proofs across native Nomad
-restart. Four legacy form/reference cases also pass on that exact binary.
+Parent-independent frozen Nomad Windows NativeAOT/reference replay passes
+390/17 managed and5/0/0 Pester on
+`b2117d8ae472172bbd97835c84428533645123fe1b0e5ef0d21ee6241b195665`.
+Three actual native ConPTY checks replace three ordinary skips. Nine formerly
+stored-only TextUI controls and utility visibility have bounded functional
+effects; the separate direct TCP primary utility consumer observes actual probe
+responses. Agent-selected actual Vim regressions pass2/0 separately; these are
+not physical terminal, full Urwid/editor/grammar or current Linux acceptance.
 The panic toggle remains an intentional safety refusal, not an ineffective
-stored setting or missing stack implementation. Nine TextUI controls, utility
-visibility and full grammar/presentation remain required software work.
+stored setting or missing stack implementation.
 
-Sideband frozen Windows NativeAOT/reference replay passes7/0/0 on
-`240e1fe2a4d50b52e459bb74498a22e0283e561b3894a3a7bb2e30f003c6a19d`,
-including clear/delete native windows, actual primary messages both ways,
-clean/abrupt restart and synthetic native-native Opus calls. The initial
-missing-codec console failure is retained, not relabelled; installed official
-Opus on PATH permits the unchanged assertions to pass. Exact primary SQL and
-headless control observations do not establish primary GUI, new wire behavior,
-physical audio/display or current Linux replay.
+Sideband frozen Windows NativeAOT/reference replay passes2/0/0 Pester and2/0
+actual-primary cases on
+`8b19a4bb879d3e2a7df7e1af6836a312927576d7310e1e171a947d531d8d0119`.
+Independent byte-identical actual-primary regeneration precedes eight native
+formatted/trust-policy windows and clean/abrupt native identity restarts with
+both renderer fields exchanged both ways. Direct TCP is the only new network
+topology. Raw copy uses a private port, not the shared OS clipboard. Exact
+pre-font primary statements and headless controls are not primary GUI,
+exhaustive Markdown/Kivy, physical audio/display or current Linux evidence.
+
+```powershell
+& artifacts\tests\nomad-terminal-controls\Replay-Candidate.ps1 -FullSuite -OutputDirectory artifacts\tests\nomad-terminal-controls\parent-independent-replay
+& artifacts\tests\sideband-message-markup\Replay-Candidate.ps1 -OutputDirectory artifacts\tests\sideband-message-markup\parent-guarded-replay-clean-json
+```
+
+Fresh-child receipts guard production, dependency/stack, acceptance sources and
+exact native hashes before/after. The rich-message replay additionally guards
+481 inputs. Its earlier receipt serialization attempt retained unchanged passing
+checks but failed to separate upstream import diagnostics from JSON; it is not
+counted as a successful replay. The corrected operator preserves both outputs.
+Unchanged primary LXST selects its own Python filter fallback in that reference
+import; rich-message checks do not establish filter or audio acceptance.
 
 An earlier integrated collection in `fleet-rns-conversation-actions-final`
 failed one shared-owner telemetry assertion after reconnect. The test now
@@ -54,10 +72,13 @@ also requires the reconnected shared-client role and supplies diagnostic
 context; no assertion was relaxed and no production fix is claimed.
 The two focused cases pass without coverage, all three class cases pass with
 coverage, and20 instrumented repetitions pass both connection modes (40 cases).
-The fresh whole gate above also passes. The original intermittent failure's
-cause remains unestablished; a green replay is not evidence that it was fixed.
-See [NomadNet](nomadnet.md#current-configuration-acceptance) and
-[Sideband](sideband.md#selected-local-conversation-actions) for scoped commands,
+The fresh whole gate above also passes. An earlier rich-message full application
+run separately failed existing voice setup readiness. Diagnostic context was
+strengthened without changing voice production logic or relaxing the deadline;
+12 focused repetitions and fresh full runs pass. Both intermittent causes
+remain unestablished; green replays do not demonstrate fixes.
+See [NomadNet](nomadnet.md#original-terminal-controls-and-utility-visibility-c95) and
+[Sideband](sideband.md#bounded-rich-message-formatting) for scoped commands,
 source hashes and unavailable-platform boundaries.
 
 The preceding integrated configuration/appearance candidate builds with zero warnings

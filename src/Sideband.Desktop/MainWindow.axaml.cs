@@ -76,6 +76,7 @@ public sealed partial class MainWindow : Window
         VoiceModeSelector.SelectedItem = TelephoneMode.FullDuplex;
         InitializeMap();
         InitializeConversationAppearance();
+        InitializeMessageFormatting();
         PushToTalkButton.AddHandler(Avalonia.Input.InputElement.PointerPressedEvent, PushToTalkPressed, RoutingStrategies.Tunnel);
         PushToTalkButton.AddHandler(Avalonia.Input.InputElement.PointerReleasedEvent, PushToTalkReleased, RoutingStrategies.Tunnel);
         PushToTalkButton.PointerCaptureLost += (_, _) => ReleasePushToTalk();
@@ -110,6 +111,7 @@ public sealed partial class MainWindow : Window
             {
                 if (!_messageActionsSmokeVerified) return;
                 if (!VerifyConversationAppearanceSmoke()) return;
+                if (!VerifyMessageFormattingSmoke()) return;
                 Console.WriteLine("SMOKE_UI_MESSAGE_ACTIONS=confirmed-local-delete");
             }
             if (Program.SmokeConversationActionsMode)
@@ -299,6 +301,7 @@ public sealed partial class MainWindow : Window
             LoadSynchronizationSettings();
             LoadStartupAnnouncementSettings();
             LoadConversationAppearance();
+            LoadMessageFormatting();
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
             PropagationFallbackBox.IsChecked = _state.TryPropagationOnFail;
@@ -516,6 +519,7 @@ public sealed partial class MainWindow : Window
             LoadSynchronizationSettings();
             LoadStartupAnnouncementSettings();
             LoadConversationAppearance();
+            LoadMessageFormatting();
             PropagationNodeBox.Text = _state.PropagationNode;
             PropagationDefaultBox.IsChecked = _state.PropagationByDefault;
             PropagationFallbackBox.IsChecked = _state.TryPropagationOnFail;
@@ -678,6 +682,7 @@ public sealed partial class MainWindow : Window
 
     private void MessageSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (_refreshingMessageFormatting) return;
         ClearMessagePreview();
         ConfirmDeleteMessageBox.IsChecked = false;
         ConfirmRetryMessageBox.IsChecked = false;
@@ -1116,6 +1121,8 @@ public sealed partial class MainWindow : Window
         {
             _selectedContact = null;
             _visibleMessages = [];
+            _messageRows.Clear();
+            _messageFormattingKey = null;
             MessageList.ItemsSource = Array.Empty<string>();
             MessageList.SelectedIndex = -1;
             ClearMessagePreview();
@@ -1147,18 +1154,22 @@ public sealed partial class MainWindow : Window
             if (_selectedContact != peer || _closing) return;
             if (_visibleMessages.SequenceEqual(messages))
             {
+                RefreshMessageFormatting();
                 MarkVisibleConversationRead();
                 return;
             }
             var selectedId = MessageList.SelectedIndex >= 0 && MessageList.SelectedIndex < _visibleMessages.Count
                 ? _visibleMessages[MessageList.SelectedIndex].Id : (Guid?)null;
             _visibleMessages = messages;
-            MessageList.ItemsSource = messages.Select(message =>
-                $"{message.Timestamp.LocalDateTime:g}  {(message.Incoming ? "Received" : message.DeliveryState)} ({message.DeliveryMethod})\n{message.Content}" +
-                (message.Attachments is { Count: > 0 } files ? "\nFiles: " + string.Join(", ", files.Select(file => $"{file.Name} ({file.Length} bytes)")) : string.Empty) +
-                (message.Image is { } image ? $"\nImage: {image.Format} ({image.Data.Length} bytes)" : string.Empty) +
-                (message.Audio is { } audio ? $"\nAudio: mode {audio.Mode} ({audio.Data.Length} bytes)" : string.Empty))
-                .ToArray();
+            _messageRows.Clear();
+            var rows = messages.Select(message =>
+            {
+                var text = MessageHeader(message) + "\n" + message.Content + MessageExtras(message);
+                _messageRows.Add(text, message);
+                return text;
+            }).ToArray();
+            _messageFormattingKey = MessageFormattingKey();
+            MessageList.ItemsSource = rows;
             if (selectedId is not null) MessageList.SelectedIndex = messages.ToList().FindIndex(message => message.Id == selectedId);
             else if (_smokeUi)
             {

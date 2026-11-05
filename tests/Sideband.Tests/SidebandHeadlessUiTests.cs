@@ -455,7 +455,11 @@ public sealed partial class SidebandHeadlessUiTests
             window.FindControl<Button>("SaveVoicePeerTrustButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await WaitForAsync(async () => (await new SidebandStateStore(root).LoadAsync(cancellationToken: token)).VoicePeers?.Count == 1);
             window.FindControl<Button>("CallIdentityButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await WaitForAsync(() => window.FindControl<Button>("HangupCallButton")!.IsEnabled);
+            await WaitForAsync(() => window.FindControl<Button>("HangupCallButton")!.IsEnabled, () =>
+                $"After dial: identity={window.FindControl<TextBox>("VoiceIdentityBox")!.Text}; " +
+                $"voice={window.FindControl<TextBlock>("VoiceStatusText")!.Text}; " +
+                $"callEnabled={window.FindControl<Button>("CallIdentityButton")!.IsEnabled}; " +
+                $"status={window.FindControl<TextBlock>("StatusText")!.Text}");
             var elapsed = System.Diagnostics.Stopwatch.StartNew();
             window.FindControl<Button>("HangupCallButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await WaitForAsync(() => window.FindControl<Button>("CallIdentityButton")!.IsEnabled, () =>

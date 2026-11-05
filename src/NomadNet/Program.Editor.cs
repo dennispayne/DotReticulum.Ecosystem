@@ -15,16 +15,16 @@ internal static partial class Program
             var parts = Split(command, 3);
             if (parts[0] == "guide")
             {
-                if (parts.Length == 1) Console.WriteLine(_guide.Open("start"));
+                if (parts.Length == 1) Console.WriteLine(Heading(_guide.Open("start")));
                 else if (parts[1] == "topics")
                     foreach (var topic in NomadNetGuide.Topics.Keys) Console.WriteLine(topic);
                 else if (parts[1] == "links")
                     foreach (var (link, index) in _guide.Page.Links.Select((link, index) => (link, index)))
                         Console.WriteLine($"{index + 1}: {link.Label} ({link.Target})");
                 else if (parts[1] == "open" && parts.Length == 3 && int.TryParse(parts[2], out var number))
-                    Console.WriteLine(_guide.Follow(number));
-                else if (parts[1] == "back") Console.WriteLine(_guide.Back());
-                else if (parts.Length == 2) Console.WriteLine(_guide.Open(parts[1]));
+                    Console.WriteLine(Heading(_guide.Follow(number)));
+                else if (parts[1] == "back") Console.WriteLine(Heading(_guide.Back()));
+                else if (parts.Length == 2) Console.WriteLine(Heading(_guide.Open(parts[1])));
                 else throw new ArgumentException("Usage: guide [topics|links|open <number>|back|<topic>#<anchor>]");
                 return true;
             }

@@ -13,7 +13,8 @@ public sealed record SidebandChatMessage(
     SidebandImage? Image = null,
     SidebandAudio? Audio = null,
     string? PaperUri = null,
-    bool ImportedPaperEnvelope = false);
+    bool ImportedPaperEnvelope = false,
+    long? Renderer = null);
 
 public sealed record SidebandState(
     int SchemaVersion,

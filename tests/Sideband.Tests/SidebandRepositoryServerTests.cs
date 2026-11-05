@@ -229,6 +229,20 @@ public sealed class SidebandRepositoryServerTests
     }
 
     [Fact]
+    public async Task ReleasedConnectionCapacityCanBeReusedImmediatelyWithoutSubscribers()
+    {
+        await using var environment = new Environment(
+            configure: options => options with { MaximumConnections = 1 }, subscribe: false);
+        await environment.StartAsync();
+        using var client = environment.Client();
+        for (var index = 0; index < 32; index++)
+        {
+            Assert.Equal("synthetic-index", await client.GetStringAsync("/", TestContext.Current.CancellationToken));
+            await WaitUntilAsync(() => environment.Server.ActiveConnections == 0);
+        }
+    }
+
+    [Fact]
     public async Task ConnectionLimitRejectsOverflowAndRecoversAfterPeerDisconnect()
     {
         await using var environment = new Environment(configure: options => options with { MaximumConnections = 1 });

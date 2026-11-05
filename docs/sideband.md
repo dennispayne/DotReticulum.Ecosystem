@@ -107,9 +107,10 @@ thread. Denial changes only the allowed-list policy: the pinned
 `disallow_control` helper itself has a `list.pop(bytes)` defect.
 Primary unauthorized queries time out; existing native control explicitly
 returns access denied. Application recovery toggles source opt-in rather than
-bypassing cadence. Direct Windows published-application evidence is separate
-from live five-minute stale-error retention, hop/loss, hardware, current Linux,
-primary GUI and arbitrary Python-plugin ABI, none of which this slice proves.
+bypassing cadence. The initial direct Windows published-application evidence
+does not itself establish a live five-minute stale-error retention run;
+C112 below records that separate historical-binary workload. Hop/loss, hardware,
+current Linux, primary GUI and arbitrary Python-plugin ABI remain outside both.
 
 Parent-independent current-source application acceptance passes30 selected cases
 without skips on Windows NativeAOT SHA-256
@@ -122,6 +123,41 @@ pwsh -NoProfile -File tests\Pester\Invoke-SidebandPropagationTelemetryApplicatio
 The candidate guards452 production inputs, including five shared printing
 helpers. It includes sanitized unavailable-identity desktop/console diagnostics;
 older pre-integration application receipts are not reused.
+
+### Real-clock stale-success retention (C112)
+
+An additional actual-primary workload uses the exact historical `e7fd33ac…`
+executable above, not a current-HEAD rebuild. It first obtains a real authorized
+reading, clears only the primary control allow-list, and observes its next
+automatic control link **306.141seconds** later. The unauthorized actual query
+times out; all18 console polls preserve the same complete **visible** reading,
+including the explicit `Timeout; retaining last successful status` diagnostic.
+Restoring the original policy and explicitly disabling/re-enabling the source
+obtains a newer uptime and clears the error without replacing either process.
+The same native application then sends synthetic content persisted by the
+unchanged actual lxmd, whose real `LXMessage.unpack_from_file` validates its
+signature.
+
+```powershell
+pwsh -NoProfile -File tests\Pester\Invoke-SidebandPropagationRetention.ps1 -Live -Candidate artifacts\tests\sideband-propagation-telemetry\parent-current\candidate.json -OutputDirectory <fresh-repository-local-directory>
+```
+
+T1140 passes1/0/0 in342.69seconds. Producer pre/post guards cover452 production,
+1188 reference and5 workload inputs plus candidate, binary, HEAD and stack.
+The parent separately verifies raw primary event chronology,18 retained polls,
+recovery/inbox observations and immutable receipt/reference/workload/native
+hashes; this is an **artifact audit, not a second live execution**.
+Receipts are under
+`artifacts\tests\sideband-propagation-telemetry\retention-c112-third`;
+the parent audit is `retention-c112-parent-audit.json`.
+
+The console does not export individual idle-worker wakes, last-attempt/success
+timestamps or an untruncated status map.18-second operator polls are **not**
+measurements of those worker wakes. No shortened clock, hidden forced query,
+bidirectional application messaging, transport hop, loss, GUI, hardware or
+current Linux acceptance is inferred. Later Shared/source edits deliberately
+invalidate replay against this historical candidate's current-tree production
+guard; its completed evidence remains tied to the exact recorded source closure.
 
 ## Explicit local selected-paper printing (C108)
 
@@ -158,14 +194,32 @@ primary GUI, new live delivery or current Linux execution is claimed.
 
 Parent-independent frozen Windows acceptance passes16 selected cases without
 skips,34 shared printing cases/1 Linux skip and5 Pester cases without skips.
-Full Sideband2380/95 and Nomad491/35 explicit skips pass separately; the
+Full Sideband2381/95 and Nomad492/43 explicit skips pass separately; the
 receipt counts individual TRX results and records every skip reason, not the
 adapter's aggregate zero. Native SHA-256 is
-`fbd27623c8a0e2ec35aad6b73dd90e563c3dae697d0215979fa380f221f273bb`:
+`6eb8f22d277b533b3e587609c6c1ea182b5a8782b8d6e3f8893678f37f7b84a1`:
 
 ```powershell
-pwsh -NoProfile -File tests\Pester\Invoke-SidebandPrintingAcceptance.ps1 -Candidate artifacts\tests\sideband-printing\parent-final\candidate.json -OutputDirectory artifacts\tests\sideband-printing\parent-final\independent
+pwsh -NoProfile -File tests\Pester\Invoke-SidebandPrintingAcceptance.ps1 -Candidate artifacts\tests\sideband-printing\format-integration\candidate.json -OutputDirectory artifacts\tests\sideband-printing\format-integration\independent
 ```
+
+The refreshed closure includes the shared launcher's optional custom environment;
+the printing caller retains default environment inheritance. It freezes541
+production,353 acceptance,481 compiled and260 reference inputs, including the
+final preview observer-synchronization test. Candidate SHA-256 is
+`917d1e107aaf06542ac0640549cd49b099dacc840f5eb511b3704c5a64773613`.
+The same
+published binary additionally passes the actual original repository-window
+TLS/routes and certificate-preserving restart case1/0/0
+(`artifacts\tests\repository-format-native.xml`).
+
+Repository admission now observes the same atomic active counter released after
+client disposal, rather than a second semaphore whose later release could
+transiently contradict zero active connections. A32-request immediate-capacity
+reuse regression runs with no error subscribers. An initial handshake-deadline
+test observed an unexpected TLS EOF; the two-state race was real, but that
+failure's complete causality is not established. The400ms deadline assertion is
+unchanged; passing replays do not establish exhaustive timing reliability.
 
 ## Measured native messaging service endurance (C106)
 
@@ -2255,8 +2309,9 @@ pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1
 ```
 
 Explicit Linux battery collection is implemented under C101 below.
-LXMF-propagation collection and complete sensor/plugin configuration remain
-required software until separately accepted. The acquisition inventory below
+Default-off explicit-identity LXMF-propagation collection is separately
+implemented and Windows-native accepted under C105 above. Complete sensor/plugin
+configuration remains incomplete. The acquisition inventory below
 distinguishes Android-only drivers and primary supplied-data placeholders from
 missing desktop collectors; it does not invent CPU acquisition.
 

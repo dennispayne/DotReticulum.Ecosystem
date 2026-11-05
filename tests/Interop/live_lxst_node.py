@@ -59,6 +59,8 @@ def main():
     parser.add_argument("--tcp-server-port", type=int, required=True)
     parser.add_argument("--connect-port", type=int, default=0)
     parser.add_argument("--telephone", action="store_true")
+    parser.add_argument("--synthetic-audio", action="store_true",
+                        help="Explicit synthetic recorder/discard player backend; no physical audio")
     parser.add_argument("--transport", action="store_true")
     args = parser.parse_args()
     verify_reference(require_lxst=True)
@@ -78,9 +80,18 @@ def main():
     connections = []
     signals = Signals()
     phone = None
+    observations = None
 
     if args.telephone:
-        if not os.environ.get("DOTLXST_VIRTUAL_PULSE"):
+        if args.synthetic_audio:
+            from LXST import Sources as sources, Sinks as sinks
+            from lxst_synthetic_audio import SyntheticDeviceBackend, FrameObservations
+            sources.Backend = SyntheticDeviceBackend
+            sinks.Backend = SyntheticDeviceBackend
+            observations = FrameObservations()
+            emit("audio-boundary", shim="synthetic device backend and forwarding pipeline observers",
+                 physical_audio=False, protocol_patches=False)
+        elif not os.environ.get("DOTLXST_VIRTUAL_PULSE"):
             raise RuntimeError("Telephone testing requires an explicitly isolated virtual PulseAudio server")
         from LXST.Primitives.Telephony import Telephone
         phone = Telephone(identity, auto_answer=.3)
@@ -88,7 +99,11 @@ def main():
         phone.set_microphone("lxst_input")
         phone.set_ringer("lxst_output")
         phone.set_ringing_callback(lambda remote: emit("ringing", identity=remote.hash.hex()))
-        phone.set_established_callback(lambda remote: emit("established", identity=remote.hash.hex()))
+        def established_phone(remote):
+            if observations:
+                observations.attach(phone)
+            emit("established", identity=remote.hash.hex())
+        phone.set_established_callback(established_phone)
         phone.set_ended_callback(lambda remote: emit("ended"))
         phone.set_busy_callback(lambda remote: emit("busy"))
         phone.set_rejected_callback(lambda remote: emit("rejected"))
@@ -105,7 +120,9 @@ def main():
         destination.set_link_established_callback(established)
 
     emit("ready", dest=destination.hash.hex(), identity_hash=identity.hash.hex(), public_key=identity.get_public_key().hex(),
-         lxst=str(Path(LXST.__file__).resolve()))
+         lxst=str(Path(LXST.__file__).resolve()), rns=str(Path(RNS.__file__).resolve()),
+         rns_version=RNS.__version__,
+         lxst_version=__import__("LXST._version", fromlist=["__version__"]).__version__)
     for line in sys.stdin:
         parts = line.strip().split()
         if not parts:
@@ -181,6 +198,18 @@ def main():
                 if len(parts) > 1:
                     phone.switch_profile(int(parts[1]))
                 emit("profile", value=phone.active_profile)
+            elif parts[0] == "raw-format":
+                try:
+                    dtype = np.dtype(Raw.BITDEPTHS[Raw.BITDEPTH_128])
+                    emit("raw-format", available=True, bytes=dtype.itemsize,
+                         mantissa=np.finfo(dtype).nmant, byteorder=sys.byteorder)
+                except TypeError as error:
+                    emit("raw-format", available=False, reason=str(error))
+            elif parts[0] == "frame-observations":
+                if observations is None:
+                    raise RuntimeError("Frame observations require explicit --synthetic-audio")
+                observations.attach(phone)
+                emit("frame-observations", profile=phone.active_profile, **observations.snapshot())
             elif parts[0] == "mode":
                 if len(parts) > 1:
                     phone.switch_mode(int(parts[1]))

@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 using DotReticulum.Core;
 using DotReticulum.Transport;
+using SharedPrinting;
 
 namespace NomadNet;
 
@@ -18,6 +20,7 @@ public sealed class NomadNetHost : IAsyncDisposable
     private readonly Func<CancellationToken, ValueTask>? _announcePropagation;
     private readonly CancellationTokenSource _stop = new();
     private readonly HashSet<string> _registered = new(StringComparer.Ordinal);
+    private readonly HashSet<TaskCompletionSource> _requests = [];
     private Task? _jobs;
     private readonly object _lifecycle = new();
     private readonly object _refresh = new();
@@ -31,6 +34,7 @@ public sealed class NomadNetHost : IAsyncDisposable
         Statistics = NomadNetHostedStatistics.Open(directory);
         Statistics.Log = Report;
         _content = new NomadNetContent(directory, settings.EnableExecutablePages, settings.MediaConverter, settings.PagesPath, settings.FilesPath);
+        _content.Log = Report;
         _announceAtStart = settings.NodeAnnounceAtStart;
         _announcePropagation = announcePropagation;
         _schedule = new(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(settings.NodeAnnounceIntervalMinutes),
@@ -120,6 +124,7 @@ public sealed class NomadNetHost : IAsyncDisposable
 
     internal ValueTask<object?> RespondAsync(RequestContext request, CancellationToken token, bool defaultIndex)
     {
+        TaskCompletionSource completion;
         lock (_lifecycle)
         {
             if (_disposed) return ValueTask.FromResult<object?>(null);
@@ -129,8 +134,24 @@ public sealed class NomadNetHost : IAsyncDisposable
             else if (request.Path.StartsWith("/file/", StringComparison.Ordinal)) Statistics.Record(NomadNetHostedRequestKind.File);
             else if (request.Path == "/media" && _content.IsCountedMediaRequest(request))
                 Statistics.Record(NomadNetHostedRequestKind.Media);
+            completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            _requests.Add(completion);
         }
-        return _content.RespondRegisteredAsync(request, token);
+        return RespondOwnedAsync(request, token, completion);
+    }
+
+    private async ValueTask<object?> RespondOwnedAsync(RequestContext request, CancellationToken token, TaskCompletionSource completion)
+    {
+        try
+        {
+            using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(token, _stop.Token);
+            return await _content.RespondRegisteredAsync(request, lifetime.Token).ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_lifecycle) _requests.Remove(completion);
+            completion.TrySetResult();
+        }
     }
 
     private async Task RunAsync(CancellationToken cancellationToken)
@@ -195,6 +216,9 @@ public sealed class NomadNetHost : IAsyncDisposable
     private async Task DisposeCoreAsync()
     {
         await _stop.CancelAsync().ConfigureAwait(false);
+        Task[] requests;
+        lock (_lifecycle) requests = _requests.Select(request => request.Task).ToArray();
+        await Task.WhenAll(requests).ConfigureAwait(false);
         if (_jobs is not null) await _jobs.ConfigureAwait(false);
         _destination.AcceptLinks = false;
         lock (_refresh)
@@ -204,12 +228,13 @@ public sealed class NomadNetHost : IAsyncDisposable
     }
 }
 
-public sealed class NomadNetContent
+public sealed partial class NomadNetContent
 {
     private readonly string _pages;
     private readonly string _files;
     private readonly bool _execute;
     private readonly NomadNetImageCache _images;
+    public Action<string>? Log { get; set; }
     private static readonly byte[] Denied = ">Request Not Allowed\n\nThis identity is not authorised for this resource.\n"u8.ToArray();
     internal static ReadOnlySpan<byte> DefaultIndex => ">Home\n\nCreate storage/pages/index.mu to publish a home page.\n"u8;
 
@@ -323,13 +348,44 @@ public sealed class NomadNetContent
     {
         var allowFile = file + ".allowed";
         if (!File.Exists(allowFile)) return true;
-        if (remoteIdentity is null || (File.GetAttributes(allowFile) & FileAttributes.ReparsePoint) != 0) return false;
-        var bytes = IsExecutable(allowFile) ? _execute
-            ? await ExecuteAsync(allowFile, request, 64 * 1024, cancellationToken).ConfigureAwait(false) : []
-            : await ReadBoundedAsync(allowFile, 64 * 1024, cancellationToken).ConfigureAwait(false);
-        var hash = Convert.ToHexStringLower(remoteIdentity.Hash);
-        return Encoding.UTF8.GetString(bytes).Split('\n').Any(line => line.TrimEnd('\r').Equals(hash, StringComparison.OrdinalIgnoreCase));
+        if (remoteIdentity is null) return false;
+        try
+        {
+            if ((File.GetAttributes(allowFile) & FileAttributes.ReparsePoint) != 0) return false;
+            var executable = OperatingSystem.IsWindows()
+                ? GetBinaryTypeW(allowFile, out var type) && type is 0 or 6
+                : IsExecutable(allowFile);
+            var bytes = executable ? _execute
+                ? OperatingSystem.IsWindows()
+                    ? await ExecuteWindowsAuthorizationAsync(allowFile, request, cancellationToken).ConfigureAwait(false)
+                    : await ExecuteAsync(allowFile, request, 64 * 1024, cancellationToken).ConfigureAwait(false)
+                : []
+                : await ReadBoundedAsync(allowFile, 64 * 1024, cancellationToken).ConfigureAwait(false);
+            var hash = Convert.ToHexStringLower(remoteIdentity.Hash);
+            return Encoding.UTF8.GetString(bytes).Split(['\r', '\n']).Any(line => line.Equals(hash, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or
+            System.ComponentModel.Win32Exception or OperationCanceledException or TimeoutException)
+        {
+            ReportAuthorizationFailure(exception);
+            return false;
+        }
     }
+
+    private void ReportAuthorizationFailure(Exception exception)
+    {
+        var message = "Hosted authorization failed (" + exception.GetType().Name + ").";
+        Trace.TraceError(message);
+        if (Log is not { } callbacks) return;
+        foreach (Action<string> callback in callbacks.GetInvocationList())
+            try { callback(message); }
+            catch (Exception observer) { Trace.TraceError("NomadNet authorization log observer: {0}", observer.GetType().Name); }
+    }
+
+    [LibraryImport("kernel32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetBinaryTypeW(string path, out uint binaryType);
 
     private static bool IsExecutable(string file) => !OperatingSystem.IsWindows() && File.Exists(file) &&
         (File.GetUnixFileMode(file) & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute)) != 0;
@@ -355,18 +411,8 @@ public sealed class NomadNetContent
         deadline.CancelAfter(TimeSpan.FromSeconds(15));
         using var process = new Process
         {
-            StartInfo = new ProcessStartInfo(file) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true },
+            StartInfo = GeneratorStartInfo(file, request),
         };
-        process.StartInfo.Environment.Clear();
-        process.StartInfo.Environment["PATH"] = Environment.GetEnvironmentVariable("PATH") ?? "";
-        process.StartInfo.Environment["link_id"] = Convert.ToHexStringLower(request.LinkId);
-        if (request.RemoteIdentity is not null) process.StartInfo.Environment["remote_identity"] = Convert.ToHexStringLower(request.RemoteIdentity.Hash);
-        if (request.Data is Dictionary<object, object?> fields)
-            foreach (var (key, value) in fields.Take(128))
-                if (key is string name && name.Length <= 128 && name.All(character => char.IsAsciiLetterOrDigit(character) || character == '_') &&
-                    (name.StartsWith("field_", StringComparison.Ordinal) || name.StartsWith("var_", StringComparison.Ordinal)) &&
-                    value is string text && text.Length <= 16 * 1024 && !text.Contains('\0'))
-                    process.StartInfo.Environment[name] = text;
         process.Start();
         var stderr = DrainAsync(process.StandardError.BaseStream, deadline.Token);
         try
@@ -390,6 +436,69 @@ public sealed class NomadNetContent
             try { await stderr.ConfigureAwait(false); }
             catch (OperationCanceledException) { }
         }
+    }
+
+    private static ProcessStartInfo GeneratorStartInfo(string file, RequestContext request)
+    {
+        var start = new ProcessStartInfo(file) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
+        start.Environment.Clear();
+        start.Environment["PATH"] = Environment.GetEnvironmentVariable("PATH") ?? "";
+        if (OperatingSystem.IsWindows())
+            start.Environment["SystemRoot"] = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        start.Environment["link_id"] = Convert.ToHexStringLower(request.LinkId);
+        if (request.RemoteIdentity is not null) start.Environment["remote_identity"] = Convert.ToHexStringLower(request.RemoteIdentity.Hash);
+        if (request.Data is Dictionary<object, object?> fields)
+            foreach (var (key, value) in fields.Take(128))
+                if (key is string name && name.Length <= 128 && name.All(character => char.IsAsciiLetterOrDigit(character) || character == '_') &&
+                    (name.StartsWith("field_", StringComparison.Ordinal) || name.StartsWith("var_", StringComparison.Ordinal)) &&
+                    value is string text && text.Length <= 16 * 1024 && !text.Contains('\0'))
+                    start.Environment[name] = text;
+        return start;
+    }
+
+    private static async Task<byte[]> ExecuteWindowsAuthorizationAsync(string file, RequestContext request, CancellationToken cancellationToken)
+    {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(15));
+        var start = GeneratorStartInfo(file, request);
+        using var owned = WindowsPrintProcess.Start([file], start.Environment.ToDictionary());
+        var stderr = DrainAsync(owned.StandardError, deadline.Token);
+        var stdout = ReadAuthorizationOutputAsync(owned.StandardOutput, deadline.Token);
+        var exited = owned.Process.WaitForExitAsync(deadline.Token);
+        try
+        {
+            var pending = new List<Task> { stdout, stderr, exited };
+            while (pending.Count != 0)
+            {
+                var completed = await Task.WhenAny(pending).WaitAsync(deadline.Token).ConfigureAwait(false);
+                await completed.ConfigureAwait(false);
+                pending.Remove(completed);
+            }
+            await owned.WaitForEmptyAsync(deadline.Token).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            return await stdout.ConfigureAwait(false);
+        }
+        finally
+        {
+            await deadline.CancelAsync().ConfigureAwait(false);
+            await owned.StopAsync().ConfigureAwait(false);
+            foreach (var task in new Task[] { stdout, stderr, exited })
+                try { await task.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false); }
+                catch (Exception exception) when (exception is OperationCanceledException or IOException or InvalidDataException) { }
+        }
+    }
+
+    private static async Task<byte[]> ReadAuthorizationOutputAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        using var output = new MemoryStream();
+        var buffer = new byte[8192];
+        int read;
+        while ((read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) != 0)
+        {
+            if (output.Length + read > 64 * 1024) throw new InvalidDataException("Authorization generator exceeds the response limit.");
+            await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+        }
+        return output.ToArray();
     }
 
     private static async Task DrainAsync(Stream stream, CancellationToken cancellationToken)

@@ -27,6 +27,19 @@ public sealed class LxstLiveTheoryAttribute : TheoryAttribute
     }
 }
 
+public sealed class LxstExtendedRawTheoryAttribute : TheoryAttribute
+{
+    public LxstExtendedRawTheoryAttribute()
+    {
+        if (OperatingSystem.IsWindows())
+            Skip = "The pinned Windows NumPy reference has no float128 dtype; portable Raw, Opus and Codec2 have separate live cases.";
+        else if (!BitConverter.IsLittleEndian || RuntimeInformation.ProcessArchitecture != Architecture.X64)
+            Skip = "Depth 128 targets the pinned little-endian Linux x86 NumPy extended representation only.";
+        else if (Environment.GetEnvironmentVariable("DOTLXST_LIVE") != "1")
+            Skip = "Set DOTLXST_LIVE=1 with pinned Python RNS/LXST checkouts and native codecs.";
+    }
+}
+
 [Trait("Category", "Integration")]
 public sealed class LiveStreamTests
 {
@@ -35,7 +48,18 @@ public sealed class LiveStreamTests
     [InlineData("dotnet-hop")]
     [InlineData("python-hop")]
     [Trait("Category", "Live")]
-    public async Task RealPythonPacketizerAndLinkSourceExchangeAllCodecsAndSignals(string topology)
+    public Task RealPythonPacketizerAndLinkSourceExchangeAllCodecsAndSignals(string topology) =>
+        ExchangeAllCodecsAndSignalsAsync(topology, extendedRaw: false);
+
+    [LxstExtendedRawTheory]
+    [InlineData("direct")]
+    [InlineData("dotnet-hop")]
+    [InlineData("python-hop")]
+    [Trait("Category", "Live")]
+    public Task RealPythonRawExtendedPrecisionExchangeAndRecovery(string topology) =>
+        ExchangeAllCodecsAndSignalsAsync(topology, extendedRaw: true);
+
+    private static async Task ExchangeAllCodecsAndSignalsAsync(string topology, bool extendedRaw)
     {
         var port = FreePort();
         var relayPort = topology == "direct" ? 0 : FreePort();
@@ -55,6 +79,14 @@ public sealed class LiveStreamTests
         var dispatch = router.RunAsync(stop.Token);
         try
         {
+            var format = await python.CommandAsync("raw-format", "raw-format");
+            Console.WriteLine(format.GetRawText());
+            if (extendedRaw)
+                Assert.True(format.GetProperty("available").GetBoolean() &&
+                    format.GetProperty("bytes").GetInt32() == 16 &&
+                    format.GetProperty("mantissa").GetInt32() == 63 &&
+                    format.GetProperty("byteorder").GetString() == "little",
+                    "The actual reference does not provide the required x86 extended format: " + format.GetRawText());
             if (relayPort == 0) await python.CommandAsync("wait-client", "client-ready");
             await python.CommandAsync("announce", "announced");
             await WaitForAsync(() => router.HasPath(python.Hash));
@@ -108,15 +140,19 @@ public sealed class LiveStreamTests
             using var codec2 = new NativeCodec2();
             await session.SendFrameAsync(new(CodecKind.Codec2, codec2.Encode(new(new float[320], 8000, 1))));
             await python.WaitAsync("frame", 2);
-            using var extended = new RawAudioCodec(128, 2);
-            await session.SendFrameAsync(new(CodecKind.Raw, extended.Encode(new(samples, 48000, 2))));
-            var extendedObserved = await python.WaitAsync("frame", 3);
-            Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(MemoryMarshal.AsBytes(samples.AsSpan()))),
-                extendedObserved.GetProperty("sha256").GetString());
+            if (extendedRaw)
+            {
+                using var extended = new RawAudioCodec(128, 2);
+                await session.SendFrameAsync(new(CodecKind.Raw, extended.Encode(new(samples, 48000, 2))));
+                var extendedObserved = await python.WaitAsync("frame", 3);
+                Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(MemoryMarshal.AsBytes(samples.AsSpan()))),
+                    extendedObserved.GetProperty("sha256").GetString());
+            }
 
-            foreach (var kind in new[] { "raw", "raw128", "opus", "codec2", "raw" })
+            string[] kinds = extendedRaw ? ["raw", "raw128", "opus", "codec2", "raw"] : ["raw", "opus", "codec2", "raw"];
+            foreach (var kind in kinds)
                 await python.CommandAsync($"send {kind} 3", "sent");
-            await WaitForAsync(() => inbox.Count == 15);
+            await WaitForAsync(() => inbox.Count == kinds.Length * 3);
             Assert.Contains(inbox, frame => frame.SampleRate == 8000);
             Assert.Contains(inbox, frame => frame.SampleRate == 48000);
             Assert.Empty(errors);

@@ -8,24 +8,24 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
-The integrated guide/Micron/statistics/peer-control and desktop telemetry/printing
-candidate builds with zero warnings/errors and passes3178 managed cases/
-188 explicit skips on Windows:
+The integrated authorization/endurance and repository-lifecycle candidate
+builds with zero warnings/errors and passes3180 managed cases/
+197 explicit skips on Windows:
 
 ```powershell
 dotnet build DotReticulum.Ecosystem.slnx -c Release -warnaserror --nologo -v:q
-dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build --nologo -v:q --logger trx --results-directory artifacts\tests\root-current-native-integration
+dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build --nologo -v:q --logger trx --results-directory artifacts\tests\authorization-endurance-current-final
 ```
 
-Full suites pass LXMF163/28, LXST141/30, Nomad491/35,
-Sideband2380/95 and Telemetry3/0. The current unified ordinary gate uses:
+The final unified suites pass LXMF163/28, LXST141/31, Nomad492/43,
+Sideband2381/95 and Telemetry3/0. The current unified ordinary gate uses:
 
 ```powershell
-pwsh -NoProfile -File tests\run-tests.ps1 -Coverage -Pester -OutputDirectory artifacts\tests\fleet-current-native-integration-final
+pwsh -NoProfile -File tests\run-tests.ps1 -Coverage -Pester -OutputDirectory artifacts\tests\fleet-authorization-format-final
 ```
 
-It passes with108 scoped claims/689 selectors/five pins validated. The ten-report
-source-identity union is24993/33095 production lines and17362/27152 branches.
+It passes with111 scoped claims/700 selectors/five pins validated. The ten-report
+source-identity union is25031/33190 production lines and17393/27236 branches.
 Ordinary skipped native/live cases and unmapped records remain explicitly
 unavailable evidence, not passing compatibility.
 
@@ -38,7 +38,10 @@ Separately executed parent-independent Windows NativeAOT closures are:
 | C104 Micron/C109 peer controls | `nomad-micron-contracts\final-candidate.json` |15 focused,507 full/19 explicit skips,4 Pester; existing editor regressions and T1052 native persisted removal pass |
 | C105 propagation telemetry | `sideband-propagation-telemetry\parent-current\candidate.json` |30 selected without skips; actual primary lxmd and published application, configuration, identity failure and recovery |
 | C107 hosted statistics | `nomad-host-statistics\final2\candidate.json` |23 selected,3 Pester without skips; actual primary requests native host, reset/restart and strict import |
-| C108 printing | `sideband-printing\parent-final\candidate.json` |16 selected without skips,34 shared/1 Linux skip,2380 Sideband/95 skips,491 Nomad/35 skips,5 Pester |
+| C108 printing | `sideband-printing\format-integration\candidate.json` |16 selected without skips,34 shared/1 Linux skip,2381 Sideband/95 skips,492 Nomad/43 skips,5 Pester; final preview test included |
+| C110 authorization | `nomad-windows-authorization\candidate-current.json` |497 ordinary/38 skips with converter enabled,8 focused,1 actual-primary/native,7 same-binary guide/Micron/peer regressions; unchanged native, fresh strict-built test assembly |
+| C111 telephone endurance | `lxst-python-endurance\20261105T111153520Z-160d6542\receipt.json` |600.143 steady seconds/40 positive real-codec intervals, Codec2/reverse call/peer restart; Pester1/0/0 and independent verifier; historical6eafd native only |
+| C112 stale retention | `sideband-propagation-telemetry\retention-c112-third\workload\result.json` |342.69s Pester1/0/0; actual306.141s retry, Timeout/retention/policy recovery and continued signed delivery; historicale7fd native; parent raw-artifact audit, not a second live run |
 
 Candidate paths are relative to `artifacts\tests`. Their corresponding checked-in
 `tests\Pester\Invoke-*Acceptance.ps1` operators require fresh replay output
@@ -50,6 +53,43 @@ No scoped receipt accepts another candidate, later source changes or skipped
 live/platform cases. Native hashes and replay commands are in each project's
 reference. C106's ten-minute workload retains its earlier exact executable;
 it is not silently attributed to these new binaries.
+
+The final ordinary rerun first exposed T603's fixed10,000-yield polling budget
+under concurrent workloads. That test now waits for explicit asynchronous
+failure/recovery observer completions and uses concurrent collections; its exact
+error-count, rendering, recovery and observer-isolation assertions remain.
+Ten focused repetitions and the final full gate pass. No editor production
+behavior changes. The repository server's independently identified two-state
+admission race and unchanged400ms deadline acceptance are documented with its
+native TLS/restart replay in [Sideband](sideband.md#explicit-local-selected-paper-printing-c108).
+
+The Windows actual-Python stream replay separately passes3 supported-family
+cases across direct/.NET-hop/Python-hop paths, including exact two-packet loss
+each way and recovery. The reference itself reports NumPy `float128` unsupported;
+the separate extended-Raw theory explicitly skips, rather than passing or
+removing its equality assertions. Initial unsplit3-case failures are preserved
+in `lxst-python-endurance\parent-stream-regression`; the passing supported-family
+receipt is `lxst-python-endurance\parent-format-regression\stream-formats.trx`.
+The C111 shell wrapper accidentally redirected away its PassThru object and
+exited1 while checking null counts; its actual Pester XML proves1/0/0 and the
+independent receipt verifier accepts249 unchanged inputs. No command-success
+claim is made for that erroneous wrapper.
+
+The refreshed C108 strict NativeAOT build initially exhausted disk while linking
+its PDB. Transparent NTFS compression of explicitly identified completed caches
+preserved their bytes and frozen receipts; retry, freeze and independent replay
+then passed. Native6eb8 and candidate917d fingerprints, the separate actual
+repository-window1/0/0 and exact guard sizes are in the Sideband reference.
+This refresh supersedes the earlier accepted49fb printing closure without
+rewriting that receipt.
+
+Hosted evidence remains older and separate: successful Build41502113530 targets
+`89e948a90e9606bed331b71da6b787cace0bbd81`; successful Test41643993895 runs at
+`0e49bee87c932fdf404949812a8420f83cb49e4a`. Current ordinary execution uses
+the repository's xUnit2.9.3/runner4.0.1 compatibility where declared; platform
+conditions use discovery-time skip attributes, not unavailable v3-only asserts.
+Neither hosted run validates these later local commits, and no workflow was
+dispatched.
 
 The first current unified attempt passed all selected checks but failed report
 aggregation on the old T312 method name after its native-extension assertion was

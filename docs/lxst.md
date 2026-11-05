@@ -16,6 +16,75 @@ capture/acoustic behavior remains unverified.
 The project is experimental, AI-assisted and not an official or endorsed LXST
 implementation.
 
+## Sustained actual-Python telephone acceptance (C111)
+
+The opt-in Windows workload sustains at least600 measured steady seconds of
+real bidirectional Opus between the actual pinned Python `Telephone` and one
+unchanged published NativeAOT `rnphone`. Forty15-second intervals require all
+four receive/transmit counters to increase and observe encoded-frame hashes and
+finite decoded PCM on the actual Python pipeline. Actual Codec2, clean teardown,
+a Python-origin reverse call, abrupt Python process-tree termination, new-Python-peer
+recovery and clean native exit follow on the original native PID/identity.
+Phase labels and the post-stop recovery counter are not end-to-end call-setup
+or peer-failure-detection latency measurements.
+
+```powershell
+$env:DOTLXST_PYTHON_ENDURANCE = '1'
+$env:DOTRETICULUM_UPSTREAM = '<pinned RNS checkout>'
+Invoke-Pester tests\Pester\LxstPythonEndurance.Tests.ps1 -Output Detailed
+pwsh -NoProfile -File tests\Pester\Test-LxstPythonEnduranceReceipt.ps1 -Receipt <fresh-run-directory>\receipt.json
+```
+
+An independent parent run passes1/0/0 in629.79seconds, with600.143 measured
+steady seconds and40 positive intervals. Its receipt is
+`artifacts\tests\lxst-python-endurance\20261105T111153520Z-160d6542\receipt.json`,
+SHA-256 `9a2a494bbfe136bda75b42109aadab8502b8e82623501598a1c07a89a879b454`.
+The verifier checks249 unchanged frozen inputs and rejects a successful
+four-second probe as insufficient endurance. The final replay includes explicit
+default-skip diagnostics and the separate Raw-format observation command.
+Its actual Pester XML and independent receipt verifier pass; a parent shell
+wrapper incorrectly exited1 after redirecting away its own PassThru result
+before checking counts. That wrapper error is not relabelled as a successful
+command.
+
+The native binary remains SHA-256
+`6eafd7c9637f0f34d3ca016bf593a913b74b8fe95306d47b81e7c4c1bfc8c63b`,
+historical ecosystem `f8bac40`/stack
+`e52da394658f6f6c723214a9f811552418789cb6`, built using
+SDK10.0.403/compiler10.0.14/MSVC14.51.36231. Retained publish/assets/source
+manifests verify that historical closure; no current-stack rebuild is claimed.
+The actual Python core/network/codecs remain unpatched, with explicitly
+substituted synthetic capture/discard device backends and forwarding pipeline
+observers. Upstream's unmodified filter fallback runs. Its bundled Opus reports
+the literal version `libopus unknown`; exact loaded DLL hashes, not an invented
+release, identify it. The installed pycodec2 wrapper is4.1.0; its codec DLL release
+is not independently established.
+
+This is direct loopback TCP and synthetic-device evidence, not physical audio,
+quality, a pristine reference device backend, the Python rnphone CLI, impairment,
+multihop, days-long service or current Linux acceptance. The separately recorded
+one-hour native-to-native/idle-service runs retain their own binaries and scope.
+
+### Host-specific extended Raw acceptance
+
+The current Windows live stream replay passes3 cases: direct TCP, a .NET
+transport hop and a Python transport hop. Each exchanges arbitrary signal
+vectors and real Raw32/Opus/Codec2 frames both ways, drops exactly two packets
+in each direction, recovers and tears down. The receipt is
+`artifacts\tests\lxst-python-endurance\parent-format-regression\stream-formats.trx`.
+
+The earlier unsplit3-case probe failed on its fourth, depth-128 Raw frame.
+Actual pinned `Codecs/Raw.py` asks NumPy for the literal `float128` dtype;
+the Windows interpreter reports `data type 'float128' not understood`.
+This is not a portable IEEE binary128 format or evidence of a missing portable
+codec. Managed depth128 deliberately implements the pinned little-endian Linux
+x86 extended representation in16-byte slots. Its separate live theory explicitly
+skips on Windows; that skip is not included in the3 passing cases. Other hosts
+must report actual16-byte NumPy `nmant=63` representation before exercising
+the original extended-frame equality and impairment assertions. Earlier Linux
+evidence retains its original source/binary scope; no current Linux replay is
+claimed.
+
 ## Reference provenance and licensing
 
 The authoritative target is the Reticulum-hosted LXST repository
@@ -827,8 +896,9 @@ calls before either receives the other's request: both observe Busy, then a
 subsequent call succeeds. The
 reference busy-tone duration is explicitly set to zero in these policy cases;
 they do not verify busy-tone playback. Exhaustive cross-dial/timeout timing
-matrices, hardware I/O and prolonged Python-peer recovery remain unverified.
-Separate one-hour native-to-native and idle-service acceptance is recorded below.
+matrices, hardware I/O and days-long Python-peer recovery remain unverified.
+Separate ten-minute actual-Python C111 acceptance is recorded above; one-hour
+native-to-native and idle-service acceptance is recorded below.
 
 ### Remaining software versus environment limits
 
@@ -877,8 +947,9 @@ has no implementation. Their exact disposition is:
 - **Unavailable execution environments:** physical audio/GPIO/I2C/RNode,
   macOS/Android device platforms, big-endian and IEEE binary128 hosts. No physical
   quality, device latency or support claim follows from virtual/fake tests.
-  Exhaustive timing matrices, days-long operation and prolonged Python-peer
-  operation remain unverified; the one-hour native scope is recorded below.
+  Exhaustive timing matrices and days-long operation remain unverified;
+  ten-minute actual-Python C111 acceptance is recorded above and the separate
+  one-hour native scope is recorded below.
 
 ### Executed independent telephone AGC controls
 

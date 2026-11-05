@@ -98,14 +98,13 @@ public sealed class SidebandRepositoryServer : IAsyncDisposable
     private async Task AcceptAsync(TcpListener listener, X509Certificate2 certificate, CancellationToken token)
     {
         var workers = new List<Task>(_options.MaximumConnections);
-        using var slots = new SemaphoreSlim(_options.MaximumConnections);
         try
         {
             while (!token.IsCancellationRequested)
             {
                 var client = await listener.AcceptTcpClientAsync(token).ConfigureAwait(false);
                 workers.RemoveAll(task => task.IsCompleted);
-                if (!slots.Wait(0))
+                if (Volatile.Read(ref _active) >= _options.MaximumConnections)
                 {
                     client.Dispose();
                     Report("Repository connection limit reached; rejected a peer.");
@@ -120,7 +119,6 @@ public sealed class SidebandRepositoryServer : IAsyncDisposable
                     {
                         client.Dispose();
                         Interlocked.Decrement(ref _active);
-                        slots.Release();
                     }
                 }, CancellationToken.None));
             }

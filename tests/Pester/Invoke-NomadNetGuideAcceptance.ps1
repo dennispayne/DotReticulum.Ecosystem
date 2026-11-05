@@ -224,9 +224,17 @@ try {
         'NomadNetRemoteMediaCacheTests.LinkedStorageIsRejectedBeforeCreatingAnythingOutsideTheProfile'
         'NomadNetEditorStateImportNativeTests.T741ActualConptyImportsPrimarySelectionPreferencesEditsSavesAndRestarts'
         'NomadNetEditorStateImportNativeTests.T742ActualConptyCurrentDirtyConfigurationOwnershipAndFailedControlRecoverWithoutImportDrafts'
+        'NomadNetWindowsAuthorizationTests.RealPeRequiresOptInPreservesListsAndDoesNotEnableExecutablePages'
+        'NomadNetWindowsAuthorizationTests.EnvironmentIsRestrictedAndMalformedNonzeroAndStderrMatchPrimary'
+        'NomadNetWindowsAuthorizationTests.OutputFailureDeadlineAndCancellationKillOwnedChildrenAndRecover'
+        'NomadNetWindowsAuthorizationTests.InvalidPeAndLockedCompanionFailClosedWithoutDisablingService'
+        'NomadNetWindowsAuthorizationTests.HostDisposalJoinsAuthorizationProcessAndDescendantsWithoutSubscribers'
+        'NomadNetWindowsAuthorizationTests.SharedLauncherPreservesDefaultInheritanceAndCustomUnicodeIsolation'
+        'NomadNetWindowsAuthorizationTests.RealRequestDispatcherBoundsPeProcessesAndLinkCancellationDiscardsQueuedWork'
+        'NomadNetWindowsAuthorizationNativeTests.PublishedHostAuthorizesActualPrimaryWithPeOptInRecoveryAndRestart'
     )
     $unexpectedOutcomes = @($trx.TestRun.Results.UnitTestResult | Where-Object outcome -NotIn Passed,NotExecuted)
-    if ([int]$counts.failed -ne 0 -or [int]$counts.passed -ne 493 -or $unexpectedOutcomes.Count -ne 0 -or
+    if ([int]$counts.failed -ne 0 -or [int]$counts.passed -ne 494 -or $unexpectedOutcomes.Count -ne 0 -or
         $skipped -ne $expectedSkips.Count -or
         (Compare-Object $expectedSkips @($skipResults | ForEach-Object { $_.testName -replace '^NomadNet\.Tests\.', '' })) -or
         @($skipResults | Where-Object { [string]::IsNullOrWhiteSpace($_.Output.ErrorInfo.Message) }).Count -ne 0) {

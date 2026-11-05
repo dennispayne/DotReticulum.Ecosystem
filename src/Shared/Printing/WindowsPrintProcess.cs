@@ -20,9 +20,11 @@ internal sealed partial class WindowsPrintProcess : IDisposable
     private WindowsPrintProcess(SafeFileHandle job, SafeFileHandle completion, Process process, Stream output, Stream error) =>
         (_job, _completion, Process, StandardOutput, StandardError) = (job, completion, process, output, error);
 
-    public static unsafe WindowsPrintProcess Start(IReadOnlyList<string> arguments)
+    public static unsafe WindowsPrintProcess Start(IReadOnlyList<string> arguments,
+        IReadOnlyDictionary<string, string?>? environment = null)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var environmentBlock = EnvironmentBlock(environment);
         using var handles = new StartHandles();
         handles.Job = new(CreateJobObjectW(0, 0), true);
         if (handles.Job.IsInvalid) throw new Win32Exception();
@@ -72,7 +74,10 @@ internal sealed partial class WindowsPrintProcess : IDisposable
             };
             var command = CommandLine(arguments).ToCharArray();
             fixed (char* commandPointer = command)
-                if (!CreateProcessW(0, commandPointer, 0, 0, true, 0x08080004, 0, 0, ref startup, out info))
+            fixed (char* environmentPointer = environmentBlock)
+                if (!CreateProcessW(0, commandPointer, 0, 0, true,
+                    environmentBlock is null ? 0x08080004u : 0x08080404u,
+                    (nint)environmentPointer, 0, ref startup, out info))
                     throw new Win32Exception();
             if (!AssignProcessToJobObject(handles.Job.DangerousGetHandle(), info.Process)) throw new Win32Exception();
             process = Process.GetProcessById(checked((int)info.ProcessId));
@@ -97,6 +102,24 @@ internal sealed partial class WindowsPrintProcess : IDisposable
             if (initialized) DeleteProcThreadAttributeList((nint)attributes);
             NativeMemory.Free(attributes);
         }
+    }
+
+    internal static string? EnvironmentBlock(IReadOnlyDictionary<string, string?>? environment)
+    {
+        if (environment is null) return null;
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var block = new StringBuilder();
+        foreach (var (name, value) in environment.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrEmpty(name) || name.Length > 32767 || name.Contains('=') || name.Contains('\0') ||
+                value is null || value.Length > 32767 || value.Contains('\0') || !names.Add(name))
+                throw new ArgumentException("Custom process environment contains an invalid entry.", nameof(environment));
+            if ((long)block.Length + name.Length + value.Length + 3 > 2_200_000)
+                throw new ArgumentException("Custom process environment exceeds its character bound.", nameof(environment));
+            block.Append(name).Append('=').Append(value).Append('\0');
+        }
+        if (block.Length == 0) block.Append('\0');
+        return block.Append('\0').ToString();
     }
 
     public async Task WaitForEmptyAsync(CancellationToken cancellationToken)

@@ -5,8 +5,9 @@ NomadNet **1.4.4**, not an official implementation or a full port. The applicati
 reuses `ReticulumNode`, `ClientLinks` and `LxmRouter`; it does not duplicate LXMF,
 paper encryption, propagation, Reticulum links or Resource protocols.
 Required software and evidence gaps remain individually inventoried, including
-Windows executable authorization generators and complete migration/configuration
-semantics. A bounded original page/file/
+complete migration/configuration semantics. Opted-in Windows executable
+authorization generators have separate actual-primary and NativeAOT acceptance
+below; Windows executable pages remain disabled. A bounded original page/file/
 native-configuration editor and local guide are implemented and Windows-native
 verified below; they are not the primary editor or copied guide. Scoped primary-peer utilities
 and ten-minute transfer endurance now have separate Windows/Linux evidence;
@@ -15,6 +16,69 @@ software gaps, not hardware or optional-platform blockers. Original terminal/RRC
 Kitty presentation differences do not establish full upstream UI parity.
 Sideband has its own implementation and
 inventory in [sideband.md](sideband.md); this document does not track it.
+
+## Windows executable authorization generators (C110)
+
+Windows `.allowed` companions are classified by `GetBinaryTypeW`, not their
+extension. Win32/Win64 images require the existing `EnableExecutablePages`
+opt-in; static identity lists do not. This does **not** enable Windows executable
+pages. Generators execute directly, without a shell, through the existing
+suspended-start private kill-on-close Windows job, limited to64 processes.
+Stdout is bounded to64KiB; stderr is drained/discarded. A15-second execution
+deadline, request cancellation and asynchronous host disposal join the owned
+process tree, including when no observer subscribes.
+
+The existing transport dispatcher bounds four active handlers and256 queued
+requests; T1068 exercises actual concurrent TCP/link requests, four PE starts,
+queued-link cancellation and continued service. No application semaphore or
+second queue is introduced. **The execution deadline excludes prior transport
+queue residence.** Its trusted arrival time is not exposed; remote-supplied
+`RequestedAt` is not used as a local deadline.
+
+The custom Unicode environment contains only `PATH`, `link_id`,
+`remote_identity`, existing bounded `field_*`/`var_*` values and Windows-known-folder
+`SystemRoot`. The shared launcher's null environment preserves its original
+inherited environment and process flags. Validation rejects malformed,
+case-insensitively duplicated and oversized entries. Nonzero-exit output,
+CR/LF identity lines and malformed surrounding lines match executed primary
+observations. Invalid/start/read/output/deadline failures deny with sanitized
+diagnostics; throwing log observers do not disable service.
+
+Actual pinned `Node.request_allowed` executes an independently authored
+NativeAOT PE renamed `.allowed`: matching identities succeed, outsiders and
+anonymous callers fail. The observer also exercises nonzero exit, malformed
+lines, CR delimiters and2MiB stderr. `GetBinaryTypeW` recognizes PE type6 and
+rejects plaintext with error193. Primary Windows `os.access(X_OK)` attempts
+plaintext execution and raises `WinError193`; retaining native static lists
+is an explicit safety difference. The observed `Node.py` SHA-256 is
+`d48dc47e5c99378bf9b869c8766891154f06174a51c0d35c7120b5eab07324df`.
+
+The actual primary `NomadNetworkApp`/RNS client separately requests the published
+native host over direct loopback TCP: opt-in, lists, valid/malformed/overflow/
+outsider recovery and clean native/primary restart preserve identity. An
+oversized PE page fails as bounded static content without executing.
+
+```powershell
+pwsh -NoProfile -File tests\NomadNet.Tests\RunWindowsAuthorizationAcceptance.ps1 -Manifest artifacts\tests\nomad-windows-authorization\candidate-current.json -Results artifacts\tests\nomad-windows-authorization\parent-current
+```
+
+Independent parent replay passes497 ordinary cases/38 individually reason-bearing
+skips,8 focused cases,1 actual-primary/native case and7 same-binary C102/C104/C109
+regressions. Converter-enabled ordinary outcomes differ from the ordinary root
+environment; neither set promotes skips to passes. Strict managed and win-x64
+NativeAOT builds and native `--help` pass. Native SHA-256 is
+`158917141c7fac80e849ff69829d842ca307ce02a8075f25ab01ec3fac23e53c`;
+candidate SHA-256 is
+`bd882db2001dbe0a4a816fbef262f9c531129a5072c8bc056b4a6b8ab1020663`.
+Final managed acceptance uses the separately strict-built current assembly
+after T603's test-only observer synchronization fix. Before creating that fresh
+manifest, every original native, production, fixture, reference and other source
+input was verified byte-identical; the sole changed test source matches the
+recorded before/after build closure. `candidate-final2.json` and its accepted
+parent replay remain historical, unmodified evidence.
+Initial locked-PDB/linker disk-full attempts remain recorded. No new Linux,
+hop/loss, hardware or exhaustive queue-latency claim follows. The primary's
+newer declared dependency minima remain disclosed below.
 
 ## Functional Micron and hosted-node controls
 
@@ -238,7 +302,7 @@ Underlying-library acceptance is not automatically application acceptance.
 | Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Saved-node listing/opening, primary rank/trust/name ordering, explicit browser identification consent and existing associated-node trust updates are operational. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Current and legacy primary saved-directory/ignored-list import is operational through offline CLI and terminal, with atomic additive merging, idempotence and conflict rejection. Bounded compact/full announce history, separate explicit transient import, per-type/search/name-or-address terminal presentation and restart persistence are implemented below. Complete Urwid stream/node-directory presentation remains missing. |
 | Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **implemented bounded subset**: `nomadnetwork.node`, UTF-8 name app-data, original default index, nested static pages, six-second startup/configured periodic announces, independent page/file rescans, explicit refresh and bounded handler inspection. New/deleted paths update handlers; static `.allowed` identity lists are enforced. Node announces chain existing propagation behavior. C107 implements source-specific attempt counters, reset, persistence and profile activation. Original default content deliberately replaces upstream assets; executable platform boundaries are separately inventoried below. |
 | Hosted files; `Node.register_files`, `serve_file` | **implemented bounded subset**: `/file/...` uses the existing metadata-bearing Resource response (`name` UTF-8 bytes), up to 16 MiB. No hidden or `.allowed` files are advertised. Both serving directions verified with 2.2 MB files; streaming beyond that bound is not supported. |
-| Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **partial**: Linux only, explicit opt-in, direct executable (no shell interpolation), `PATH`, `link_id`, `remote_identity`, `field_*`, `var_*` environment. Bounded output, 15-second deadline, cancellation kills child tree. OS-process tests cover native execution; selected Linux native browser also submits real forms to unmodified Python executable pages across a Python transport. Python-to-native executable-form browser acceptance remains unverified. Windows intentionally does not execute pages, matching upstream page handling; Windows executable authorization generators are not implemented. |
+| Executable pages and executable `.allowed`; `Node.serve_page`, `request_allowed` | **implemented bounded platform subsets; form-browser evidence partial**: explicit opt-in, direct executable without shell interpolation, restricted request environment, bounded output and15-second execution deadline. Linux pages retain earlier native/Python-transport form evidence; Python-to-native executable-form browser acceptance remains unverified. Windows executable pages stay disabled, matching primary page handling; PE `.allowed` generators have C110 actual-primary/native, cancellation/descendant/disposal/recovery acceptance above. Existing bounded transport queue residence is outside the execution deadline; static Windows lists deliberately remain supported despite primary WinError193. |
 | Media; `Node.serve_media`, `convert_media_to_webp` | **partial, live-verified core**: `/media` dictionary requires `path` and `key`; jailed, authorised native `.webp` responses and PNG/JPEG/BMP/GIF/TIFF conversion through configured external FFmpeg. Primary quality85/dimension1200 and content-hash cache naming, 256-file/192-MiB quota, corruption regeneration and restart/cache-only serving are exercised. `show-media` provides ASCII/explicit ANSI previews; bounded browser inline ASCII uses imported/runtime never/manual/auto/always policy, a separate durable remote cache and joined cancellation. Original conversation previews reuse the conversion cache and attachment storage. Actual primary `ImageData` decodes native-served images and native previews primary-served images on Windows/Linux; exact additional inline acceptance is recorded below. Native conversion explicitly selects one frame; complete animated/multipage, alpha/EXIF behavior and Kitty graphics remain unverified/missing. |
 | Browser; `ui/textui/Browser.py`, `FileBrowser.py` | **partial**: bounded page/file/media retrieval with explicit identification consent, links/bookmarks, reload, session navigation history with back/forward and submitted-field replay, durable bounded cache with upstream `#!c=<seconds>` and 12-hour default. Editable forms/variables, anchors/folds, automatic initial/periodic partial retrieval and in-place textual composition with actionable child fields/links/media; forced `p:<id>` updates use current combined fields. Navigation/disposal cancels and joins updates. Submitted and partial requests bypass cache. Automatic/manual inline ASCII previews preserve descriptor/form indices and collapsed visibility, including partial media; a local interactive file picker supports transactional attachment composition. Upstream Kitty widgets and complete layout remain missing. |
 | Micron; `ui/textui/MicronParser.py` | **implemented, bounded functional scope**: source-observed line/inline grammar, fonts/foreground/background, row alignment, headings/custom folds, fields/actions/anchors, buffered actionable tables, per-image width/height/alignment and partial metadata composition. Browser/preview/conversation/RRC owners activate applicable controls while retaining source-specific filtering, monochrome and pipe sanitation. Executed independent reference and native-owner evidence remain distinct from live-node or identical Urwid/wcwidth/Kitty behavior; see C104. |
@@ -1626,8 +1690,11 @@ the post-restart bidirectional application flow on every run. Production,
 native binaries and the unchanged primary adapter are not modified.
 The frozen identity/conversation recipes have their independently recorded
 acceptance; additional propagation-node migration has its separate C74 contract
-and current-integration gate above. Full ConfigObj/remaining settings and
-remaining terminal workflows are still required software gaps.
+and current-integration gate above. All75 primary configuration forms and
+bounded ConfigObj grammar, original editor/guide and functional Micron now have
+their separate acceptance below. Complete migration and unexercised terminal
+contracts remain outside these receipts; selected-RNS extended grammar is the
+concrete stack gap described in the configuration section.
 
 ### Primary saved-directory and ignored-list import
 
@@ -2179,9 +2246,11 @@ with zero warnings/errors. `dotnet test DotReticulum.Ecosystem.slnx -c Release
 --results-directory artifacts\tests\nomadnet-presentation-integrated
 --logger 'trx;LogFilePrefix=integrated' -v:q` passes **2117tests,89explicit skips,
 zero failures**. Separately selected converter tests above cover the integrated
-run's converter skips. Inline media, remaining UI/configuration, migration,
-application propagation peering remain required software, not reclassified as
-hardware or optional omissions. Bounded printing software is described under C78.
+run's converter skips. These receipts precede subsequent inline-media,
+profile-migration, functional Micron and application peer-control slices;
+their current separate dispositions are above. They do not prove later
+behavior or close remaining configuration/terminal contracts. Bounded printing
+software is described under C78.
 
 ### Node hosting configuration acceptance
 
@@ -3919,7 +3988,9 @@ This proves bounded software terminal workflows, not a physical display/input
 device, Python-peer network exchange or complete primary editor/configuration
 inventory. Bounded section/reset forms and editor state/tree/pane controls are
 implemented in their sections above; bounded scrolling is implemented under C99.
-Complete ConfigObj grammar and remaining guide/terminal presentation remain required software work.
+The original bounded guide is separately accepted under C102 and functional
+Micron under C104; unexercised terminal behavior is not covered by this receipt.
+Selected-RNS extended grammar remains a concrete stack boundary described below.
 
 ### Bounded folder management
 
@@ -4127,8 +4198,10 @@ hashes; the replay operator creates fresh evidence and matching before/after
 guards, restoring process environment afterward. Earlier candidate evidence
 retains its own original source and binary association. Current Linux replay
 remains blocked by WSL EIO/read-only storage; WSL was not repaired.
-Full ConfigObj/primary configuration presentation and remaining guide/terminal
-presentation are still required software work. Bounded primary editor-state
+The75 configuration forms, bounded own-profile ConfigObj grammar, original guide
+and functional Micron have separate acceptance; selected-RNS extended grammar
+and unexercised terminal contracts remain explicit, not hardware deferrals.
+Bounded primary editor-state
 import is accepted under C100 below. Bounded native state/tree/filter/gutter/panes and
 debounced preview are implemented under C97 above. No full editor/UI parity,
 physical-terminal or additional live-network acceptance is claimed.
@@ -4223,6 +4296,20 @@ required software includes complete
 ConfigObj/RNS edge grammar and primary guide/terminal presentation, not merely
 hardware acceptance. Bounded primary editor-state import is accepted under C100.
 Bounded native editor presentation and controls are implemented under C97 above.
+
+**Concrete selected-RNS parser gap:** the application's own ConfigObj document
+supports bounded scalar/list quoting, multiline values and inherited
+interpolation, including executed primary observations. Selected RNS-file saves
+nevertheless explicitly refuse interpolation and triple-quoted values before
+publication (`NomadNetEditor.ValidateConfiguration`, T458), because the pinned public
+`DotReticulum.Applications.Rnsd.RnsdConfigParser.Parse` reads a narrower
+line-oriented grammar. A successfully parsed native application profile does
+not prove that the stack can load the same RNS configuration. This required
+software boundary must be resolved in the separate DotReticulum repository,
+with its tests and a verified pin update, not by bypassing validation or editing
+the submodule in place. No stack fix or authorization to push one is claimed.
+The original guide/editor and bounded grammar acceptance above must not be
+described as absent merely because exact Urwid presentation is not reproduced.
 
 Preceding Windows validation for the original configuration candidate, before
 the read-only LXMF readiness addition (current refreshed acceptance is above):

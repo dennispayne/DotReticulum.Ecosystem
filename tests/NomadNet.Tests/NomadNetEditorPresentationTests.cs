@@ -86,24 +86,32 @@ public sealed class NomadNetEditorPresentationTests
     public async Task CoreRenderingIsolatedObserversReportedErrorsAndContinuedService()
     {
         var clock = new ManualClock();
-        var errors = new List<string>();
-        var observed = new List<string>();
+        var errors = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var observed = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var failed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var recovered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         await using var preview = new NomadNetEditorPreview(text => text == "fail" ? throw new IOException("synthetic render") : text, clock);
-        preview.Log = errors.Add;
+        preview.Log = errors.Enqueue;
         preview.Rendered += _ => throw new InvalidOperationException("synthetic observer");
-        preview.Rendered += result => observed.Add(result.Text);
+        preview.Rendered += result =>
+        {
+            observed.Enqueue(result.Text);
+            (result.Error is null ? recovered : failed).TrySetResult();
+        };
         preview.Change("fail");
         await clock.WaitForTimerAsync();
         clock.Advance(400);
-        await UntilAsync(() => observed.Count == 1);
+        await failed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Single(observed);
         Assert.NotNull(preview.Current!.Error);
         preview.Change("healthy");
         await clock.WaitForTimerAsync();
         clock.Advance(400);
-        await UntilAsync(() => observed.Count == 2);
+        await recovered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(2, observed.Count);
         Assert.Equal("healthy", preview.Current!.Text);
         Assert.Equal(3, errors.Count);
-        Assert.Contains("render failed", errors[0]);
+        Assert.Contains("render failed", errors.First());
         Assert.All(errors.Skip(1), message => Assert.Contains("observer failed", message));
     }
 

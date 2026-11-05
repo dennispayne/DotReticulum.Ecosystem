@@ -111,6 +111,8 @@ public sealed class SidebandConsoleConfiguration
         }
         Flag("sensors", "rns_transport", s => s.Telemetry.RnsTransportEnabled,
             (s, v, t) => client.ConfigureTelemetryAsync(s.Telemetry with { RnsTransportEnabled = v }, t));
+        Flag("sensors", "battery", s => s.Telemetry.BatteryEnabled,
+            (s, v, t) => client.ConfigureTelemetryAsync(s.Telemetry with { BatteryEnabled = v }, t));
         Flag("sensors", "information", s => s.Telemetry.InformationEnabled,
             (s, v, t) => client.ConfigureTelemetryAsync(s.Telemetry with { InformationEnabled = v }, t));
         Text("sensors", "information_text", s => s.Telemetry.Information,

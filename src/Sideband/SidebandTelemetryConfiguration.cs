@@ -12,6 +12,7 @@ public sealed record SidebandTelemetryConfiguration
 {
     public bool Enabled { get; init; }
     public bool RnsTransportEnabled { get; init; }
+    public bool BatteryEnabled { get; init; }
     public bool RnsTransportIncludeTables { get; init; }
     public SidebandMqttConfiguration Mqtt { get; init; } = new();
     public bool SendToTrusted { get; init; }
@@ -72,6 +73,8 @@ public sealed record SidebandTelemetryConfiguration
                 throw new InvalidDataException("Manual sensors cannot supply time/received provenance or oversized values.");
             if (RnsTransportEnabled && sensor.SensorId == (byte)SidebandTelemetrySensorId.RnsTransport)
                 throw new InvalidDataException("Automatic and manual Reticulum transport sensors cannot both be enabled.");
+            if (BatteryEnabled && sensor.SensorId == (byte)SidebandTelemetrySensorId.Battery)
+                throw new InvalidDataException("Automatic and manual battery sensors cannot both be enabled.");
             var reading = SidebandTelemetryCodec.FromWireValue(sensor.SensorId, SidebandTelemetryValue.Decode(Convert.FromHexString(sensor.WireHex)));
             if (reading.Status == SidebandTelemetryStatus.Malformed) throw new InvalidDataException("Malformed manual sensor.");
         }

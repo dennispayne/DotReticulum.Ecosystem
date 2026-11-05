@@ -18,6 +18,7 @@ public sealed partial class MainWindow
         if (_state is null) return;
         var config = _state.Telemetry;
         TelemetryEnabledBox.IsChecked = config.Enabled;
+        TelemetryBatteryBox.IsChecked = config.BatteryEnabled;
         TelemetryRnsTransportBox.IsChecked = config.RnsTransportEnabled;
         TelemetryRnsTransportTablesBox.IsChecked = config.RnsTransportIncludeTables;
         TelemetryMqttEnabledBox.IsChecked = config.Mqtt.Enabled;
@@ -68,6 +69,7 @@ public sealed partial class MainWindow
         var config = _state.Telemetry with
         {
             Enabled = TelemetryEnabledBox.IsChecked == true,
+            BatteryEnabled = TelemetryBatteryBox.IsChecked == true,
             Mqtt = new()
             {
                 Enabled = TelemetryMqttEnabledBox.IsChecked == true,
@@ -114,11 +116,13 @@ public sealed partial class MainWindow
     {
         var report = await _client.RefreshLocalTelemetryAsync(_windowCancellation.Token);
         _telemetryPreview = report is null ? "Local telemetry is disabled." :
-            (report.Get(SidebandTelemetrySensorId.RnsTransport) is null ? "LOCAL MANUAL PREVIEW" : "LOCAL RUNTIME/MANUAL PREVIEW") +
+            (report.Get(SidebandTelemetrySensorId.RnsTransport) is not null ? "LOCAL RUNTIME/MANUAL PREVIEW" :
+             report.Get(SidebandTelemetrySensorId.Battery) is not null && _state?.Telemetry.BatteryEnabled == true
+                ? "LOCAL BATTERY/MANUAL PREVIEW" : "LOCAL MANUAL PREVIEW") +
             " (not proof of storage or network delivery)\n" + FormatTelemetry(report);
         TelemetryDetailsText.Text = _telemetryPreview;
         TelemetryStatusText.Text = report is null ? "Local telemetry disabled." :
-            "Local report prepared without physical sensors. Optional runtime data uses the connected node/shared owner; disconnected runtime is explicitly unavailable.";
+            "Local report prepared. Opted-in Linux battery collection reads system power-supply status; other values are manual or connected Reticulum runtime data. Unavailable sources are reported explicitly.";
         RequestTelemetryRefresh();
         if (_smokeUi && Program.SmokeTelemetryMode && report is not null)
         {
@@ -129,6 +133,8 @@ public sealed partial class MainWindow
                 Console.WriteLine("SMOKE_UI_RUNTIME_TELEMETRY_STATUS=" + runtime.Status);
                 Console.WriteLine("SMOKE_UI_RUNTIME_TELEMETRY_TABLES=" + (runtime.Data.Get("ifstats") is { IsNil: false } ? "1" : "0"));
             }
+            if (_state?.Telemetry.BatteryEnabled == true && report.Get(SidebandTelemetrySensorId.Battery) is { } battery)
+                Console.WriteLine("SMOKE_UI_BATTERY_STATUS=" + battery.Status);
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 TelemetryPage.ScrollToEnd();

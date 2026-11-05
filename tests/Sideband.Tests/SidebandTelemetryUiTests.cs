@@ -13,6 +13,38 @@ public sealed class SidebandTelemetryUiTests
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     [AvaloniaFact]
+    public async Task BatteryPreferencePersistsWithoutImplicitlyEnablingCollectionOrOpeningDevices()
+    {
+        var path = TemporaryDirectory();
+        MainWindow? window = null;
+        try
+        {
+            window = new MainWindow(path);
+            window.Show();
+            await ReadyAsync(window);
+            Click(window, "TelemetryNavButton");
+            Assert.False(window.FindControl<CheckBox>("TelemetryBatteryBox")!.IsChecked);
+            Assert.Contains("Linux", window.FindControl<CheckBox>("TelemetryBatteryBox")!.Content!.ToString());
+            window.FindControl<CheckBox>("TelemetryBatteryBox")!.IsChecked = true;
+            Click(window, "SaveTelemetryButton");
+            await WaitForAsync(() => Status(window).StartsWith("Telemetry settings saved.", StringComparison.Ordinal));
+            Assert.True((await ReadStateAsync(path)).Telemetry.BatteryEnabled);
+            Assert.False((await ReadStateAsync(path)).Telemetry.Enabled);
+            await window.CloseAndWaitAsync();
+            window = new MainWindow(path);
+            window.Show();
+            await ReadyAsync(window);
+            Assert.True(window.FindControl<CheckBox>("TelemetryBatteryBox")!.IsChecked);
+            Assert.False(window.FindControl<CheckBox>("TelemetryEnabledBox")!.IsChecked);
+        }
+        finally
+        {
+            if (window?.IsVisible == true) await window.CloseAndWaitAsync();
+            Directory.Delete(path, true);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task ExplicitMqttSettingsAreMaskedWarnAboutPlainTcpAndPersistWithoutOpeningHardware()
     {
         var path = TemporaryDirectory();

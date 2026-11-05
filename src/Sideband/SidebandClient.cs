@@ -37,10 +37,14 @@ public sealed partial class SidebandClient : IAsyncDisposable
     private int _disposed;
 
     public SidebandClient(SidebandStateStore store, IAudioDeviceBackend? voiceDevices = null)
+        : this(store, voiceDevices, new SidebandBatterySource()) { }
+
+    public SidebandClient(SidebandStateStore store, IAudioDeviceBackend? voiceDevices, ISidebandBatterySource batterySource)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _attachments = new SidebandAttachmentStore(store.DataDirectory);
         _voiceDevices = voiceDevices;
+        _batterySource = batterySource ?? throw new ArgumentNullException(nameof(batterySource));
     }
 
     public event Action<SidebandState>? StateChanged;

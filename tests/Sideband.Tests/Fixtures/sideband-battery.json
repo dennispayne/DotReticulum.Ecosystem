@@ -1,0 +1,285 @@
+{
+    "revision": "d069122af14880e43607aed0b71add4c7806fbe0",
+    "source_sha256": "80418b1aa4de638f2c65f1bd64e5ea0466378a6f0bc682781672ef89b93a7dab",
+    "method": "Actual imported Battery constructor/start/data/pack; observed synthetic Linux/platform flags, BAT0..9 directory and uevent file boundaries, fixed clock. No physical battery, Linux process or full application evidence.",
+    "cases": [
+        {
+            "name": "charging",
+            "linux": true,
+            "nodes": [
+                0
+            ],
+            "uevent": "POWER_SUPPLY_STATUS=Charging\nPOWER_SUPPLY_CAPACITY=42.25\n",
+            "packed": [
+                42.2,
+                true,
+                null
+            ],
+            "data": {
+                "charge_percent": 42.2,
+                "charging": true,
+                "temperature": null
+            },
+            "selected_node": "BAT0",
+            "directories": [
+                "/sys/class/power_supply/BAT0"
+            ],
+            "reads": [
+                "/sys/class/power_supply/BAT0/uevent"
+            ]
+        },
+        {
+            "name": "discharging",
+            "linux": true,
+            "nodes": [
+                0
+            ],
+            "uevent": "POWER_SUPPLY_STATUS=Discharging\nPOWER_SUPPLY_CAPACITY=87.65\n",
+            "packed": [
+                87.7,
+                false,
+                null
+            ],
+            "data": {
+                "charge_percent": 87.7,
+                "charging": false,
+                "temperature": null
+            },
+            "selected_node": "BAT0",
+            "directories": [
+                "/sys/class/power_supply/BAT0"
+            ],
+            "reads": [
+                "/sys/class/power_supply/BAT0/uevent"
+            ]
+        },
+        {
+            "name": "full",
+            "linux": true,
+            "nodes": [
+                9
+            ],
+            "uevent": "POWER_SUPPLY_STATUS=Full\nPOWER_SUPPLY_CAPACITY=100\n",
+            "packed": [
+                100.0,
+                false,
+                null
+            ],
+            "data": {
+                "charge_percent": 100.0,
+                "charging": false,
+                "temperature": null
+            },
+            "selected_node": "BAT9",
+            "directories": [
+                "/sys/class/power_supply/BAT0",
+                "/sys/class/power_supply/BAT1",
+                "/sys/class/power_supply/BAT2",
+                "/sys/class/power_supply/BAT3",
+                "/sys/class/power_supply/BAT4",
+                "/sys/class/power_supply/BAT5",
+                "/sys/class/power_supply/BAT6",
+                "/sys/class/power_supply/BAT7",
+                "/sys/class/power_supply/BAT8",
+                "/sys/class/power_supply/BAT9"
+            ],
+            "reads": [
+                "/sys/class/power_supply/BAT9/uevent"
+            ]
+        },
+        {
+            "name": "first-node",
+            "linux": true,
+            "nodes": [
+                0,
+                9
+            ],
+            "uevent": "POWER_SUPPLY_STATUS=Unknown\nPOWER_SUPPLY_CAPACITY=0\n",
+            "packed": [
+                0.0,
+                false,
+                null
+            ],
+            "data": {
+                "charge_percent": 0.0,
+                "charging": false,
+                "temperature": null
+            },
+            "selected_node": "BAT0",
+            "directories": [
+                "/sys/class/power_supply/BAT0"
+            ],
+            "reads": [
+                "/sys/class/power_supply/BAT0/uevent"
+            ]
+        },
+        {
+            "name": "whitespace",
+            "linux": true,
+            "nodes": [
+                3
+            ],
+            "uevent": "  POWER_SUPPLY_STATUS=Charging  \n POWER_SUPPLY_CAPACITY=12.35 \n",
+            "packed": [
+                12.3,
+                true,
+                null
+            ],
+            "data": {
+                "charge_percent": 12.3,
+                "charging": true,
+                "temperature": null
+            },
+            "selected_node": "BAT3",
+            "directories": [
+                "/sys/class/power_supply/BAT0",
+                "/sys/class/power_supply/BAT1",
+                "/sys/class/power_supply/BAT2",
+                "/sys/class/power_supply/BAT3"
+            ],
+            "reads": [
+                "/sys/class/power_supply/BAT3/uevent"
+            ]
+        },
+        {
+            "name": "missing-status",
+            "linux": true,
+            "nodes": [
+                0
+            ],
+            "uevent": "POWER_SUPPLY_CAPACITY=50\n",
+            "packed": null,
+            "data": null,
+            "selected_node": "BAT0",
+            "directories": [
+                "/sys/class/power_supply/BAT0"
+            ],
+            "reads": [
+                "/sys/class/power_supply/BAT0/uevent",
+                "/sys/class/power_supply/BAT0/uevent",
+                "/sys/class/power_supply/BAT0/uevent"
+            ]
+        },
+        {
+            "name": "invalid-capacity",
+            "linux": true,
+            "nodes": [
+                0
+            ],
+            "uevent": "POWER_SUPPLY_STATUS=Charging\nPOWER_SUPPLY_CAPACITY=invalid\n",
+            "packed": null,
+            "data": null,
+            "selected_node": "BAT0",
+            "directories": [
+                "/sys/class/power_supply/BAT0"
+            ],
+            "reads": [
+                "/sys/class/power_supply/BAT0/uevent",
+                "/sys/class/power_supply/BAT0/uevent",
+                "/sys/class/power_supply/BAT0/uevent"
+            ]
+        },
+        {
+            "name": "malformed-line",
+            "linux": true,
+            "nodes": [
+                0
+            ],
+            "uevent": "BROKEN\nPOWER_SUPPLY_STATUS=Charging\nPOWER_SUPPLY_CAPACITY=50\n",
+            "packed": null,
+            "data": null,
+            "selected_node": "BAT0",
+            "directories": [
+                "/sys/class/power_supply/BAT0"
+            ],
+            "reads": [
+                "/sys/class/power_supply/BAT0/uevent",
+                "/sys/class/power_supply/BAT0/uevent",
+                "/sys/class/power_supply/BAT0/uevent"
+            ]
+        },
+        {
+            "name": "no-battery",
+            "linux": true,
+            "nodes": [],
+            "uevent": "",
+            "packed": null,
+            "data": null,
+            "selected_node": null,
+            "directories": [
+                "/sys/class/power_supply/BAT0",
+                "/sys/class/power_supply/BAT1",
+                "/sys/class/power_supply/BAT2",
+                "/sys/class/power_supply/BAT3",
+                "/sys/class/power_supply/BAT4",
+                "/sys/class/power_supply/BAT5",
+                "/sys/class/power_supply/BAT6",
+                "/sys/class/power_supply/BAT7",
+                "/sys/class/power_supply/BAT8",
+                "/sys/class/power_supply/BAT9"
+            ],
+            "reads": []
+        },
+        {
+            "name": "windows",
+            "linux": false,
+            "nodes": [],
+            "uevent": "",
+            "packed": null,
+            "data": null,
+            "selected_node": null,
+            "directories": [],
+            "reads": []
+        },
+        {
+            "name": "negative-primary",
+            "linux": true,
+            "nodes": [
+                0
+            ],
+            "uevent": "POWER_SUPPLY_STATUS=Charging\nPOWER_SUPPLY_CAPACITY=-1\n",
+            "packed": [
+                -1.0,
+                true,
+                null
+            ],
+            "data": {
+                "charge_percent": -1.0,
+                "charging": true,
+                "temperature": null
+            },
+            "selected_node": "BAT0",
+            "directories": [
+                "/sys/class/power_supply/BAT0"
+            ],
+            "reads": [
+                "/sys/class/power_supply/BAT0/uevent"
+            ]
+        },
+        {
+            "name": "overfull-primary",
+            "linux": true,
+            "nodes": [
+                0
+            ],
+            "uevent": "POWER_SUPPLY_STATUS=Charging\nPOWER_SUPPLY_CAPACITY=101\n",
+            "packed": [
+                101.0,
+                true,
+                null
+            ],
+            "data": {
+                "charge_percent": 101.0,
+                "charging": true,
+                "temperature": null
+            },
+            "selected_node": "BAT0",
+            "directories": [
+                "/sys/class/power_supply/BAT0"
+            ],
+            "reads": [
+                "/sys/class/power_supply/BAT0/uevent"
+            ]
+        }
+    ]
+}

@@ -104,7 +104,7 @@ public sealed class SidebandConsoleApplicationTests
             var failures = new[]
             {
                 "config set connect tcp true", "config set plugins services true", "raw arbitrary-code",
-                "plugins reload", "config set sensors battery true", "config set voice output speaker",
+                "plugins reload", "config set sensors pressure true", "config set voice output speaker",
                 "config set telemetry mqtt_validate_ssl true", "config set lxmf sync_limit 3",
                 "config set lxmf sync_interval -1", "config set sensors fixed_latlon '[100,2]'",
                 "config set telemetry fg '[2,0,0,1]'", "config set telemetry fg '[[[[]]]]'",

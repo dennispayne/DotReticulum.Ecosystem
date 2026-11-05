@@ -8,16 +8,16 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
-The integrated MQTT/editor candidate builds with zero warnings/errors and
-passes2951 managed cases/174 explicit skips on Windows:
+The integrated battery/editor-state candidate builds with zero warnings/errors
+and passes3000 managed cases/176 explicit skips on Windows:
 
 ```powershell
 dotnet build DotReticulum.Ecosystem.slnx -c Release -warnaserror --nologo -v:q
-dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build --nologo -v:q --logger trx --results-directory artifacts\tests\root-mqtt-final
+dotnet test DotReticulum.Ecosystem.slnx -c Release --no-build --nologo -v:q --logger trx --results-directory artifacts\tests\root-editor-import-battery
 ```
 
-Full suites pass LXMF163/28, LXST141/30, Nomad415/26,
-Sideband2229/90 and Telemetry3/0. The ordinary coverage/Pester/catalog gate
+Full suites pass LXMF163/28, LXST141/30, Nomad439/28,
+Sideband2254/90 and Telemetry3/0. Earlier MQTT ordinary coverage/Pester/catalog gate
 also passes with97 scoped claims/545 selectors/five pins:
 
 ```powershell
@@ -94,6 +94,29 @@ Test41643993895 succeeds at `0e49bee87c932fdf404949812a8420f83cb49e4a`,
 including its Windows/Linux Unit, Integration and Compatibility jobs.
 These earlier commits do not accept the current local MQTT/editor changes.
 The xUnit3.2.2 Avalonia-compatible pin remains unchanged.
+
+Parent-frozen C101 acceptance independently passes150 selected managed cases
+without skips and4/0/0 Pester, including previous actual-primary MQTT flows and
+eight native windows on SHA-256
+`5b81b42c155ac36bccb55e1bcd75c12a88931e8c3ea8a12506dfa6ab3b18936d`:
+
+```powershell
+pwsh -NoProfile -File artifacts\tests\sideband-battery\Invoke-Acceptance.ps1 -OutputDirectory artifacts\tests\sideband-battery\parent-frozen
+```
+
+Its1264-input guard and native help pass.
+Reaggregation of the unchanged full-gate records validates100 claims/
+588 selectors in `artifacts\tests\fleet-editor-battery-catalog-corrected`.
+The first catalog-only attempt exposed and retained an incorrect UI class
+selector; correcting that selector maps the already-passing case, not a new
+execution or weakened assertion.
+
+Battery evidence is actual-primary
+synthetic sysfs, real private test files, injected device-free lifecycle/cache
+tests and Windows unavailable-provider/settings windows, **not physical battery
+or current Linux execution**. Native re-probing and stricter invalid-input
+handling differ from the primary. Android-only acquisition and plugin-driven
+providers keep separate dispositions; no automatic sensor is invented.
 
 The integrated terminal-controls/rich-message candidate builds with zero
 warnings/errors and passes2812 managed cases/156 explicit skips on Windows:

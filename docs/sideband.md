@@ -32,7 +32,10 @@ Explicit bounded MQTT forwarding, five persisted primary settings and an
 independently evaluated caller-supplied geoid are implemented; their separate
 Windows native/reference evidence and plaintext-export risks are below.
 Actual primary application telemetry passes on Windows/Linux, including opted-in
-Reticulum runtime collection. Other automatic sensors, plugins, mobile operation,
+Reticulum runtime collection. Explicit Linux battery collection has separate
+synthetic/private-file and Windows unavailable-provider acceptance under C101;
+physical battery and current Linux execution remain unverified. Other automatic
+sensors, plugins, mobile operation,
 broad upstream configuration, and upstream database
 migration of all profile semantics remain incomplete. A bounded offline importer
 activates identity, supported settings, LXMF conversations, text/file/image/audio history,
@@ -279,7 +282,7 @@ runtime evidence.
 | Text, image/file and audio messages | implemented bounded subset | Text/files, WebP image preparation/preview, Ogg Opus and Codec2 composition/decoding, explicit 10-second recording/playback/cancellation, content-addressed persistence and explicit exports. Actual Python Sideband core sends/receives images and both audio families directly/through a Python propagation transport; actual Pillow/audioproc decode native output. Published binaries decode imported media and render images. Device tests use fakes; physical capture/acoustics remain unverified. Unknown audio is retained/exportable but playback fails explicitly; no autoplay. See media limits below; `src/Sideband/SidebandMedia*.cs`, `src/Sideband.Desktop/MainWindow.axaml.cs`, `sbapp/main.py:message_send_dispatch`, `sbapp/sideband/audioproc.py`, `sbapp/sideband/core.py:5189–5196`. |
 | Paper messages and `lxm://` imports | implemented bounded subset | Connected paper text creation and local duplicate-aware import reuse LXMF; saved URI/QR display and non-overwriting exports work offline and survive restart. Bounded historical outgoing primary envelopes restore exact exports with persisted imported provenance and CLI/UI warnings. Actual primary daemon-core creation/ingestion both ways, trust on/off and process restart pass separately from historical migration/export/recipient-ingestion acceptance. Nonlocal envelopes are unauthenticated and not forwarded. Hardware camera/printer, desktop OS URI registration and other historical paper-field semantics remain unverified/missing; `SidebandClient.Paper.cs`, `SidebandPaperProfile.cs`, `MainWindow.Paper.cs`, `PaperExportCommand.cs`, `sbapp/sideband/core.py:paper_message,lxm_ingest_uri,_db_message`. |
 | LXST calls and push-to-talk | implemented bounded subset | Shared LXMF/voice identity and router; explicit device selection, identity/contact dialing, answer/reject/hangup, profile/mode, microphone/speaker mute, loudspeaker and hold-to-talk controls, trusted-only authorization, trusted conversation direct-PTT permission and bounded persisted history. Voice-only names/trust import, editing and deletion are operational independently of contacts; existing LXMF conversation policy wins, but discovery-only metadata does not. Optional primary call-log migration retains labelled historical assertions separately from authenticated call events. Actual primary daemon-core Opus/Codec2 calls both origins, direct and through a .NET transport, pass on Windows/Linux; separate actual calls verify voice-only policy removal/recovery and delivery overrides. Original incoming ringtone replaces licensed assets. Physical audio, upstream GUI and hardware/keypad actions remain unverified/missing; see voice acceptance below; `SidebandVoice*.cs`, `SidebandClient.cs`, `sbapp/sideband/voice.py`, `sbapp/ui/voice.py`. |
-| Telemetry, location and situational awareness | partial | All 27 sensor wire formats, exact values, bounded atomic storage and reference-executed geometry exist. Original desktop controls configure manual information/location/sensors, opted-in Reticulum runtime collection, privacy/collector/tracking policies, inspect trusted reports, explicitly delete and show reported locations on the map. Actual primary reports/collector streams, requests, restart, supported profile import, schedules and propagation recovery pass separately on Windows/Linux. Runtime collection/rendering/receive normalization is independently verified below; other automatic sensors, hardware and advanced presentation remain absent/unverified; `SidebandTelemetry*.cs`, `SidebandRuntimeTelemetry.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/ui/telemetry.py`. |
+| Telemetry, location and situational awareness | partial | All 27 sensor wire formats, exact values, bounded atomic storage and reference-executed geometry exist. Original desktop controls configure manual information/location/sensors, opted-in Reticulum runtime and Linux battery collection, privacy/collector/tracking policies, inspect trusted reports, explicitly delete and show reported locations on the map. Actual primary reports/collector streams, requests, restart, supported profile import, schedules and propagation recovery pass separately on Windows/Linux. Runtime collection/rendering/receive normalization is independently verified below. Battery's separate C101 synthetic/private-file and Windows unavailable-provider evidence is not physical battery or current Linux acceptance. Other automatic sensors, hardware and advanced presentation remain absent/unverified; `SidebandTelemetry*.cs`, `SidebandRuntimeTelemetry.cs`, `SidebandBatteryTelemetry.cs`, `SidebandGeo.cs`, `sbapp/sideband/sense.py`, `sbapp/ui/telemetry.py`. |
 | Raster and offline maps | implemented bounded subset | Source-executed projection/URL/MBTiles/default/provider/layer, overlay and passive discovery vectors, consent-gated raster cache, immutable imported SQLite snapshots, original pan/zoom viewport, attribution, source zoom limits and persisted view. Reported peers/interfaces/connection points, bounded selected-cache discovery advertisements, clustering, high-zoom scatter, local fixed overrides and marker inspection are integrated. Thirteen provider presets and supported offline-profile activation exist. Broader map migration/presentation remain missing; native limits/privacy differences are below; `SidebandMap*.cs`, `SituationMap.cs`, `sbapp/mapview/{source,downloader,mbtsource}.py`, `sbapp/ui/map.py`. |
 | Remote commands, queries and plugins | partial | Authorized telemetry requests and built-in ping/echo/signal requests use the existing bounded client worker. Actual primary daemon cores exchange commands/replies, propagated requests and offline replies, and verify unknown-conversation admission across direct, Python-hop and .NET-hop paths. Explicit PN storage/retrieval, restart/cancellation and controlled direct-failure recovery are distinct evidence. Initially-propagated native-origin failure/recovery passes separately; enabled primary retry remains blocked by the reproduced pinned callback-lock cycle below. Original Remote controls configure shared request permissions, queue/cancel commands and preview persisted replies. Arbitrary Python command/service/telemetry plugins and custom sensors remain missing; native helpers are not a Python-plugin ABI; `SidebandClient.Remote.cs`, `SidebandRemoteCommands.cs`, `sbapp/sideband/plugins.py`, `sbapp/sideband/core.py`, `docs/example_plugins/*`. |
 | Reticulum setup and interfaces | partial | The user explicitly connects through `ReticulumNode.Open` using a saved/default config or `--rnsconfig`; the Connectivity page displays actual shared-role and effective config file only after the node starts, and gives `rnstatus` guidance. Offline, it reports that ownership/health is unknown. It never rewrites the global config or checks whether an `rnsd` executable happens to be installed. Shared-instance election is inherited from DotReticulum; compatible reachable local owners may be reused, otherwise the stack may fall back to ownership. The map passively inspects the selected configuration's discovery cache without autoconnect; shared-owner blackhole policy is queried through actual management RPC. Primary desktop `hardware.py:72-92` also directs users to the runtime configuration path and hides device-setting controls; its in-app device editor is Android-only, not a missing desktop acceptance requirement. Remote shared-owner discovery-cache access remains absent; Android interface loading is deferred. `SidebandClient.Discovery.cs`, `src/Sideband.Desktop/MainWindow.axaml`, `external/DotReticulum/src/DotReticulum.Applications/ReticulumNode.cs`, `sbapp/sideband/core.py`, `sbapp/ui/hardware.py`, `sbapp/buildozer.spec`. |
@@ -2036,6 +2039,7 @@ dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r win-x6
 pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\Sideband.Tests.ps1 -Tag RuntimeTelemetry
 ```
 
+Explicit Linux battery collection is implemented under C101 below.
 Other automatic sensors, LXMF-propagation collection and complete sensor/plugin
 configuration remain required gaps; Processor's primary automatic collector is
 itself a placeholder, not a license to invent CPU collection.
@@ -3603,3 +3607,84 @@ Exact source guards/logs and selected receipts are retained under
 `artifacts\tests\sideband-console\windows-message-copy-final`,
 `artifacts\tests\sideband-message-copy\parent-final` and
 `artifacts\tests\sideband-message-cancellation\parent-copy-final`.
+
+## Explicit Linux battery telemetry (C101)
+
+The original desktop now has a persisted, default-off battery checkbox and
+`config set sensors battery true`. Settings/profile import/export activate the
+primary `telemetry_s_battery` boolean. Neither the checkbox nor MQTT enables
+global telemetry, connects Reticulum or opens a device implicitly. Automatic
+and manually supplied battery readings cannot both own the same report; an
+ambiguous configuration fails before persistence.
+
+The authority is actual Sideband2.2.0
+`d069122af14880e43607aed0b71add4c7806fbe0`,
+`sbapp/sideband/sense.py:497–637` (`Battery`) and `Sensor.data`.
+`GenerateBatteryVectors.py` executes the real constructor/start/data/pack under
+disclosed platform, directory, file and fixed-clock observation boundaries.
+Twelve synthetic cases record source SHA-256
+`80418b1aa4de638f2c65f1bd64e5ea0466378a6f0bc682781672ef89b93a7dab`.
+They establish first-BAT0..BAT9 selection, exact `Charging` status, Python
+one-decimal rounding and `[charge, charging, nil]`, absent/malformed inputs and
+the primary's **unavailable Windows provider**. They are not hardware readings.
+
+Native collection reads only the first existing Linux
+`/sys/class/power_supply/BAT0` through `BAT9` node's `uevent`, never falling
+through to a later node after a read error. The async stream is owned and closed.
+At most8192 bytes and ten candidate directories are accepted; strict UTF8,
+nonduplicate well-formed fields and finite capacity0..100 are required.
+This intentionally rejects negative/overfull values accepted by the primary,
+and reports failures instead of the primary's silent exception swallowing.
+Native re-probes the bounded nodes on each uncached read; primary retains the
+node selected at construction. This lifetime difference is explicit, not
+hotplug acceptance. Android collection is deferred; no Windows provider is
+invented. Windows returns a visible unavailable reading without opening hardware.
+
+Available readings cache until elapsed time is strictly greater than ten seconds;
+unavailable readings retry on the next explicit preparation. Disabling collection,
+disabling battery or stopping telemetry clears the cache. Battery joins the
+existing sixty-second local-report scheduler and existing policy/MQTT paths;
+it has no new wire format or independent worker. A public caller-owned source
+interface supports device-free tests, honors cancellation and is not disposed
+by the client. Existing two-argument client construction remains compatible.
+
+Unit/integration evidence covers all twelve actual-primary observations,
+nonfinite/range/duplicate/size/Unicode errors, private test files, failed-read
+recovery and released file ownership, no-subscriber collection, available cache,
+real ten-second expiry, disable/re-enable, unavailable retry, mixed information
+preservation, atomic manual/automatic conflict, cancellation, concurrent disposal
+and settings import/restart. Headless UI verifies explicit opt-in and preview.
+The guarded frozen parent replay passes **150 selected managed cases, zero
+failures/skips**, and **4 Pester cases, zero failures/skips**, including previous
+actual-primary MQTT/restart/profile/outage tests and eight offline native windows:
+
+```powershell
+pwsh -NoProfile -File artifacts\tests\sideband-battery\Invoke-Acceptance.ps1 -OutputDirectory artifacts\tests\sideband-battery\parent-frozen
+```
+
+Its1264-input before/after guard pins the native SHA-256
+`5b81b42c155ac36bccb55e1bcd75c12a88931e8c3ea8a12506dfa6ab3b18936d`,
+SDK10.0.403/compiler10.0.14 and stack
+`4989f050aed865d16ed9f1460071c1a63cd4c7e9`.
+Strict win-x64 trim/AOT warnings-as-errors publish, actual native help and four
+battery enabled/disabled controls/restart windows pass. The other four windows
+exercise MQTT settings. Native battery preparation reports Unavailable on Windows,
+not a fabricated reading. Linux execution is blocked by the existing WSL
+read-only/EIO filesystem; physical battery/hotplug, macOS and other automatic
+sensors remain unverified or missing, not passes or optional scope reductions.
+
+The desktop automatic-sensor boundary is narrower than all27 wire sensor names:
+`core.py:update_telemeter` enables only its explicit thirteen-name list before
+calling telemetry plugins. Source audit at the same pin distinguishes:
+
+| Provider family | Windows/Linux desktop disposition |
+|---|---|
+| Time, information and fixed location | Implemented local clock/manual values; no GPS hardware claim. |
+| Battery | Linux-only automatic primary provider; C101 software implemented, current Linux/physical acceptance blocked as above. Windows primary and native both report no provider. |
+| Pressure, temperature, humidity, magnetic field, ambient light, gravity, angular velocity, acceleration, proximity and live GPS | Primary automatic acquisition is Android-only (`setup_sensor`/`update_data` platform guards), not an absent Windows/Linux hardware implementation. Android/mobile remains deferred; wire/manual data support is separate. Their unsupported desktop settings are not silently activated by import. |
+| Reticulum transport | Implemented opted-in native runtime observations; its separate acceptance does not prove physical sensors. |
+| Processor, RAM, NVM, power, tank, fuel, custom, connection map and interface entries | Primary `update_data` is a placeholder or copies explicitly supplied entries, not automatic host CPU/memory/device discovery. Native bounded manual wire/report support is implemented; primary plugin mutation/API compatibility remains required and unresolved. |
+| LXMF propagation | Primary explicit identity plus local `lxmd.query_status`,300-second stale interval and18-second worker wake; enabled through plugins, not the desktop's thirteen-name settings loop. Wire support is implemented; automatic status-query/plugin configuration remains a required software gap. |
+
+This source classification does not turn deferred Android behavior, missing
+plugin contracts or unexecuted platform/hardware checks into passes.

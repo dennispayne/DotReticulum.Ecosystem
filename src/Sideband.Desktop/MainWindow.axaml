@@ -206,6 +206,7 @@
             <TextBlock Text="Telemetry is off by default. Manual positions/values are operator assertions. Optional Reticulum runtime collection reads your connected node or shared owner's statistics and routing tables, not physical sensors. Sending or authorizing requests may disclose this data. No setting opens GPS, microphone or other hardware."
                        TextWrapping="Wrap" />
             <CheckBox x:Name="TelemetryEnabledBox" Content="Enable telemetry" />
+            <CheckBox x:Name="TelemetryBatteryBox" Content="Collect Linux battery status from BAT0..BAT9 (unavailable on other desktop platforms)" />
             <CheckBox x:Name="TelemetryRnsTransportBox" Content="Collect connected Reticulum runtime telemetry (60-second cache)" />
             <CheckBox x:Name="TelemetryRnsTransportTablesBox" Content="Include interface names/details and routing tables in outgoing reports (additional disclosure)" />
             <CheckBox x:Name="TelemetryInformationEnabledBox" Content="Include information text" />

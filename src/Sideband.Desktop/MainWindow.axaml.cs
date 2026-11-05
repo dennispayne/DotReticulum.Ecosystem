@@ -200,6 +200,13 @@ public sealed partial class MainWindow : Window
             if (Program.SmokeTelemetryMode)
             {
                 if (!TelemetryPage.IsVisible) return;
+                if (_state.Telemetry.BatteryEnabled)
+                {
+                    if (!EnsureSmokeControlVisible(TelemetryBatteryBox, TelemetryPage)) return;
+                    if (TelemetryBatteryBox.IsChecked != _state.Telemetry.BatteryEnabled)
+                        throw new InvalidOperationException("The selected battery collection setting was not rendered consistently.");
+                    Console.WriteLine("SMOKE_UI_BATTERY=explicit-opt-in;persisted-controls;connected:" + (_client.IsConnected ? "1" : "0"));
+                }
                 if (_state.Telemetry.Mqtt.Host is not null)
                 {
                     if (!EnsureSmokeControlVisible(TelemetryMqttPasswordBox, TelemetryPage)) return;
@@ -215,6 +222,8 @@ public sealed partial class MainWindow : Window
                     Console.WriteLine("SMOKE_UI_RENDERED_TELEMETRY=manual-preview");
                 else if (TelemetryDetailsText.Text?.StartsWith("LOCAL RUNTIME/MANUAL PREVIEW", StringComparison.Ordinal) == true)
                     Console.WriteLine("SMOKE_UI_RENDERED_TELEMETRY=" + (_client.IsConnected ? "runtime-connected" : "runtime-unavailable"));
+                else if (TelemetryDetailsText.Text?.StartsWith("LOCAL BATTERY/MANUAL PREVIEW", StringComparison.Ordinal) == true)
+                    Console.WriteLine("SMOKE_UI_RENDERED_TELEMETRY=battery-preview");
                 else return;
             }
             if (Program.SmokeRepositoryRoot is not null)
@@ -344,7 +353,7 @@ public sealed partial class MainWindow : Window
                         {
                             try
                             {
-                                if (_state.Telemetry.Mqtt.Host is not null)
+                                if (_state.Telemetry.Mqtt.Host is not null || _state.Telemetry.BatteryEnabled)
                                     await SaveTelemetryAsync();
                                 if (_state.Telemetry.RnsTransportEnabled && Program.ReticulumConfigDirectory is { } config)
                                     await _client.ConnectAsync(config, _windowCancellation.Token);

@@ -21,6 +21,9 @@ public sealed partial class SidebandClient
     private Task? _telemetryOutboundTask;
     private Task? _telemetryScheduleTask;
     private SidebandTelemetryReport? _localTelemetry;
+    private readonly ISidebandBatterySource _batterySource;
+    private SidebandTelemetryReading? _batteryReading;
+    private long _batteryUpdated;
 
     public async Task ConfigureTelemetryAsync(SidebandTelemetryConfiguration config, CancellationToken cancellationToken = default)
     {
@@ -77,6 +80,7 @@ public sealed partial class SidebandClient
         cancellationToken = operation.Token;
         var state = await _store.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         var config = state.Telemetry;
+        if (!config.Enabled || !config.BatteryEnabled) _batteryReading = null;
         if ((!config.Enabled || !config.RnsTransportEnabled) && _runtimeTelemetry is { } inactive)
             await inactive.ResetAsync(cancellationToken).ConfigureAwait(false);
         if (!config.Enabled) { _localTelemetry = null; return null; }
@@ -88,6 +92,20 @@ public sealed partial class SidebandClient
         if (config.FixedLocationEnabled)
             readings[(byte)S.Location] = SidebandTelemetryCodec.FromLocation(new(config.FixedLocation.Latitude,
                 config.FixedLocation.Longitude, config.FixedLocation.Altitude, 0, 0, 0, now));
+        if (config.BatteryEnabled)
+        {
+            if (_batteryReading is not { Status: SidebandTelemetryStatus.Available } ||
+                TimeProvider.System.GetElapsedTime(_batteryUpdated) > TimeSpan.FromSeconds(10))
+            {
+                var battery = await _batterySource.ReadAsync(cancellationToken).ConfigureAwait(false);
+                if (battery.Id != (byte)S.Battery)
+                    throw new InvalidDataException("The battery source returned another sensor type.");
+                _batteryReading = battery;
+                _batteryUpdated = TimeProvider.System.GetTimestamp();
+                if (battery.Error is { } error) Report("Battery telemetry unavailable: " + error);
+            }
+            readings[(byte)S.Battery] = _batteryReading;
+        }
         if (config.RnsTransportEnabled)
             readings[(byte)S.RnsTransport] = _runtimeTelemetry is { } runtime
                 ? SidebandTelemetryCodec.FromData(S.RnsTransport,
@@ -212,6 +230,7 @@ public sealed partial class SidebandClient
         try
         {
             _localTelemetry = null;
+            _batteryReading = null;
         }
         finally { _telemetryRefreshGate.Release(); }
         foreach (var key in _telemetryPending.Keys)
@@ -480,7 +499,7 @@ public sealed partial class SidebandClient
                     var config = state.Telemetry;
                     var now = TelemetryNow;
                     var refreshInterval = config.Mqtt.Enabled ? MqttLocalRefreshSeconds : SidebandRuntimeTelemetry.StaleSeconds;
-                    if (config.Enabled && (config.RnsTransportEnabled || config.Mqtt.Enabled) &&
+                    if (config.Enabled && (config.RnsTransportEnabled || config.Mqtt.Enabled || config.BatteryEnabled) &&
                         (lastLocalUpdate is null ||
                          TimeProvider.System.GetElapsedTime(lastLocalUpdate.Value) >= TimeSpan.FromSeconds(refreshInterval)))
                     {

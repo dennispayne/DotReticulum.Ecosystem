@@ -1819,5 +1819,8 @@ inheriting an unset exit code. Build disables only the environment exports,
 preserving assembly version computation; coverage now explicitly returns
 success, with a regression covering a preceding failed command.
 PR merge selection, manual/scheduled reuse and inactivity reminders have not
-been exercised on GitHub. macOS remains build/help-only, and the live/GUI/hardware
-boundaries above remain unchanged.
+been exercised on GitHub. The Test workflow now selects Unit and Integration on
+`macos-latest`/`osx-arm64` using the verified managed artifact from the exact
+Build; these new hosted jobs have not yet been verified. macOS native/tooling
+compatibility is not run and macOS production coverage is not collected. The
+live/GUI/hardware boundaries above remain unchanged.

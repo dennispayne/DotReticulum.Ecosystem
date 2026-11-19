@@ -189,8 +189,66 @@ Describe 'Static analysis evidence' -Tag Tooling {
         $LASTEXITCODE | Should -Be 1
         $summary = Get-Content -Raw -LiteralPath (Join-Path $directory 'summary\tests.md')
         $summary | Should -Match '\| Suite \| Windows x64 \| Linux x64 \| macOS ARM64 \|'
-        $summary | Should -Match '\| Unit \| Unavailable \| Unavailable \| Not run \|'
+        $summary | Should -Match '\| Unit \| Unavailable \| Unavailable \| Unavailable \|'
         ([regex]::Matches($summary, '## Compatibility claims')).Count | Should -Be 1
+    }
+
+    It 'reports macOS managed cases and rejects missing or failed suite evidence' -TestCases @(
+        @{ Scenario = 'passed'; Outcome = 'Passed'; Expected = '5 / 0 / 5'; Verdict = 'Passed managed checks' }
+        @{ Scenario = 'failed'; Outcome = 'Failed'; Expected = '0 / 5 / 5'; Verdict = 'Failed or incomplete' }
+        @{ Scenario = 'missing'; Outcome = 'Passed'; Expected = 'Unavailable'; Verdict = 'Failed or incomplete' }
+        @{ Scenario = 'empty'; Outcome = 'Passed'; Expected = '0 / 0 / 0'; Verdict = 'Failed or incomplete' }
+        @{ Scenario = 'job-failed'; Outcome = 'Passed'; Expected = '5 / 0 / 5'; Verdict = 'Unconfirmed (managed job failure)' }
+    ) {
+        param($Scenario, $Outcome, $Expected, $Verdict)
+        $directory = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+        foreach ($suite in 'Unit', 'Integration') {
+            $target = Join-Path $directory "test-results-$suite-osx-arm64-1\$suite"
+            $null = New-Item -ItemType Directory -Path $target -Force
+            foreach ($assembly in Get-EcosystemTestAssemblies $script:root) {
+                $name = [IO.Path]::GetFileNameWithoutExtension($assembly)
+                @"
+<TestRun><TestDefinitions>
+<UnitTest id="a"><TestMethod className="Fixture" name="One" codeBase="$name.dll" /></UnitTest>
+<UnitTest id="b"><TestMethod className="Fixture" name="Two" codeBase="$name.dll" /></UnitTest>
+</TestDefinitions><Results>
+<UnitTestResult testId="a" testName="One" outcome="$Outcome" />
+<UnitTestResult testId="b" testName="Two" outcome="NotExecuted" />
+</Results></TestRun>
+"@ | Set-Content -LiteralPath (Join-Path $target "$name.trx")
+            }
+        }
+        if ($Scenario -eq 'missing') {
+            Get-ChildItem -LiteralPath (Join-Path $directory 'test-results-Unit-osx-arm64-1\Unit') -Filter '*.trx' |
+                Select-Object -First 1 | Remove-Item
+        }
+        if ($Scenario -eq 'empty') {
+            Get-ChildItem -LiteralPath (Join-Path $directory 'test-results-Unit-osx-arm64-1\Unit') -Filter '*.trx' |
+                ForEach-Object { '<TestRun><Results /></TestRun>' | Set-Content -LiteralPath $_.FullName }
+        }
+        $managedStatus = if ($Scenario -eq 'job-failed') { 'failure' } else { 'success' }
+        & $script:pwsh -NoProfile -File (Join-Path $script:root 'tests\Get-CiSummary.ps1') -Directory $directory `
+            -Commit $script:commit -Attempt 1 -ManagedStatus $managedStatus -CompatibilityStatus success *> $null
+        $LASTEXITCODE | Should -Be 1
+        $summary = Get-Content -Raw -LiteralPath (Join-Path $directory 'summary\tests.md')
+        $summary | Should -Match ('\| Unit \| Unavailable \| Unavailable \| ' + [regex]::Escape($Expected) + ' \|')
+        $integration = if ($Scenario -eq 'failed') { '0 / 5 / 5' } else { '5 / 0 / 5' }
+        $summary | Should -Match ('\| Integration \| Unavailable \| Unavailable \| ' + [regex]::Escape($integration) + ' \|')
+        $summary | Should -Match ('\| Verdict \| Failed or incomplete \| Failed or incomplete \| ' + [regex]::Escape($Verdict) + ' \|')
+        $summary | Should -Match '\| Native/tooling \| Unavailable \| Unavailable \| Not run \|'
+        $summary | Should -Match 'macOS runs managed suites only'
+        $summary | Should -Match '\| macOS \|'
+        if ($Scenario -in 'failed', 'missing', 'empty') { $summary | Should -Match '- osx-arm64:' }
+    }
+
+    It 'selects both macOS managed suites from the verified matching build without macOS coverage' {
+        $workflow = Get-Content -Raw -LiteralPath (Join-Path $script:root '.github\workflows\test.yml')
+        foreach ($suite in 'Unit', 'Integration') {
+            $workflow | Should -Match ("(?m)- suite: $suite\r?\n\s+os: macos-latest\r?\n\s+rid: osx-arm64")
+        }
+        $workflow | Should -Match 'rid: \$\{\{ matrix\.rid \}\}\s+managed: ''true'''
+        $workflow | Should -Match '\$env:BUILD_RID -ne ''osx-arm64'''
+        $workflow | Should -Match '-Coverage:\$coverage'
     }
 
     It 'accepts the same catalog from LF and CRLF checkouts without accepting incomplete evidence' -TestCases @(

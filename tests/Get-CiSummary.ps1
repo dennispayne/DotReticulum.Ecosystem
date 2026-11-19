@@ -27,7 +27,7 @@ $lines.Add('# Ecosystem Test')
 $lines.Add('')
 $lines.Add("Producing commit: ``$Commit``. Managed jobs: $ManagedStatus. Compatibility jobs: $CompatibilityStatus.")
 $lines.Add('Scheduled runs repeat these bounded gates; no pinned Python peers, GUI or physical hardware are provisioned.')
-$lines.Add('macOS is build/help-only; no macOS test or coverage jobs are selected. Skipped includes unselected cases.')
+$lines.Add('macOS runs managed suites only; native/tooling compatibility and production coverage are not selected. Skipped includes unselected cases.')
 foreach ($rid in 'linux-x64', 'win-x64') {
     $target = Join-Path $summary $rid
     $null = New-Item -ItemType Directory -Path $target -Force
@@ -106,6 +106,30 @@ foreach ($rid in 'linux-x64', 'win-x64') {
     }
     $platforms[$rid] = @{ Report = $report; Suites = $suites; Coverage = $coverage }
 }
+$macSuites = @{}
+$macFailures = [Collections.Generic.List[string]]::new()
+foreach ($suite in 'Unit', 'Integration') {
+    $path = Join-Path $Directory "test-results-$suite-osx-arm64-$Attempt\$suite"
+    $actualReports = @(
+        if (Test-Path -LiteralPath $path) {
+            Get-ChildItem -LiteralPath $path -Filter '*.trx' -File | Select-Object -ExpandProperty Name | Sort-Object
+        }
+    )
+    if (!(Test-Path -LiteralPath $path) -or
+        ($actualReports -join "`n") -cne ($expectedReports -join "`n")) {
+        $macFailures.Add("Incomplete $suite artifact.")
+        $macSuites[$suite] = 'Unavailable'
+        continue
+    }
+    $results = @(Read-TrxCases $path)
+    if (!$results.Count) { $macFailures.Add("No discovered $suite cases.") }
+    if (@($results | Where-Object Status -eq 'Fail').Count) { $macFailures.Add("Executed $suite cases failed.") }
+    $macSuites[$suite] = "$(@($results | Where-Object Status -eq 'Pass').Count) / $(@($results | Where-Object Status -eq 'Fail').Count) / $(@($results | Where-Object Status -eq 'Skipped').Count)"
+}
+if ($macFailures.Count) { $failed = $true }
+$macVerdict = if ($macFailures.Count) { 'Failed or incomplete' }
+    elseif ($ManagedStatus -ne 'success') { 'Unconfirmed (managed job failure)' }
+    else { 'Passed managed checks' }
 $windows = $platforms['win-x64']
 $linux = $platforms['linux-x64']
 $lines.Add('')
@@ -115,9 +139,10 @@ $lines.Add('')
 $lines.Add('| Suite | Windows x64 | Linux x64 | macOS ARM64 |')
 $lines.Add('|---|---|---|---|')
 foreach ($suite in 'Unit', 'Integration', 'Native/tooling') {
-    $lines.Add("| $suite | $($windows.Suites[$suite]) | $($linux.Suites[$suite]) | Not run |")
+    $mac = if ($suite -eq 'Native/tooling') { 'Not run' } else { $macSuites[$suite] }
+    $lines.Add("| $suite | $($windows.Suites[$suite]) | $($linux.Suites[$suite]) | $mac |")
 }
-$lines.Add("| Verdict | $($windows.Report.RunStatus) | $($linux.Report.RunStatus) | Not run |")
+$lines.Add("| Verdict | $($windows.Report.RunStatus) | $($linux.Report.RunStatus) | $macVerdict |")
 $lines.Add("| Dirty worktree | $($windows.Report.WorkingTreeDirty) | $($linux.Report.WorkingTreeDirty) | Not evaluated |")
 $lines.Add('')
 $lines.Add('## Compatibility claims')
@@ -156,6 +181,7 @@ $lines.Add('Detailed selectors, boundaries, reference pins, per-case results and
 foreach ($rid in 'win-x64', 'linux-x64') {
     foreach ($failure in $platforms[$rid].Report.Failures) { $lines.Add("- ${rid}: $failure") }
 }
+foreach ($failure in $macFailures) { $lines.Add("- osx-arm64: $failure") }
 $lines | Set-Content -LiteralPath (Join-Path $summary 'tests.md') -Encoding utf8
 if ($env:GITHUB_STEP_SUMMARY) { $lines | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY }
 $lines

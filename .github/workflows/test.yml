@@ -87,12 +87,18 @@ jobs:
           - suite: Unit
             os: windows-latest
             rid: win-x64
+          - suite: Unit
+            os: macos-latest
+            rid: osx-arm64
           - suite: Integration
             os: ubuntu-latest
             rid: linux-x64
           - suite: Integration
             os: windows-latest
             rid: win-x64
+          - suite: Integration
+            os: macos-latest
+            rid: osx-arm64
     steps:
       - name: Checkout exact producing source and pinned stack
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -116,14 +122,15 @@ jobs:
           rid: ${{ matrix.rid }}
           managed: 'true'
 
-      - name: Run built tests with production coverage
+      - name: Run built tests
         env:
           BUILD_COMMIT: ${{ needs.source.outputs.commit }}
           TEST_SUITE: ${{ matrix.suite }}
           BUILD_RID: ${{ matrix.rid }}
         run: |
           $filter = if ($env:TEST_SUITE -eq 'Unit') { 'Category=Unit' } else { 'Category!=Unit' }
-          ./tests/Invoke-BuiltTests.ps1 -Directory artifacts/builds/managed -Rid $env:BUILD_RID -Commit $env:BUILD_COMMIT -Filter $filter -ResultsDirectory "artifacts/tests/$env:TEST_SUITE" -Coverage
+          $coverage = $env:BUILD_RID -ne 'osx-arm64'
+          ./tests/Invoke-BuiltTests.ps1 -Directory artifacts/builds/managed -Rid $env:BUILD_RID -Commit $env:BUILD_COMMIT -Filter $filter -ResultsDirectory "artifacts/tests/$env:TEST_SUITE" -Coverage:$coverage
 
       - name: Retain independent suite evidence
         if: ${{ !cancelled() }}

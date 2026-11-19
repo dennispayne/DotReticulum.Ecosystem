@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <AssemblyName>sideband</AssemblyName>
     <PackageId>Sideband.Desktop</PackageId>
     <RootNamespace>Sideband.Desktop</RootNamespace>

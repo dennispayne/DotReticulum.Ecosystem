@@ -1,5 +1,33 @@
 Describe 'sideband native acceptance' -Tag 'Native' {
     BeforeAll {
+        function Invoke-SidebandProcess {
+            param(
+                [Parameter(Mandatory)] [string] $Binary,
+                [Parameter(Mandatory)] [string[]] $Arguments
+            )
+
+            $start = [Diagnostics.ProcessStartInfo]::new($Binary)
+            $start.UseShellExecute = $false
+            $start.CreateNoWindow = $true
+            $start.RedirectStandardOutput = $true
+            $start.RedirectStandardError = $true
+            foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
+            $process = [Diagnostics.Process]::new()
+            $process.StartInfo = $start
+            try {
+                if (!$process.Start()) { throw 'Could not start the Sideband command.' }
+                $stdout = $process.StandardOutput.ReadToEndAsync()
+                $stderr = $process.StandardError.ReadToEndAsync()
+                if (!$process.WaitForExit(60000)) {
+                    $process.Kill($true)
+                    throw 'The Sideband command did not exit within 60 seconds.'
+                }
+                $global:LASTEXITCODE = $process.ExitCode
+                return $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+            }
+            finally { $process.Dispose() }
+        }
+
         $binary = $env:DOTRETICULUM_SIDEBAND_BINARY
         if ([string]::IsNullOrWhiteSpace($binary) -or -not (Test-Path -LiteralPath $binary -PathType Leaf)) {
             throw 'Set DOTRETICULUM_SIDEBAND_BINARY to the published sideband executable.'
@@ -43,7 +71,7 @@ Describe 'sideband native acceptance' -Tag 'Native' {
         $imported = & $binary --config $data --import-settings $inputPath 2>&1 | Out-String
         $LASTEXITCODE | Should -Be 0
         $imported | Should -Match 'Preserved but not applied: unsupported_reference_setting'
-        & $binary --config $data --export-settings $outputPath
+        Invoke-SidebandProcess -Binary $binary -Arguments @('--config', $data, '--export-settings', $outputPath) | Out-Null
         $LASTEXITCODE | Should -Be 0
         $settings = Get-Content -LiteralPath $outputPath -Raw | ConvertFrom-Json
         $settings.display_name | Should -Be 'Native settings peer'

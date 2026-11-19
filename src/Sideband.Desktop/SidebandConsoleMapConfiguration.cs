@@ -6,7 +6,7 @@ namespace Sideband.Desktop;
 internal static class SidebandConsoleMapConfiguration
 {
     internal static IReadOnlyList<string> Aliases { get; } =
-        ["history_limit", "lat", "lon", "zoom", "use_offline", "layer", "cluster", "interfaces"];
+        ["history_limit", "lat", "lon", "zoom", "use_offline", "layer", "cluster", "interfaces", "connections", "hide_blocked"];
 
     internal static async Task<string> ExecuteAsync(string directory, string? alias, string? value, CancellationToken token)
     {
@@ -25,6 +25,8 @@ internal static class SidebandConsoleMapConfiguration
                 "use_offline" => view with { UseOffline = SidebandConsoleConfiguration.Boolean(value) },
                 "cluster" => view with { ClusterMarkers = SidebandConsoleConfiguration.Boolean(value) },
                 "interfaces" => view with { IncludeInterfaces = SidebandConsoleConfiguration.Boolean(value) },
+                "connections" => view with { IncludeConnections = SidebandConsoleConfiguration.Boolean(value) },
+                "hide_blocked" => view with { HideBlocked = SidebandConsoleConfiguration.Boolean(value) },
                 "layer" => Layer(view, value),
                 _ => throw new NotSupportedException("Unsupported map alias.")
             };
@@ -50,6 +52,8 @@ internal static class SidebandConsoleMapConfiguration
         "use_offline" => view.UseOffline ? "true" : "false",
         "cluster" => view.ClusterMarkers ? "true" : "false",
         "interfaces" => view.IncludeInterfaces ? "true" : "false",
+        "connections" => view.IncludeConnections ? "true" : "false",
+        "hide_blocked" => view.HideBlocked ? "true" : "false",
         "layer" => new[] { "osm", "opentopo", "virtualearth", "atlas", "googlemaps" }
             .FirstOrDefault(id => SidebandMapPresets.Create(id).Provider == view.Provider) ?? "custom or keyed provider (credentials hidden)",
         _ => throw new NotSupportedException("Unsupported map alias.")

@@ -228,6 +228,7 @@ public sealed class SidebandConsoleApplicationTests
             await using var client = new SidebandClient(store);
             using var fixture = System.Text.Json.JsonDocument.Parse(await File.ReadAllBytesAsync(
                 Path.Combine(AppContext.BaseDirectory, "Fixtures", "sideband-cli.json"), token));
+            var output = new ConcurrentQueue<string>();
             var aliases = fixture.RootElement.GetProperty("configuration").EnumerateArray()
                 .Select(s => s.GetProperty("category").GetString() + " " + s.GetProperty("alias").GetString()).ToHashSet();
             var configuration = new SidebandConsoleConfiguration(client);
@@ -235,17 +236,37 @@ public sealed class SidebandConsoleApplicationTests
                 .Where(alias => !aliases.Contains(alias)).Order(StringComparer.Ordinal).ToArray();
             Assert.Equal(["sensors propagation", "sensors propagation_identity"], nativeAliases);
             Assert.Equal(configuration.Settings.Count, configuration.Settings.Select(s => s.Category + " " + s.Alias).Distinct().Count());
-            await using var console = new SidebandConsole(client, store, _ => { }, _ => { }, token);
+            await using var console = new SidebandConsole(client, store, output.Enqueue, output.Enqueue, token);
             foreach (var line in new[] { "config set map lat 51.5", "config set map lon -0.5",
-                "config set map zoom 5", "config set map cluster false", "config set map interfaces false", "config set map layer opentopo" })
+                "config set map zoom 5", "config set map cluster false", "config set map interfaces false",
+                "config set map connections true", "config set map hide_blocked true", "config set map layer opentopo" })
                 Assert.True(await console.ExecuteAsync(SidebandConsoleSyntax.Resolve(SidebandConsoleSyntax.Parse(line))!, token));
-            await using var maps = await SidebandMapStore.OpenAsync(Path.Combine(root, "maps"), cancellationToken: token);
-            Assert.Equal(51.5, maps.ViewSettings.Latitude);
-            Assert.Equal(-0.5, maps.ViewSettings.Longitude);
-            Assert.Equal(5, maps.ViewSettings.Zoom);
-            Assert.False(maps.ViewSettings.ClusterMarkers);
-            Assert.False(maps.ViewSettings.IncludeInterfaces);
-            Assert.Equal(SidebandMapPresets.Create("opentopo").Provider, maps.ViewSettings.Provider);
+            Assert.True(await console.ExecuteAsync(
+                SidebandConsoleSyntax.Resolve(SidebandConsoleSyntax.Parse("config list map"))!, token));
+            Assert.True(await console.ExecuteAsync(
+                SidebandConsoleSyntax.Resolve(SidebandConsoleSyntax.Parse("config get map connections"))!, token));
+            Assert.True(await console.ExecuteAsync(
+                SidebandConsoleSyntax.Resolve(SidebandConsoleSyntax.Parse("config get map hide_blocked"))!, token));
+            Assert.Contains(output, line => line.Contains("map connections = true", StringComparison.Ordinal));
+            Assert.Contains(output, line => line.Contains("map hide_blocked = true", StringComparison.Ordinal));
+            await Assert.ThrowsAsync<ArgumentException>(() => console.ExecuteAsync(
+                SidebandConsoleSyntax.Resolve(SidebandConsoleSyntax.Parse("config set map connections maybe"))!, token));
+            await using (var maps = await SidebandMapStore.OpenAsync(Path.Combine(root, "maps"), cancellationToken: token))
+            {
+                Assert.Equal(51.5, maps.ViewSettings.Latitude);
+                Assert.Equal(-0.5, maps.ViewSettings.Longitude);
+                Assert.Equal(5, maps.ViewSettings.Zoom);
+                Assert.False(maps.ViewSettings.ClusterMarkers);
+                Assert.False(maps.ViewSettings.IncludeInterfaces);
+                Assert.True(maps.ViewSettings.IncludeConnections);
+                Assert.True(maps.ViewSettings.HideBlocked);
+                Assert.Equal(SidebandMapPresets.Create("opentopo").Provider, maps.ViewSettings.Provider);
+            }
+            await using (var restartedMaps = await SidebandMapStore.OpenAsync(Path.Combine(root, "maps"), cancellationToken: token))
+            {
+                Assert.True(restartedMaps.ViewSettings.IncludeConnections);
+                Assert.True(restartedMaps.ViewSettings.HideBlocked);
+            }
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }

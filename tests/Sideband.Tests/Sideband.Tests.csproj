@@ -9,10 +9,10 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="10.1.1" />
-    <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.6" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
     <PackageReference Include="MQTTnet.Server" Version="5.2.0.1603" />
-    <!-- Avalonia.Headless.XUnit 12.1.4 uses the xUnit 3.x discovery API removed in 4.x. -->
+    <!-- Avalonia.Headless.XUnit uses the xUnit 3.x discovery API removed in 4.x. -->
     <PackageReference Include="xunit.v3" Version="3.2.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1" />
   </ItemGroup>

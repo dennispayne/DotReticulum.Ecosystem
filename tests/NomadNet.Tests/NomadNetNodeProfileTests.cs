@@ -18,7 +18,7 @@ public sealed class NomadNetNodeProfileTests
     {
         using var profile = new Profile();
         var peerMap = profile.PeerMap();
-        peerMap["peering_timebase"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 1;
+        peerMap["peering_timebase"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 60;
         profile.WritePeer(peerMap);
         await profile.ImportAsync();
         var imported = LxmPeer.FromBytes(profile.RawPeer, _ => true);
@@ -29,6 +29,15 @@ public sealed class NomadNetNodeProfileTests
         Directory.CreateDirectory(rns);
         await File.WriteAllTextAsync(Path.Combine(rns, "config"),
             "[reticulum]\nenable_transport=no\nshare_instance=no\n[interfaces]\n");
+        var refused = await RunAsync($"node-unpeer {hash}\nnode-peers\nstatus\nquit\n");
+        Assert.True(refused.Contains("Propagation peer was not removed", StringComparison.Ordinal), refused);
+        Assert.Contains("Unresolved propagation peers: 1.", refused);
+        Assert.Single((object?[])MsgPack.UnpackApplicationValue(
+            await File.ReadAllBytesAsync(Path.Combine(profile.Target, "storage", "lxmf", "peers")))!);
+
+        peerMap["peering_timebase"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 1;
+        await File.WriteAllBytesAsync(Path.Combine(profile.Target, "storage", "lxmf", "peers"),
+            MsgPack.Pack(new object?[] { MsgPack.Pack(peerMap) }));
         var output = await RunAsync($"node-peers\nnode-peer-sync {hash}\nnode-unpeer {hash}\nnode-peers\nnode-unpeer {hash}\nstatus\nquit\n");
         Assert.Contains("Unresolved propagation peers: 1.", output);
         Assert.Contains("Select an existing propagation peer.", output);
@@ -256,7 +265,8 @@ public sealed class NomadNetNodeProfileTests
 
     private sealed class Profile : IDisposable
     {
-        private readonly string _root = Path.GetFullPath(Path.Combine("artifacts", "tests", "nomad-node-profile", Guid.NewGuid().ToString("N")));
+        private readonly string _root = Path.Combine(FindRepositoryRoot(), "artifacts", "tests",
+            "nomad-node-profile", Guid.NewGuid().ToString("N"));
         public Identity Own { get; } = Identity.Generate();
         public string Source => Path.Combine(_root, "primary");
         public string Target => Path.Combine(_root, "native");
@@ -300,6 +310,14 @@ public sealed class NomadNetNodeProfileTests
             Assert.False(Directory.Exists(Target));
             Assert.Empty(Directory.GetDirectories(_root, "native.profile-import-*"));
         }
+        private static string FindRepositoryRoot()
+        {
+            for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+                if (File.Exists(Path.Combine(directory.FullName, "DotReticulum.Ecosystem.slnx")))
+                    return directory.FullName;
+            throw new DirectoryNotFoundException("Could not locate DotReticulum.Ecosystem.slnx from the test assembly.");
+        }
+
         public void Dispose()
         {
             Own.Dispose();

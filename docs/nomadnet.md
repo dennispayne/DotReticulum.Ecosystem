@@ -1896,7 +1896,10 @@ partial hot reload or in-process eviction while saving policy. `node-peers`
 reports actual lower-layer counters without printing peering keys.
 Removing a static designation is not an implicit unpeer/blacklist operation;
 as in the primary configuration workflow, persisted peers can remain discovered
-peers. A terminal unpeer action and full peer-management UI remain missing.
+peers. The `node-unpeer` terminal action removes an active or retained unresolved
+peer only when its peering timebase is not newer than the local clock; it does not
+blacklist the peer or edit static-peer configuration, and removal persists across
+restart (T1052). The full peer-management UI remains missing.
 The primary's manual peer-sync action is in
 `ui/textui/Network.py:1887–1901`; the native command calls the existing
 `SynchronizePeerAsync` for a known peer and joins cancellation, without

@@ -1,0 +1,52 @@
+<Project Sdk="WixToolset.Sdk/4.0.6">
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <Platform>x64</Platform>
+    <InstallerVersion Condition="'$(InstallerVersion)' == ''">1.0.0</InstallerVersion>
+    <StageRoot Condition="'$(StageRoot)' == ''">$(MSBuildProjectDirectory)\..\..\artifacts\builds\ecosystem-msi-$(InstallerVersion)\stage</StageRoot>
+    <DefineConstants>$(DefineConstants);InstallerVersion=$(InstallerVersion);StageRoot=$(StageRoot)</DefineConstants>
+    <OutputName>DotReticulum.Ecosystem-$(InstallerVersion)-win-x64</OutputName>
+    <HarvestDirectorySuppressSpecificWarnings>5151</HarvestDirectorySuppressSpecificWarnings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Heat" Version="4.0.6" />
+    <PackageReference Include="WixToolset.UI.wixext" Version="4.0.6" />
+    <BindVariable Include="WixUILicenseRtf=$(StageRoot)\LICENSE.rtf" />
+    <HarvestDirectory Include="$(StageRoot)\telemetry">
+      <ComponentGroupName>TelemetryFiles</ComponentGroupName>
+      <DirectoryRefId>TelemetryFolder</DirectoryRefId>
+      <SuppressCom>true</SuppressCom>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+    </HarvestDirectory>
+    <HarvestDirectory Include="$(StageRoot)\lxmd">
+      <ComponentGroupName>LxmdFiles</ComponentGroupName>
+      <DirectoryRefId>LxmdFolder</DirectoryRefId>
+      <SuppressCom>true</SuppressCom>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+    </HarvestDirectory>
+    <HarvestDirectory Include="$(StageRoot)\rnphone">
+      <ComponentGroupName>RnphoneFiles</ComponentGroupName>
+      <DirectoryRefId>RnphoneFolder</DirectoryRefId>
+      <SuppressCom>true</SuppressCom>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+    </HarvestDirectory>
+    <HarvestDirectory Include="$(StageRoot)\nomadnet">
+      <ComponentGroupName>NomadNetFiles</ComponentGroupName>
+      <DirectoryRefId>NomadNetFolder</DirectoryRefId>
+      <SuppressCom>true</SuppressCom>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+    </HarvestDirectory>
+    <HarvestDirectory Include="$(StageRoot)\sideband">
+      <ComponentGroupName>SidebandFiles</ComponentGroupName>
+      <DirectoryRefId>SidebandFolder</DirectoryRefId>
+      <SuppressCom>true</SuppressCom>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+    </HarvestDirectory>
+    <BindPath Include="$(StageRoot)\telemetry" />
+    <BindPath Include="$(StageRoot)\lxmd" />
+    <BindPath Include="$(StageRoot)\rnphone" />
+    <BindPath Include="$(StageRoot)\nomadnet" />
+    <BindPath Include="$(StageRoot)\sideband" />
+  </ItemGroup>
+</Project>

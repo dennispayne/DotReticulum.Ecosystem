@@ -523,11 +523,16 @@ across process restart. No history/ignored/allowed file implementation is invent
 
 ### Native codec and platform matrix
 
-No native libraries are redistributed by this repository. Users supply libopus
-(BSD-licensed upstream project) and libcodec2 (follow the installed package's
-LGPL and component notices). ABI handles and library references have explicit
-disposal; native operations are serialized, including Codec2's process-global
-excitation state. Native module loading uses no runtime code generation.
+Normal per-application ZIP releases do not bundle native libraries. The
+Windows MSI bundles only the verified UCRT64 runtime DLLs required by
+`rnphone`; it also includes their license texts. For Codec2, the MSI includes
+the LGPL-2.1-or-later source archive, the exact MSYS2 patch and the pinned
+package recipe used for the DLL. Other package formats still require users to
+supply libopus (BSD-licensed upstream project) and libcodec2 (under the
+installed package's LGPL and component notices). ABI handles and library
+references have explicit disposal; native operations are serialized, including
+Codec2's process-global excitation state. Native module loading uses no runtime
+code generation.
 Linux Codec2 first loads the verified runtime SONAME `libcodec2.so.1.2`, with
 an unversioned fallback; a development-package symlink is not required.
 
@@ -1143,6 +1148,24 @@ An alternative unmodified official Codec2 1.2.0 MSVC build at
 `06d4c11e699b0351765f10398abb4f663a984f36` failed because its CMake passes
 GCC warning flags to `cl` (`D8021`, `/Wno-strict-overflow`). The working MSYS2
 installation, not an upstream-source patch, resolves this dependency blocker.
+
+The local Windows MSI carries only the required runtime archives listed above:
+Codec2, libgcc, libogg, libwinpthread, Opus and opusfile. It does not carry the
+`gcc-libs` metapackage, libopusenc, libopusurl, OpenSSL or MSYS2 tools. The
+Codec2 source inputs bundled under `rnphone\licenses\native` are the 1.2.0
+source archive (SHA-256
+`cbccae52b2c2ecc5d2757e407da567eb681241ff8dadce39d779a7219dbcf449`), the
+MSYS2 patch (SHA-256
+`2379f3dfc592c27111cfab1e52f6d4fd73341f39819eac119a5fed367ec87e50`) and the
+`PKGBUILD` from MSYS2 commit
+`89d94dc0d9d97957caf21c626ce54cec6aa71c02` (SHA-256
+`1c687cab0df756bf9e40a537a04fec430bd7a6bc5a5ee8b8968bbc062307d3a6`).
+These files are included to accompany the distributed LGPL Codec2 DLL. This
+does not make the regular ZIP package or other platforms self-contained. The
+MSI also includes the GPLv3 and GCC Runtime Library Exception texts for
+`libgcc_s_seh-1.dll`, but not its corresponding GCC source; public
+redistribution of this local MSI is therefore deferred pending source and
+license review.
 
 For the Windows native test command below, set:
 

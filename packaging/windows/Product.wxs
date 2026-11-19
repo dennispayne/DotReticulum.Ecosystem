@@ -1,0 +1,94 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="DotReticulum Ecosystem"
+           Manufacturer="DotReticulum.Ecosystem"
+           Version="$(var.InstallerVersion)"
+           UpgradeCode="{C8409DA5-24E2-4780-A31A-70E6A7E0A14B}"
+           Scope="perMachine"
+           InstallerVersion="500">
+    <SummaryInformation Description="Experimental Reticulum ecosystem applications" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of DotReticulum Ecosystem is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/dennispayne/DotReticulum.Ecosystem" />
+    <Property Id="ARPCOMMENTS" Value="Experimental, unsigned and unaudited; not for production or security-critical use." />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="The applications use their existing configuration and user-data locations." />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="DotReticulum Ecosystem">
+        <Directory Id="TelemetryFolder" Name="Telemetry" />
+        <Directory Id="LxmdFolder" Name="lxmd" />
+        <Directory Id="RnphoneFolder" Name="rnphone" />
+        <Directory Id="NomadNetFolder" Name="NomadNet" />
+        <Directory Id="SidebandFolder" Name="Sideband" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Id="ProgramDataMicrosoftFolder" Name="Microsoft">
+        <Directory Id="ProgramDataWindowsFolder" Name="Windows">
+          <Directory Id="CommonStartMenuFolder" Name="Start Menu">
+            <Directory Id="CommonProgramsFolder" Name="Programs">
+              <Directory Id="ApplicationProgramsFolder" Name="DotReticulum Ecosystem" />
+            </Directory>
+          </Directory>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Applications" Title="Applications" Level="1" Display="expand">
+      <Feature Id="Telemetry" Title="telemetry" Description=".NET telemetry publisher and viewer." Level="1">
+        <ComponentGroupRef Id="TelemetryFiles" />
+        <ComponentRef Id="TelemetryShortcutComponent" />
+      </Feature>
+      <Feature Id="Lxmd" Title="lxmd" Description="LXMF delivery and propagation daemon." Level="1">
+        <ComponentGroupRef Id="LxmdFiles" />
+        <ComponentRef Id="LxmdShortcutComponent" />
+      </Feature>
+      <Feature Id="Rnphone" Title="rnphone" Description="Reticulum voice and telephone application." Level="1">
+        <ComponentGroupRef Id="RnphoneFiles" />
+        <ComponentRef Id="RnphoneShortcutComponent" />
+      </Feature>
+      <Feature Id="NomadNet" Title="nomadnet" Description="NomadNet terminal and node application." Level="1">
+        <ComponentGroupRef Id="NomadNetFiles" />
+        <ComponentRef Id="NomadNetShortcutComponent" />
+      </Feature>
+      <Feature Id="Sideband" Title="sideband" Description="Sideband desktop application." Level="1">
+        <ComponentGroupRef Id="SidebandFiles" />
+        <ComponentRef Id="SidebandShortcutComponent" />
+      </Feature>
+    </Feature>
+
+    <ui:WixUI Id="WixUI_FeatureTree" />
+  </Package>
+
+  <Fragment>
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="TelemetryShortcutComponent" Guid="{90CFEE98-6F3E-46B2-8BAA-578CE98C90FC}">
+        <Shortcut Id="TelemetryShortcut" Name="telemetry" Target="[TelemetryFolder]telemetry.exe" WorkingDirectory="TelemetryFolder" />
+        <RegistryValue Root="HKLM" Key="Software\DotReticulum\Ecosystem\Shortcuts" Name="telemetry" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFolder Id="RemoveTelemetryProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall" />
+      </Component>
+      <Component Id="LxmdShortcutComponent" Guid="{0825109D-4288-4828-B042-C7DFF2C301F3}">
+        <Shortcut Id="LxmdShortcut" Name="lxmd" Target="[LxmdFolder]lxmd.exe" WorkingDirectory="LxmdFolder" />
+        <RegistryValue Root="HKLM" Key="Software\DotReticulum\Ecosystem\Shortcuts" Name="lxmd" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFolder Id="RemoveLxmdProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall" />
+      </Component>
+      <Component Id="RnphoneShortcutComponent" Guid="{3D9479A4-0558-4EF9-9CF0-4D923F2F50B9}">
+        <Shortcut Id="RnphoneShortcut" Name="rnphone" Target="[RnphoneFolder]rnphone.exe" WorkingDirectory="RnphoneFolder" />
+        <RegistryValue Root="HKLM" Key="Software\DotReticulum\Ecosystem\Shortcuts" Name="rnphone" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFolder Id="RemoveRnphoneProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall" />
+      </Component>
+      <Component Id="NomadNetShortcutComponent" Guid="{14A094EC-EA1B-44E7-8E9E-F8D0FFB5AE53}">
+        <Shortcut Id="NomadNetShortcut" Name="nomadnet" Target="[NomadNetFolder]nomadnet.exe" WorkingDirectory="NomadNetFolder" />
+        <RegistryValue Root="HKLM" Key="Software\DotReticulum\Ecosystem\Shortcuts" Name="nomadnet" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFolder Id="RemoveNomadNetProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall" />
+      </Component>
+      <Component Id="SidebandShortcutComponent" Guid="{6D310C22-3957-4057-AC46-C81EF10488A0}">
+        <Shortcut Id="SidebandShortcut" Name="sideband" Target="[SidebandFolder]sideband.exe" WorkingDirectory="SidebandFolder" />
+        <RegistryValue Root="HKLM" Key="Software\DotReticulum\Ecosystem\Shortcuts" Name="sideband" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFolder Id="RemoveSidebandProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

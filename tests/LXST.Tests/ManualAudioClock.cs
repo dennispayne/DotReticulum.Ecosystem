@@ -1,3 +1,5 @@
+using System.Threading.Channels;
+
 namespace LXST.Tests;
 
 internal sealed class ManualAudioClock : TimeProvider
@@ -24,6 +26,7 @@ internal sealed class ManualAudioClock : TimeProvider
 
     private readonly object _gate = new();
     private readonly List<Timer> _timers = [];
+    private readonly Channel<TimeSpan> _timerCreations = Channel.CreateUnbounded<TimeSpan>();
     private long _ticks;
     public TaskCompletionSource TimerCreated { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public override DateTimeOffset GetUtcNow() { lock (_gate) return DateTimeOffset.FromUnixTimeSeconds(1000).AddTicks(_ticks); }
@@ -34,8 +37,15 @@ internal sealed class ManualAudioClock : TimeProvider
         var timer = new Timer(this, callback, state);
         timer.Change(dueTime, period);
         lock (_gate) _timers.Add(timer);
+        _timerCreations.Writer.TryWrite(dueTime);
         TimerCreated.TrySetResult();
         return timer;
+    }
+
+    public async Task WaitForTimerAsync(TimeSpan dueTime)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (await _timerCreations.Reader.ReadAsync(timeout.Token) != dueTime) { }
     }
 
     public void Advance(TimeSpan amount)

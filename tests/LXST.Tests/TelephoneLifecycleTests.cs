@@ -1,4 +1,5 @@
 using System.Net;
+using System.Runtime.CompilerServices;
 using DotReticulum.Core;
 using DotReticulum.Interfaces;
 using DotReticulum.Transport;
@@ -8,6 +9,41 @@ namespace LXST.Tests;
 [Trait("Category", "Integration")]
 public sealed partial class TelephoneLifecycleTests
 {
+    private sealed class RecordingPacketInterface : IPacketInterface
+    {
+        private readonly System.Threading.Channels.Channel<ReadOnlyMemory<byte>> _incoming =
+            System.Threading.Channels.Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
+        private readonly System.Threading.Channels.Channel<byte[]> _sent =
+            System.Threading.Channels.Channel.CreateUnbounded<byte[]>();
+
+        public long Bitrate => 1_000_000;
+        public int HardwareMtu => Packet.Mtu;
+        public bool SupportsMtuDiscovery => false;
+        public ValueTask StartAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+        public ValueTask SendAsync(ReadOnlyMemory<byte> packet, CancellationToken cancellationToken) =>
+            _sent.Writer.WriteAsync(packet.ToArray(), cancellationToken);
+
+        public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveAsync(
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            await foreach (var packet in _incoming.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                yield return packet;
+        }
+
+        public async Task<byte[]> ReadSentAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            return await _sent.Reader.ReadAsync(timeout.Token);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            _incoming.Writer.TryComplete();
+            _sent.Writer.TryComplete();
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private sealed class RawFactory : IAudioCodecFactory
     {
         public IAudioCodec Create(CodecKind kind) => new RawAudioCodec();
@@ -222,7 +258,7 @@ public sealed partial class TelephoneLifecycleTests
             var expected = TimeSpan.FromTicks((long)Math.Round(row.GetProperty("events")[1][1].GetDouble() * TimeSpan.TicksPerSecond));
             if (expected > TimeSpan.Zero)
             {
-                await clock.TimerCreated.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                await clock.WaitForTimerAsync(expected);
                 Assert.True(rig.Phone.IsBusy);
                 clock.Advance(expected - TimeSpan.FromMilliseconds(1));
                 Assert.False(ended.Task.IsCompleted);
@@ -564,6 +600,43 @@ public sealed partial class TelephoneLifecycleTests
         await using var session = rig.Connect(out var established);
         await established.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(CallState.Established, rig.Phone.State);
+    }
+
+    [Fact]
+    public async Task PeriodicAnnouncementsUseTheConfiguredTimeProvider()
+    {
+        var clock = new ManualAudioClock();
+        var interval = TimeSpan.FromHours(4);
+        using var stop = new CancellationTokenSource();
+        using var identity = Identity.Generate();
+        var packetInterface = new RecordingPacketInterface();
+        await using var manager = new PacketInterfaceManager([packetInterface]);
+        await using var router = new TransportRouter(manager, new());
+        await using var phone = new TelephoneEndpoint(router, identity, new()
+        {
+            AnnounceInterval = interval,
+            TimeProvider = clock,
+        });
+        await manager.StartAsync(stop.Token);
+        var routerRun = router.RunAsync(stop.Token);
+        phone.Start();
+        var initial = await packetInterface.ReadSentAsync();
+        AssertAnnounce(initial, packetInterface.HardwareMtu);
+        await clock.WaitForTimerAsync(interval);
+
+        clock.Advance(interval);
+
+        var periodic = await packetInterface.ReadSentAsync();
+        AssertAnnounce(periodic, packetInterface.HardwareMtu);
+        await phone.DisposeAsync();
+        await stop.CancelAsync();
+        await routerRun.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    private static void AssertAnnounce(byte[] bytes, int mtu)
+    {
+        Assert.True(Packet.TryParse(bytes, out var packet, mtu));
+        Assert.Equal(PacketType.Announce, packet.PacketType);
     }
 
     [Fact]

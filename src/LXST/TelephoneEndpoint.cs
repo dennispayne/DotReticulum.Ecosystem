@@ -883,7 +883,7 @@ public sealed partial class TelephoneEndpoint : IAsyncDisposable
             await _router.AnnounceAsync(_destination, cancellationToken: _stop.Token).ConfigureAwait(false);
             while (true)
             {
-                await Task.Delay(_options.AnnounceInterval, _stop.Token).ConfigureAwait(false);
+                await Task.Delay(_options.AnnounceInterval, _options.TimeProvider, _stop.Token).ConfigureAwait(false);
                 await _router.AnnounceAsync(_destination, cancellationToken: _stop.Token).ConfigureAwait(false);
             }
         }

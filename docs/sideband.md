@@ -1300,7 +1300,7 @@ Full profile semantics and hardware/platform boundaries remain incomplete.
 
 `DotReticulum`, `LXMF` and `LXST` are reusable protocol-layer candidates, not a
 drop-in Sideband application. The selected initial scope is Windows/Linux
-desktop with native C# and Avalonia 12.1.4; the app references `LXMF` and
+desktop with native C# and Avalonia 12.1.6; the app references `LXMF` and
 `DotReticulum.Applications`, and now references LXST for audio-message codecs/devices. RNS is
 pinned to 1.5.7, matching Sideband 2.2.0's declared minimum; LXMF 1.2.1 exceeds
 its declared minimum. LXST targets the required 0.5.4 and supplies the application's

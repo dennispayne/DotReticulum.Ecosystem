@@ -540,6 +540,53 @@ public class LxmRouterTests
     }
 
     [Fact]
+    public async Task PaperIngestionFromReceiveObserver_CompletesWithoutBlockingInboundWorker()
+    {
+        using var destination = Identity.Generate();
+        using var source = Identity.Generate();
+        await using var interfaces = new PacketInterfaceManager([]);
+        var transport = new TransportRouter(interfaces, new TransportRouterOptions());
+        transport.Engine.Known.Remember(LxMessage.DeliveryDestinationHash(source), new byte[32], source.ExportPublicKey(), null);
+        await using var router = new LxmRouter(transport, destination);
+        string PaperUri(string content)
+        {
+            var paper = LxMessage.Create(router.DeliveryHash, source, content, method: LxmMethod.Paper);
+            paper.Pack(destinationIdentity: destination);
+            return paper.AsUri();
+        }
+
+        var triggerUri = PaperUri("trigger");
+        var nestedUri = PaperUri("paper from observer");
+        var nestedResult = new TaskCompletionSource<LxmPaperIngestResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var nestedMessage = new TaskCompletionSource<LxMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reentryLimitReached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var paperCallbacks = 0;
+        router.MessageReceived = received =>
+        {
+            if (received.Message.Content == "trigger")
+            {
+                nestedResult.TrySetResult(router.IngestPaperUriAsync(nestedUri).GetAwaiter().GetResult());
+            }
+            else if (received.Message.Content == "paper from observer")
+            {
+                nestedMessage.TrySetResult(received.Message);
+                var result = router.IngestPaperUriAsync(nestedUri, allowDuplicate: true).GetAwaiter().GetResult();
+                if (result == LxmPaperIngestResult.Rejected) reentryLimitReached.TrySetResult();
+                Interlocked.Increment(ref paperCallbacks);
+            }
+        };
+
+        Assert.Equal(LxmPaperIngestResult.LocalDelivery, await router.IngestPaperUriAsync(triggerUri));
+        Assert.Equal(LxmPaperIngestResult.LocalDelivery, await nestedResult.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+        var delivered = await nestedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(reentryLimitReached.Task.IsCompleted, $"Re-entry did not reach its bound after {paperCallbacks} callbacks.");
+        Assert.Equal(16, paperCallbacks);
+        Assert.Equal(LxmMethod.Propagated, delivered.Method);
+        Assert.True(delivered.SignatureValidated);
+        Assert.True(router.HasMessage(delivered.Hash!));
+    }
+
+    [Fact]
     public async Task PaperIngestion_RecordsDeliveryWithNoObserver()
     {
         await using var interfaces = new PacketInterfaceManager([]);

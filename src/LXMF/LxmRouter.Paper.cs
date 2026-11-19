@@ -14,7 +14,7 @@ public sealed partial class LxmRouter
     private sealed record InboundWork(byte[] Data, LxmMethod Method, bool AllowDuplicate = false, bool IgnoreStamps = false,
         byte[]? TransientId = null, TaskCompletionSource<LxmPaperIngestResult>? Completion = null,
         byte[]? ExpectedDestination = null, DestinationType DestinationType = DestinationType.Single,
-        byte[]? RatchetId = null, PacketPhysicalLayer PhysicalLayer = default);
+        byte[]? RatchetId = null, PacketPhysicalLayer PhysicalLayer = default, int ReentryDepth = 0);
 
     /// <summary>
     /// Ingests a paper URI addressed to this router. As upstream, paper ingestion bypasses stamp enforcement and
@@ -40,6 +40,15 @@ public sealed partial class LxmRouter
         var completion = new TaskCompletionSource<LxmPaperIngestResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         var work = new InboundWork(message.Packed!, LxmMethod.Propagated, allowDuplicate, IgnoreStamps: true,
             Identity.FullHash(message.PaperPacked!), completion, RatchetId: ratchetId);
+        if (_activeInboundObserver.Value is { IsActive: true } activeScope)
+        {
+            if (activeScope.ReentryDepth >= InboundObserverReentryLimit)
+            {
+                Report("LXMF paper ingestion re-entry limit reached.");
+                return LxmPaperIngestResult.Rejected;
+            }
+            return ProcessInboundWork(work with { ReentryDepth = activeScope.ReentryDepth + 1 });
+        }
         if (!_inbound.Writer.TryWrite(work))
         {
             ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);

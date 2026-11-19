@@ -51,6 +51,19 @@ public sealed record ReceivedMessage(LxMessage Message, bool? StampValid);
 /// </summary>
 public sealed partial class LxmRouter : IAsyncDisposable
 {
+    private const int InboundObserverReentryLimit = 16;
+
+    private sealed class InboundObserverScope(int reentryDepth)
+    {
+        private int _active = 1;
+
+        public int ReentryDepth { get; } = reentryDepth;
+
+        public bool IsActive => Volatile.Read(ref _active) != 0;
+
+        public void Close() => Interlocked.Exchange(ref _active, 0);
+    }
+
     public const string AppName = "lxmf";
     public const string DeliveryAspect = "delivery";
 
@@ -69,6 +82,7 @@ public sealed partial class LxmRouter : IAsyncDisposable
     private readonly Dictionary<string, Resource> _incomingResources = [];
     private readonly SemaphoreSlim _wake = new(0);
     private readonly CancellationTokenSource _cts = new();
+    private readonly AsyncLocal<InboundObserverScope?> _activeInboundObserver = new();
     private Task _loop = Task.CompletedTask;
     private Task _inboundLoop = Task.CompletedTask;
     private readonly Channel<InboundWork> _inbound;
@@ -692,21 +706,29 @@ public sealed partial class LxmRouter : IAsyncDisposable
                     work.Completion?.TrySetCanceled(ct);
                     break;
                 }
-                var result = LxmPaperIngestResult.Rejected;
-                try
-                {
-                    if (work.TransientId is { } transient && !RememberProcessed(transient, work.AllowDuplicate))
-                        result = LxmPaperIngestResult.Duplicate;
-                    else result = ProcessIncoming(work);
-                }
-                catch (Exception ex) { Report("Could not process incoming LXMF data: " + ex.Message); }
-                finally { work.Completion?.TrySetResult(result); }
+                var result = ProcessInboundWork(work);
+                work.Completion?.TrySetResult(result);
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         finally
         {
             while (_inbound.Reader.TryRead(out var pending)) pending.Completion?.TrySetCanceled(ct);
+        }
+    }
+
+    private LxmPaperIngestResult ProcessInboundWork(InboundWork work)
+    {
+        try
+        {
+            if (work.TransientId is { } transient && !RememberProcessed(transient, work.AllowDuplicate))
+                return LxmPaperIngestResult.Duplicate;
+            return ProcessIncoming(work);
+        }
+        catch (Exception ex)
+        {
+            Report("Could not process incoming LXMF data: " + ex.Message);
+            return LxmPaperIngestResult.Rejected;
         }
     }
 
@@ -771,11 +793,24 @@ public sealed partial class LxmRouter : IAsyncDisposable
             }
 
             if (MessageReceived is { } callbacks)
-                foreach (Action<ReceivedMessage> callback in callbacks.GetInvocationList())
+            {
+                var previousWork = _activeInboundObserver.Value;
+                var scope = new InboundObserverScope(work.ReentryDepth);
+                _activeInboundObserver.Value = scope;
+                try
                 {
-                    try { callback(new ReceivedMessage(message, stampValid)); }
-                    catch (Exception ex) { Report($"LXMF receive observer failed for {message}: {ex}"); }
+                    foreach (Action<ReceivedMessage> callback in callbacks.GetInvocationList())
+                    {
+                        try { callback(new ReceivedMessage(message, stampValid)); }
+                        catch (Exception ex) { Report($"LXMF receive observer failed for {message}: {ex}"); }
+                    }
                 }
+                finally
+                {
+                    scope.Close();
+                    _activeInboundObserver.Value = previousWork;
+                }
+            }
             return LxmPaperIngestResult.LocalDelivery;
         }
         catch (Exception ex)

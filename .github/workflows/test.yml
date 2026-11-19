@@ -188,7 +188,7 @@ jobs:
 
       - name: Run native acceptance and tooling with scoped compatibility
         run: |
-          ./external/DotReticulum/tests/install-pester.ps1
+          ./external/DotReticulum/tests/Install-Pester.ps1
           Import-Module Pester -RequiredVersion 5.7.1
           ./tests/run-compatibility.ps1 -SkipManaged -Pester -OutputDirectory artifacts/tests/compatibility
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

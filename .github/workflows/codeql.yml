@@ -135,7 +135,7 @@ jobs:
       - name: Verify analysis reporting
         if: ${{ !cancelled() }}
         run: |
-          ./external/DotReticulum/tests/install-pester.ps1
+          ./external/DotReticulum/tests/Install-Pester.ps1
           Import-Module Pester -RequiredVersion 5.7.1
           $configuration = New-PesterConfiguration
           $configuration.Run.Path = 'tests/Pester/BuildArtifacts.Tests.ps1'

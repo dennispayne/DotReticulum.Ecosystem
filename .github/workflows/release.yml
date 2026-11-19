@@ -207,7 +207,7 @@ jobs:
       - name: Install executable acceptance runner
         if: needs.select.outputs.application != 'telemetry'
         run: |
-          & ./external/DotReticulum/tests/install-pester.ps1
+          & ./external/DotReticulum/tests/Install-Pester.ps1
 
       - name: Verify native delivery and restart
         if: needs.select.outputs.application == 'lxmd'

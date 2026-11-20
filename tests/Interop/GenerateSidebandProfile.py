@@ -385,7 +385,7 @@ def main():
         args.public_fixture.write_text(json.dumps(fixture, indent=2) + "\n", encoding="utf-8")
     core.db.close()
     shutil.rmtree(work)
-    print(json.dumps(metadata))
+    print(json.dumps({"status": "ok", "observationsFile": str(output / "observations.json")}))
 
 
 if __name__ == "__main__":

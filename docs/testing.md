@@ -10,7 +10,10 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 With DotReticulum pinned at `42d965af7d4152d0ad7c5faf16416b5d6337958c`,
 the Windows Release solution build passed without warnings and the ordinary
-test run passed 3,184 cases with 197 skips. WSL-native Linux x64 passed 2,008
+test run passed 3,184 cases with 197 skips. A separate Windows run intermittently
+failed `SelectedActiveCancellationWorksWhileSendOwnsLifecycleAndPreservesDraft`;
+the isolated test and a subsequent full run passed, so its cause remains
+unresolved. WSL-native Linux x64 passed 2,008
 Unit cases and 1,188 Integration cases with 193 Integration skips using the
 solution's `Category=Unit` and `Category!=Unit` filters. Strict Windows and Linux x64
 NativeAOT Sideband builds ran their help and selected software-printing

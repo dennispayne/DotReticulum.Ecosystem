@@ -1821,6 +1821,8 @@ success, with a regression covering a preceding failed command.
 PR merge selection, manual/scheduled reuse and inactivity reminders have not
 been exercised on GitHub. The Test workflow now selects Unit and Integration on
 `macos-latest`/`osx-arm64` using the verified managed artifact from the exact
-Build; these new hosted jobs have not yet been verified. macOS native/tooling
+Build. The latest hosted [Integration job](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/44910941829)
+failed, including paths whose local file selection explicitly supports only
+Windows and Linux; macOS Integration is not accepted. macOS native/tooling
 compatibility is not run and macOS production coverage is not collected. The
 live/GUI/hardware boundaries above remain unchanged.

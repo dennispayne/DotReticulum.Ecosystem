@@ -119,6 +119,7 @@ public sealed class SidebandPrintingIntegrationTests
 
     [Theory]
     [InlineData("fail", "code 7")]
+    [InlineData("fail125", "code 125")]
     [InlineData("missing", "could not start")]
     [Trait("TestId", "T1004")]
     public async Task SidebandReportsProcessFailuresAndNextHealthyJobRecovers(string mode, string expected)

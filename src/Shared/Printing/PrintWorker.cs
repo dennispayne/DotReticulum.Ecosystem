@@ -140,6 +140,7 @@ internal sealed class PrintWorker : IAsyncDisposable
             {
                 linux = LinuxPrintProcess.Start([.. job.Arguments, path], _supervisorExecutableName);
                 process = linux.Process;
+                await linux.WaitForStartAsync(deadline.Token).ConfigureAwait(false);
             }
             else
             {

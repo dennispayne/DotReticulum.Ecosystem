@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('capture', 'fail', 'hang', 'flood', 'childhang', 'orphan', 'orphanstream', 'orphan-session', 'doublefork', 'holdcapture')]
+    [ValidateSet('capture', 'fail', 'fail125', 'hang', 'flood', 'childhang', 'orphan', 'orphanstream', 'orphan-session', 'doublefork', 'holdcapture')]
     [string] $Mode = 'capture',
     [Parameter(Mandatory)] [string] $Output,
     [string] $Marker,
@@ -11,6 +11,7 @@ $null = New-Item $Output -ItemType Directory -Force
 if ($JobPaths.Count -ne 1 -or -not [IO.File]::Exists($JobPaths[0])) { throw 'Expected one existing native print job.' }
 if ($Marker -and $Mode -ne 'holdcapture') { [IO.File]::WriteAllText($Marker, [string]$PID) }
 if ($Mode -eq 'fail') { exit 7 }
+if ($Mode -eq 'fail125') { exit 125 }
 if ($Mode -eq 'hang') { Start-Sleep -Seconds 90; exit 0 }
 if ($Mode -eq 'childhang') {
     $pwsh = if ($env:DOTRETICULUM_PWSH) { $env:DOTRETICULUM_PWSH }

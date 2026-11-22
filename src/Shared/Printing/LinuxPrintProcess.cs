@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO.Pipes;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -12,10 +13,12 @@ namespace SharedPrinting;
 internal sealed partial class LinuxPrintProcess : IDisposable
 {
     private const string SupervisorArgument = "--internal-print-supervisor";
+    private const string StatusPipeVariable = "DOTRETICULUM_PRINT_STATUS_PIPE";
     private readonly Process _process;
+    private readonly NamedPipeServerStream _status;
     private Task? _stopping;
 
-    private LinuxPrintProcess(Process process) => _process = process;
+    private LinuxPrintProcess(Process process, NamedPipeServerStream status) => (_process, _status) = (process, status);
 
     public Process Process => _process;
 
@@ -33,13 +36,38 @@ internal sealed partial class LinuxPrintProcess : IDisposable
         };
         start.ArgumentList.Add(SupervisorArgument);
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
+        var pipeName = "dotreticulum-print-" + Guid.NewGuid().ToString("N");
+        start.Environment[StatusPipeVariable] = pipeName;
+        var status = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
         var process = new Process { StartInfo = start };
         try
         {
             if (!process.Start()) throw new IOException("Linux print supervisor did not start.");
-            return new(process);
+            return new(process, status);
         }
-        catch { process.Dispose(); throw; }
+        catch { status.Dispose(); process.Dispose(); throw; }
+    }
+
+    public async Task WaitForStartAsync(CancellationToken cancellationToken)
+    {
+        var connected = _status.WaitForConnectionAsync(cancellationToken);
+        if (await Task.WhenAny(connected, _process.WaitForExitAsync(cancellationToken)).ConfigureAwait(false) != connected)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new IOException("Linux print supervisor exited before reporting startup.");
+        }
+        await connected.ConfigureAwait(false);
+        // The supervisor waits for this acknowledgment before it can exit with a startup result.
+        await _status.WriteAsync(new byte[] { 1 }, cancellationToken).ConfigureAwait(false);
+        var result = new byte[1];
+        await _status.ReadExactlyAsync(result, cancellationToken).ConfigureAwait(false);
+        switch (result[0])
+        {
+            case 1: return;
+            case 2: throw new Win32Exception("Printer command could not start.");
+            default: throw new IOException("Linux print supervisor failed before command startup.");
+        }
     }
 
     public Task StopAsync()
@@ -55,7 +83,7 @@ internal sealed partial class LinuxPrintProcess : IDisposable
         await _process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
     }
 
-    public void Dispose() => _process.Dispose();
+    public void Dispose() { _status.Dispose(); _process.Dispose(); }
 
     public static Task<int?> TryRunSupervisorAsync(string[] arguments)
     {
@@ -77,11 +105,25 @@ internal sealed partial class LinuxPrintProcess : IDisposable
     private static async Task<int?> RunSupervisorAsync(string[] arguments)
     {
         Process? command = null;
+        NamedPipeClientStream? status = null;
         Task? commandExited = null;
         string? jobPath = null;
         var operation = "kernel/procfs preflight";
         try
         {
+            var pipeName = Environment.GetEnvironmentVariable(StatusPipeVariable);
+            Environment.SetEnvironmentVariable(StatusPipeVariable, null);
+            if (pipeName is not null)
+            {
+                if (!pipeName.StartsWith("dotreticulum-print-", StringComparison.Ordinal) ||
+                    !Guid.TryParseExact(pipeName["dotreticulum-print-".Length..], "N", out _))
+                    throw new IOException("Invalid print supervisor status pipe.");
+                status = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+                await status.ConnectAsync(5000).ConfigureAwait(false);
+                var acknowledgment = new byte[1];
+                await status.ReadExactlyAsync(acknowledgment).ConfigureAwait(false);
+                if (acknowledgment[0] != 1) throw new IOException("Invalid print supervisor status acknowledgment.");
+            }
             VerifyRequirements();
             operation = "private job validation";
             jobPath = ValidateJobPath(arguments[^1]);
@@ -98,6 +140,12 @@ internal sealed partial class LinuxPrintProcess : IDisposable
             operation = "command startup";
             command = new Process { StartInfo = start };
             if (!command.Start()) throw new IOException("Printer command did not start.");
+            if (status is not null)
+            {
+                await status.WriteAsync(new byte[] { 1 }).ConfigureAwait(false);
+                status.Dispose();
+                status = null;
+            }
             command.StandardInput.Close();
             commandExited = command.WaitForExitAsync();
             operation = "command/descendant ownership";
@@ -125,6 +173,11 @@ internal sealed partial class LinuxPrintProcess : IDisposable
         {
             var native = exception is Win32Exception failure ? $", errno={failure.NativeErrorCode}" : "";
             Diagnostic($"{operation} failed ({exception.GetType().Name}{native}).");
+            if (status?.IsConnected == true)
+            {
+                try { await status.WriteAsync(new byte[] { operation == "command startup" ? (byte)2 : (byte)3 }).ConfigureAwait(false); }
+                catch (IOException reportFailure) { Diagnostic($"status reporting failed ({reportFailure.GetType().Name})."); }
+            }
             // Never abandon adopted descendants on an exception or an unavailable printer.
             if (command is not null)
             {
@@ -145,7 +198,7 @@ internal sealed partial class LinuxPrintProcess : IDisposable
             return 125;
         }
 
-        finally { command?.Dispose(); }
+        finally { status?.Dispose(); command?.Dispose(); }
     }
 
     private static string ValidateJobPath(string value)

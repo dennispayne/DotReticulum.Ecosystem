@@ -429,6 +429,7 @@ public sealed class NomadNetPrinterTests
             if (File.Exists(Path.Combine(root, "marker.middle")))
                 AssertProcessExited(int.Parse(await File.ReadAllTextAsync(Path.Combine(root, "marker.middle"))));
             Assert.Empty(Directory.GetFiles(Path.Combine(root, "storage", "print-jobs")));
+            await printer.DisposeAsync();
             await using var recovery = new NomadNetPrinter(root);
             recovery.Start();
             var healthy = await recovery.PrintMessageAsync(Settings(root), Message, null, DateTimeOffset.UnixEpoch);

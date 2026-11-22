@@ -74,11 +74,17 @@ Describe 'Windows MSI packaging authoring' -Tag 'Installer' {
         $script:buildScript | Should -Match 'mingw-w64-codec2-PKGBUILD'
     }
 
-    It 'refuses to overwrite an existing output directory' {
+    It 'refuses to overwrite an existing output directory on Windows' -Skip:(-not $IsWindows) {
         $occupied = Join-Path $TestDrive 'occupied-msi-output'
         $null = New-Item -ItemType Directory -Path $occupied
         $output = & pwsh -NoProfile -File $script:buildScriptPath -Version '1.0.0' -OutputDirectory $occupied 2>&1
         $LASTEXITCODE | Should -Not -Be 0
         ($output -join "`n") | Should -Match 'Refusing to overwrite existing MSI build output'
+    }
+
+    It 'refuses to build an MSI on non-Windows systems' -Skip:$IsWindows {
+        $output = & pwsh -NoProfile -File $script:buildScriptPath -Version '1.0.0' -OutputDirectory (Join-Path $TestDrive 'msi-output') 2>&1
+        $LASTEXITCODE | Should -Not -Be 0
+        ($output -join "`n") | Should -Match 'The Windows MSI can only be built on Windows'
     }
 }

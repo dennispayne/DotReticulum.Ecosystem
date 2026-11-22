@@ -144,10 +144,10 @@ Describe 'sideband published offline paper export' -Tag 'Native' {
     It 'exports the actual-reference saved URI and QR across process restarts without overwriting' {
         $uriPath = Join-Path $paperNativeRoot 'paper.txt'
         $pngPath = Join-Path $paperNativeRoot 'paper.png'
-        & $binary --export-paper $paper.MessageId --paper-output $uriPath --data-dir $paper.Profile
+        & $binary --export-paper $paper.MessageId --paper-output $uriPath --data-dir $paper.Profile | Out-Null
         $LASTEXITCODE | Should -Be 0
         [IO.File]::ReadAllText($uriPath) | Should -BeExactly $paper.Uri
-        & $binary --export-paper $paper.MessageId --paper-output $pngPath --paper-qr --data-dir $paper.Profile
+        & $binary --export-paper $paper.MessageId --paper-output $pngPath --paper-qr --data-dir $paper.Profile | Out-Null
         $LASTEXITCODE | Should -Be 0
         [Convert]::ToHexString([IO.File]::ReadAllBytes($pngPath)[0..7]) | Should -Be '89504E470D0A1A0A'
         foreach ($export in @(@($uriPath, $false), @($pngPath, $true))) {
@@ -168,7 +168,7 @@ Describe 'sideband published offline paper export' -Tag 'Native' {
             return
         }
         $png = Join-Path $paperNativeRoot 'independent.png'
-        & $binary --export-paper $paper.MessageId --paper-output $png --paper-qr --data-dir $paper.Profile
+        & $binary --export-paper $paper.MessageId --paper-output $png --paper-qr --data-dir $paper.Profile | Out-Null
         $LASTEXITCODE | Should -Be 0
         $decoded = & $env:DOTRETICULUM_QR_PYTHON (Join-Path $PSScriptRoot '..\Interop\decode_paper_qr.py') $png
         $LASTEXITCODE | Should -Be 0

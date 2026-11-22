@@ -253,8 +253,8 @@ public sealed class NomadNetEditorPresentationStorageTests
         Directory.CreateDirectory(Path.Combine(work.Pages, "nested"));
         Directory.CreateDirectory(Path.Combine(work.Pages, "empty"));
         Directory.CreateDirectory(Path.Combine(work.Pages, ".hidden"));
-        foreach (var path in new[] { "a.mu", "B.MU", "plain.txt", "nested\\z.mu", "nested\\visible.txt", ".hidden\\secret.mu" })
-            await File.WriteAllTextAsync(Path.Combine(work.Pages, path), ">Synthetic source\n");
+        foreach (var path in new[] { "a.mu", "B.MU", "plain.txt", "nested/z.mu", "nested/visible.txt", ".hidden/secret.mu" })
+            await File.WriteAllTextAsync(Path.Combine(work.Pages, path.Replace('/', Path.DirectorySeparatorChar)), ">Synthetic source\n");
         await File.WriteAllTextAsync(Path.Combine(work.Pages, "a.mu.allowed"), "synthetic policy");
         using var fixture = NomadNetEditorPresentationTests.Vectors();
         using (var editor = work.Editor())
@@ -337,8 +337,19 @@ public sealed class NomadNetEditorPresentationStorageTests
         using var editor = work.Editor();
         await editor.ActivatePresentationAsync();
         await editor.FilterAsync(true);
-        using (var locked = new FileStream(state, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        if (OperatingSystem.IsWindows())
+        {
+            using var locked = new FileStream(state, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             await Assert.ThrowsAnyAsync<IOException>(() => editor.FilterAsync(false));
+        }
+        else
+        {
+            var saved = await File.ReadAllBytesAsync(state);
+            File.Delete(state);
+            Directory.CreateDirectory(state);
+            try { await Assert.ThrowsAnyAsync<IOException>(() => editor.FilterAsync(false)); }
+            finally { Directory.Delete(state); await File.WriteAllBytesAsync(state, saved); }
+        }
         Assert.True(editor.FilterMu);
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();

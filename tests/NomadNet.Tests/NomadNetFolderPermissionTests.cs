@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using Xunit.Sdk;
 
 namespace NomadNet.Tests;
 
@@ -271,10 +270,9 @@ public sealed class NomadNetFolderPermissionTests
         Assert.Equal(0, (await another.InspectFolderPermissionsAsync("pages", "tree")).Restricted);
     }
 
-    [Fact, Trait("TestId", "T436")]
+    [WindowsPermissionFact, Trait("TestId", "T436")]
     public async Task SafeguardsActualWindowsSecondPolicyLockRollsBackEarlierPolicyBytesAndServiceRecovers()
     {
-        if (!OperatingSystem.IsWindows()) throw SkipException.ForSkip("Requires actual Windows deny-delete sharing; Linux is not claimed.");
         using var work = new Workspace();
         await work.Seed();
         var original = await File.ReadAllBytesAsync(work.Path("a.allowed"));
@@ -294,6 +292,14 @@ public sealed class NomadNetFolderPermissionTests
         plan = await work.Inspect();
         await work.Editor.ApplyFolderPermissionsAsync(plan.Token, null, true);
         Assert.Equal(0, (await work.Inspect()).Restricted);
+    }
+
+    private sealed class WindowsPermissionFactAttribute : FactAttribute
+    {
+        public WindowsPermissionFactAttribute()
+        {
+            if (!OperatingSystem.IsWindows()) Skip = "Requires actual Windows deny-delete sharing; Linux is not claimed.";
+        }
     }
 
     private sealed class Workspace : IDisposable

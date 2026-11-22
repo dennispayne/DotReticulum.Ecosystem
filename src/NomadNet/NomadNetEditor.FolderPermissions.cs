@@ -246,9 +246,13 @@ public sealed partial class NomadNetEditor
         var paths = changes.Select(change => System.IO.Path.GetRelativePath(plan.Absolute, change.Path)).ToHashSet(StringComparer.Ordinal);
         var expected = plan.Entries.Where(entry => !paths.Contains(entry.Path)).ToArray();
         var unchanged = actual.Where(entry => !paths.Contains(entry.Path)).ToArray();
-        // Sidecar replacement changes parent directory timestamps, not content metadata.
-        if (!expected.Select(entry => entry.Directory ? entry with { Modified = 0 } : entry)
-            .SequenceEqual(unchanged.Select(entry => entry.Directory ? entry with { Modified = 0 } : entry)))
+        var modifiedDirectories = changes.Where(change => body is not null || change.Previous is not null)
+            .Select(change => System.IO.Path.GetRelativePath(plan.Absolute, System.IO.Path.GetDirectoryName(change.Path)!))
+            .Select(path => path == "." ? "" : path).ToHashSet(StringComparer.Ordinal);
+        FolderEntry Normalize(FolderEntry entry) => entry.Directory && modifiedDirectories.Contains(entry.Path)
+            ? entry with { Modified = 0, Created = OperatingSystem.IsLinux() ? 0 : entry.Created }
+            : entry;
+        if (!expected.Select(Normalize).SequenceEqual(unchanged.Select(Normalize)))
             throw new IOException("Folder content or unrelated policy changed during permission application.");
         foreach (var change in changes)
             await CheckAsync(change.Path, body, token).ConfigureAwait(false);

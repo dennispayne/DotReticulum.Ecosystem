@@ -125,7 +125,7 @@ public sealed partial class NomadNetEditor
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await VerifyFolderAsync(plan, staged, cancellationToken).ConfigureAwait(false);
+                await VerifyFolderAsync(plan, staged, cancellationToken, stagedForRemoval: true).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
             }
             catch (Exception failure)
@@ -208,11 +208,16 @@ public sealed partial class NomadNetEditor
             throw new IOException("Folder-root .allowed companions require manual reconciliation; no implicit sidecar move/removal.");
     }
 
-    private async Task VerifyFolderAsync(FolderPlan plan, string path, CancellationToken token)
+    private async Task VerifyFolderAsync(FolderPlan plan, string path, CancellationToken token, bool stagedForRemoval = false)
     {
         RefuseRootCompanion(path);
         var actual = await ReadFolderAsync(path, token).ConfigureAwait(false);
-        if (!plan.Entries.SequenceEqual(actual))
+        var expected = plan.Entries;
+        if (stagedForRemoval && !OperatingSystem.IsWindows())
+            expected = expected.Select(entry => entry.Path.Length == 0
+                ? entry with { Attributes = entry.Attributes | (int)FileAttributes.Hidden }
+                : entry).ToArray();
+        if (!expected.SequenceEqual(actual))
             throw new IOException("Folder changed after inspection; inspect again before mutation.");
     }
 

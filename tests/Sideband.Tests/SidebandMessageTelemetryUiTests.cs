@@ -21,6 +21,7 @@ public sealed partial class SidebandHeadlessUiTests
                 await store.AddMessageAsync(new(Guid.NewGuid(), CopyPeer, true, "Keep title", "Keep text " + name,
                     DateTimeOffset.UtcNow, "Received", TelemetryHex: name == "legacy" ? null :
                     SidebandMessageTelemetryStorageTests.Fixture(name)), cancellationToken: token);
+            await store.SetConversationReadAsync(CopyPeer, true, token);
             var copies = new List<string>();
             window = new MainWindow(root, null, clipboardWriter: text => { copies.Add(text); return Task.CompletedTask; });
             window.Show();

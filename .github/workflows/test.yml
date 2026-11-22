@@ -177,6 +177,12 @@ jobs:
           sudo apt-get install -y zip libopus0 libcodec2-1.2 libopusfile0 libopusenc0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Install Windows native codec test prerequisites
+        if: runner.os == 'Windows'
+        run: |
+          $codecPath = ./tests/Install-CiWindowsCodecs.ps1 -Directory artifacts/builds/test-codecs
+          $codecPath | Add-Content -LiteralPath $env:GITHUB_PATH
+
       - name: Verify and use native Build
         uses: ./.github/actions/use-build
         with:

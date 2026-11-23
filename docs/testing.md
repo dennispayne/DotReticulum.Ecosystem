@@ -1838,9 +1838,11 @@ Build. The latest hosted [Integration job](https://github.com/dennispayne/DotRet
 failed, including local-file selection, repository TLS certificate imports
 using unsupported `EphemeralKeySet`, and printing paths supported only on
 Windows and Linux. A subsequent macOS ARM64 candidate passed the five local
-file picker cases and reduced NomadNet Integration failures from 107 to 15;
-attachment export and printing still fail. The candidate run is
-[45103329910](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45103329910).
+file picker cases and reduced NomadNet Integration failures from 107 to 15
+in [run 45103329910](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45103329910).
+A subsequent candidate passed four macOS ARM64 attachment-export cases in
+[run 45105470510](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45105470510);
+12 NomadNet printing tests still failed.
 macOS Integration is not accepted. macOS native/tooling
 compatibility is not run and macOS production coverage is not collected. The
 live/GUI/hardware boundaries above remain unchanged.

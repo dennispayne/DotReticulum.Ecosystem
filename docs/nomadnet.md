@@ -406,7 +406,9 @@ Intentional native safety boundaries:
 - Exports are staged, Unix owner-read/write, then atomically published without
   replacement. Linux uses `renameat2(RENAME_NOREPLACE)`: ordinary `File.Move` was
   independently found to allow duplicate successful destinations under concurrent
-  Unix calls. Windows uses its non-replacing move. Both treat existing directories
+  Unix calls. Windows uses its non-replacing move; macOS ARM64 uses
+  `renamex_np(RENAME_EXCL)` and fails explicitly if the filesystem does not
+  support it. All treat existing directories
   as occupied names, refuse linked destination ancestors, bound suffix attempts
   to1000, and remove staging files on failure/cancellation. These are stricter
   than primary helper check-then-write behavior. No hostile concurrently replaced
@@ -416,6 +418,10 @@ Intentional native safety boundaries:
 inputs, inert import/persistence, atomic/concurrent collision exhaustion,
 pre-cancelled export, blocked directories, invalid sidecars/checksums,
 non-regular files, Unix permissions/symlinks and healthy recovery. The
+hosted macOS ARM64 [Integration run 45105470510](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45105470510)
+passed four export cases, including concurrent collisions, recovery and links;
+the Linux-only permission/FIFO case skipped. The overall macOS job failed on
+other tests. The
 `AttachmentPath` Pester selection (`T199` and `T208`) executes the actual user terminal
 commands on the selected published binary, primary application file exchange in
 both directions, configured and explicit exports and same-identity restart.

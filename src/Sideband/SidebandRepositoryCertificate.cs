@@ -60,8 +60,9 @@ internal static class SidebandRepositoryCertificate
         var bytes = File.ReadAllBytes(path);
         try
         {
-            // Schannel cannot use ephemeral imported keys. UserKeySet deletes its temporary key container on disposal.
-            var flags = OperatingSystem.IsWindows() ? X509KeyStorageFlags.UserKeySet : X509KeyStorageFlags.EphemeralKeySet;
+            // Windows and macOS use temporary key containers; macOS does not support EphemeralKeySet.
+            var flags = OperatingSystem.IsWindows() ? X509KeyStorageFlags.UserKeySet :
+                OperatingSystem.IsMacOS() ? X509KeyStorageFlags.DefaultKeySet : X509KeyStorageFlags.EphemeralKeySet;
             var certificate = X509CertificateLoader.LoadPkcs12(bytes, "", flags);
             if (!certificate.HasPrivateKey || certificate.NotAfter.ToUniversalTime() <= DateTime.UtcNow ||
                 certificate.NotBefore.ToUniversalTime() > DateTime.UtcNow)

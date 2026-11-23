@@ -39,6 +39,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TEST_RUN_ID: ${{ github.event.workflow_run.id || inputs.test_run_id }}
+          TRIGGER_EVENT: ${{ github.event_name }}
         run: |
           $ErrorActionPreference = 'Stop'
           function Invoke-GitHub([string] $Endpoint, $Body, [string] $Method = 'POST') {
@@ -56,11 +57,11 @@ jobs:
             throw 'Badge publication requires a successful automatic main Test.'
           }
           $sourceCommit = $Matches.source
-          $builds = Invoke-GitHub "repos/$repo/actions/workflows/build.yml/runs?head_sha=$sourceCommit&branch=main&status=success&per_page=100" $null
-          if (!@($builds.workflow_runs | Where-Object {
-              $_.head_sha -ceq $sourceCommit -and $_.head_repository.full_name -ceq $repo -and
-              $_.head_branch -eq 'main' -and $_.event -in 'push', 'workflow_dispatch'
-          }).Count) { throw 'Test does not identify a successful trusted main Build.' }
+          $producer = ./tests/Resolve-CoverageProducer.ps1 -Repository $repo -Commit $sourceCommit -TriggerEvent $env:TRIGGER_EVENT
+          if ($producer -eq 'pull_request') {
+            Write-Host 'Pull request Test coverage is not published to main.'
+            exit 0
+          }
           gh run download $run.id --repo $repo --name "test-summary-$($run.run_attempt)" --dir artifacts/tests/coverage
           if ($LASTEXITCODE -ne 0) { throw 'Coverage artifact download failed.' }
           $head = Invoke-GitHub "repos/$repo/git/ref/heads/main" $null

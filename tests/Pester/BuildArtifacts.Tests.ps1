@@ -143,6 +143,69 @@ Describe 'Exact cross-workflow producer selection' -Tag Tooling {
     }
 }
 
+Describe 'Coverage badge producer selection' -Tag Tooling {
+    BeforeEach {
+        $script:coverageResolver = Join-Path $script:root 'tests\Resolve-CoverageProducer.ps1'
+        $script:build = @{
+            repository = @{ full_name = 'owner/ecosystem' }; head_repository = @{ full_name = 'owner/ecosystem' }
+            path = '.github/workflows/build.yml'; status = 'completed'; conclusion = 'success'
+            head_sha = $script:commit; event = 'push'; head_branch = 'main'
+        }
+        $global:CoverageBuilds = @($script:build)
+        Mock gh {
+            $global:LASTEXITCODE = 0
+            @{ total_count = $global:CoverageBuilds.Count; workflow_runs = $global:CoverageBuilds } | ConvertTo-Json -Depth 6
+        }
+    }
+    AfterEach { Remove-Variable CoverageBuilds -Scope Global }
+
+    It 'publishes only from a successful matching main Build' {
+        & $script:coverageResolver -Repository owner/ecosystem -Commit $script:commit -TriggerEvent workflow_run |
+            Should -Be 'main'
+        $script:build.head_sha = 'b' * 40
+        { & $script:coverageResolver -Repository owner/ecosystem -Commit $script:commit -TriggerEvent workflow_run } |
+            Should -Throw '*successful trusted main Build*'
+        $script:build.head_sha = $script:commit
+        $script:build.repository.full_name = 'other/ecosystem'
+        { & $script:coverageResolver -Repository owner/ecosystem -Commit $script:commit -TriggerEvent workflow_run } |
+            Should -Throw '*successful trusted main Build*'
+    }
+
+    It 'skips automatic PR coverage but refuses a manually selected PR' {
+        $script:build.event = 'pull_request'
+        $script:build.head_branch = 'feature'
+        & $script:coverageResolver -Repository owner/ecosystem -Commit $script:commit -TriggerEvent workflow_run |
+            Should -Be 'pull_request'
+        { & $script:coverageResolver -Repository owner/ecosystem -Commit $script:commit -TriggerEvent workflow_dispatch } |
+            Should -Throw '*successful trusted main Build*'
+    }
+
+    It 'fails closed when matching main and PR Builds cannot be distinguished' {
+        $global:CoverageBuilds += @{
+            repository = @{ full_name = 'owner/ecosystem' }; head_repository = @{ full_name = 'owner/ecosystem' }
+            path = '.github/workflows/build.yml'; status = 'completed'; conclusion = 'success'
+            head_sha = $script:commit; event = 'pull_request'; head_branch = 'feature'
+        }
+        { & $script:coverageResolver -Repository owner/ecosystem -Commit $script:commit -TriggerEvent workflow_run } |
+            Should -Throw '*ambiguous*'
+    }
+
+    It 'reports GitHub API failures instead of treating them as a PR skip' {
+        Mock gh { $global:LASTEXITCODE = 1 }
+        { & $script:coverageResolver -Repository owner/ecosystem -Commit $script:commit -TriggerEvent workflow_run } |
+            Should -Throw '*Cannot retrieve*'
+    }
+
+    It 'rejects incomplete Build results' {
+        Mock gh {
+            $global:LASTEXITCODE = 0
+            @{ total_count = 2; workflow_runs = $global:CoverageBuilds } | ConvertTo-Json -Depth 6
+        }
+        { & $script:coverageResolver -Repository owner/ecosystem -Commit $script:commit -TriggerEvent workflow_run } |
+            Should -Throw '*incomplete*'
+    }
+}
+
 Describe 'Static analysis evidence' -Tag Tooling {
     It 'writes the finding before failing the pinned PowerShell analysis gate' -Tag Analysis {
         if (!(Get-Module -ListAvailable PSScriptAnalyzer | Where-Object Version -EQ ([version]'1.24.0'))) {

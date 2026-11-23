@@ -8,6 +8,17 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Main source `dfa17ba055be1bc6806313d34bb8b6e8bb9be13f` passed hosted
+[Build 45113776779](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45113776779),
+[static analysis 45113776831](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45113776831),
+and [Test 45114622372](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45114622372).
+The main-only coverage publisher passed
+[run 45115406239](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45115406239);
+its source metadata identifies that Test and source commit. A telephone ring
+deadline/recovery test uses the configured clock and passed on hosted macOS and
+20 isolated Windows repetitions. Previously observed intermittent Windows
+cancellation and voice-lifecycle timeouts remain unexplained.
+
 Combined candidate `c033f0ad642f482417e607d66610db263ceb2a1e` passed hosted
 [Build 45110013531](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45110013531),
 [static analysis 45110013424](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45110013424)

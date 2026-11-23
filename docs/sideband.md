@@ -168,7 +168,8 @@ saved URI and the exact reviewed command. Selection/policy changes consume
 consent. Historical imported envelopes remain warning-bearing export-only
 records. Passive imported `print_command` never activates or replaces an
 approved executable. Printing does not alter drafts, attachments, delivery state
-or history.
+or history. Process ownership is supported on Windows and Linux only; other
+platforms refuse a print job before starting a command or creating a workspace.
 
 The same profile-owned service supports the native maintenance extension:
 
@@ -1449,6 +1450,9 @@ cancellation and concurrent competing imports leave an existing destination
 untouched. Source fingerprints before/after copying reject concurrent changes;
 the original is never opened for writing. Private copies include WAL/SHM so
 committed WAL-only messages are not discarded. SQLite opens only the private copy.
+An existing rollback journal blocks import until the source database is recovered;
+it is never silently discarded. A private snapshot with no WAL is opened
+immutable, while a snapshot with a WAL uses SQLite's normal WAL reader.
 
 Limits are 1 MiB binary config, 128 MiB each DB/WAL, 8 MiB SHM/cell, 64 MiB query
 allocation, 1,000 conversations and 10,000 messages, plus existing native
@@ -2943,6 +2947,8 @@ persists its certificate rather than regenerating it on every start. Linux uses
 ephemeral imported keys and mode-600 private storage. Windows Schannel rejects
 the tested ephemeral-key mode, so the verified provider uses temporary UserKeySet
 ownership and inherited directory ACLs; restrict the directory to its owner.
+macOS uses a temporary keychain with the default non-persistent import and
+mode-600 private storage; its provider rejects `EphemeralKeySet`.
 Cancellation/stop/window shutdown joins owned clients and disposes the certificate.
 One failing peer or error observer does not disable later service.
 
@@ -2956,7 +2962,10 @@ or absent; neither the reference observations nor loopback TLS prove them.
 These APIs do not load arbitrary Python plugins or provide their ABI.
 
 Independent backend acceptance passed 39 Windows cases with one explicit Unix-mode
-skip, and 40/40 Linux cases. Frozen strict NativeAOT probes on both hosts executed
+skip, and 40/40 Linux cases. Hosted macOS ARM64
+[Integration run 45103069291](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45103069291)
+passed all 36 selected repository-server cases, including TLS and certificate
+restart; the overall macOS Integration job failed on other tests. Frozen strict NativeAOT probes on both hosts executed
 fingerprint-pinned HTTPS index/package/file/404 requests, certificate restart and
 joined disposal. The actual desktop integration additionally verifies consent,
 invalid input, root/profile separation, TLS routes, restart, peer errors and

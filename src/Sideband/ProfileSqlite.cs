@@ -18,6 +18,13 @@ internal sealed class ProfileSqlite : IDisposable
         _progress = _ => token.IsCancellationRequested || --_remainingSteps <= 0 ? 1 : 0;
         var windows = OperatingSystem.IsWindows();
         var fullPath = Path.GetFullPath(path);
+        if (!immutable)
+        {
+            RejectRollbackJournal(fullPath);
+            // Only isolated snapshots with no WAL can safely bypass SQLite's WAL sidecar creation.
+            if (!FileEntryExists(fullPath + "-wal"))
+                immutable = true;
+        }
         if (windows && !fullPath.StartsWith(@"\\?\", StringComparison.Ordinal))
             fullPath = fullPath.StartsWith(@"\\", StringComparison.Ordinal)
                 ? @"\\?\UNC\" + fullPath[2..] : @"\\?\" + fullPath;
@@ -54,11 +61,25 @@ internal sealed class ProfileSqlite : IDisposable
         }
     }
 
+    internal static void RejectRollbackJournal(string path)
+    {
+        if (FileEntryExists(path + "-journal"))
+            throw new InvalidDataException("A profile SQLite rollback journal requires recovery before import.");
+    }
+
+    private static bool FileEntryExists(string path)
+    {
+        try { _ = File.GetAttributes(path); return true; }
+        catch (FileNotFoundException) { return false; }
+        catch (DirectoryNotFoundException) { return false; }
+    }
+
     internal List<object?[]> Rows(string sql, int maximumRows)
     {
         _token.ThrowIfCancellationRequested();
-        if (Native.sqlite3_prepare_v2(_database, sql, -1, out var statement, IntPtr.Zero) != 0)
-            throw new InvalidDataException("The profile database schema or query is unsupported.");
+        var prepareResult = Native.sqlite3_prepare_v2(_database, sql, -1, out var statement, IntPtr.Zero);
+        if (prepareResult != 0)
+            throw new InvalidDataException($"The profile database query could not be prepared (SQLite result {prepareResult}).");
         try
         {
             var rows = new List<object?[]>();

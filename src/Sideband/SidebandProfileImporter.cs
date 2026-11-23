@@ -334,6 +334,7 @@ public static class SidebandProfileImporter
 
     private static async Task<Dictionary<string, string>> FingerprintAsync(string source, string[] files, CancellationToken token)
     {
+        ProfileSqlite.RejectRollbackJournal(Path.Combine(source, "sideband.db"));
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var name in files)
         {

@@ -115,6 +115,8 @@ internal sealed class PrintWorker : IAsyncDisposable
 
     private async Task<PrintResult> ExecuteAsync(Job job, CancellationToken cancellationToken)
     {
+        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
+            return new(false, "Printing requires Windows or Linux process ownership.");
         EnsurePrivateDirectory();
         var path = Path.Combine(_directory, Guid.NewGuid().ToString("N") + job.Extension);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -144,14 +146,7 @@ internal sealed class PrintWorker : IAsyncDisposable
             }
             else
             {
-                process = new Process
-                {
-                    StartInfo = new ProcessStartInfo(job.Arguments[0])
-                    { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true },
-                };
-                foreach (var argument in job.Arguments.Skip(1)) process.StartInfo.ArgumentList.Add(argument);
-                process.StartInfo.ArgumentList.Add(path);
-                if (!process.Start()) throw new IOException("Print command did not start.");
+                throw new PlatformNotSupportedException("Printing requires Windows or Linux process ownership.");
             }
             output = DrainAsync(windows?.StandardOutput ?? process.StandardOutput.BaseStream, deadline.Token);
             error = DrainAsync(windows?.StandardError ?? process.StandardError.BaseStream, deadline.Token);

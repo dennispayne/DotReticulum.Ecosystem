@@ -165,7 +165,7 @@ public sealed class NomadNetAttachmentExportTests
         finally { Directory.Delete(root, true); }
     }
 
-    [LinuxAttachmentFact]
+    [SupportedUnixAttachmentFact]
     [Trait("TestId", "T198")]
     public async Task RejectsDestinationAndNameLinksAndRecovers()
     {
@@ -243,6 +243,16 @@ public sealed class NomadNetAttachmentExportTests
 
     private static Task Save(string root, string name) => NomadNetAttachments.SaveAsync(root, Id,
         new() { [LxmField.FileAttachments] = new object?[] { new object?[] { name, PublicData } } });
+
+    private sealed class SupportedUnixAttachmentFactAttribute : FactAttribute
+    {
+        public SupportedUnixAttachmentFactAttribute()
+        {
+            if (!OperatingSystem.IsLinux() && !(OperatingSystem.IsMacOS() &&
+                System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64))
+                Skip = "Symlink export tests require Linux or macOS ARM64.";
+        }
+    }
 
     private sealed class LinuxAttachmentFactAttribute : FactAttribute
     {

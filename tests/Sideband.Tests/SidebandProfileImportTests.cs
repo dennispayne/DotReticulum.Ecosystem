@@ -68,6 +68,23 @@ public sealed partial class SidebandProfileImportTests
         Assert.Equal(state, await File.ReadAllBytesAsync(sentinel, TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task RollbackJournalBlocksImportWithoutChangingSourceAndRetrySucceeds()
+    {
+        using var profile = new Profile();
+        var journal = Path.Combine(profile.Source, "sideband.db-journal");
+        await File.WriteAllBytesAsync(journal, [1, 2, 3], TestContext.Current.CancellationToken);
+        var before = profile.Fingerprint();
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            SidebandProfileImporter.ImportAsync(profile.Source, profile.Target, TestContext.Current.CancellationToken));
+        Assert.False(Directory.Exists(profile.Target));
+        Assert.Equal(before, profile.Fingerprint());
+        Assert.Empty(Directory.GetDirectories(profile.Root, ".native.import-*"));
+        File.Delete(journal);
+        await SidebandProfileImporter.ImportAsync(profile.Source, profile.Target, TestContext.Current.CancellationToken);
+        Assert.True(File.Exists(Path.Combine(profile.Target, "state.json")));
+    }
+
     [Theory]
     [InlineData("identity")]
     [InlineData("config")]

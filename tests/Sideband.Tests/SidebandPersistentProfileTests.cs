@@ -80,9 +80,31 @@ public sealed class SidebandPersistentProfileTests
         Assert.Equal(before, profile.Fingerprint());
         File.Delete(profile.Database + "-wal");
         File.Delete(profile.Database + "-shm");
-        var mainOnly = await SidebandPersistentProfile.ReadAsync(profile.Database, TestContext.Current.CancellationToken);
-        Assert.Equal(1760000000, mainOnly.LastSynchronization);
-        Assert.False(mainOnly.SynchronizationRetrying);
+        var mainBefore = profile.Fingerprint();
+        var mainOnly = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ =>
+            SidebandPersistentProfile.ReadAsync(profile.Database, TestContext.Current.CancellationToken)));
+        foreach (var result in mainOnly)
+        {
+            Assert.Equal(1760000000, result.LastSynchronization);
+            Assert.False(result.SynchronizationRetrying);
+        }
+        Assert.Equal(mainBefore, profile.Fingerprint());
+    }
+
+    [Fact]
+    public async Task RollbackJournalIsRefusedWithoutModifyingSnapshotAndRecoveryIsPossible()
+    {
+        using var profile = new Profile();
+        profile.Install(profile.Case("first_rejection"));
+        var journal = profile.Database + "-journal";
+        await File.WriteAllBytesAsync(journal, [1, 2, 3], TestContext.Current.CancellationToken);
+        var before = profile.Fingerprint();
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            SidebandPersistentProfile.ReadAsync(profile.Database, TestContext.Current.CancellationToken));
+        Assert.Equal(before, profile.Fingerprint());
+        File.Delete(journal);
+        var result = await SidebandPersistentProfile.ReadAsync(profile.Database, TestContext.Current.CancellationToken);
+        AssertObservation(profile.Case("first_rejection"), result);
     }
 
     [Theory]

@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using System.Runtime.CompilerServices;
 using LXMF;
 
 namespace Sideband.Tests;
@@ -76,7 +77,7 @@ public sealed class SidebandPrintingIntegrationTests
         finally { Directory.Delete(root, true); }
     }
 
-    [Fact]
+    [SupportedPrintFact]
     [Trait("TestId", "T1003")]
     public async Task RealPrivateSoftwareSinkReceivesOneExactPngPathAndDoesNotMutateHistory()
     {
@@ -117,7 +118,7 @@ public sealed class SidebandPrintingIntegrationTests
         finally { Directory.Delete(root, true); }
     }
 
-    [Theory]
+    [SupportedPrintTheory]
     [InlineData("fail", "code 7")]
     [InlineData("fail125", "code 125")]
     [InlineData("missing", "could not start")]
@@ -144,7 +145,7 @@ public sealed class SidebandPrintingIntegrationTests
         finally { Directory.Delete(root, true); }
     }
 
-    [Fact]
+    [SupportedPrintFact]
     [Trait("TestId", "T1005")]
     public async Task QueuedOwnershipAndConcurrentDisposalCancelAndJoinAllAppOperations()
     {
@@ -184,7 +185,7 @@ public sealed class SidebandPrintingIntegrationTests
         return message;
     }
 
-    [Fact]
+    [SupportedPrintFact]
     [Trait("TestId", "T1013")]
     public async Task AnotherApplicationOwnerCannotRecoverOrDeleteAnActiveProfilesPrivateJob()
     {
@@ -235,5 +236,56 @@ public sealed class SidebandPrintingIntegrationTests
         var root = Path.GetFullPath(Path.Combine("artifacts", "tests", "sideband-printing", "public paper " + Guid.NewGuid().ToString("N")));
         Directory.CreateDirectory(root);
         return root;
+    }
+
+    [UnsupportedPrintFact]
+    public async Task UnsupportedPlatformRefusesPrintBeforeStartingAProcessOrCreatingAWorkspace()
+    {
+        var root = NewRoot();
+        try
+        {
+            var store = new SidebandStateStore(root);
+            var message = await SeedAsync(store);
+            var command = Command(root, "capture");
+            await store.ConfigurePrintingAsync(true, command, true, Token);
+            await using var printer = new SidebandPrintingService(store);
+            printer.Start();
+            var result = await printer.PrintPaperAsync(message.Id, command, true, Token);
+            Assert.False(result.Success);
+            Assert.Equal("Printing requires Windows or Linux process ownership.", result.Detail);
+            Assert.False(File.Exists(Path.Combine(root, "marker")));
+            Assert.False(Directory.Exists(Path.Combine(root, "storage", "print-jobs")));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    private sealed class SupportedPrintFactAttribute : FactAttribute
+    {
+        public SupportedPrintFactAttribute([CallerFilePath] string? sourceFilePath = null, [CallerLineNumber] int sourceLineNumber = -1)
+            : base(sourceFilePath, sourceLineNumber)
+        {
+            if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
+                Skip = "Printing process ownership is implemented on Windows and Linux only.";
+        }
+    }
+
+    private sealed class SupportedPrintTheoryAttribute : TheoryAttribute
+    {
+        public SupportedPrintTheoryAttribute([CallerFilePath] string? sourceFilePath = null, [CallerLineNumber] int sourceLineNumber = -1)
+            : base(sourceFilePath, sourceLineNumber)
+        {
+            if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
+                Skip = "Printing process ownership is implemented on Windows and Linux only.";
+        }
+    }
+
+    private sealed class UnsupportedPrintFactAttribute : FactAttribute
+    {
+        public UnsupportedPrintFactAttribute([CallerFilePath] string? sourceFilePath = null, [CallerLineNumber] int sourceLineNumber = -1)
+            : base(sourceFilePath, sourceLineNumber)
+        {
+            if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
+                Skip = "Verifies the explicit unsupported-platform printing refusal.";
+        }
     }
 }

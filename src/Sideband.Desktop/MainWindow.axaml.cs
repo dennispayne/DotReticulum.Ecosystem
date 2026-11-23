@@ -64,6 +64,7 @@ public sealed partial class MainWindow : Window
         _client = new SidebandClient(_store, mediaBackend);
         InitializePrinting();
         _client.StateChanged += OnStateChanged;
+        _client.MessageCancellationAvailabilityChanged += OnMessageCancellationAvailabilityChanged;
         _client.ErrorReported += OnErrorReported;
         _client.VoiceStateChanged += OnVoiceStateChanged;
         ThemeSelector.ItemsSource = new[] { "Dark", "Light" };
@@ -887,6 +888,13 @@ public sealed partial class MainWindow : Window
         });
     }
 
+    private void OnMessageCancellationAvailabilityChanged(Guid id) => Dispatcher.UIThread.Post(() =>
+    {
+        if (!_closing && MessageList.SelectedIndex is var index && index >= 0 &&
+            index < _visibleMessages.Count && _visibleMessages[index].Id == id)
+            UpdateRetryAvailability();
+    });
+
     private void LoadVoiceSettings()
     {
         if (_state is null) return;
@@ -1314,6 +1322,7 @@ public sealed partial class MainWindow : Window
             await DrainPendingOperationsAsync().ConfigureAwait(false);
             await DisposePrintingAsync().ConfigureAwait(false);
             _client.StateChanged -= OnStateChanged;
+            _client.MessageCancellationAvailabilityChanged -= OnMessageCancellationAvailabilityChanged;
             _client.ErrorReported -= OnErrorReported;
             _client.VoiceStateChanged -= OnVoiceStateChanged;
             try { await DisposeRepositoryAsync().ConfigureAwait(false); }

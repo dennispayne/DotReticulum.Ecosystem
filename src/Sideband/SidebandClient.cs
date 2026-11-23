@@ -598,7 +598,9 @@ public sealed partial class SidebandClient : IAsyncDisposable
         {
             await _store.AddMessageAsync(local, true, owned.Token, replacedFailedMessageId).ConfigureAwait(false);
             PublishState(await _store.LoadAsync(cancellationToken: owned.Token).ConfigureAwait(false));
-            await router.SendAsync(message, owned.Token).ConfigureAwait(false);
+            var sending = router.SendAsync(message, owned.Token);
+            PublishMessageCancellationAvailability(local.Id);
+            await sending.ConfigureAwait(false);
         }
         catch
         {

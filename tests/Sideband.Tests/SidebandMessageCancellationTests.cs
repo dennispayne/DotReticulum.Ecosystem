@@ -18,7 +18,7 @@ public sealed class SidebandMessageCancellationTests
 
     [Fact]
     [Trait("TestId", "T485")]
-    public async Task TrackingBeforeRouterAdmissionDoesNotEnableCancellationButHashlessPreparationDoes()
+    public async Task CancellationAvailabilityIsPublishedAfterHashlessPreparationAdmission()
     {
         var root = Root();
         var token = TestContext.Current.CancellationToken;
@@ -32,15 +32,24 @@ public sealed class SidebandMessageCancellationTests
             await MessageRetryPeer.UntilAsync(async () => (await client.LoadAsync(token)).Announces?.Any(item =>
                 item.DestinationHash == peer.Hash && item.StampCost == 254) == true, token);
             var observed = new TaskCompletionSource<(Guid Id, bool Available)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var admitted = new TaskCompletionSource<(Guid Id, bool Available)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var errors = new System.Collections.Concurrent.ConcurrentQueue<string>();
+            client.ErrorReported += errors.Enqueue;
             client.StateChanged += state =>
             {
                 var queued = state.Messages.FirstOrDefault(message => message.Content == "Admission boundary");
                 if (queued is not null) observed.TrySetResult((queued.Id, client.CanRequestMessageCancellation(peer.Hash, queued.Id)));
             };
+            client.MessageCancellationAvailabilityChanged += _ => throw new InvalidOperationException("injected observer failure");
+            client.MessageCancellationAvailabilityChanged += id =>
+                admitted.TrySetResult((id, client.CanRequestMessageCancellation(peer.Hash, id)));
             var sending = client.SendTextAsync(peer.Hash, "Admission boundary", token);
             var observation = await observed.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
             Assert.False(observation.Available);
-            await MessageRetryPeer.UntilAsync(() => Task.FromResult(client.CanRequestMessageCancellation(peer.Hash, observation.Id)), token);
+            var readiness = await admitted.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
+            Assert.Equal(observation.Id, readiness.Id);
+            Assert.True(readiness.Available);
+            Assert.Contains(errors, error => error.Contains("injected observer failure", StringComparison.Ordinal));
             await client.RequestMessageCancellationAsync(peer.Hash, observation.Id, token);
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => sending.WaitAsync(TimeSpan.FromSeconds(5), token));
             Assert.Empty(peer.Received);
@@ -217,6 +226,7 @@ public sealed partial class SidebandHeadlessUiTests
         var root = Path.Combine(AppContext.BaseDirectory, "message-cancellation-ui-" + Guid.NewGuid().ToString("N"));
         var token = TestContext.Current.CancellationToken;
         MainWindow? window = null;
+        using var releaseAdmission = new ManualResetEventSlim();
         try
         {
             await using var peer = await MessageRetryPeer.StartAsync(root, token);
@@ -228,28 +238,56 @@ public sealed partial class SidebandHeadlessUiTests
             await WaitForAsync(() => window.FindControl<ListBox>("MessageList")?.ItemCount == 1);
             window.FindControl<Button>("ConnectButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await WaitForAsync(() => window.FindControl<TextBlock>("ToolbarStatusText")?.Text == "Connected");
+            window.FindControl<Button>("AnnouncesNavButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await peer.Messages.AnnounceAsync(cancellationToken: token);
-            await MessageRetryPeer.UntilAsync(async () => (await new SidebandStateStore(store.DataDirectory).LoadAsync(cancellationToken: token)).Announces?.Any(item =>
-                item.DestinationHash == peer.Hash && item.StampCost == 254) == true, token);
+            await WaitForAsync(() => window.FindControl<TextBox>("AnnounceAddressBox")?.Text == peer.Hash &&
+                window.FindControl<TextBlock>("AnnounceDetailsText")?.Text?.Contains("Stamp cost: 254", StringComparison.Ordinal) == true);
+            window.FindControl<Button>("ConversationsNavButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var draft = window.FindControl<TextBox>("MessageBox")!;
             var send = window.FindControl<Button>("SendButton")!;
             var cancel = window.FindControl<Button>("CancelMessageButton")!;
+            var client = Assert.IsType<SidebandClient>(typeof(MainWindow).GetField("_client",
+                BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window));
+            var uiStateChanged = (Action<SidebandState>)Delegate.CreateDelegate(typeof(Action<SidebandState>), window,
+                typeof(MainWindow).GetMethod("OnStateChanged", BindingFlags.Instance | BindingFlags.NonPublic)!);
+            client.StateChanged -= uiStateChanged;
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { }, Avalonia.Threading.DispatcherPriority.Background);
+            await (Task)typeof(MainWindow).GetMethod("DrainPendingOperationsAsync",
+                BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!;
+            var published = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            client.StateChanged += state =>
+            {
+                if (!state.Messages.Any(message => message.Content == "Keep cancelled draft")) return;
+                published.TrySetResult();
+                if (!releaseAdmission.Wait(TimeSpan.FromSeconds(15)))
+                    throw new TimeoutException("The test did not release router admission.");
+            };
             draft.Text = "Keep cancelled draft";
             send.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await WaitForAsync(() => window.FindControl<ListBox>("MessageList")?.ItemCount == 2);
+            await published.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
+            await (Task)typeof(MainWindow).GetMethod("RefreshMessagesAsync",
+                BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [token])!;
+            Assert.Equal(2, window.FindControl<ListBox>("MessageList")?.ItemCount);
             window.FindControl<ListBox>("MessageList")!.SelectedIndex = 1;
-            Assert.True(cancel.IsEnabled);
+            Assert.False(cancel.IsEnabled);
             Assert.False(send.IsEnabled);
+            releaseAdmission.Set();
+            await WaitForAsync(() => cancel.IsEnabled);
+            client.StateChanged += uiStateChanged;
             cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await WaitForAsync(() => send.IsEnabled && !cancel.IsEnabled);
-            await MessageRetryPeer.UntilAsync(async () => (await new SidebandStateStore(store.DataDirectory).LoadAsync(cancellationToken: token)).Messages.Any(message =>
-                message.Content == "Keep cancelled draft" && message.DeliveryState == "Cancelled"), token);
+            await WaitForAsync(() => window.FindControl<ListBox>("MessageList")?.ItemsSource?.Cast<string>().Any(row =>
+                row.Contains("Cancelled", StringComparison.Ordinal) && row.Contains("Keep cancelled draft", StringComparison.Ordinal)) == true);
             Assert.Equal("Keep cancelled draft", draft.Text);
             Assert.Empty(peer.Received);
             await window.CloseAndWaitAsync();
+            var saved = await new SidebandStateStore(store.DataDirectory).LoadAsync(cancellationToken: token);
+            Assert.Contains(saved.Messages, message =>
+                message.Content == "Keep cancelled draft" && message.DeliveryState == "Cancelled");
         }
         finally
         {
+            releaseAdmission.Set();
             if (window?.IsVisible == true) await window.CloseAndWaitAsync();
             if (Directory.Exists(root)) Directory.Delete(root, true);
         }

@@ -311,6 +311,13 @@ public sealed class SidebandVoiceLifecycleTests
         for (var iteration = 0; iteration < 16; iteration++)
         {
             await using var rig = new Rig();
+            var events = new ConcurrentQueue<string>();
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            rig.Service.StateChanged += snapshot => events.Enqueue($"{clock.ElapsedMilliseconds}ms service {snapshot.State}");
+            rig.Service.Error += error => events.Enqueue($"{clock.ElapsedMilliseconds}ms service error {error.Context}: {error.Exception}");
+            rig.Peer.StateChanged += state => events.Enqueue($"{clock.ElapsedMilliseconds}ms peer {state}");
+            rig.Peer.CallEnded += ended => events.Enqueue($"{clock.ElapsedMilliseconds}ms peer ended {ended.Reason}");
+            rig.Peer.Error = (context, exception) => events.Enqueue($"{clock.ElapsedMilliseconds}ms peer error {context}: {exception}");
             await rig.StartAsync();
             var dial = rig.Service.CallAsync(remote, cancellationToken: TestContext.Current.CancellationToken);
             await rig.Service.HangupAsync(TestContext.Current.CancellationToken).AsTask()
@@ -319,7 +326,13 @@ public sealed class SidebandVoiceLifecycleTests
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => dial);
             Assert.False(rig.Service.IsBusy);
             await rig.Service.CallAsync(rig.PeerIdentity, cancellationToken: TestContext.Current.CancellationToken);
-            await UntilAsync(() => rig.Peer.State == CallState.Ringing);
+            try { await UntilAsync(() => rig.Peer.State == CallState.Ringing); }
+            catch (OperationCanceledException) when (!TestContext.Current.CancellationToken.IsCancellationRequested)
+            {
+                throw new Xunit.Sdk.XunitException($"Iteration {iteration}: peer={rig.Peer.State}, service={rig.Service.Snapshot.State}, " +
+                    $"serviceBusy={rig.Service.IsBusy}, serverPath={rig.Server.HasPath(rig.Peer.DestinationHash)}, " +
+                    $"clientPath={rig.Client.HasPath(rig.Service.DestinationHash)}; events: {string.Join("; ", events)}");
+            }
             await rig.Service.HangupAsync(TestContext.Current.CancellationToken);
             await UntilAsync(() => rig.Peer.State == CallState.Available);
             Assert.Equal(0, rig.Devices.Captures);

@@ -3842,14 +3842,21 @@ The first full appearance gate retained a C88 failure: local tracking and
 Queued-history publication precede actual router admission, so the former
 availability predicate could enable cancellation before pending work existed.
 T485 deterministically observes that pre-admission publication, verifies
-unavailability there, then actual hashless stamp preparation and successful
-cancellation. Readiness now uses `LxmRouter.CanCancelPending` outside the
+unavailability there, then observes a separate post-admission readiness
+notification during actual hashless stamp preparation and successful
+cancellation. The desktop re-evaluates the selected message on that notification,
+including when selection happened before router admission. Readiness uses
+`LxmRouter.CanCancelPending` outside the
 outgoing-registry lock, avoiding reverse callback lock order. The shared
 pending-object checks do not pack/mutate a hash or reserve future cancellation.
 Late terminal transitions can still refuse a request; it remains best effort.
-The no-subscriber preparation/recovery case and exact foreign/terminal LXMF
-assertions remain intact. The preceding failed full-gate log is not acceptance;
-the final candidate passes the complete managed/native gates above.
+Failing readiness observers are reported and isolated; preparation and recovery
+also run without subscribers. The headless selection regression uses a barrier
+to select the message before admission and temporarily isolates the readiness
+notification from ordinary state refreshes. It verifies readiness, cancellation,
+draft preservation and saved state after window shutdown; without the notification
+the readiness wait fails. The complete historical managed/native gates above predate
+this readiness notification.
 
 ## Selected-message raw-text copy
 

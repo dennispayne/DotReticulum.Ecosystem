@@ -10,6 +10,8 @@ public sealed partial class SidebandClient
     private readonly Dictionary<Guid, ActiveOutgoingMessage> _activeOutgoingMessages = [];
     private readonly SemaphoreSlim _messageCancellationAdmission = new(MaximumPendingMessageCancellations, MaximumPendingMessageCancellations);
 
+    public event Action<Guid>? MessageCancellationAvailabilityChanged;
+
     public bool CanRequestMessageCancellation(string deliveryHash, Guid id)
     {
         ActiveOutgoingMessage? active;
@@ -66,6 +68,16 @@ public sealed partial class SidebandClient
     private void ClearOutgoingMessages()
     {
         lock (_outgoingGate) _activeOutgoingMessages.Clear();
+    }
+
+    private void PublishMessageCancellationAvailability(Guid id)
+    {
+        if (MessageCancellationAvailabilityChanged is not { } callbacks) return;
+        foreach (Action<Guid> callback in callbacks.GetInvocationList())
+        {
+            try { callback(id); }
+            catch (Exception ex) { Report("A Sideband message cancellation observer failed: " + ex.Message); }
+        }
     }
 
     private static bool OutgoingMessageIsTerminal(LxMessage message) =>

@@ -17,7 +17,7 @@ The main-only coverage publisher passed
 its source metadata identifies that Test and source commit. A telephone ring
 deadline/recovery test uses the configured clock and passed on hosted macOS and
 20 isolated Windows repetitions. Previously observed intermittent Windows
-cancellation and voice-lifecycle timeouts remain unexplained.
+cancellation and voice-lifecycle failures remain unexplained.
 
 Combined candidate `c033f0ad642f482417e607d66610db263ceb2a1e` passed hosted
 [Build 45110013531](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45110013531),
@@ -35,13 +35,35 @@ test run passed 3,184 cases with 197 skips. A separate Windows run intermittentl
 failed `SelectedActiveCancellationWorksWhileSendOwnsLifecycleAndPreservesDraft`;
 the isolated test and a subsequent full run passed, so its cause remains
 unresolved. Twenty further isolated Windows repetitions passed with individual
-TRX results; this does not explain the earlier failure. A separate hosted
+TRX results; this does not explain the earlier failure. Subsequent repetition
+reproduced a Windows sharing violation in that test when an independent state
+store read during a UI save. It now observes the live window and reopens saved
+state only after shutdown. A separate deterministic regression found that a
+pre-admission selection could miss cancellation readiness; the client now
+notifies the desktop after router admission. These are distinct defects, not
+proof of the cause of the earlier unrecorded failure. A separate hosted
 [candidate run 45103069291](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45103069291)
 exposed a voice UI test reading the state file while the UI was saving it.
 That test now waits for the saved peer in the UI before its later persistence
 assertions; 15 isolated Windows repetitions and a full Windows run passed.
 The same hosted run also saw a different voice lifecycle peer-state timeout;
-its cause remains unverified. WSL-native Linux x64 passed 2,008
+its cause remains unverified. With failure-only voice state/error diagnostics
+added, the cancellation UI and voice lifecycle tests passed 100 combined
+Windows repetitions (`artifacts\tests\health-investigation\repeat-*.trx`).
+After isolating the UI readiness notification from other state refreshes, the
+same pair passed 20 further repetitions (`isolated-repeat-*.trx`); its UI
+readiness wait fails when the notification is removed.
+The Release solution build passed with no warnings and the full Windows suite
+passed 3,186 cases with 199 skips (`artifacts\tests\health-windows-final`).
+`pwsh -NoProfile -File tests\run-tests.ps1 -Pester -OutputDirectory
+artifacts\tests\health-compatibility-current` also passed its managed, Pester
+and catalog gates before the UI regression was isolated; native and live cases
+requiring opt-in were skipped.
+The strict Windows NativeAOT Sideband publication ran `--help` and an isolated
+`--smoke-ui` render; the executable SHA-256 was
+`cf89caa36df79f82b5f48d72c847a5f2f495ce1bb0d2bae4151ec63239339fc0`.
+These results do not explain the earlier voice timeout or establish new
+live-peer acceptance. WSL-native Linux x64 passed 2,008
 Unit cases and 1,188 Integration cases with 193 Integration skips using the
 solution's `Category=Unit` and `Category!=Unit` filters. Strict Windows and Linux x64
 NativeAOT Sideband builds ran their help and selected software-printing

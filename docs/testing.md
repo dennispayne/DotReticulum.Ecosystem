@@ -8,6 +8,15 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Main source `aebe1e32e73d8a9e4eafe5654b3ea59be89731be` passed hosted
+[Build 45130888599](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45130888599),
+[static analysis 45130888611](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45130888611),
+[Test 45131864377](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45131864377)
+and [coverage publication 45132963102](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45132963102).
+Unit and Integration passed on Windows, Linux and macOS ARM64; Compatibility
+passed on Windows and Linux. These hosted workflows do not provision live Python
+peers or physical audio hardware.
+
 Main source `536a6ca3973bb34519e8d800c5be187bca005684` passed hosted
 [Build 45118831983](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45118831983),
 [static analysis 45118831968](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45118831968)

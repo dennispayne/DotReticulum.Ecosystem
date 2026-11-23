@@ -82,8 +82,14 @@ public static partial class NomadNetAttachmentExport
                                 throw new IOException("Could not publish attachment export (OS error " +
                                     Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture) + ").");
                         }
+                        else if (OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
+                        {
+                            if (MacRenameNoReplace(staged, output, 0x4) != 0)
+                                throw new IOException("Could not publish attachment export (OS error " +
+                                    Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture) + ").");
+                        }
                         else if (OperatingSystem.IsWindows()) File.Move(staged, output, overwrite: false);
-                        else throw new PlatformNotSupportedException("Attachment export is verified on Windows and Linux only.");
+                        else throw new PlatformNotSupportedException("Attachment export supports Windows, Linux and macOS ARM64 only.");
                         return output;
                     }
                     catch (IOException) when (File.Exists(output) || Directory.Exists(output)) { }
@@ -119,4 +125,7 @@ public static partial class NomadNetAttachmentExport
 
     [LibraryImport("libc", EntryPoint = "renameat2", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
     private static partial int RenameNoReplace(int oldDirectory, string oldPath, int newDirectory, string newPath, uint flags);
+
+    [LibraryImport("libc", EntryPoint = "renamex_np", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int MacRenameNoReplace(string oldPath, string newPath, uint flags);
 }

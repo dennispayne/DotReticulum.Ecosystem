@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
   "cacheSeconds": 300,
+  "schemaVersion": 1,
   "message": "not collected",
   "color": "lightgrey",
   "label": "macOS line coverage"

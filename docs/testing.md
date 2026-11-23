@@ -14,7 +14,13 @@ test run passed 3,184 cases with 197 skips. A separate Windows run intermittentl
 failed `SelectedActiveCancellationWorksWhileSendOwnsLifecycleAndPreservesDraft`;
 the isolated test and a subsequent full run passed, so its cause remains
 unresolved. Twenty further isolated Windows repetitions passed with individual
-TRX results; this does not explain the earlier failure. WSL-native Linux x64 passed 2,008
+TRX results; this does not explain the earlier failure. A separate hosted
+[candidate run 45103069291](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45103069291)
+exposed a voice UI test reading the state file while the UI was saving it.
+That test now waits for the saved peer in the UI before its later persistence
+assertions; 15 isolated Windows repetitions and a full Windows run passed.
+The same hosted run also saw a different voice lifecycle peer-state timeout;
+its cause remains unverified. WSL-native Linux x64 passed 2,008
 Unit cases and 1,188 Integration cases with 193 Integration skips using the
 solution's `Category=Unit` and `Category!=Unit` filters. Strict Windows and Linux x64
 NativeAOT Sideband builds ran their help and selected software-printing

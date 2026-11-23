@@ -135,7 +135,7 @@ Describe 'Executed-primary bounded configuration forms and ConfigObj persistence
             Send-FormCommand $native 'config save confirm'
             $null = Receive-FormLine $native 'Section saved'
             Send-FormCommand $native 'config cancel'
-            foreach ($section in @('node','logging','textui','utilities','rrc','printing')) {
+            foreach ($section in @('node','logging','textui','utilities','rrc')) {
                 Send-FormCommand $native "config section $section"
                 $null = Receive-FormLine $native "Configuration section: $section"
                 Send-FormCommand $native 'config cancel'

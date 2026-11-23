@@ -21,9 +21,6 @@ if (($Build -or $Freeze) -and (Test-Path $Candidate)) {
 function Get-C104ProductionInputs {
     $files = @(Get-ChildItem src\NomadNet,src\LXMF,external\DotReticulum\src -Recurse -File |
         Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' })
-    if (Test-Path src\Shared) {
-        $files += @(Get-ChildItem src\Shared -Recurse -File | Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' })
-    }
     foreach ($directory in '.','external\DotReticulum') {
         $files += @(Get-ChildItem $directory -File -Force |
             Where-Object { $_.Name -match '^Directory\.|^global.json$|^version.json$|^NuGet.Config$|^.editorconfig$' })

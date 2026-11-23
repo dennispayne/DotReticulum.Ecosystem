@@ -61,7 +61,7 @@ public sealed class NomadNetGuide
             conversation read <address> marks local history read; deleting history is not remote recall.
             conversation export <address> <name.txt> writes a plain-text copy; review it before sharing.
             An encoded image/audio attachment is not a native microphone, audio player or transcoding service.
-            Paper QR save/display is software output. Physical scanning and printing need separate equipment.
+            Paper QR save/display is software output. Printing is not implemented; scanning needs separate equipment.
             `[Start`guide:start]
             """,
         ["hosting"] = """
@@ -111,11 +111,11 @@ public sealed class NomadNetGuide
             Saved configuration takes effect after a full application restart, not by mutating active services.
             Later runtime setting edits are refused until restart; background timestamps remain memory-only,
             so active services cannot overwrite the saved restart configuration.
-            Native JSON remains the default. config sections lists all eight primary form sections.
+            Native JSON remains the default. config sections lists seven primary form sections; printing is not implemented.
             config primary enable confirm explicitly selects the owned profile/config ConfigObj source.
             If absent, that file is exported from current native settings; an existing source is not overwritten.
-            Export refuses fractional page/file refresh minutes or an embedded custom print template.
-            Reconcile those native settings explicitly; no rounding or foreign template file is invented.
+            Export refuses fractional page/file refresh minutes.
+            Reconcile those native settings explicitly; no rounding is performed.
             config section client opens its form; config fields shows typed values and dispositions.
             config set announce_interval 120 stages a whole number; config set notify_on_new_message false
             stages a checkbox. Text uses JSON strings and list fields use JSON string arrays.
@@ -347,7 +347,7 @@ public sealed class NomadNetGuide
             Write refused? Reopen changed files, resolve dirty buffers and inspect permissions; do not bypass checks.
             Logs can contain addresses and metadata. Review and redact diagnostics before sharing them.
             Linux replay is currently blocked by read-only WSL/storage errors; this is not Linux acceptance.
-            Physical audio, printers, radios and full terminal behavior require separate equipment and evidence.
+            Physical audio, radios and full terminal behavior require separate equipment and evidence.
             `[Start`guide:start]
             `[Configuration`guide:configuration]
             """,

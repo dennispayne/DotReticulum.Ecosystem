@@ -93,11 +93,10 @@ $visualStudio = & $vswhere -latest -products '*' -requires Microsoft.VisualStudi
 if (!$visualStudio) { throw 'MSVC NativeAOT tools are unavailable.' }
 
 $applications = @(
-    @{ Name = 'telemetry'; Project = 'src\Telemetry\Telemetry.csproj'; Documentation = 'docs\telemetry.md' },
     @{ Name = 'lxmd'; Project = 'src\lxmd\lxmd.csproj'; Documentation = 'docs\lxmf.md' },
     @{ Name = 'rnphone'; Project = 'src\rnphone\rnphone.csproj'; Documentation = 'docs\lxst.md' },
     @{ Name = 'nomadnet'; Project = 'src\NomadNet\NomadNet.csproj'; Documentation = 'docs\nomadnet.md' },
-    @{ Name = 'sideband'; Project = 'src\Sideband.Desktop\Sideband.Desktop.csproj'; Documentation = 'docs\sideband.md' }
+    @{ Name = 'sideband'; Project = 'src\Sideband\Sideband.Desktop\Sideband.Desktop.csproj'; Documentation = 'docs\sideband.md' }
 )
 
 foreach ($application in $applications) {

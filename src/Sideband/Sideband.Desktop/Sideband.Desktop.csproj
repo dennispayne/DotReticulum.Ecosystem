@@ -17,7 +17,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Sideband.Tests" />
-    <ProjectReference Include="..\Sideband\Sideband.csproj" />
+    <ProjectReference Include="..\Sideband.Core\Sideband.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

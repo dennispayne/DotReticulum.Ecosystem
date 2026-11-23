@@ -116,7 +116,7 @@ and [Test 45110897665](https://github.com/dennispayne/DotReticulum.Ecosystem/act
 Unit and Integration passed on Windows, Linux and macOS ARM64; compatibility
 passed on Windows and Linux. macOS Integration had 1,146 passes and 223 explicit
 skips, including successful WAL/no-WAL and rollback-journal cases and both
-unsupported-print refusal cases. Printing remains unsupported on macOS, and
+unsupported-print refusal cases (printing has since been removed), and
 coverage is not collected there. These are not live-peer or hardware results.
 
 With DotReticulum pinned at `42d965af7d4152d0ad7c5faf16416b5d6337958c`,
@@ -196,7 +196,7 @@ Separately executed parent-independent Windows NativeAOT closures are:
 | C104 Micron/C109 peer controls | `nomad-micron-contracts\final-candidate.json` |15 focused,507 full/19 explicit skips,4 Pester; existing editor regressions and T1052 native persisted removal pass |
 | C105 propagation telemetry | `sideband-propagation-telemetry\parent-current\candidate.json` |30 selected without skips; actual primary lxmd and published application, configuration, identity failure and recovery |
 | C107 hosted statistics | `nomad-host-statistics\final2\candidate.json` |23 selected,3 Pester without skips; actual primary requests native host, reset/restart and strict import |
-| C108 printing | `sideband-printing\format-integration\candidate.json` |16 selected without skips,34 shared/1 Linux skip,2381 Sideband/95 skips,492 Nomad/43 skips,5 Pester; final preview test included |
+| C108 printing | historical only: printing was later deliberately removed and its replay operator deleted; see the Sideband reference |
 | C110 authorization | `nomad-windows-authorization\candidate-current.json` |497 ordinary/38 skips with converter enabled,8 focused,1 actual-primary/native,7 same-binary guide/Micron/peer regressions; unchanged native, fresh strict-built test assembly |
 | C111 telephone endurance | `lxst-python-endurance\20261105T111153520Z-160d6542\receipt.json` |600.143 steady seconds/40 positive real-codec intervals, Codec2/reverse call/peer restart; Pester1/0/0 and independent verifier; historical6eafd native only |
 | C112 stale retention | `sideband-propagation-telemetry\retention-c112-third\workload\result.json` |342.69s Pester1/0/0; actual306.141s retry, Timeout/retention/policy recovery and continued signed delivery; historicale7fd native; parent raw-artifact audit, not a second live run |
@@ -205,7 +205,7 @@ Candidate paths are relative to `artifacts\tests`. Their corresponding checked-i
 `tests\Pester\Invoke-*Acceptance.ps1` operators require fresh replay output
 directories and guard exact production, acceptance and compiled inputs before/
 after execution. C102 additionally freezes acceptance sources **before build**
-and identifies every ordinary Windows skip by name/reason; C108 counts individual
+and identifies every ordinary Windows skip by name/reason; C108 counted individual
 TRX outcomes rather than the adapter's misleading aggregate `notExecuted=0`.
 No scoped receipt accepts another candidate, later source changes or skipped
 live/platform cases. Native hashes and replay commands are in each project's
@@ -219,7 +219,7 @@ error-count, rendering, recovery and observer-isolation assertions remain.
 Ten focused repetitions and the final full gate pass. No editor production
 behavior changes. The repository server's independently identified two-state
 admission race and unchanged400ms deadline acceptance are documented with its
-native TLS/restart replay in [Sideband](sideband.md#explicit-local-selected-paper-printing-c108).
+native TLS/restart replay in [Sideband](sideband.md#local-paper-printing-is-not-implemented-c108).
 
 The Windows actual-Python stream replay separately passes3 supported-family
 cases across direct/.NET-hop/Python-hop paths, including exact two-packet loss
@@ -238,7 +238,7 @@ its PDB. Transparent NTFS compression of explicitly identified completed caches
 preserved their bytes and frozen receipts; retry, freeze and independent replay
 then passed. Native6eb8 and candidate917d fingerprints, the separate actual
 repository-window1/0/0 and exact guard sizes are in the Sideband reference.
-This refresh supersedes the earlier accepted49fb printing closure without
+Printing has since been removed. This refresh superseded the earlier accepted49fb printing closure without
 rewriting that receipt.
 
 Older hosted evidence remains separate: successful Build41502113530 targets
@@ -260,7 +260,7 @@ The first C102 replay also refused its stale full-suite skip ceiling; the curren
 operator requires the exact inventoried Windows outcomes rather than raising a
 generic allowance.
 
-The printing and hosted-statistics oracle writers explicitly emit LF, matching
+The hosted-statistics oracle writer (and the since-removed printing writer) explicitly emit LF, matching
 their checked-in `.gitattributes` rules on Windows as well as Linux. Executing
 both pinned references on Windows regenerates Git-canonical fixtures unchanged;
 only the former working-copy CRLF translation is removed. Focused statistics
@@ -1707,7 +1707,7 @@ unselected modes are not interoperability passes.
 ## Production coverage
 
 `-Coverage` uses Coverlet/OpenCover with serial project collection. It instruments
-all eight repository production assemblies: `LXMF`, `LXST`, `telemetry`, `lxmd`,
+all seven repository production assemblies: `LXMF`, `LXST`, `lxmd`,
 `rnphone`, `nomadnet`, `Sideband.Core` and `sideband`. It excludes test projects,
 submodule code and third-party assemblies. Missing reports or an uninstrumented
 production module fail the run rather than disappearing from the denominator.
@@ -1777,8 +1777,8 @@ or manual dispatch. Documentation-only changes do not trigger Build;
 submodule-pin and build-configuration changes do.
 
 The Build matrix restores and builds the Release solution, then publishes
-NativeAOT with trim/AOT warnings as errors. Windows and Linux publish all five
-executables; macOS ARM64 publishes only `telemetry` and `lxmd`, matching their
+NativeAOT with trim/AOT warnings as errors. Windows and Linux publish all four
+executables; macOS ARM64 publishes only `lxmd`, matching its
 release matrix. Each executable must run `--help`. A manifest records the source
 commit, RID and SHA-256 of every non-debug runtime file; full native runtime
 directories are retained, not just executables.
@@ -1809,7 +1809,7 @@ requires every expected test assembly and the coverage collector.
 Compatibility jobs use `tests\run-compatibility.ps1 -SkipManaged -Pester` for
 existing native CLI/state/restart checks and tooling regressions. Tooling tests
 may restore or build their own tiny fixtures, not the ecosystem candidate.
-Native telemetry additionally runs its identity flow. Pester is pinned to 5.7.1;
+Pester is pinned to 5.7.1;
 Linux provisions phone runtime libraries and packaging `zip`.
 
 The summary job combines both managed suites with native Pester cases using the

@@ -4,7 +4,7 @@ param(
     [string] $Directory = (Join-Path $PSScriptRoot '..\artifacts\debug')
 )
 $ErrorActionPreference = 'Stop'
-foreach ($application in 'sideband', 'nomadnet', 'telemetry', 'lxmd', 'rnphone') {
+foreach ($application in 'sideband', 'nomadnet', 'lxmd', 'rnphone') {
     $root = Join-Path $Directory $application
     $rns = Join-Path $root 'rns'
     $null = New-Item -ItemType Directory -Force -Path $rns, (Join-Path $root 'data')

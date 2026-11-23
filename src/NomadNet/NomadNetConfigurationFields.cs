@@ -40,7 +40,6 @@ public static class NomadNetConfigurationFields
         B("rrc", "justify_msgs", true), B("rrc", "space_msgs", false),
         B("rrc", "show_gutters", true), E("rrc", "mention_color"),
         L("rrc", "nick_colors_theme"), B("rrc", "enable_esoterics", false, "upstream-placeholder"),
-        B("printing", "print_messages", false), E("printing", "print_command", "lp"), L("printing", "print_from"), E("printing", "message_template"),
         B("reticulum", "enable_transport", false), B("reticulum", "share_instance", true), E("reticulum", "instance_name", "default"),
         E("reticulum", "shared_instance_type"), N("reticulum", "shared_instance_port", ""), N("reticulum", "instance_control_port", ""),
         B("reticulum", "discover_interfaces", false), B("reticulum", "enable_remote_management", false), L("reticulum", "remote_management_allowed"),

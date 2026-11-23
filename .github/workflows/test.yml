@@ -198,8 +198,6 @@ jobs:
           Import-Module Pester -RequiredVersion 5.7.1
           ./tests/run-compatibility.ps1 -SkipManaged -Pester -OutputDirectory artifacts/tests/compatibility
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & $env:DOTRETICULUM_TELEMETRY_BINARY -p --config (Join-Path $env:RUNNER_TEMP 'telemetry-ci')
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Retain native and compatibility evidence
         if: ${{ !cancelled() }}

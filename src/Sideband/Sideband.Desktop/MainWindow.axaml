@@ -153,10 +153,6 @@
                 </WrapPanel>
                 <TextBlock Text="Paper creation saves an encrypted offline text message, not a delivery confirmation. Use the export path above; existing files are never overwritten."
                            TextWrapping="Wrap" />
-                <TextBlock x:Name="PaperPrintCommandText" TextWrapping="Wrap" />
-                <CheckBox x:Name="ConfirmPaperPrintBox" Content="Confirm printing this selected original outgoing paper QR with the displayed local command" />
-                <Button x:Name="PrintPaperButton" Content="Print selected paper QR" IsEnabled="False" Click="PrintPaperClicked"
-                        ToolTip.Tip="Runs only the explicitly approved local command. Successful exit is not proof of physical output or LXMF delivery. Imported historical envelopes remain export-only." />
                 <TextBox x:Name="PaperUriBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="100"
                          PlaceholderText="Selected paper lxm:// URI (copy explicitly)" />
                 <local:PaperQrView x:Name="PaperQrPreview" MaxHeight="280" IsVisible="False" />
@@ -525,14 +521,6 @@
                        TextWrapping="Wrap" />
             <Button x:Name="SaveDeliverySettingsButton" Content="Save delivery limit" HorizontalAlignment="Left" Click="SaveDeliverySettingsClicked" />
             <TextBlock x:Name="DeliverySettingsStatusText" TextWrapping="Wrap" />
-            <TextBlock FontSize="17" FontWeight="SemiBold" Text="Explicit local paper printing" />
-            <TextBlock Text="Off by default. Review the executable and every argument before enabling. Printing runs a bounded local process without a shell; it never starts automatically for incoming messages. Imported print_command values remain inactive. A successful process exit does not prove a physical printer produced output."
-                       TextWrapping="Wrap" />
-            <TextBox x:Name="PrintCommandBox" MaxLength="4096" PlaceholderText="Reviewed local executable and arguments (default: lp)" />
-            <CheckBox x:Name="EnablePaperPrintingBox" Content="Enable explicit selected-paper QR printing" />
-            <CheckBox x:Name="ApprovePrintCommandBox" Content="I explicitly approve running this reviewed local executable and its arguments" />
-            <Button x:Name="SavePrintingButton" Content="Save reviewed local printing policy" HorizontalAlignment="Left"
-                    Click="SavePrintingClicked" />
             <TextBlock FontSize="17" FontWeight="SemiBold" Text="Upstream settings exchange" />
             <TextBlock Text="JSON settings exchange applies the documented display, propagation, stamp, voice and telemetry subset. Other keys are retained and reported, not activated. Identity and SQLite migration use the separate offline --import-profile command. Disconnect before importing settings."
                        TextWrapping="Wrap" />

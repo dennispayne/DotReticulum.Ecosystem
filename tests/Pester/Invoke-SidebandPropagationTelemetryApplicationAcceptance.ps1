@@ -17,8 +17,7 @@ function Fingerprints($Files) {
     })
 }
 function ProductionInputs {
-    $directories = @('src\Sideband','src\Sideband.Desktop','src\LXMF','src\LXST','external\DotReticulum\src')
-    if (Test-Path src\Shared) { $directories += 'src\Shared' }
+    $directories = @('src\Sideband\Sideband.Core','src\Sideband\Sideband.Desktop','src\LXMF','src\LXST','external\DotReticulum\src')
     $files = @(Get-ChildItem $directories -File -Recurse | Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' })
     foreach ($directory in '.','external\DotReticulum') {
         $files += @(Get-ChildItem $directory -File -Force |
@@ -55,7 +54,7 @@ if ($Build) {
     $setup = Join-Path $install 'VC\Auxiliary\Build\vcvars64.bat'
     $native = Join-Path $directory application-native
     $env:PATH = (Split-Path $vswhere -Parent) + ';' + $env:PATH
-    & $env:ComSpec /c "call `"$setup`" >nul && dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r win-x64 --artifacts-path `"$ArtifactsPath`" -o `"$native`" -p:DebugType=none -p:DebugSymbols=false -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror --nologo -v:q" 2>&1 |
+    & $env:ComSpec /c "call `"$setup`" >nul && dotnet publish src\Sideband\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r win-x64 --artifacts-path `"$ArtifactsPath`" -o `"$native`" -p:DebugType=none -p:DebugSymbols=false -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror --nologo -v:q" 2>&1 |
         Tee-Object (Join-Path $directory application-publish.log)
     if ($LASTEXITCODE -ne 0) { throw 'Strict full application NativeAOT publish failed.' }
     AssertHashes $sources
@@ -90,7 +89,7 @@ if ($Build) {
         ReferenceFiles=@(Fingerprints $references);ArtifactsPath=[IO.Path]::GetFullPath($ArtifactsPath);
         ManagedArtifacts=@(Fingerprints @(Get-ChildItem $assembly[0].DirectoryName -File));
         Binary=@{Path=(Join-Path $native sideband.exe);Sha256=(Get-FileHash (Join-Path $native sideband.exe)).Hash.ToLowerInvariant()};
-        Boundary='Dirty work is identified by exact hashes, including desktop UI and all compile-linked src\Shared inputs; HEAD is versioning provenance, not a clean-tree claim.'} |
+        Boundary='Dirty work is identified by exact hashes, including desktop UI inputs; HEAD is versioning provenance, not a clean-tree claim.'} |
         ConvertTo-Json -Depth 12 | Set-Content $Candidate -Encoding utf8NoBOM
     return
 }

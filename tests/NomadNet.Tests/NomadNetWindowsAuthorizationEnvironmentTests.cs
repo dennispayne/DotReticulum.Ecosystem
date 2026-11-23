@@ -1,5 +1,3 @@
-using SharedPrinting;
-
 namespace NomadNet.Tests;
 
 [Trait("Category", "Unit")]
@@ -8,9 +6,9 @@ public sealed class NomadNetWindowsAuthorizationEnvironmentTests
     [Fact, Trait("TestId", "T1066")]
     public void CustomWindowsEnvironmentIsValidatedSortedUnicodeAndDoubleTerminated()
     {
-        Assert.Null(WindowsPrintProcess.EnvironmentBlock(null));
-        Assert.Equal("\0\0", WindowsPrintProcess.EnvironmentBlock(new Dictionary<string, string?>()));
-        Assert.Equal("Alpha=Å 🧭\0zeta=last\0\0", WindowsPrintProcess.EnvironmentBlock(new Dictionary<string, string?>
+        Assert.Null(NomadNetWindowsJobProcess.EnvironmentBlock(null));
+        Assert.Equal("\0\0", NomadNetWindowsJobProcess.EnvironmentBlock(new Dictionary<string, string?>()));
+        Assert.Equal("Alpha=Å 🧭\0zeta=last\0\0", NomadNetWindowsJobProcess.EnvironmentBlock(new Dictionary<string, string?>
         {
             ["zeta"] = "last", ["Alpha"] = "Å 🧭",
         }));
@@ -21,8 +19,8 @@ public sealed class NomadNetWindowsAuthorizationEnvironmentTests
             new() { ["name"] = "one", ["NAME"] = "two" },
             new() { [new string('n', 32768)] = "value" }, new() { ["name"] = new string('v', 32768) },
         })
-            Assert.ThrowsAny<ArgumentException>(() => WindowsPrintProcess.EnvironmentBlock(values));
+            Assert.ThrowsAny<ArgumentException>(() => NomadNetWindowsJobProcess.EnvironmentBlock(values));
         var oversized = Enumerable.Range(0, 100).ToDictionary(index => "field_" + index, _ => (string?)new string('x', 32767));
-        Assert.ThrowsAny<ArgumentException>(() => WindowsPrintProcess.EnvironmentBlock(oversized));
+        Assert.ThrowsAny<ArgumentException>(() => NomadNetWindowsJobProcess.EnvironmentBlock(oversized));
     }
 }

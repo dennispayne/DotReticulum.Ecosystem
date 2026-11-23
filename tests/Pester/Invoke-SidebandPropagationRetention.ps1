@@ -40,8 +40,7 @@ function AssertProvenance {
     if ((& git rev-parse HEAD) -cne $head -or (& git -C external\DotReticulum rev-parse HEAD) -cne $stack) {
         throw 'Current HEAD/stack changed during the workload.'
     }
-    $directories = @('src\Sideband','src\Sideband.Desktop','src\LXMF','src\LXST','external\DotReticulum\src')
-    if (Test-Path src\Shared) { $directories += 'src\Shared' }
+    $directories = @('src\Sideband\Sideband.Core','src\Sideband\Sideband.Desktop','src\LXMF','src\LXST','external\DotReticulum\src')
     $files = @(Get-ChildItem $directories -File -Recurse | Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' })
     foreach ($directory in '.','external\DotReticulum') {
         $files += @(Get-ChildItem $directory -File -Force |

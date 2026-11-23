@@ -16,7 +16,7 @@ $Directory = (Resolve-Path -LiteralPath $Directory).Path
 $root = Split-Path $PSScriptRoot -Parent
 foreach ($target in Get-CiNativeTargets $Rid) {
     $output = Join-Path $Directory $target.Name
-    $project = Join-Path $root "src\$($target.Project)\$($target.Project).csproj"
+    $project = Join-Path $root "src\$($target.Project)"
     $arguments = @('publish', $project, '-c', 'Release', '-r', $Rid, '--self-contained', 'true',
         '-p:ILLinkTreatWarningsAsErrors=true', '-p:IlcTreatWarningsAsErrors=true', '-o', $output)
     if ($ArtifactsPath) { $arguments += @('--artifacts-path', $ArtifactsPath) }

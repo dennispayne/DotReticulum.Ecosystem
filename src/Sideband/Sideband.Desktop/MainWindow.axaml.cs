@@ -62,7 +62,6 @@ public sealed partial class MainWindow : Window
         _mediaBackend = mediaBackend;
         _store = new SidebandStateStore(dataDirectory);
         _client = new SidebandClient(_store, mediaBackend);
-        InitializePrinting();
         _client.StateChanged += OnStateChanged;
         _client.MessageCancellationAvailabilityChanged += OnMessageCancellationAvailabilityChanged;
         _client.ErrorReported += OnErrorReported;
@@ -333,7 +332,6 @@ public sealed partial class MainWindow : Window
             LoadVoiceSettings();
             _voiceTimer.Start();
             LoadTelemetrySettings();
-            LoadPrintingSettings();
             RefreshContacts();
             RefreshExpandedContacts();
             SetStatus($"Offline · local data: {_store.DataDirectory}");
@@ -711,7 +709,6 @@ public sealed partial class MainWindow : Window
         ClearMessagePreview();
         ConfirmDeleteMessageBox.IsChecked = false;
         ConfirmRetryMessageBox.IsChecked = false;
-        ResetPaperPrintConsent();
         MessageDetailsBox.Text = string.Empty;
         UpdateRetryAvailability();
         var version = _mediaSelectionVersion;
@@ -1320,7 +1317,6 @@ public sealed partial class MainWindow : Window
             try { await _initializationTask.ConfigureAwait(false); }
             catch (Exception ex) { System.Diagnostics.Trace.TraceError("Sideband startup did not complete cleanly: {0}", ex); }
             await DrainPendingOperationsAsync().ConfigureAwait(false);
-            await DisposePrintingAsync().ConfigureAwait(false);
             _client.StateChanged -= OnStateChanged;
             _client.MessageCancellationAvailabilityChanged -= OnMessageCancellationAvailabilityChanged;
             _client.ErrorReported -= OnErrorReported;

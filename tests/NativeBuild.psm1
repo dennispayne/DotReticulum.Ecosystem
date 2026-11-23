@@ -3,12 +3,11 @@ Set-StrictMode -Version Latest
 function Get-CiNativeTargets {
     param([ValidateSet('linux-x64', 'win-x64', 'osx-arm64')] [string] $Rid)
     @(
-        @{ Name = 'telemetry'; Project = 'Telemetry'; Variable = 'DOTRETICULUM_TELEMETRY_BINARY' }
-        @{ Name = 'lxmd'; Project = 'lxmd'; Variable = 'DOTRETICULUM_LXMD_BINARY' }
+        @{ Name = 'lxmd'; Project = 'lxmd\lxmd.csproj'; Variable = 'DOTRETICULUM_LXMD_BINARY' }
         if ($Rid -ne 'osx-arm64') {
-            @{ Name = 'rnphone'; Project = 'rnphone'; Variable = 'DOTLXST_RNPHONE_BINARY' }
-            @{ Name = 'nomadnet'; Project = 'NomadNet'; Variable = 'DOTRETICULUM_NOMADNET_BINARY' }
-            @{ Name = 'sideband'; Project = 'Sideband.Desktop'; Variable = 'DOTRETICULUM_SIDEBAND_BINARY' }
+            @{ Name = 'rnphone'; Project = 'rnphone\rnphone.csproj'; Variable = 'DOTLXST_RNPHONE_BINARY' }
+            @{ Name = 'nomadnet'; Project = 'NomadNet\NomadNet.csproj'; Variable = 'DOTRETICULUM_NOMADNET_BINARY' }
+            @{ Name = 'sideband'; Project = 'Sideband\Sideband.Desktop\Sideband.Desktop.csproj'; Variable = 'DOTRETICULUM_SIDEBAND_BINARY' }
         }
     )
 }

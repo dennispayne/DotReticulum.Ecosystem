@@ -13,7 +13,6 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\Shared\Printing\*.cs" Link="Shared\Printing\%(Filename)%(Extension)" />
     <PackageReference Include="System.Formats.Cbor" Version="11.0.0" />
     <ProjectReference Include="..\LXMF\LXMF.csproj" />
     <ProjectReference Include="..\..\external\DotReticulum\src\DotReticulum.Applications\DotReticulum.Applications.csproj" />

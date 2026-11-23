@@ -40,10 +40,10 @@ BeforeAll {
 }
 
 Describe 'Portable ecosystem test Build' -Tag Tooling {
-    It 'verifies the complete five-assembly archive and packaged coverage collector without executing it' {
+    It 'verifies the complete four-assembly archive and packaged coverage collector without executing it' {
         $directory = New-ManagedFixture
         $build = Test-EcosystemManagedBuild $script:root $directory win-x64 $script:commit
-        $build.Assemblies.Count | Should -Be 5
+        $build.Assemblies.Count | Should -Be 4
     }
 
     It 'rejects a changed archive, wrong commit and wrong RID before extraction' {
@@ -257,11 +257,11 @@ Describe 'Static analysis evidence' -Tag Tooling {
     }
 
     It 'reports macOS managed cases and rejects missing or failed suite evidence' -TestCases @(
-        @{ Scenario = 'passed'; Outcome = 'Passed'; Expected = '5 / 0 / 5'; Verdict = 'Passed managed checks' }
-        @{ Scenario = 'failed'; Outcome = 'Failed'; Expected = '0 / 5 / 5'; Verdict = 'Failed or incomplete' }
+        @{ Scenario = 'passed'; Outcome = 'Passed'; Expected = '4 / 0 / 4'; Verdict = 'Passed managed checks' }
+        @{ Scenario = 'failed'; Outcome = 'Failed'; Expected = '0 / 4 / 4'; Verdict = 'Failed or incomplete' }
         @{ Scenario = 'missing'; Outcome = 'Passed'; Expected = 'Unavailable'; Verdict = 'Failed or incomplete' }
         @{ Scenario = 'empty'; Outcome = 'Passed'; Expected = '0 / 0 / 0'; Verdict = 'Failed or incomplete' }
-        @{ Scenario = 'job-failed'; Outcome = 'Passed'; Expected = '5 / 0 / 5'; Verdict = 'Unconfirmed (managed job failure)' }
+        @{ Scenario = 'job-failed'; Outcome = 'Passed'; Expected = '4 / 0 / 4'; Verdict = 'Unconfirmed (managed job failure)' }
     ) {
         param($Scenario, $Outcome, $Expected, $Verdict)
         $directory = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
@@ -295,7 +295,7 @@ Describe 'Static analysis evidence' -Tag Tooling {
         $LASTEXITCODE | Should -Be 1
         $summary = Get-Content -Raw -LiteralPath (Join-Path $directory 'summary\tests.md')
         $summary | Should -Match ('\| Unit \| Unavailable \| Unavailable \| ' + [regex]::Escape($Expected) + ' \|')
-        $integration = if ($Scenario -eq 'failed') { '0 / 5 / 5' } else { '5 / 0 / 5' }
+        $integration = if ($Scenario -eq 'failed') { '0 / 4 / 4' } else { '4 / 0 / 4' }
         $summary | Should -Match ('\| Integration \| Unavailable \| Unavailable \| ' + [regex]::Escape($integration) + ' \|')
         $summary | Should -Match ('\| Verdict \| Failed or incomplete \| Failed or incomplete \| ' + [regex]::Escape($Verdict) + ' \|')
         $summary | Should -Match '\| Native/tooling \| Unavailable \| Unavailable \| Not run \|'

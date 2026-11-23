@@ -242,7 +242,7 @@ and `parent-lxmf-admission-broader`.
 & artifacts\tests\nomad-editor\Parent-BroaderAcceptance.ps1 -Candidate artifacts\tests\nomad-config-forms\candidate.json -OutputDirectory artifacts\tests\nomad-config-forms\parent-lxmf-admission-broader
 ```
 
-All75 form fields have explicit functional editing/reset/persistence
+All71 implemented form fields (primary printing omitted, C78) have explicit functional editing/reset/persistence
 dispositions. TextUI/utility effects have separate bounded C95 acceptance below;
 bounded grammar/rendering now has the separate C104 disposition; current Linux replay
 remain required/unverified as detailed below. Native form cases use actual
@@ -296,8 +296,8 @@ Underlying-library acceptance is not automatically application acceptance.
 | Client announcements; `NomadNetworkApp.START_ANNOUNCE_DELAY`, `__jobs`, `announce_now`, `apply_config`, `set_display_name` | **implemented bounded subset**: configurable three-second startup, strict periodic interval after90seconds with five-second checks, manual delivery-only or combined announces, durable successful timestamp, runtime display-name and stamp-cost edits through existing LXMF APIs. Display-name changes save without announcing or replacing the identity/destination. Retains unused `enable_client` metadata rather than inventing delivery-disable semantics. Native safety differences for names, fresh null timestamps, failed background work, serialization and interval bounds are explicit below. |
 | Direct/opportunistic conversations; `Conversation.py` | **partial**: direct text, durable inbound/outbound history, displayed delivery state, per-peer direct/propagated/opportunistic preference, unread/failure counters, explicit viewed/read state, latest-activity listing, deletion/failed purge and plain-text export. Bounded outbound supervision retries failed direct delivery once through a selected propagation node, preserving the LXMF hash, timestamp, binary content and fields. Cancellation, rejection and preparation errors do not trigger fallback. Native opportunistic text is received by the actual primary; direct reply/viewed state and both applications' read counters are exercised. Primary conversation/container/attachment import and inert `.index` preservation with honest historical authentication are implemented below; full conversation UI remains missing. |
 | File/image/audio attachments; `ConversationMessage` helpers | **partial**: `attach`, `image`, `audio`; bounded extraction of LXMF fields 0x05/0x06/0x07 and safe display names; durable payloads outside history JSON. File attachments live-verified both ways, including 2,200,000 bytes. Typed image references support explicit/automatic original ASCII conversation previews, using the existing converter/cache and never/manual/auto/always controls; this is not primary UI parity. Audio is stored/sent as encoded bytes. The pinned conversation helpers save encoded audio; an upstream recording/playback/transcoding composer was not found there, and no such native codec/device capability is claimed. |
-| Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. `paper-qr`/`paper-save` save PNG/URI and outbound history; `paper-print` passes the shared-codec PNG to an explicit local print command and saves outbound history only on successful process exit. `qr` exports an existing URI, `qr-show` renders explicit black-on-white half-blocks. All QR encoding uses shared `LxPaperQr`, not a second codec. Executed primary save-QR vectors and terminal module tests exist; selected application acceptance is recorded below. Image-import/scanner and physical scanning/printing remain unverified. |
-| Printing; `NomadNetworkApp.should_print`, `print_file`, `print_message`, `applyConfig`; `Conversation.paper_output` | **implemented bounded software subset**: persisted/imported opt-in incoming filters, explicit stored-message print and success-only paper-QR print. Original text template, five safe named placeholders, local sent/received calendar times, saved-directory classification, no-shell argv, bounded private jobs/queue/process lifecycle, explicit failure and recovery. Default printer is never invoked without explicit manual action or enabled matching incoming policy. Native safety/template differences and selected software evidence are described under C78; no physical printer/scanner claim. |
+| Paper; `Conversation.paper_output`, `LXMessage` | **partial**: `paper` generates encrypted `lxm://` URI through LXMF; `ingest` uses the router's duplicate-aware ingestion. `paper-qr`/`paper-save` save PNG/URI and outbound history; `qr` exports an existing URI, `qr-show` renders explicit black-on-white half-blocks. All QR encoding uses shared `LxPaperQr`, not a second codec. Executed primary save-QR vectors and terminal module tests exist; selected application acceptance is recorded below. Printing is not implemented (C78); image-import/scanner and physical scanning remain unverified. |
+| Printing; `NomadNetworkApp.should_print`, `print_file`, `print_message`, `applyConfig`; `Conversation.paper_output` | **not implemented (deliberately omitted)**: no incoming, explicit or paper-QR printing. An imported primary `[printing]` section is ignored with a warning; see C78. |
 | Propagation selection and retrieval; `NomadNetworkApp.py`, `Conversation.py`, `Directory.py` | **partial, live-verified core**: persisted manual/trusted automatic selection, explicit propagated send, limited/manual/scheduled sync, asynchronous status/cancellation and direct-failure fallback; hosted propagation uses `LxmRouter`. Actual primary Python client retrieves from native PN after restart/deletes messages; native client retrieves from actual primary Python PN after restart/deletes messages. Scheduled retrieval and direct-failure fallback after peer exit are exercised. Configured static-peer transfers are application-verified both ways on Windows/Linux through a Python transport, with restart, real loss and2.2MB attachment assertions. Storage/limit/cost/static/priority settings use existing LXMF options. C109 adds actual peer inspection, strict manual-sync grace and durable unpeering without rewriting static settings. Storage-pressure eviction-order acceptance and additional peer failure/topology cases remain unverified. |
 | Directory and announces; `Directory.py`, `Conversation.received_announce` | **partial**: bounded known-destination snapshot and decoded names; persisted trusted/untrusted/unknown/warning contact classification, exact primary saved-name collision policy, independent blacklist applied to the existing LXMF router and filtered application peer view, delivery preference and local notes. Saved-node listing/opening, primary rank/trust/name ordering, explicit browser identification consent and existing associated-node trust updates are operational. Explicit trusted node identities and validated active propagation-node classification drive automatic selection separately. Current and legacy primary saved-directory/ignored-list import is operational through offline CLI and terminal, with atomic additive merging, idempotence and conflict rejection. Bounded compact/full announce history, separate explicit transient import, per-type/search/name-or-address terminal presentation and restart persistence are implemented below. Complete Urwid stream/node-directory presentation remains missing. |
 | Hosted pages; `Node.register_pages`, `serve_page`, `announce` | **implemented bounded subset**: `nomadnetwork.node`, UTF-8 name app-data, original default index, nested static pages, six-second startup/configured periodic announces, independent page/file rescans, explicit refresh and bounded handler inspection. New/deleted paths update handlers; static `.allowed` identity lists are enforced. Node announces chain existing propagation behavior. C107 implements source-specific attempt counters, reset, persistence and profile activation. Original default content deliberately replaces upstream assets; executable platform boundaries are separately inventoried below. |
@@ -427,247 +427,21 @@ commands on the selected published binary, primary application file exchange in
 both directions, configured and explicit exports and same-identity restart.
 Physical GUI/file-picker behavior is not exercised or claimed by this slice.
 Utilities and other complete configuration/presentation contracts remain
-required elsewhere. Printing and bounded propagation-node migration are described below.
+required elsewhere. Bounded propagation-node migration and the omitted printing contract are described below.
 
-### Opt-in bounded printing software (C78)
+### Printing is not implemented (C78)
 
-Process ownership is implemented on Windows and Linux only. Other platforms
-explicitly refuse print jobs before creating a workspace or starting a command;
-their process-execution acceptance tests skip with that reason.
-
-Primary `NomadNetworkApp.py:709–791,1235–1282` and
-`Conversation.py:358–409` define the printing behavior. No primary template,
-UI source or assets are copied. The native default is an original plain text
-layout; its appearance is intentionally not the primary's shipped template.
-
-`printMessages`, `printAllMessages`, `printTrustedMessages`,
-`allowedMessagePrintDestinations`, `printCommand` and `printingMessageTemplate`
-persist in `settings.json`. Missing printing fields retain disabled defaults,
-empty filters, `lp` and the original native template. `printing on|off`,
-`printing from <filter>`, `printing command <argv>`,
-`printing template <file>` and `printing default-template` edit policy
-transactionally for subsequent jobs, without changing queued snapshots.
-`printing` displays policy without exposing command arguments/template bodies.
-`print <stored-message-id>` is an independent explicit action and does not
-require automatic printing to be enabled.
-
-Explicit ConfigObj migration activates `[printing] print_messages`,
-`print_command`, `print_from` and `message_template`. As in the primary, a
-command without `print_messages` is inert; an explicitly false flag still
-imports the command but does not process filters/templates. Only true processes
-`print_from`: scalar case-insensitive `everywhere` permits all, scalar/list
-`trusted` enables **saved** trust255, scalar32-character source or list entries
-retain their exact spelling. Received hashes compare as lowercase: uppercase
-configured hashes do not match. List `everywhere` never implies all.
-Discovery, alleged names and historical signatures cannot grant printing trust.
-Saved warning/untrusted names carry their address, unknown/trusted names may
-stand alone; names use the native terminal-safe display rather than primary
-Urwid/Micron presentation.
-
-Custom templates accept exactly `{origin}`, `{stime}`, `{rtime}`, `{mtitle}`,
-`{mbody}` and doubled braces. Empty titles become `None`; local timestamps use
-`yyyy-MM-dd HH:mm:ss`. Inserted text is not recursively interpreted. Python
-attribute/index expressions, conversions, format specifiers, unknown fields and
-malformed braces fail explicitly. UTF-8 templates are bounded16KiB; rendered
-jobs2MiB. Custom file reads reject links, pipes/devices, invalid UTF-8 and
-oversize input. Explicit import expands the current user's home, captures an
-existing regular file's text in the staged native settings and never creates
-foreign files. Missing template files produce a warning and the original
-native default, not the primary's side-effectful default-file write. Later
-edits/deletion of a template file do not silently alter captured policy.
-
-Automatic jobs are enqueued **after successful history persistence** and never
-wait on the printer in the receive loop. An owned single worker accepts at
-most eight queued jobs in addition to its active job; overload is explicitly
-reported with message ID, not content. Manual and paper jobs share the same
-bound. Each job snapshots rendered bytes and parsed argv; no shell evaluation
-is used. The randomly named regular job file is one final argv value,
-fixing the primary's unquoted-filename splitting for profiles with spaces.
-Files live only under `<profile>/storage/print-jobs`, with Unix0700 directory/
-0600 files and inherited profile ACLs on Windows; the workspace rejects
-symlink/reparse ancestors. The worker never uses primary's public deterministic
-`/tmp/<content-hash>` file. It drains but does not log subprocess output, bounds
-each output stream64KiB, applies a15-second deadline, cancels/kills and joins the
-owned process on cancellation/disposal, zeroes queued text buffers and deletes
-job files. Restart removes only bounded, recognizable, regular stale job files.
-Unavailable commands, nonzero exits, floods and timeouts are visible failures;
-one failed process or optional log observer does not disable subsequent jobs.
-On Windows, the command starts suspended, enters a private job limited to64
-active processes, then resumes with only its three explicit standard handles
-inherited. Cleanup joins kernel-verified job members and waits for the private
-completion port's `ACTIVE_PROCESS_ZERO` notification before deletion; waiting
-for the root alone is insufficient. Cleanup failure cannot report success.
-No reported printer PID is used to terminate a process. Two deterministic
-Windows regressions hold both a job file and capture file in a child after the
-root exits, exercising timeout/cancellation and strict cleanup without retries.
-The preserved pre-fix implementation fails the orphan regression; eight fresh
-post-fix launches pass104 lifecycle cases.
-
-Linux starts a dedicated same-executable supervisor **before** normal CLI
-help/version dispatch. The supervisor creates a private session, enables child
-subreaping and no-new-privileges, and gives the actual command a separate closed
-stdin. Its own private stdin carries only owner lifetime: EOF requests cleanup,
-including after an abrupt native-owner exit. Command-root exit does not release
-supervision. Orphaned and double-forked descendants are adopted, including those
-that create another session. Cleanup opens pidfds from this supervisor's kernel
-child lists, rechecks direct parentage **after** opening each descriptor, signals
-only that pinned owned identity, and reaps adopted children. A kernel `ECHILD`
-barrier after the directly tracked command exits establishes that no children
-remain; only then can the supervisor finish and remove its recognizable private
-job on owner EOF. No reported marker PID, process-name kill, system-wide process
-scan or shell evaluation is termination authority. Repeated disposal shares one
-cleanup task and the owner bounds its supervisor join to five seconds; a failed
-join is a visible cleanup failure, never success.
-
-This requires Linux pidfd syscalls (`pidfd_open`, kernel5.3+, and
-`pidfd_send_signal`), `setsid`, `prctl` child-subreaper/no-new-privileges, `waitpid`,
-and mounted procfs child/status files. Syscall and procfs preflight happens before
-starting any printer command; there is no unsafe legacy fallback. The production
-implementation uses libc/kernel APIs, **not** an external `setsid`, Python,
-PowerShell, systemd or native helper package. Syscall numbers are selected only
-for x64/arm64; only Linux x64 is verified. The detached-session test fixture
-separately requires `/usr/bin/setsid` (util-linux), and printer stubs use
-PowerShell7; neither is a production supervisor dependency. This is lifetime
-ownership, not a sandbox or a guarantee against a hostile privileged command,
-supervisor/kernel failure or indefinitely uninterruptible kernel I/O.
-
-`paper-print <hash> <message>` uses existing `LxMessage` PAPER encryption and
-`NomadNetPaperQr`, not another crypto/QR implementation. Only a zero exit
-creates the outbound paper conversation entry; failures/cancellation create
-none. This is local print-command software, not evidence that a physical
-printer produced or a scanner read paper.
-
-`GenerateNomadNetPrintingVectors.py` executes the actual pinned primary
-constructor, ConfigObj/applyConfig/should_print and real saved DirectoryEntry
-trust, including reading an existing public synthetic custom UTF-8 template
-without changing it. For formatting only, the unchanged exact `print_message`
-AST runs with a synthetic owner and in-memory open/unlink/print-file observers because Windows
-primary hardcodes `/tmp`. A separate actual `print_file` subprocess callback
-observer records shlex argv without invoking hardware. Fixed **local calendar**
-dates use `mktime`; there is no timezone shim. This is explicitly not an
-unmodified real primary printing path. Windows/Linux vectors match byte-for-byte:
-`954d823858a7c45944f2d9c2608d2191eb60855fb1968bc0a0377d15f3a22bc1`;
-the recorded primary blob SHA is
-`c36ce4c537fe5af534910d1f5200d2a2ea5dd50f74bf9e4157222eff15614eb2`.
-
-The managed selector
-`FullyQualifiedName~NomadNetPrinting|FullyQualifiedName~NomadNetPrinter`
-includes explicitly skipped other-platform ownership theories and exercises
-actual synthetic PowerShell processes, failures, queue saturation, immutable queued snapshots,
-active/queued cancellation, joined disposal, no-subscriber processing and
-throwing-observer isolation. `NomadNetPrinting.Tests.ps1` provides twenty
-opt-in real-process cases T330–349. It uses actual full-primary messaging,
-public synthetic printer captures, independent zxing-cpp QR decode followed
-by actual primary decryption/signature validation, success/failure history,
-clean/abrupt native restart and healthy recovery. The printed paper is received
-as method3 by pinned `ingest_lxm_uri`'s propagated-delivery path, not assumed
-to retain the composition method5.
-
-`tests\Pester\Invoke-NomadNetPrintingAcceptance.ps1 -Binary <selected-binary>
--EvidenceDirectory <absent-owned-directory> -NativeObjectDirectory <obj-root>
--CompiledSourceDirectory <captured-source> -ManagedTestDirectory <built-tests>
-[-Repository <repository>] [-ManagedSourceRoot <managed-captured-source>]`
-also accepts `-NativeSourceRoot <native-captured-source>` for snapshot builds and
-never builds or republishes. It snapshots source/harness/PDB/generated receipts,
-reference hashes before/after, binary hash/version/help, toolchain information
-and exact Pester results. The historical printing-only strict NativeAOT candidates (SDK10.0.403,
-runtime/ILC10.0.14; both linker/compiler warnings-as-errors) pass20/20 on each
-host, followed by another20/20 per host using
-`tests\Pester\Replay-NomadNetPrintingAcceptance.ps1 -CandidateDirectory
-<frozen-candidate> -EvidenceDirectory <absent-replay-directory> -FrozenProduction`, without
-rebuilding. The Windows executable SHA256 is
-`a2b5ba5077caacc77cf749201e94862037e1533eb9318cec8d582cc726a6ffca`;
-Linux is
-`0e7be32b9098bb9c5450ac85dc25d9a145c13dd5785f8dc952d5834f23f6aeaa`.
-Each receipt checks291 native and327 managed regular compiled-source documents
-plus70 native and75 managed generated documents against portable-PDB SHA256,
-and verifies the actual embedded fixture. The matching captured-source managed
-selector `FullyQualifiedName~NomadNetPrinting|FullyQualifiedName~NomadNetPrinter|FullyQualifiedName~NomadNetConfigTests`
-passes45 cases on Windows and43 with one skip on Linux. The captured full Nomad
-suite passes307 with13 skips on Windows and314 with5 skips on Linux; skipped
-tests are not printing evidence. These immutable candidates retain stack
-`3cdf5bee5adbd1da903a163882a31e53c3057aec`; they are not silently relabeled as
-evidence for the subsequently selected `2331aeed1d54b4ead2e83422255d3b8734881780`.
-`-FrozenProduction` deliberately replays captured production while still checking
-the current printing harness and every compiled-source PDB hash. Omit it to
-additionally require current printing-owned production files to match.
-This is not a freeze or acceptance of other concurrently developed features.
-Parent integration acceptance is separate.
-
-Separate preceding-stack evidence uses the parent's exact strict-published
-`2331aeed1d54b4ead2e83422255d3b8734881780` binaries without rebuilding:
-Windows SHA256
-`72a5466825a29831c3330ddaf31fda4f6f645c7c7dd74416ee551c5f87a1b71a`,
-Linux
-`e4c5db792112ba823dce58c8cdfdbdd4b843478a2060dcd308888d6f53484802`.
-Each passes T330–34920/20 in two independent launches. Each selected binary's291
-regular and70 generated compiled-source documents match portable-PDB SHA256;
-the captured before/after source manifests, compiler response files, serviced
-runtime/compiler metadata, and before/after reference-file hashes are retained.
-The exact Windows NativeAOT executable additionally passes two deterministic
-orphan-owner runs: its command root exits while a child holds the job file and
-exclusively locks the public capture; timeout terminates/joins the child, an exclusive
-reopen succeeds, strict capture-directory deletion succeeds **without retry**,
-and the next healthy print succeeds. This supplements, rather than replaces,
-the retained original failed cleanup test and managed negative-control evidence.
-Current receipts and exact no-publish replay commands are in the ignored
-`artifacts\tests\nomad-printing\current-stack-handoff.json`; historical snapshots
-remain unchanged. Shared printing production is stable and handed back for
-independent integration work.
-
-The Linux ownership follow-up retains a deterministic pre-fix failure:
-an exited command reported success while its child still held the job.
-The captured `2331aee` follow-up candidates pass20 primary cases on each host;
-the Linux native supervisor additionally passes five deterministic process
-cases: root-exit timeout, detached double-fork timeout, abrupt owner EOF with
-descendant reaping/job removal/restart recovery, and literal `--help`/`--version`
-printer arguments. Procfs observations establish actual orphan adoption by the
-private-session supervisor, inherited no-new-privileges, and child/supervisor
-exit before exclusive capture reopen and strict deletion without retries.
-These are real native subprocess tests, not only managed or mocked ownership.
-
-The latest diagnostic refinement reports invalid private mode with exit125 and
-bounded context, and normal supervisor failures with a fixed operation name,
-exception type and native errno where available; it never includes argv,
-filenames or printed content. The final Windows diagnostic-inclusive native
-candidate passes20 primary cases, the locked-capture ownership case and the
-explicit unsupported-private-mode failure case. The corresponding full Windows
-managed suite passes313 with14 skips. Its Linux diagnostic-focused managed
-checks pass3/3, but the latest full Linux run and diagnostic-inclusive NativeAOT
-rebuild were interrupted by host disk exhaustion/read-only WSL, not accepted as
-functional failures or passes. The preceding full Linux suite passes329 with5
-skips. Latest Linux diagnostic-inclusive native verification remains pending
-host recovery; the retained20+5 native ownership evidence is explicitly from
-the preceding captured source, not relabeled as the diagnostic refinement.
-Follow-up receipts, exact commands, hashes and the storage-failure records are
-under the ignored `artifacts\tests\nomad-printing\linux-ownership` workspace.
-
-The selected integrated Windows candidate now uses local stack
-`e52da394658f6f6c723214a9f811552418789cb6`, with native SHA-256
-`34d1ff11278cf7679e5c973b71697f90008333cbabafb11c09a0e07de03f4110`.
-Parent independently passes the20 unchanged primary cases, exited-root/
-locked-capture ownership and explicit private-mode diagnostic case:22/0.
-Its294 regular and70 generated compiled-source documents, before/after source
-hashes, serviced SDK/compiler/runtime and binary hash are checked without
-republishing. This candidate includes the printing supervisor, clipboard,
-utilities and node migration together. Replay:
-
-```powershell
-& artifacts\tests\nomad-utilities\Parent-AtomicAcceptance.ps1 -Mode Printing
-```
-
-The current Linux source/pin replay remains blocked by `/dev/sdd` I/O failures
-and an `emergency_ro` ext4 mount. Reclaiming Windows disk space did not restore
-WSL process startup; the shared distribution was not terminated or repaired.
-The preceding native Linux supervisor observations above are not promoted to
-current integrated acceptance.
-
-Enable the pinned-reference environment variables
-documented by other NomadNet live tests; on Linux set `DOTNET_ROOT`, put its SDK
-first on `PATH`, and select an actual PowerShell apphost with
-`DOTRETICULUM_PWSH` (not a `dotnet` tool launcher). This software evidence does
-not establish physical-printer, camera, RF, additional-topology or exhaustive
-NomadNet compatibility.
+Printing is deliberately omitted. Primary `NomadNetworkApp.py:709–791,1235–1282`
+(`should_print`, `print_file`, `print_message`, `applyConfig`) and
+`Conversation.py:358–409` (paper-QR printing) are not reproduced: there is no
+incoming-message printing, explicit message print, `paper-print` command, print
+template or print-command execution. Explicit ConfigObj migration tolerates a
+primary `[printing]` section (`print_messages`, `print_command`, `print_from`,
+`message_template`) by ignoring it with the warning "The primary [printing]
+section is ignored: printing is not implemented."; nothing from it is persisted
+or exported. The configuration form has no printing section. Paper messages
+remain available as URI/PNG/terminal QR output (`paper`, `paper-qr`,
+`paper-save`, `qr`, `qr-show`).
 
 ### Bounded compact/full announce history (C71)
 
@@ -1960,10 +1734,9 @@ Upstream settings audited in `NomadNetworkApp.apply_config`/default config:
 - `[utilities] enable_utilities` — **implemented bounded visibility control**:
   exposes/hides the original Utilities menu entry after restart. Explicit utility
   commands remain accessible; visibility neither starts a listener nor grants authorization.
-  `[printing] print_messages`, `print_command`, `print_from`,
-  `message_template` — **implemented bounded software subset**, with exact
-  opt-in filter semantics and documented original-template/safety differences
-  under C78; physical printer acceptance remains unverified separately.
+- `[printing] print_messages`, `print_command`, `print_from`,
+  `message_template` — **not implemented (deliberately omitted)**: the section
+  is ignored with a warning on import (C78).
 
 The remaining required configuration behavior is not silently deferred:
 primary config-directory discovery
@@ -2262,8 +2035,8 @@ zero failures**. Separately selected converter tests above cover the integrated
 run's converter skips. These receipts precede subsequent inline-media,
 profile-migration, functional Micron and application peer-control slices;
 their current separate dispositions are above. They do not prove later
-behavior or close remaining configuration/terminal contracts. Bounded printing
-software is described under C78.
+behavior or close remaining configuration/terminal contracts. Printing is not
+implemented (C78).
 
 ### Node hosting configuration acceptance
 
@@ -3588,7 +3361,7 @@ method, or copy its guide/snippet content. The existing
 | `find_next`, `replace_one`, `replace_all`, `_insert_snippet` | **implemented bounded subset**: case-sensitive ordinal search with wrapping, selected-match replacement/next-match behavior, nonoverlapping replace-all and insertion. ASCII observations match executed primary operations. Native cursor positions are UTF-16 offsets rather than Python Unicode-codepoint offsets, an explicit **difference**. Five original samples are usable; the primary's18 snippet assets are not copied or claimed. |
 | `on_edit_change`, `render_preview`, `is_executable`, `highlight_micron`, `MicronEdit`, `GutterEdit`, `visible_panes`, `toggle_pane`, `rebuild_columns`, `Browser.PageList` | **implemented bounded original functional controls / safety difference**: owned400ms latest-edit debounce, original source syntax colours and wrap-aware line numbers, three independently visible panes with primary22:40:38 weights and last-pane protection. Explicit and automatic textual Micron preview reuse the existing renderer, with no network/partial/image retrieval or executable-source execution. Executable files retain source/warning behavior; binary files do not preview. The existing100000 UTF-16-character preview cap remains intentionally at least as restrictive as Python's Unicode-codepoint cap. Primary syntax stops above50000 Unicode codepoints. `edit view` prints the current bounded split-pane snapshot; C99 below adds bounded independent vertical source/preview positions and scrolling commands. This is not automatic full-screen Urwid redraw; exact keyboard/mouse/cursor/terminal-width parity remains **missing/unverified**. |
 | `_state_file`, `load_state`, `save_state`, `start` | **implemented bounded original controls / local-format difference**: extended schema1 `editor_state.json` stores relative selection, `.mu` filter, expanded folders and visible panes, bounded to32 KiB. Editor activation reopens an existing saved file; `edit resume` remains explicit. Old native schema1 selections still load. Folder moves/removal rebase/clear live and persisted expansions/selections. No document text, secrets or unsaved drafts are persisted. Malformed/oversized state is reported rather than silently ignored. Bounded primary state/document import is independently accepted under C100 below; external/custom roots are not rebound. |
-| `ConfigSectionView.on_save`, reset/validation and `util.write_config_atomic` | **implemented bounded functional subset / safety difference**: native JSON/raw selected-RNS editing plus all75 primary form fields across eight sections, explicitly opted-in primary ConfigObj source, confirmed staged reset/save and cancel. Exact field/runtime/grammar dispositions and reference evidence appear below. Atomic saves require restart and serialize with runtime settings writes; later runtime-setting edits are refused and automatic announce/sync timestamps stay in memory, preventing stale restart-configuration overwrite. Active service options/identity are not hot-reloaded. TextUI/utility controls have bounded functional effects under C95; complete ConfigObj/Urwid parity remains a gap. Panic failure ownership is an intentional safety difference, not a missing implementation. |
+| `ConfigSectionView.on_save`, reset/validation and `util.write_config_atomic` | **implemented bounded functional subset / safety difference**: native JSON/raw selected-RNS editing plus all71 non-printing primary form fields across seven sections (printing omitted, C78), explicitly opted-in primary ConfigObj source, confirmed staged reset/save and cancel. Exact field/runtime/grammar dispositions and reference evidence appear below. Atomic saves require restart and serialize with runtime settings writes; later runtime-setting edits are refused and automatic announce/sync timestamps stay in memory, preventing stale restart-configuration overwrite. Active service options/identity are not hot-reloaded. TextUI/utility controls have bounded functional effects under C95; complete ConfigObj/Urwid parity remains a gap. Panic failure ownership is an intentional safety difference, not a missing implementation. |
 | `Config.EditorTerminal`, `[textui] editor` | **implemented bounded original workflow / safety difference**: imported/native `editor`, default `nano`, is one executable argv element, not a shell command. `config external [native|rns]` uses the public `RnshProcess` PTY/ConPTY API, a private working copy, validation and snapshot-checked atomic commit, then returns to the console. Explicit Ctrl+] cancellation, child failure and conflict refuse commit. Redirected input/output is explicitly unsupported; interactive commands and child input have one owner rather than mixing `Console.In` with raw stdin. C95 uses Win32 console records for Windows command/mouse input, restores the exact input mode before child activation, and retains `Console.ReadKey` child forwarding. No embedded Urwid/widget, complete keyboard/mouse/termios or cross-platform terminal parity is claimed. Details and actual Windows terminal evidence follow below. |
 | `GuideEntry.display_topic`, `GuideLinkDelegate.handle_link`, topic reader | **implemented bounded original workflow / safety difference**:18 original topics cover all13 primary factual areas; topic/link selection, anchors/next-heading, search, logical-line viewports and32-position back/forward use the existing Micron renderer. C102 has separate frozen Windows NativeAOT ordinary/ConPTY/restart acceptance above. C95 first-state/start and menu-only `hide_guide` behavior remain. Links stay local; unknown anchors fail explicitly; history is session-only. Original assets replace primary demos; complete terminal keyboard/mouse/focus/Unicode-column behavior remains **missing/unverified**, not a new wire or current Linux claim. |
 
@@ -4226,8 +3999,8 @@ physical-terminal or additional live-network acceptance is claimed.
 
 ### Bounded configuration sections, reset and ConfigObj source
 
-The original terminal implements functional forms for every **75 editable
-primary fields across eight sections**, not copied Urwid screens or primary
+The original terminal implements functional forms for every **71 non-printing editable
+primary fields across seven sections**, not copied Urwid screens or primary
 assets. Native JSON remains the default. Operators explicitly opt into the
 owned `<profile>\config` ConfigObj source; unrelated native-only settings,
 identity and persistence remain native-owned.
@@ -4254,10 +4027,10 @@ receipts accompany the fixture; no configuration comment/guide/UI assets are cop
 
 | Exact primary contract and observable completion criterion | Current disposition |
 |---|---|
-| `Config.py:CONFIG_SECTIONS`, `ConfigSectionView` field creation | **implemented functional forms**: node16, client14, logging3, textui12, utilities1, rrc13, printing4, reticulum12. Every key/type/default/dropdown option/validator is compared to the executed actual form catalog. The editor action is not a ninth section. |
+| `Config.py:CONFIG_SECTIONS`, `ConfigSectionView` field creation | **implemented functional forms**: node16, client14, logging3, textui12, utilities1, rrc13, reticulum12. Every key/type/default/dropdown option/validator is compared to the executed actual form catalog; the primary printing4 section is deliberately omitted (C78). The editor action is not an eighth section. |
 | `ConfigSectionView` population, `_default_write_value`, `_widget_write_value` | **implemented bounded subset**: missing fields show form defaults, checkbox truth normalization, scalar-to-list population, list-to-text joining and unknown dropdown fallback. JSON scalar/bool/number/string-list input avoids shell parsing. Limits:128 list items,4096 characters per item, finite floats, whole-number fields, validated hash/color/port fields and final native runtime validation. Invalid edits retain the staged value/file and permit recovery. Control characters in form values are refused; raw ConfigObj multiline editing is separate. |
 | `on_reset`, `on_back`, `on_save:1003–1070` | **implemented / safety difference**: reset requires `confirm`, stages defaults only, cancel discards, and save separately requires `confirm`. Empty keys are deleted; absent fields equal to defaults are omitted, so reset does not materialize an absent section. Existing empty sections and unknown keys survive. Forms never apply running service options; explicit full restart is required. Native snapshots reject external changes instead of the primary's reload-and-merge/swallowed reload-error behavior. |
-| Runtime node/client/logging/printing fields; `NomadNetworkApp.applyConfig` | **implemented bounded projection** onto existing runtime settings. The source loader uses the existing importer semantics and native bounds, not a new protocol. `enable_client` and `user_interface` are preserved raw controls outside the client's14 form fields, as in primary. Native-only identity/display name/trust/manual propagation/timestamps/media settings are retained. The form default is not necessarily the missing loader default: e.g. node360/starttrue versus missing node720/startfalse. Fixture records generated-default application separately. Unsupported source keys remain preserved and reported by import; they are not silently applied. |
+| Runtime node/client/logging fields; `NomadNetworkApp.applyConfig` | **implemented bounded projection** onto existing runtime settings. The source loader uses the existing importer semantics and native bounds, not a new protocol. `enable_client` and `user_interface` are preserved raw controls outside the client's14 form fields, as in primary. Native-only identity/display name/trust/manual propagation/timestamps/media settings are retained. The form default is not necessarily the missing loader default: e.g. node360/starttrue versus missing node720/startfalse. Fixture records generated-default application separately. Unsupported source keys remain preserved and reported by import; they are not silently applied. |
 | TextUI12, utilities1, RRC13 operational effects | **implemented bounded functional controls / explicit placeholder**: TextUI and utility visibility have functional native controls, including C95's scoped Windows NativeAOT acceptance below. Both RRC render switches and ten history/style fields are operational in the original bounded terminal service; `enable_esoterics` is an executed/inventoried **upstream-placeholder**, not an invented no-op feature. Original layout/palette/safety bounds remain explicit, not full Urwid parity. |
 | Selected Reticulum12 fields, `Config.py:672–690,876–882` | **eleven runtime fields / one intentional safety difference**: selected actual RNS file, not native JSON/default-global RNS. `respond_to_probes` and `use_implicit_proof` now join the nine supported controls, validate through public `RnsdConfigParser` and activate in the running owner after full restart. `panic_on_interface_error` is **safety-refused**: fixed native top-level failure termination and child-peer failure isolation, not missing hardware or a no-op toggle. Raw explicit panic keys are refused as well, including false; remove the key to use fixed native ownership. |
 | ConfigObj root assignments, quoted names/scalars, comma lists, nested sections, comments, literal backslashes, triple quotes and interpolation | **implemented bounded grammar with executed vectors**. Root `enable_node=yes` is legal and retained/reported unsupported, not treated as `[node] enable_node`. Empty scalar, empty list, one-item list and scalar-with-comma remain distinct. Interpolation resolves section/DEFAULT/ancestor values; absent/cyclic expansion fails explicitly. Unknown nested/multiline/comment text is retained byte-for-byte when untouched. Duplicate names, malformed lists/nesting/quotes, invalid UTF8 and NUL refuse before save. |
@@ -4285,9 +4058,8 @@ config cancel
 
 Activation exports supported current native settings only if the primary source
 is absent; existing primary text is never overwritten. Export refuses fractional
-native page/file refresh minutes (including the native five-second default) and
-embedded custom printing templates rather than rounding or inventing a template
-filename. Reconcile those settings explicitly first. A failed native settings
+native page/file refresh minutes (including the native five-second default)
+rather than rounding. Reconcile those settings explicitly first. A failed native settings
 commit attempts snapshot-checked deletion of a newly created inactive source;
 rollback failure explicitly retains it for manual reconciliation. This is not
 a crash-atomic two-file transaction. Missing/malformed active source fails
@@ -4414,7 +4186,7 @@ passes **1,799 tests, 87 explicit skips, zero failures**. Converter-dependent
 checks skipped there are separately exercised by the selected scoped runs.
 Remaining Kitty presentation, configuration, migration, complete primary editor,
 and remaining presentation workflows are not declared complete; bounded QR
-export/display, opt-in clipboard and printing software are described separately above.
+export/display and opt-in clipboard are described separately above; printing is not implemented (C78).
 
 ### Selected hosted-policy acceptance
 

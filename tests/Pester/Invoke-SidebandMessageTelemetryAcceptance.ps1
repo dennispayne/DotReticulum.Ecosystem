@@ -15,8 +15,7 @@ $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 Set-Location $root
 $provenancePath = Join-Path (Split-Path $Candidate -Parent) build-provenance.json
 function Get-ProductionInputs {
-    $directories = @('src\Sideband','src\Sideband.Desktop','src\LXMF','src\LXST','external\DotReticulum\src')
-    if (Test-Path src\Shared) { $directories += 'src\Shared' }
+    $directories = @('src\Sideband\Sideband.Core','src\Sideband\Sideband.Desktop','src\LXMF','src\LXST','external\DotReticulum\src')
     $files = @(Get-ChildItem $directories -Recurse -File |
         Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' })
     foreach ($directory in '.','external\DotReticulum') {
@@ -58,7 +57,7 @@ if ($Build) {
     $setup = Join-Path $install 'VC\Auxiliary\Build\vcvars64.bat'
     $nativeDirectory = Split-Path ([IO.Path]::GetFullPath($Binary)) -Parent
     $env:PATH = (Split-Path $vswhere -Parent) + ';' + $env:PATH
-    & $env:ComSpec /c "call `"$setup`" >nul && dotnet publish src\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r win-x64 --artifacts-path `"$ArtifactsPath`" -o `"$nativeDirectory`" -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror --nologo -v:q" 2>&1 |
+    & $env:ComSpec /c "call `"$setup`" >nul && dotnet publish src\Sideband\Sideband.Desktop\Sideband.Desktop.csproj -c Release -r win-x64 --artifacts-path `"$ArtifactsPath`" -o `"$nativeDirectory`" -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror --nologo -v:q" 2>&1 |
         Tee-Object (Join-Path (Split-Path $provenancePath -Parent) publish.log)
     if ($LASTEXITCODE -ne 0) { throw 'Strict NativeAOT publish failed.' }
     $assets = @(Get-ChildItem (Join-Path $ArtifactsPath 'obj\Sideband.Desktop') -Recurse -Filter project.assets.json -File)

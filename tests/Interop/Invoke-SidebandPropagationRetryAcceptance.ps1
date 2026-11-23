@@ -29,8 +29,8 @@ $owned = @(
     'tests/Sideband.Tests/SidebandPropagationRetryReferenceTests.cs',
     'tests/Sideband.Tests/SidebandRemoteCommandRetryLiveTests.cs',
     'tests/Sideband.Tests/Fixtures/sideband-propagation-retry.json',
-    'src/Sideband/SidebandClient.Remote.cs',
-    'src/Sideband/SidebandClient.Telemetry.cs'
+    'src/Sideband/Sideband.Core/SidebandClient.Remote.cs',
+    'src/Sideband/Sideband.Core/SidebandClient.Telemetry.cs'
 )
 function SourceHashes {
     $hashes = [ordered]@{}

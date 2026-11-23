@@ -38,8 +38,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Sideband.Desktop\Sideband.Desktop.csproj" />
-    <ProjectReference Include="..\..\src\Sideband\Sideband.csproj" />
+    <ProjectReference Include="..\..\src\Sideband\Sideband.Desktop\Sideband.Desktop.csproj" />
+    <ProjectReference Include="..\..\src\Sideband\Sideband.Core\Sideband.Core.csproj" />
   </ItemGroup>
 
 </Project>

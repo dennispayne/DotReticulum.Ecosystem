@@ -16,10 +16,10 @@ if (Test-Path $output) { throw 'Use a fresh output directory to preserve all pre
 $null = New-Item $output -ItemType Directory
 $files = @(
     'src\LXMF\LxmPropagationStatusClient.cs',
-    'src\Sideband\SidebandPropagationTelemetry.cs',
-    'src\Sideband\SidebandPropagationTelemetrySource.cs',
-    'src\Sideband\SidebandTelemetryCodec.cs',
-    'src\Sideband\SidebandTelemetryValue.cs',
+    'src\Sideband\Sideband.Core\SidebandPropagationTelemetry.cs',
+    'src\Sideband\Sideband.Core\SidebandPropagationTelemetrySource.cs',
+    'src\Sideband\Sideband.Core\SidebandTelemetryCodec.cs',
+    'src\Sideband\Sideband.Core\SidebandTelemetryValue.cs',
     'tests\Sideband.Tests\SidebandPropagationTelemetryTests.cs',
     'tests\Sideband.Tests\SidebandPropagationTelemetryLiveTests.cs',
     'tests\Sideband.Tests\GeneratePropagationTelemetryVectors.py',
@@ -48,7 +48,7 @@ if ($Native) {
     $projectDirectory = Join-Path $output probe
     $null = New-Item $projectDirectory -ItemType Directory
     $project = Join-Path $projectDirectory probe.csproj
-    $sidebandProject = Join-Path $root 'src\Sideband\Sideband.csproj'
+    $sidebandProject = Join-Path $root 'src\Sideband\Sideband.Core\Sideband.Core.csproj'
     $probeSource = Join-Path $root 'tests\Interop\SidebandPropagationTelemetryProbe.cs'
     @"
 <Project Sdk="Microsoft.NET.Sdk">

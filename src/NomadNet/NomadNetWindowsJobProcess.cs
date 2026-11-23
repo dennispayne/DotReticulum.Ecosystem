@@ -4,10 +4,10 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
-namespace SharedPrinting;
+namespace NomadNet;
 
-/// <summary>Starts suspended so no descendant can escape the private print job before assignment.</summary>
-internal sealed partial class WindowsPrintProcess : IDisposable
+/// <summary>Runs an authorization generator in a private kill-on-close Job Object; starts suspended so no descendant can escape before assignment.</summary>
+internal sealed partial class NomadNetWindowsJobProcess : IDisposable
 {
     private readonly SafeFileHandle _job;
     private readonly SafeFileHandle _completion;
@@ -17,10 +17,10 @@ internal sealed partial class WindowsPrintProcess : IDisposable
     public Stream StandardOutput { get; }
     public Stream StandardError { get; }
 
-    private WindowsPrintProcess(SafeFileHandle job, SafeFileHandle completion, Process process, Stream output, Stream error) =>
+    private NomadNetWindowsJobProcess(SafeFileHandle job, SafeFileHandle completion, Process process, Stream output, Stream error) =>
         (_job, _completion, Process, StandardOutput, StandardError) = (job, completion, process, output, error);
 
-    public static unsafe WindowsPrintProcess Start(IReadOnlyList<string> arguments,
+    public static unsafe NomadNetWindowsJobProcess Start(IReadOnlyList<string> arguments,
         IReadOnlyDictionary<string, string?>? environment = null)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
@@ -85,7 +85,7 @@ internal sealed partial class WindowsPrintProcess : IDisposable
             handles.OutputStream = new FileStream(handles.OutputRead!, FileAccess.Read, 4096, false);
             handles.ErrorStream = new FileStream(handles.ErrorRead!, FileAccess.Read, 4096, false);
             if (ResumeThread(info.Thread) == uint.MaxValue) throw new Win32Exception();
-            var result = new WindowsPrintProcess(handles.Job, handles.Completion, process, handles.OutputStream, handles.ErrorStream);
+            var result = new NomadNetWindowsJobProcess(handles.Job, handles.Completion, process, handles.OutputStream, handles.ErrorStream);
             handles.Transferred = true;
             return result;
         }
@@ -162,7 +162,7 @@ internal sealed partial class WindowsPrintProcess : IDisposable
         if (!QueryInformationJobObject(_job.DangerousGetHandle(), 3, buffer, (uint)(8 + 64 * sizeof(nuint)), 0))
             throw new Win32Exception();
         var count = ((uint*)buffer)[1];
-        if (count > 64) throw new IOException("Print process ownership exceeds its bound.");
+        if (count > 64) throw new IOException("Job process ownership exceeds its bound.");
         var identifiers = (nuint*)(buffer + 8);
         for (var index = 0; index < count; index++)
         {
@@ -219,7 +219,7 @@ internal sealed partial class WindowsPrintProcess : IDisposable
             }
             command.Append('\\', slashes * 2).Append('"');
         }
-        if (command.Length > 32766) throw new IOException("Print command exceeds the Windows process limit.");
+        if (command.Length > 32766) throw new IOException("Command line exceeds the Windows process limit.");
         return command.Append('\0').ToString();
     }
 

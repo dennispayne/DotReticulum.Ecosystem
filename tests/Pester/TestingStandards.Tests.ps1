@@ -252,8 +252,8 @@ Describe 'Production coverage union' -Tag 'Tooling' {
         & (Join-Path $testsRoot 'coverage_summary.ps1') -Results $directory -JsonPath $json *> $null
         $LASTEXITCODE | Should -Be 0
         $coverage = Get-Content -Raw -LiteralPath $json | ConvertFrom-Json
-        $coverage.lines.covered | Should -Be 8
-        $coverage.lines.total | Should -Be 16
+        $coverage.lines.covered | Should -Be 7
+        $coverage.lines.total | Should -Be 14
     }
 
     It 'unions hits across suites and counts shared lines and distinct branch paths once' {
@@ -273,7 +273,7 @@ Describe 'Production coverage union' -Tag 'Tooling' {
 
     It 'derives distinct case-sensitive assembly names including desktop core and executables' {
         $expected = @(Get-ProductionModules (Split-Path $testsRoot -Parent))
-        $expected.Count | Should -Be 8
+        $expected.Count | Should -Be 7
         $expected | Should -Contain 'Sideband.Core'
         $expected | Should -Contain 'sideband'
         $expected | Should -Contain 'lxmd'

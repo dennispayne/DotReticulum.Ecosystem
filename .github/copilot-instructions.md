@@ -25,7 +25,8 @@ The target is wire and behavioral parity with the pinned Python reference, not a
 ```
 src\LXMF            library (AssemblyName/namespace conventions as present)
 src\LXST            library (create)
-src\Telemetry       .NET-only tool; out of scope here, keep it building and passing
+src\Sideband\Sideband.Core     Sideband application library (assembly Sideband.Core)
+src\Sideband\Sideband.Desktop  Avalonia desktop executable `sideband`
 tests\LXMF.Tests    xUnit
 tests\LXST.Tests    xUnit (create)
 tests\Interop          reference_environment.py (pins), thin Python adapters
@@ -38,7 +39,7 @@ external\DotReticulum  submodule; the Reticulum stack
 - `.editorconfig`, nullable warnings as errors, file-scoped namespaces, 4-space indent. `IsAotCompatible`/`IsTrimmable` stay true for non-test projects. Executables set `PublishAot=true`; library projects must still pass the trim/AOT analyzers.
 - **Do not edit files under `external\DotReticulum` in place.** If the stack lacks something you need (a transport behavior, a link/resource option, an API), implement it in the DotReticulum repository with its own tests, commit and push it there, then bump the pin here (see CONTRIBUTING). If you can use the existing public API, prefer that. Record any stack gap you hit in the project's doc.
 - Language ownership: C# implements and verifies; PowerShell 7 operates the workflow and CLI end-to-end tests; Python only bridges to the upstream reference (thin adapters for actual API calls, callback observations, actual-import checks, independent vector generation, disclosed shims). Never replace the reference with our own implementation, and never embed Python in PowerShell strings.
-- Executable names match their upstream names (for example `lxmd`, not `dotlxmd`). The telemetry tool already follows this (`telemetry`).
+- Executable names match their upstream names (for example `lxmd`, not `dotlxmd`).
 
 ## Evidence rules (non-negotiable)
 

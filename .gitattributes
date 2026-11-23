@@ -40,5 +40,4 @@ tests/Sideband.Tests/Fixtures/sideband-battery.json text eol=lf
 tests/NomadNet.Tests/NomadNetGuideVectors.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-message-telemetry.json text eol=lf
 tests/Sideband.Tests/Fixtures/sideband-propagation-telemetry.json text eol=lf
-tests/Sideband.Tests/Fixtures/sideband-printing.json text eol=lf
 tests/NomadNet.Tests/NomadNetHostedStatisticsVectors.json text eol=lf

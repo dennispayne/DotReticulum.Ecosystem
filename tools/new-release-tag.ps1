@@ -10,8 +10,8 @@ unless -Push is given.
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('telemetry', 'lxmd', 'rnphone', 'nomadnet', 'sideband')]
-    [string] $Application = 'telemetry',
+    [ValidateSet('lxmd', 'rnphone', 'nomadnet', 'sideband')]
+    [string] $Application = 'lxmd',
     [string] $Project,
     [switch] $Push
 )
@@ -20,11 +20,10 @@ $ErrorActionPreference = 'Stop'
 
 if (!$Project) {
     $Project = switch ($Application) {
-        'telemetry' { 'src/Telemetry/Telemetry.csproj' }
         'lxmd' { 'src/lxmd/lxmd.csproj' }
         'rnphone' { 'src/rnphone/rnphone.csproj' }
         'nomadnet' { 'src/NomadNet/NomadNet.csproj' }
-        'sideband' { 'src/Sideband.Desktop/Sideband.Desktop.csproj' }
+        'sideband' { 'src/Sideband/Sideband.Desktop/Sideband.Desktop.csproj' }
     }
 }
 
@@ -32,7 +31,7 @@ if (git status --porcelain) { throw 'The working tree has uncommitted changes.' 
 $branch = git rev-parse --abbrev-ref HEAD
 if ($branch -ne 'main') { throw "Releases are tagged from main, not '$branch'." }
 
-$property = if ($Application -eq 'telemetry') { 'NuGetPackageVersion' } else { 'AssemblyFileVersion' }
+$property = 'AssemblyFileVersion'
 $intermediate = [IO.Directory]::CreateTempSubdirectory('DotReticulum.ReleaseTag-')
 try {
     $result = @(dotnet msbuild $Project -restore "-getProperty:$property" -p:Configuration=Release `
@@ -42,8 +41,7 @@ try {
 } finally {
     $intermediate.Delete($true)
 }
-$pattern = if ($Application -eq 'telemetry') { '^\d+\.\d+\.\d+$' } else { '^\d+\.\d+\.\d+\.\d+$' }
-if ($version -notmatch $pattern) { throw "Unexpected version '$version'." }
+if ($version -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw "Unexpected version '$version'." }
 
 $tag = "$Application-v$version"
 if (git tag --list $tag) { throw "Tag $tag already exists." }

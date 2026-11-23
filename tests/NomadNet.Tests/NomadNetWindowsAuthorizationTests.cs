@@ -5,7 +5,6 @@ using System.Text;
 using DotReticulum.Applications;
 using DotReticulum.Core;
 using DotReticulum.Transport;
-using SharedPrinting;
 
 namespace NomadNet.Tests;
 
@@ -167,7 +166,7 @@ public sealed class NomadNetWindowsAuthorizationTests
 
         async Task<string> ExecuteAsync(IReadOnlyDictionary<string, string?>? environment)
         {
-            using var owned = WindowsPrintProcess.Start([work.Allowed], environment);
+            using var owned = NomadNetWindowsJobProcess.Start([work.Allowed], environment);
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             var output = new StreamReader(owned.StandardOutput, Encoding.UTF8).ReadToEndAsync(deadline.Token);
             var errors = new StreamReader(owned.StandardError, Encoding.UTF8).ReadToEndAsync(deadline.Token);

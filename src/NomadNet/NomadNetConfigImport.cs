@@ -47,13 +47,14 @@ public static class NomadNetConfigImport
             settings.LogFile = Scalar(logFile);
         var unsupported = new List<string>();
         var warnings = new List<string>();
-        ApplyPrinting(values, settings, warnings);
+        if (values.Keys.Any(key => key.StartsWith("printing.", StringComparison.Ordinal)))
+            warnings.Add("The primary [printing] section is ignored: printing is not implemented.");
         var disablePropagation = true;
         foreach (var (key, raw) in values)
         {
             if (ApplyRrcSetting(key, raw, settings) || ApplyTerminalSetting(key, raw, settings)) continue;
             if (key is "logging.loglevel" or "logging.destination" or "logging.logfile") continue;
-            if (key is "printing.print_messages" or "printing.print_command" or "printing.print_from" or "printing.message_template") continue;
+            if (key.StartsWith("printing.", StringComparison.Ordinal)) continue;
             if (key is "node.static_peers" or "node.prioritise_destinations")
             {
                 var destinations = Destinations(raw, key, warnings);
@@ -133,7 +134,6 @@ public static class NomadNetConfigImport
             settings.PropagationSyncLimitBytes = Math.Max(settings.PropagationTransferLimitBytes, settings.PropagationSyncLimitBytes);
         _ = NomadNetNodeConfiguration.CreateOptions(settings);
         settings.ValidateAttachmentPath();
-        settings.ValidatePrinting();
         NomadNetRrcPolicy.Validate(settings);
         NomadNetTerminalControls.Validate(settings);
         return new(settings, unsupported.Order(StringComparer.Ordinal).ToArray()) { Warnings = warnings.ToArray() };
@@ -250,49 +250,6 @@ public static class NomadNetConfigImport
     private static List<string> CommaValues(string raw)
     {
         return NomadNetConfigDocument.ParseValue(raw).AsList().ToList();
-    }
-
-    private static void ApplyPrinting(Dictionary<string, string> values, NomadNetSettings settings, List<string> warnings)
-    {
-        if (!values.TryGetValue("printing.print_messages", out var enabled)) return;
-        settings.PrintMessages = Boolean(Scalar(enabled));
-        if (values.TryGetValue("printing.print_command", out var command)) settings.PrintCommand = Scalar(command);
-        if (!settings.PrintMessages) return;
-        if (values.TryGetValue("printing.print_from", out var raw)) ApplyPrintFrom(settings, raw);
-        if (values.TryGetValue("printing.message_template", out var template))
-        {
-            var path = ExpandHome(Scalar(template));
-            if (string.IsNullOrWhiteSpace(path) || path.Length > 2048 || path.Any(char.IsControl))
-                throw new InvalidDataException("Invalid printing template path.");
-            path = Path.GetFullPath(path);
-            if (File.Exists(path) || Directory.Exists(path))
-                settings.PrintingMessageTemplate = NomadNetPrintingPolicy.ReadTemplateAsync(path).GetAwaiter().GetResult();
-            else warnings.Add("Missing printing.message_template uses the original native default; import does not create foreign files.");
-        }
-    }
-
-    internal static void ApplyPrintFrom(NomadNetSettings settings, string raw)
-    {
-        var tokens = CommaValues(raw);
-        settings.PrintAllMessages = false;
-        settings.PrintTrustedMessages = false;
-        settings.AllowedMessagePrintDestinations = [];
-        // ConfigObj distinguishes a scalar from a comma-list, even one with a trailing comma.
-        var scalar = tokens.Count == 1 && raw.TrimEnd().LastOrDefault() != ',' &&
-            (raw.TrimStart().StartsWith('\'') || raw.TrimStart().StartsWith('"') || !raw.Contains(','));
-        if (scalar)
-        {
-            var value = tokens[0];
-            settings.PrintAllMessages = value.Equals("everywhere", StringComparison.OrdinalIgnoreCase);
-            settings.PrintTrustedMessages = value.Equals("trusted", StringComparison.OrdinalIgnoreCase);
-            if (value.Length == 32) settings.AllowedMessagePrintDestinations.Add(value);
-        }
-        else
-        {
-            settings.AllowedMessagePrintDestinations = tokens;
-            settings.PrintTrustedMessages = tokens.Any(value => value.Equals("trusted", StringComparison.OrdinalIgnoreCase));
-        }
-        settings.ValidatePrinting();
     }
 
     private static bool Boolean(string value) => value.ToLowerInvariant() switch

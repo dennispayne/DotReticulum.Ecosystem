@@ -20,9 +20,8 @@ Describe 'Windows MSI packaging authoring' -Tag 'Installer' {
         $script:wixProject | Should -Match 'WixToolset\.Heat" Version="4\.0\.6"'
     }
 
-    It 'defines all five app features as default-installed and references their payload groups' {
+    It 'defines all four app features as default-installed and references their payload groups' {
         $expectedGroups = @{
-            Telemetry = 'TelemetryFiles'
             Lxmd = 'LxmdFiles'
             Rnphone = 'RnphoneFiles'
             NomadNet = 'NomadNetFiles'
@@ -47,7 +46,7 @@ Describe 'Windows MSI packaging authoring' -Tag 'Installer' {
 
         $shortcuts = @($script:authoring.SelectNodes('//wxs:Shortcut', $script:namespaceManager))
         (@($shortcuts | ForEach-Object { $_.GetAttribute('Name') } | Sort-Object) -join ',') |
-            Should -Be 'lxmd,nomadnet,rnphone,sideband,telemetry'
+            Should -Be 'lxmd,nomadnet,rnphone,sideband'
         @($script:authoring.SelectNodes('//wxs:ServiceInstall|//wxs:ServiceControl', $script:namespaceManager)).Count | Should -Be 0
         $script:buildScript | Should -Not -Match 'New-Service|sc\.exe|ServiceInstall|ServiceControl'
     }

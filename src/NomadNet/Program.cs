@@ -14,8 +14,6 @@ internal static partial class Program
     {
         Console.InputEncoding = new UTF8Encoding(false, true);
         Console.OutputEncoding = new UTF8Encoding(false);
-        if (await NomadNetLinuxPrintProcess.TryRunSupervisorAsync(args).ConfigureAwait(false) is { } printExit)
-            return printExit;
         if (args.Contains("--help", StringComparer.Ordinal) || args.Contains("-h", StringComparer.Ordinal))
         {
             PrintHelp();
@@ -289,13 +287,10 @@ internal static partial class Program
         announceStream.Accept = async (hash, token) =>
             !(await state.IgnoredDestinationsAsync(token).ConfigureAwait(false)).Contains(hash);
         announceStream.Start(node.Router.Engine);
-        await using var printer = new NomadNetPrinter(options.DataDirectory)
-        { Log = message => logging.Write(message.EndsWith("completed.", StringComparison.Ordinal) ? 5 : 1, message) };
-        printer.Start();
-        await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host, clientAnnounces, logging, printer, selectedRnsFile);
+        await using var session = new TerminalSession(node, identity, router, state, options.DataDirectory, propagationPolicy, host, clientAnnounces, logging, selectedRnsFile);
         session.AnnounceStream = announceStream;
         var receiver = PersistIncomingAsync(inbox.Reader, state, options.DataDirectory, session.ObserveConversationImageAsync,
-            () => propagationPolicy.Settings, headless, logging, printer, cancellationToken);
+            () => propagationPolicy.Settings, headless, logging, cancellationToken);
         logging.Write(3, "NomadNet client started");
 
         Console.WriteLine("NomadNet .NET client (scoped native implementation; type help for commands)");
@@ -325,7 +320,7 @@ internal static partial class Program
 
     private static async Task PersistIncomingAsync(ChannelReader<ReceivedMessage> reader, NomadNetStore store, string directory,
         Func<NomadNetMessage, CancellationToken, Task> observeImage, Func<NomadNetSettings> settings, bool headless,
-        NomadNetLogging logging, NomadNetPrinter printer, CancellationToken cancellationToken)
+        NomadNetLogging logging, CancellationToken cancellationToken)
     {
         try
         {
@@ -353,12 +348,9 @@ internal static partial class Program
                     }
                     var stored = new NomadNetMessage(id, Convert.ToHexStringLower(message.SourceHash), "inbound",
                         DateTimeOffset.FromUnixTimeMilliseconds((long)(message.Timestamp * 1000)), message.Title, content, "received")
-                        { Renderer = NomadNetPresentation.Renderer(message.Fields), ImageAttachmentIndex = imageIndex,
-                            PrintingContent = message.Content };
+                        { Renderer = NomadNetPresentation.Renderer(message.Fields), ImageAttachmentIndex = imageIndex };
                     await store.SaveMessageAsync(stored, cancellationToken).ConfigureAwait(false);
                     logging.Write(4, $"LXMF message persisted: {id}");
-                    printer.TryPrintIncoming(settings(), stored,
-                        await store.FindContactAsync(stored.PeerHash, cancellationToken).ConfigureAwait(false), DateTimeOffset.Now);
                     NomadNetClientRuntime.NotifyReceived(settings(), headless, id,
                         () => { Console.Out.Write('\a'); Console.Out.Flush(); }, message => logging.Write(1, message));
                     if (await store.ActiveConversationAsync(cancellationToken).ConfigureAwait(false) == Convert.ToHexStringLower(message.SourceHash))
@@ -443,10 +435,6 @@ internal static partial class Program
               paper <hash> <message>         Generate an encrypted lxm:// URI
               paper-qr <hash> <message>      Save encrypted paper PNG and conversation
               paper-save <hash> <message>    Save encrypted paper URI and conversation
-              paper-print <hash> <message>   Print encrypted paper QR; save history only on success
-              print <message-id>             Explicitly print a stored message
-              printing [on|off|from <filter>|command <argv>|template <file>|default-template]
-                                            Edit persisted incoming print policy; default off
               utility help                  Original bounded local/network utilities
               menu [select <number>|watch <1–60 frames>]
                                             Configured visible entries and bounded network refresh
@@ -561,7 +549,7 @@ internal static partial class Program
 
     private sealed partial class TerminalSession(ReticulumNode node, Identity identity, LxmRouter router, NomadNetStore store,
         string dataDirectory, NomadNetPropagation propagation, NomadNetHost? host, NomadNetClientAnnounces clientAnnounces,
-        NomadNetLogging logging, NomadNetPrinter printer, string selectedRnsFile) : IAsyncDisposable
+        NomadNetLogging logging, string selectedRnsFile) : IAsyncDisposable
     {
         private readonly NomadNetDelivery _delivery = new(router, identity, store,
             () => propagation.Settings.TryPropagationOnSendFail)
@@ -641,7 +629,6 @@ internal static partial class Program
             if (await TryHandleEditorAsync(command, cancellationToken).ConfigureAwait(false)) return false;
             if (await TryHandleClipboardAsync(command, cancellationToken).ConfigureAwait(false)) return false;
             if (await TryHandleUtilityAsync(command, cancellationToken).ConfigureAwait(false)) return false;
-            if (await TryHandlePrintingAsync(command, cancellationToken).ConfigureAwait(false)) return false;
             if (command.Equals("quit", StringComparison.OrdinalIgnoreCase) || command.Equals("exit", StringComparison.OrdinalIgnoreCase))
             {
                 if (_editor?.Buffer.Dirty == true) throw new InvalidOperationException("Unsaved changes: use edit close save or discard before quitting.");

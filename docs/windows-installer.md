@@ -1,7 +1,7 @@
 # Windows MSI
 
 The repository can build one unsigned, x64, per-machine MSI with a WiX feature
-tree for `telemetry`, `lxmd`, `rnphone`, `nomadnet` and `sideband`. All five
+tree for `lxmd`, `rnphone`, `nomadnet` and `sideband`. All four
 application features are selected by default and can be deselected
 independently. App files are installed under `Program Files\DotReticulum
 Ecosystem`; shortcuts are placed in the all-users Start Menu.
@@ -26,7 +26,7 @@ pwsh -NoProfile -File tools\Build-WindowsMsi.ps1 `
   -OutputDirectory artifacts\builds\windows-msi-1.0.0
 ```
 
-The output directory must not already exist. The script publishes all five
+The output directory must not already exist. The script publishes all four
 applications with linker and NativeAOT warnings treated as errors, stages
 notices and runtime dependencies, verifies downloaded archives against pinned
 SHA-256 values, and builds the WiX 4.0.6 package. The packaging project is
@@ -43,6 +43,11 @@ External redistribution of this MSI is deferred until that source and license
 obligation is resolved.
 
 ## Acceptance evidence
+
+The sandbox build and lifecycle evidence below was recorded for the earlier
+five-feature package, which also contained a since-removed standalone
+`telemetry` application. The current four-feature authoring has not been
+rebuilt or re-run through that sandbox lifecycle.
 
 `pwsh -NoProfile -File tests\run-pester.ps1 -Path tests\Pester\WindowsMsi.Tests.ps1`
 passes 5/5 tests. The WiX 4.0.6 build succeeds with zero warnings and errors.

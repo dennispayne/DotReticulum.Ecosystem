@@ -516,7 +516,6 @@ public sealed partial class SidebandStateStore
         if (state.Contacts.Count > 1_000 || state.Messages.Count > MaximumMessages)
             throw new InvalidDataException("Sideband state exceeds its contact or message count limit.");
         _ = state.Telemetry.Validate();
-        _ = state.Printing.Validate();
         _ = SidebandRemoteCommands.Authorization(state);
         _ = SidebandStampConfiguration.FromState(state);
         _ = SidebandDeliveryConfiguration.FromState(state);

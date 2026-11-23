@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using DotReticulum.Core;
 using DotReticulum.Transport;
-using SharedPrinting;
 
 namespace NomadNet;
 
@@ -461,7 +460,7 @@ public sealed partial class NomadNetContent
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromSeconds(15));
         var start = GeneratorStartInfo(file, request);
-        using var owned = WindowsPrintProcess.Start([file], start.Environment.ToDictionary());
+        using var owned = NomadNetWindowsJobProcess.Start([file], start.Environment.ToDictionary());
         var stderr = DrainAsync(owned.StandardError, deadline.Token);
         var stdout = ReadAuthorizationOutputAsync(owned.StandardOutput, deadline.Token);
         var exited = owned.Process.WaitForExitAsync(deadline.Token);

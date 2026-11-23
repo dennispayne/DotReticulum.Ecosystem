@@ -2,11 +2,10 @@
 BeforeAll {
     $script:repository = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     $script:helper = Join-Path $script:repository 'tools\new-release-tag.ps1'
-    $script:telemetry = Join-Path $script:repository 'src\Telemetry\Telemetry.csproj'
     $script:lxmf = Join-Path $script:repository 'src\LXMF\LXMF.csproj'
     $script:lxst = Join-Path $script:repository 'src\LXST\LXST.csproj'
     $script:nomadnet = Join-Path $script:repository 'src\NomadNet\NomadNet.csproj'
-    $script:sideband = Join-Path $script:repository 'src\Sideband.Desktop\Sideband.Desktop.csproj'
+    $script:sideband = Join-Path $script:repository 'src\Sideband\Sideband.Desktop\Sideband.Desktop.csproj'
 
     function Invoke-TagHelper {
         param([string] $Application, [string] $Project)
@@ -30,14 +29,6 @@ Describe 'Executable release tags' -Tag Integration {
         $LASTEXITCODE | Should -Be 0
         git -C $script:fixture config user.name Fixture
         git -C $script:fixture config user.email fixture@example.invalid
-    }
-
-    It 'retains telemetry three-component tags without requiring a remote' {
-        $result = Invoke-TagHelper -Application telemetry -Project $script:telemetry
-        $result.ExitCode | Should -Be 0 -Because $result.Output
-        $tag = git -C $script:fixture tag --list
-        $tag | Should -Match '^telemetry-v\d+\.\d+\.\d+$'
-        git -C $script:fixture cat-file -t "refs/tags/$tag" | Should -Be 'tag'
     }
 
     It 'uses the upstream release and assembly height in lxmd four-component tags' {
@@ -137,7 +128,6 @@ Describe 'Release platform selection' -Tag Integration {
     }
 
     It 'selects <Application> platforms for <RefType> without publishing' -TestCases @(
-        @{ Application = 'telemetry'; RefType = 'branch'; RefName = 'main'; PlatformCount = 3 }
         @{ Application = 'lxmd'; RefType = 'branch'; RefName = 'main'; PlatformCount = 3 }
         @{ Application = 'rnphone'; RefType = 'branch'; RefName = 'main'; PlatformCount = 2 }
         @{ Application = 'rnphone'; RefType = 'tag'; RefName = 'rnphone-v0.4.5.12'; PlatformCount = 2 }
@@ -170,17 +160,13 @@ Describe 'Release platform selection' -Tag Integration {
         $selected.application | Should -Be $Application
         $matrix = $selected.matrix | ConvertFrom-Json
         @($matrix.include).Count | Should -Be $PlatformCount
-        if ($Application -eq 'telemetry') {
-            $selected.project | Should -Be 'src/Telemetry/Telemetry.csproj'
-            $selected.package | Should -Be 'Telemetry'
-        }
         if ($Application -in @('rnphone', 'nomadnet', 'sideband')) {
             $matrix.include[0].rid | Should -Be 'linux-x64'
             $matrix.include[1].rid | Should -Be 'win-x64'
             $expected = switch ($Application) {
                 'rnphone' { @{ Project = 'src/rnphone/rnphone.csproj'; Package = 'rnphone' } }
                 'nomadnet' { @{ Project = 'src/NomadNet/NomadNet.csproj'; Package = 'NomadNet' } }
-                'sideband' { @{ Project = 'src/Sideband.Desktop/Sideband.Desktop.csproj'; Package = 'Sideband' } }
+                'sideband' { @{ Project = 'src/Sideband/Sideband.Desktop/Sideband.Desktop.csproj'; Package = 'Sideband' } }
             }
             $selected.project | Should -Be $expected.Project
             $selected.package | Should -Be $expected.Package

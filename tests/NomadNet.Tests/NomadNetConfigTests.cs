@@ -66,6 +66,9 @@ public sealed class NomadNetConfigTests
             mouse_enabled = yes
             future_control = retained
             [printing]
+            print_messages = yes
+            print_command = lp -d 'office printer'
+            message_template = ~/missing/print_template.txt
             print_from = trusted, everywhere
             """);
         Assert.True(result.Settings.EnablePropagation);
@@ -76,10 +79,7 @@ public sealed class NomadNetConfigTests
             result.Settings.DownloadsPath);
         Assert.Equal(NomadNetImageLoading.Manual, result.Settings.ImageLoading);
         Assert.Equal(["textui.future_control"], result.UnsupportedKeys);
-        Assert.False(result.Settings.PrintMessages);
-        Assert.False(result.Settings.PrintAllMessages);
-        Assert.False(result.Settings.PrintTrustedMessages);
-        Assert.Empty(result.Settings.AllowedMessagePrintDestinations);
+        Assert.Contains("The primary [printing] section is ignored: printing is not implemented.", result.Warnings);
     }
 
     [Theory]

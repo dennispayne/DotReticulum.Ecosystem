@@ -28,20 +28,19 @@ BeforeAll {
 }
 
 Describe 'CI native artifact handoff' -Tag 'Tooling' {
-    It 'verifies all five Windows applications and their runtime dependencies without requiring debug files' {
+    It 'verifies all four Windows applications and their runtime dependencies without requiring debug files' {
         $directory = New-Fixture
         Get-ChildItem -LiteralPath $directory -Recurse -Filter '*.pdb' -File | Remove-Item
         $targets = @(Get-VerifiedCiNativeBuild $directory win-x64 $script:commit)
-        $targets.Count | Should -Be 5
+        $targets.Count | Should -Be 4
         $targets.Variable | Should -Contain 'DOTRETICULUM_SIDEBAND_BINARY'
         $targets.Variable | Should -Contain 'DOTLXST_RNPHONE_BINARY'
     }
 
-    It 'keeps the macOS artifact limited to the two release-supported applications' {
+    It 'keeps the macOS artifact limited to the release-supported lxmd application' {
         $directory = New-Fixture osx-arm64
         $targets = @(Get-VerifiedCiNativeBuild $directory osx-arm64 $script:commit)
-        $targets.Count | Should -Be 2
-        $targets.Name | Should -Contain 'telemetry'
+        $targets.Count | Should -Be 1
         $targets.Name | Should -Contain 'lxmd'
     }
 

@@ -44,7 +44,6 @@
     <EmbeddedResource Include="NomadNetNodeProfileBoundaryVectors.json" />
     <EmbeddedResource Include="NomadNetNodeProfileVectors.json" />
     <EmbeddedResource Include="NomadNetNodeQuotaVectors.json" />
-    <EmbeddedResource Include="NomadNetPrintingVectors.json" />
     <EmbeddedResource Include="NomadNetUtilityVectors.json" />
     <EmbeddedResource Include="NomadNetWorkflowVectors.json" />
     <EmbeddedResource Include="NomadNetEditorVectors.json" />

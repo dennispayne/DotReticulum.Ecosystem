@@ -16,7 +16,6 @@
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="DotReticulum Ecosystem">
-        <Directory Id="TelemetryFolder" Name="Telemetry" />
         <Directory Id="LxmdFolder" Name="lxmd" />
         <Directory Id="RnphoneFolder" Name="rnphone" />
         <Directory Id="NomadNetFolder" Name="NomadNet" />
@@ -37,10 +36,6 @@
     </StandardDirectory>
 
     <Feature Id="Applications" Title="Applications" Level="1" Display="expand">
-      <Feature Id="Telemetry" Title="telemetry" Description=".NET telemetry publisher and viewer." Level="1">
-        <ComponentGroupRef Id="TelemetryFiles" />
-        <ComponentRef Id="TelemetryShortcutComponent" />
-      </Feature>
       <Feature Id="Lxmd" Title="lxmd" Description="LXMF delivery and propagation daemon." Level="1">
         <ComponentGroupRef Id="LxmdFiles" />
         <ComponentRef Id="LxmdShortcutComponent" />
@@ -64,11 +59,6 @@
 
   <Fragment>
     <DirectoryRef Id="ApplicationProgramsFolder">
-      <Component Id="TelemetryShortcutComponent" Guid="{90CFEE98-6F3E-46B2-8BAA-578CE98C90FC}">
-        <Shortcut Id="TelemetryShortcut" Name="telemetry" Target="[TelemetryFolder]telemetry.exe" WorkingDirectory="TelemetryFolder" />
-        <RegistryValue Root="HKLM" Key="Software\DotReticulum\Ecosystem\Shortcuts" Name="telemetry" Type="integer" Value="1" KeyPath="yes" />
-        <RemoveFolder Id="RemoveTelemetryProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall" />
-      </Component>
       <Component Id="LxmdShortcutComponent" Guid="{0825109D-4288-4828-B042-C7DFF2C301F3}">
         <Shortcut Id="LxmdShortcut" Name="lxmd" Target="[LxmdFolder]lxmd.exe" WorkingDirectory="LxmdFolder" />
         <RegistryValue Root="HKLM" Key="Software\DotReticulum\Ecosystem\Shortcuts" Name="lxmd" Type="integer" Value="1" KeyPath="yes" />

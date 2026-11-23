@@ -15,7 +15,6 @@ Set-Location $root
 $provenancePath = Join-Path (Split-Path $Candidate -Parent) build-provenance.json
 function Get-C107ProductionInputs {
     $directories = @('src\NomadNet','src\LXMF','external\DotReticulum\src')
-    if (Test-Path src\Shared) { $directories += 'src\Shared' }
     $paths = @(Get-ChildItem $directories -Recurse -File |
         Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' })
     foreach ($directory in '.','external\DotReticulum') {

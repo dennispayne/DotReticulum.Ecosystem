@@ -10,7 +10,6 @@ public sealed partial class MainWindow
 
     private void UpdateRetryAvailability()
     {
-        UpdatePaperPrintingAvailability();
         var index = MessageList.SelectedIndex;
         CopyMessageButton.IsEnabled = !_closing && _clipboardWriteTask.IsCompleted && index >= 0 && index < _visibleMessages.Count;
         CopyMessageTelemetryButton.IsEnabled = CopyMessageButton.IsEnabled && _visibleMessages[index].TelemetryHex is not null;

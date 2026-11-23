@@ -44,8 +44,6 @@ public sealed record SidebandState(
 {
     private readonly SidebandTelemetryConfiguration? _telemetry;
     public SidebandTelemetryConfiguration Telemetry { get => _telemetry ?? new(); init => _telemetry = value; }
-    private readonly SidebandPrintingConfiguration? _printing;
-    public SidebandPrintingConfiguration Printing { get => _printing ?? new(); init => _printing = value; }
     public const int CurrentSchemaVersion = 1;
 
     public static SidebandState Empty(string configDirectory) =>

@@ -16,7 +16,6 @@ $provenancePath = Join-Path (Split-Path $Candidate -Parent) build-provenance.jso
 if ($Freeze -and (Test-Path $Candidate)) { throw 'Refusing to overwrite an existing frozen candidate.' }
 function Get-C102ProductionInputs {
     $directories = @('src\NomadNet','src\LXMF','external\DotReticulum\src')
-    if (Test-Path src\Shared) { $directories += 'src\Shared' }
     $paths = @(Get-ChildItem $directories -Recurse -File |
         Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' })
     foreach ($directory in '.','external\DotReticulum') {
@@ -215,7 +214,6 @@ try {
         'NomadNetFunctionalTests.HostedPathsCannotEscapeThroughSymlinks'
         'NomadNetExternalEditorNativeTests.ActualConptyNativeAndSelectedRnsEditsReturnAndRestartWithIdentity'
         'NomadNetExternalEditorNativeTests.ActualConptyInvalidConflictCancellationAndDescendantsRecover'
-        'NomadNetPrinterTests.LinuxExitedCommandCannotAbandonItsDescendant'
         'NomadNetProfileImportTests.SymlinkSourceOrAncestorAndSpecialFileAreRejected'
         'NomadNetConversationTests.AttachmentCleanupRejectsLinkedStorageWithoutDeletingItsTarget'
         'NomadNetConversationImageStorageTests.RealConverterPreviewReusesPersistentConversionAndRejectsCorruptCacheThenRecovers'

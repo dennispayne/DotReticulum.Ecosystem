@@ -31,9 +31,6 @@ public static class NomadNetPrimaryConfiguration
         NodePageRefreshIntervalMinutes = source.NodePageRefreshIntervalMinutes, NodeFileRefreshIntervalMinutes = source.NodeFileRefreshIntervalMinutes,
         PrioritisedDestinations = source.PrioritisedDestinations, PropagationStaticPeers = source.PropagationStaticPeers,
         PropagationMaxPeers = source.PropagationMaxPeers, PropagationStorageLimitBytes = source.PropagationStorageLimitBytes,
-        PrintMessages = source.PrintMessages, PrintCommand = source.PrintCommand, PrintAllMessages = source.PrintAllMessages,
-        PrintTrustedMessages = source.PrintTrustedMessages, AllowedMessagePrintDestinations = source.AllowedMessagePrintDestinations,
-        PrintingMessageTemplate = source.PrintingMessageTemplate,
     };
 
     public static string Export(NomadNetSettings settings, string? profile = null)
@@ -41,8 +38,6 @@ public static class NomadNetPrimaryConfiguration
         if (settings.NodePageRefreshIntervalMinutes != Math.Truncate(settings.NodePageRefreshIntervalMinutes) ||
             settings.NodeFileRefreshIntervalMinutes != Math.Truncate(settings.NodeFileRefreshIntervalMinutes))
             throw new InvalidOperationException("Primary page/file refresh intervals require whole minutes. Set native nodePageRefreshIntervalMinutes and nodeFileRefreshIntervalMinutes explicitly (0 disables) before enabling primary configuration; no rounding is performed.");
-        if (settings.PrintingMessageTemplate != NomadNetPrintingPolicy.DefaultTemplate)
-            throw new InvalidOperationException("An embedded custom print template cannot be converted to a primary template filename implicitly. Keep native JSON or explicitly reconcile the template first.");
         var sections = new Dictionary<string, Dictionary<string, NomadNetConfigValue?>>(StringComparer.Ordinal);
         Add("logging", "loglevel", settings.LogLevel?.ToString(CultureInfo.InvariantCulture));
         Add("logging", "destination", settings.LogDestination is null ? null : settings.LogDestination == NomadNetLogDestination.File ? "file" : "stdout");
@@ -105,15 +100,6 @@ public static class NomadNetPrimaryConfiguration
         List("node", "static_peers", settings.PropagationStaticPeers);
         Add("node", "max_peers", settings.PropagationMaxPeers?.ToString(CultureInfo.InvariantCulture));
         Add("node", "message_storage_limit", Number(settings.PropagationStorageLimitBytes / 1_000_000d));
-        Add("printing", "print_messages", Bool(settings.PrintMessages));
-        Add("printing", "print_command", settings.PrintCommand);
-        if (settings.PrintAllMessages) Add("printing", "print_from", "everywhere");
-        else
-        {
-            var sources = settings.AllowedMessagePrintDestinations.ToList();
-            if (settings.PrintTrustedMessages) sources.Insert(0, "trusted");
-            List("printing", "print_from", sources);
-        }
         var text = "# Original native export; primary ConfigObj values, not the upstream configuration assets.\n";
         foreach (var (section, changes) in sections) text = NomadNetConfigDocument.Parse(text).EditSection(section, changes);
         return text;

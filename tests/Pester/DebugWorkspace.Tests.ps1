@@ -10,8 +10,7 @@ Describe 'Isolated editor debugging' -Tag Tooling {
         & $script:initializer -Directory $directory
         $profiles = Get-Content -Raw -LiteralPath (Join-Path $script:repository '.vscode\launch.json') | ConvertFrom-Json
         foreach ($profile in $profiles.configurations) {
-            $option = if ($profile.name -like 'Telemetry:*') { '--config' } else { '--rnsconfig' }
-            $index = [array]::IndexOf($profile.args, $option)
+            $index = [array]::IndexOf($profile.args, '--rnsconfig')
             $index | Should -BeGreaterOrEqual 0
             $relative = $profile.args[$index + 1].Replace('${workspaceFolder}\artifacts\debug\', '')
             $config = Get-Content -Raw -LiteralPath (Join-Path $directory "$relative\config")

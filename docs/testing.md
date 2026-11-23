@@ -8,6 +8,16 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Combined candidate `c033f0ad642f482417e607d66610db263ceb2a1e` passed hosted
+[Build 45110013531](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45110013531),
+[static analysis 45110013424](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45110013424)
+and [Test 45110897665](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45110897665).
+Unit and Integration passed on Windows, Linux and macOS ARM64; compatibility
+passed on Windows and Linux. macOS Integration had 1,146 passes and 223 explicit
+skips, including successful WAL/no-WAL and rollback-journal cases and both
+unsupported-print refusal cases. Printing remains unsupported on macOS, and
+coverage is not collected there. These are not live-peer or hardware results.
+
 With DotReticulum pinned at `42d965af7d4152d0ad7c5faf16416b5d6337958c`,
 the Windows Release solution build passed without warnings and the ordinary
 test run passed 3,184 cases with 197 skips. A separate Windows run intermittently
@@ -102,13 +112,12 @@ repository-window1/0/0 and exact guard sizes are in the Sideband reference.
 This refresh supersedes the earlier accepted49fb printing closure without
 rewriting that receipt.
 
-Hosted evidence remains older and separate: successful Build41502113530 targets
+Older hosted evidence remains separate: successful Build41502113530 targets
 `89e948a90e9606bed331b71da6b787cace0bbd81`; successful Test41643993895 runs at
 `0e49bee87c932fdf404949812a8420f83cb49e4a`. Current ordinary execution uses
 the repository's xUnit2.9.3/runner4.0.1 compatibility where declared; platform
 conditions use discovery-time skip attributes, not unavailable v3-only asserts.
-Neither hosted run validates these later local commits, and no workflow was
-dispatched.
+Neither older hosted run validates later local commits.
 
 The first current unified attempt passed all selected checks but failed report
 aggregation on the old T312 method name after its native-extension assertion was

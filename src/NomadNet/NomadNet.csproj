@@ -14,7 +14,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Shared\Printing\*.cs" Link="Shared\Printing\%(Filename)%(Extension)" />
-    <PackageReference Include="System.Formats.Cbor" Version="10.0.15" />
+    <PackageReference Include="System.Formats.Cbor" Version="11.0.0" />
     <ProjectReference Include="..\LXMF\LXMF.csproj" />
     <ProjectReference Include="..\..\external\DotReticulum\src\DotReticulum.Applications\DotReticulum.Applications.csproj" />
     <None Update="ThirdPartyNotices\System.IO.Ports.MIT.txt" CopyToPublishDirectory="PreserveNewest" />

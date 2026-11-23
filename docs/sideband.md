@@ -168,7 +168,8 @@ saved URI and the exact reviewed command. Selection/policy changes consume
 consent. Historical imported envelopes remain warning-bearing export-only
 records. Passive imported `print_command` never activates or replaces an
 approved executable. Printing does not alter drafts, attachments, delivery state
-or history.
+or history. Process ownership is supported on Windows and Linux only; other
+platforms refuse a print job before starting a command or creating a workspace.
 
 The same profile-owned service supports the native maintenance extension:
 

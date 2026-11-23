@@ -57,8 +57,9 @@ internal sealed class ProfileSqlite : IDisposable
     internal List<object?[]> Rows(string sql, int maximumRows)
     {
         _token.ThrowIfCancellationRequested();
-        if (Native.sqlite3_prepare_v2(_database, sql, -1, out var statement, IntPtr.Zero) != 0)
-            throw new InvalidDataException("The profile database schema or query is unsupported.");
+        var prepareResult = Native.sqlite3_prepare_v2(_database, sql, -1, out var statement, IntPtr.Zero);
+        if (prepareResult != 0)
+            throw new InvalidDataException($"The profile database query could not be prepared (SQLite result {prepareResult}).");
         try
         {
             var rows = new List<object?[]>();

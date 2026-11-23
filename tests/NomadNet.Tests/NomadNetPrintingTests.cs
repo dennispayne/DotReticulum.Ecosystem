@@ -178,7 +178,7 @@ public sealed class NomadNetPrinterTests
         finally { Directory.Delete(root, true); }
     }
 
-    [Fact]
+    [SupportedPrintFact]
     public async Task ManualAndAutomaticJobsUseOneFilenameArgumentCleanUpAndIgnoreObserverFailures()
     {
         var root = NewRoot();
@@ -212,7 +212,7 @@ public sealed class NomadNetPrinterTests
         finally { Directory.Delete(root, true); }
     }
 
-    [Theory]
+    [SupportedPrintTheory]
     [InlineData("--help")]
     [InlineData("--version")]
     public async Task PrinterArgumentsNeverSelectGlobalApplicationHelp(string literal)
@@ -253,7 +253,7 @@ public sealed class NomadNetPrinterTests
         Assert.InRange(diagnostic.Length, 1, 256);
     }
 
-    [Theory]
+    [SupportedPrintTheory]
     [InlineData("fail")]
     [InlineData("flood")]
     [InlineData("hang")]
@@ -286,7 +286,7 @@ public sealed class NomadNetPrinterTests
         finally { Directory.Delete(root, true); }
     }
 
-    [Fact]
+    [SupportedPrintFact]
     public async Task QueueIsBoundedSnapshotsAreImmutableAndDisposalCancelsQueuedWork()
     {
         var root = NewRoot();
@@ -313,7 +313,7 @@ public sealed class NomadNetPrinterTests
         finally { Directory.Delete(root, true); }
     }
 
-    [Fact]
+    [SupportedPrintFact]
     public async Task CancellationKillsActiveChildAndSubsequentJobRunsWithoutSubscribers()
     {
         var root = NewRoot();
@@ -449,7 +449,7 @@ public sealed class NomadNetPrinterTests
         }
     }
 
-    [Fact]
+    [SupportedPrintFact]
     public async Task QueuedCommandAndTemplateSnapshotsAreImmutableAndQueuedCancellationIsPrompt()
     {
         var root = NewRoot();
@@ -479,7 +479,7 @@ public sealed class NomadNetPrinterTests
         finally { Directory.Delete(root, true); }
     }
 
-    [Fact]
+    [SupportedPrintFact]
     public async Task StaleOwnedJobsRecoverAndTemplatesRejectLinksAndDevices()
     {
         var root = NewRoot();
@@ -539,6 +539,50 @@ public sealed class NomadNetPrinterTests
                 ? File.ReadAllText($"/proc/{pid}/status") : "Printer process remains active: " + pid);
         }
         catch (ArgumentException) { }
+    }
+
+    [UnsupportedPrintFact]
+    public async Task UnsupportedPlatformRefusesPrintBeforeStartingAProcessOrCreatingAWorkspace()
+    {
+        var root = NewRoot();
+        try
+        {
+            await using var printer = new NomadNetPrinter(root);
+            printer.Start();
+            var result = await printer.PrintMessageAsync(Settings(root), Message, null, DateTimeOffset.UnixEpoch);
+            Assert.False(result.Success);
+            Assert.Equal("Printing requires Windows or Linux process ownership.", result.Detail);
+            Assert.False(File.Exists(Path.Combine(root, "marker")));
+            Assert.False(Directory.Exists(Path.Combine(root, "storage", "print-jobs")));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    private sealed class SupportedPrintFactAttribute : FactAttribute
+    {
+        public SupportedPrintFactAttribute()
+        {
+            if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
+                Skip = "Printing process ownership is implemented on Windows and Linux only.";
+        }
+    }
+
+    private sealed class SupportedPrintTheoryAttribute : TheoryAttribute
+    {
+        public SupportedPrintTheoryAttribute()
+        {
+            if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
+                Skip = "Printing process ownership is implemented on Windows and Linux only.";
+        }
+    }
+
+    private sealed class UnsupportedPrintFactAttribute : FactAttribute
+    {
+        public UnsupportedPrintFactAttribute()
+        {
+            if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
+                Skip = "Verifies the explicit unsupported-platform printing refusal.";
+        }
     }
 
     private sealed class WindowsPrintJobTheoryAttribute : TheoryAttribute

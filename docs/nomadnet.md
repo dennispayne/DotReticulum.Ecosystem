@@ -431,6 +431,10 @@ required elsewhere. Printing and bounded propagation-node migration are describe
 
 ### Opt-in bounded printing software (C78)
 
+Process ownership is implemented on Windows and Linux only. Other platforms
+explicitly refuse print jobs before creating a workspace or starting a command;
+their process-execution acceptance tests skip with that reason.
+
 Primary `NomadNetworkApp.py:709–791,1235–1282` and
 `Conversation.py:358–409` define the printing behavior. No primary template,
 UI source or assets are copied. The native default is an original plain text

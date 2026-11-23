@@ -10,7 +10,9 @@ namespace Sideband.Tests;
 
 public sealed partial class SidebandHeadlessUiTests
 {
-    [AvaloniaFact]
+    public static bool PrintingPlatformUnsupported => !OperatingSystem.IsWindows() && !OperatingSystem.IsLinux();
+
+    [AvaloniaFact(SkipWhen = nameof(PrintingPlatformUnsupported), Skip = "Printing process ownership is implemented on Windows and Linux only.")]
     [Trait("TestId", "T1006")]
     public async Task PrintingUiRequiresActivationAndSelectionBoundConsentWithoutChangingDrafts()
     {
@@ -84,7 +86,7 @@ public sealed partial class SidebandHeadlessUiTests
         }
     }
 
-    [AvaloniaFact]
+    [AvaloniaFact(SkipWhen = nameof(PrintingPlatformUnsupported), Skip = "Printing process ownership is implemented on Windows and Linux only.")]
     [Trait("TestId", "T1015")]
     public async Task PrintingUiRecoversFromCommandFailureButRefusesHistoricalImports()
     {
@@ -163,7 +165,7 @@ public sealed partial class SidebandHeadlessUiTests
             Directory.Delete(root, true);
         }
     }
-    [AvaloniaFact]
+    [AvaloniaFact(SkipWhen = nameof(PrintingPlatformUnsupported), Skip = "Printing process ownership is implemented on Windows and Linux only.")]
     [Trait("TestId", "T1007")]
     public async Task PrintingUiCloseCancelsAndJoinsItsActualPrivateCommandTree()
     {

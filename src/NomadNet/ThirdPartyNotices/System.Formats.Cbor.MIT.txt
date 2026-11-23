@@ -1,4 +1,4 @@
-System.Formats.Cbor 10.0.15
+System.Formats.Cbor 11.0.0
 Copyright © Microsoft Corporation. All rights reserved.
 
 MIT License

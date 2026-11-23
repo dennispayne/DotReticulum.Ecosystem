@@ -352,7 +352,7 @@ same selected message without altering raw details/copy, drafts or saved
 content. A formatting refresh must not clear an existing paper/media preview.
 Duplicate identical raw rows retain their own renderer metadata.
 
-An independently authored Markdig0.41.3 AST walker reproduces the selected
+An independently authored Markdig 1.6.0 AST walker reproduces the selected
 primary Markdown-to-intermediate-markup corpus, including basic emphasis,
 headings, links, lists/tasks, code, footnotes and spoilers. An original bounded
 span parser renders bold/italic/underline/strike, local monospace, colors,
@@ -2838,7 +2838,10 @@ This is not physical audio or published-native Python-command interoperability.
 `--smoke-ui --smoke-remote <lxmf-address>` is an explicit native acceptance
 extension requiring a test data directory and isolated RNS configuration. It
 changes test-profile request settings and performs real network requests; it
-does not run implicitly in normal desktop operation.
+does not run implicitly in normal desktop operation. Because the reference
+startup announcement is delayed, the smoke flow presses **Announce now** before
+sending commands so the receiver can validate command signatures; without that
+step the peer rejects the first command as unvalidated.
 
 ### Initially propagated retry and pinned callback-lock defect
 

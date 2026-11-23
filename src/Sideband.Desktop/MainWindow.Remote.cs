@@ -131,6 +131,9 @@ public sealed partial class MainWindow
             _selectedContact = peer;
             await ConnectAsync();
             if (!_client.IsConnected) throw new InvalidOperationException("Remote acceptance could not connect.");
+            // The startup announce is delayed, so announce explicitly before the peer has to validate command signatures.
+            AnnounceNowButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitAsync(() => AnnouncementStatusText.Text == "Delivery destination announced.");
             NavigateTo("Remote");
             await WaitAsync(() => SaveRemoteAuthorizationButton.IsEnabled && RemoteCommandPeerBox.Text == peer);
             RemoteRequestsAnyoneBox.IsChecked = false;

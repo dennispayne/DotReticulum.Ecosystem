@@ -26,8 +26,9 @@ passed. [Coverage publication 45120420056](https://github.com/dennispayne/DotRet
 also passed. These runs precede the test-only dispatcher-safety refinement
 described below and do not explain the earlier intermittent voice timeout.
 
-The stack is now pinned to `7136c2de0a1655ce8be3761b92622af8bad907b1`.
-It fixes a separately reproduced cancellation race in which an already
+The stack is now pinned to `7eb03e7d280d757dc1a3e676e7650c15482f9838`, which
+adds only coverage badge data to `7136c2de0a1655ce8be3761b92622af8bad907b1`.
+That stack commit fixes a separately reproduced cancellation race in which an already
 successful stream write or flush closed the shared connection. An interrupted
 write or flush still retires a potentially partial stream. The stack's
 deterministic regression failed before that fix and passed afterward.
@@ -74,6 +75,28 @@ artifacts\tests\health-updated-stack-smoke`; the latter rendered the initial
 window and an offline status update. The executable SHA-256 was
 `dd3b0426c82bdc198255c81bcb883fe52aa8b85b6810599999729d85ff40d74d`.
 This is not live-peer or hardware acceptance.
+
+After Markdig 1.6.0, SkiaSharp 4.157.0 (managed and all native assets,
+including Linux) and System.Formats.Cbor 11.0.0 replaced the earlier
+versions, the Release solution build had zero warnings and the Windows
+Release suite passed 3,186 tests with 199 skips. Avalonia 12.1.6 is compiled
+against SkiaSharp 3.119.4 and runs here with SkiaSharp 4.157.0 through
+assembly roll-forward. A strict Windows NativeAOT Sideband publish bundled
+the 4.157.0 `libSkiaSharp.dll` (hash identical to the package's) and produced
+`sideband.exe` SHA-256
+`64e43094fa8d7742f64b6892a75cc86dce2dc297ba01d0d764e3d11d2eaaf412`.
+Against it, `Sideband.Tests.ps1`, `SidebandBattery.Tests.ps1`,
+`SidebandMqtt.Tests.ps1` and `SidebandStartupAnnouncement.Tests.ps1` passed
+12 cases with 13 prerequisite skips, including real-window map, telemetry and
+remote-command rendering. Linux rendering with SkiaSharp 4 is verified only
+by hosted Linux jobs.
+
+The native remote-command window case had failed on every local run since the
+startup announcement became delayed: the receiving daemon rejected the first
+command because it did not yet know the sender's identity. Binaries from
+before and after the stack update failed identically. The `--smoke-remote`
+flow now announces explicitly before sending, as the managed UI test already
+did; three repeated runs and the NativeAOT run then passed.
 
 Main source `dfa17ba055be1bc6806313d34bb8b6e8bb9be13f` passed hosted
 [Build 45113776779](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45113776779),

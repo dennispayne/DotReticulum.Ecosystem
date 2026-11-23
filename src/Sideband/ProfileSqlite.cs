@@ -18,6 +18,13 @@ internal sealed class ProfileSqlite : IDisposable
         _progress = _ => token.IsCancellationRequested || --_remainingSteps <= 0 ? 1 : 0;
         var windows = OperatingSystem.IsWindows();
         var fullPath = Path.GetFullPath(path);
+        if (!immutable)
+        {
+            RejectRollbackJournal(fullPath);
+            // Only isolated snapshots with no WAL can safely bypass SQLite's WAL sidecar creation.
+            if (!FileEntryExists(fullPath + "-wal"))
+                immutable = true;
+        }
         if (windows && !fullPath.StartsWith(@"\\?\", StringComparison.Ordinal))
             fullPath = fullPath.StartsWith(@"\\", StringComparison.Ordinal)
                 ? @"\\?\UNC\" + fullPath[2..] : @"\\?\" + fullPath;
@@ -52,6 +59,19 @@ internal sealed class ProfileSqlite : IDisposable
             Dispose();
             throw;
         }
+    }
+
+    internal static void RejectRollbackJournal(string path)
+    {
+        if (FileEntryExists(path + "-journal"))
+            throw new InvalidDataException("A profile SQLite rollback journal requires recovery before import.");
+    }
+
+    private static bool FileEntryExists(string path)
+    {
+        try { _ = File.GetAttributes(path); return true; }
+        catch (FileNotFoundException) { return false; }
+        catch (DirectoryNotFoundException) { return false; }
     }
 
     internal List<object?[]> Rows(string sql, int maximumRows)

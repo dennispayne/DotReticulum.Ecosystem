@@ -1450,6 +1450,9 @@ cancellation and concurrent competing imports leave an existing destination
 untouched. Source fingerprints before/after copying reject concurrent changes;
 the original is never opened for writing. Private copies include WAL/SHM so
 committed WAL-only messages are not discarded. SQLite opens only the private copy.
+An existing rollback journal blocks import until the source database is recovered;
+it is never silently discarded. A private snapshot with no WAL is opened
+immutable, while a snapshot with a WAL uses SQLite's normal WAL reader.
 
 Limits are 1 MiB binary config, 128 MiB each DB/WAL, 8 MiB SHM/cell, 64 MiB query
 allocation, 1,000 conversations and 10,000 messages, plus existing native

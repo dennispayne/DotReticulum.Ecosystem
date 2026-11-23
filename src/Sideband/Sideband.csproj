@@ -13,7 +13,7 @@
     <PackageReference Include="GeographicLib.NET" Version="2.3.2" />
     <PackageReference Include="Markdig" Version="1.6.0" />
     <PackageReference Include="MQTTnet" Version="5.2.0.1603" />
-    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+    <PackageReference Include="SkiaSharp" Version="4.157.0" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.4" />
     <ProjectReference Include="..\LXMF\LXMF.csproj" />
     <ProjectReference Include="..\LXST\LXST.csproj" />

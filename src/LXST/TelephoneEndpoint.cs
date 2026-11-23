@@ -716,7 +716,7 @@ public sealed partial class TelephoneEndpoint : IAsyncDisposable
     {
         try
         {
-            await Task.Delay(timeout <= TimeSpan.Zero ? TimeSpan.Zero : timeout, call.Stop.Token).ConfigureAwait(false);
+            await Task.Delay(timeout <= TimeSpan.Zero ? TimeSpan.Zero : timeout, _options.TimeProvider, call.Stop.Token).ConfigureAwait(false);
             lock (_gate)
             {
                 if (ReferenceEquals(_call, call) && call.TerminationReason is null && _state < before)

@@ -530,12 +530,15 @@ public sealed partial class TelephoneLifecycleTests
     [Fact]
     public async Task LocalRejectIsSignalledButRingTimeoutOnlyTearsDownAndBothPermitTheNextCall()
     {
-        await using var rig = new Rig(new() { RingTimeout = TimeSpan.FromMilliseconds(150) });
+        var clock = new ManualAudioClock();
+        var ringTimeout = TimeSpan.FromMilliseconds(150);
+        await using var rig = new Rig(new() { RingTimeout = ringTimeout, TimeProvider = clock });
         await rig.StartAsync();
         var rejected = new List<long>();
         await using (var first = rig.Connect(out _, rejected.Add))
         {
             await LiveStreamTests.WaitForAsync(() => rig.Phone.State == CallState.Ringing);
+            await clock.WaitForTimerAsync(ringTimeout);
             rig.Phone.Hangup();
             await first.Completion.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Contains((long)CallState.Rejected, rejected);
@@ -544,6 +547,8 @@ public sealed partial class TelephoneLifecycleTests
         await using (var second = rig.Connect(out _, timedOut.Add))
         {
             await LiveStreamTests.WaitForAsync(() => rig.Phone.State == CallState.Ringing);
+            await clock.WaitForTimerAsync(ringTimeout);
+            clock.Advance(ringTimeout);
             await LiveStreamTests.WaitForAsync(() => rig.Phone.State == CallState.Available);
             await second.Completion.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.DoesNotContain((long)CallState.Rejected, timedOut);

@@ -310,14 +310,16 @@ public sealed class SidebandVoiceLifecycleTests
         using var remote = Identity.Generate();
         for (var iteration = 0; iteration < 16; iteration++)
         {
-            await using var rig = new Rig();
             var events = new ConcurrentQueue<string>();
             var clock = System.Diagnostics.Stopwatch.StartNew();
+            await using var rig = new Rig(message => events.Enqueue($"{clock.ElapsedMilliseconds}ms {message}"));
             rig.Service.StateChanged += snapshot => events.Enqueue($"{clock.ElapsedMilliseconds}ms service {snapshot.State}");
             rig.Service.Error += error => events.Enqueue($"{clock.ElapsedMilliseconds}ms service error {error.Context}: {error.Exception}");
             rig.Peer.StateChanged += state => events.Enqueue($"{clock.ElapsedMilliseconds}ms peer {state}");
             rig.Peer.CallEnded += ended => events.Enqueue($"{clock.ElapsedMilliseconds}ms peer ended {ended.Reason}");
             rig.Peer.Error = (context, exception) => events.Enqueue($"{clock.ElapsedMilliseconds}ms peer error {context}: {exception}");
+            rig.Server.Log = message => events.Enqueue($"{clock.ElapsedMilliseconds}ms server: {message}");
+            rig.Client.Log = message => events.Enqueue($"{clock.ElapsedMilliseconds}ms client: {message}");
             await rig.StartAsync();
             var dial = rig.Service.CallAsync(remote, cancellationToken: TestContext.Current.CancellationToken);
             await rig.Service.HangupAsync(TestContext.Current.CancellationToken).AsTask()
@@ -326,12 +328,26 @@ public sealed class SidebandVoiceLifecycleTests
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => dial);
             Assert.False(rig.Service.IsBusy);
             await rig.Service.CallAsync(rig.PeerIdentity, cancellationToken: TestContext.Current.CancellationToken);
-            try { await UntilAsync(() => rig.Peer.State == CallState.Ringing); }
+            var previousLinks = "";
+            try
+            {
+                await UntilAsync(() =>
+                {
+                    var links = $"out=[{string.Join(",", rig.Server.Links.Links.Select(link =>
+                        $"{link.Status}/{link.TeardownReason}/identified={link.RemoteIdentity is not null}"))}] " +
+                        $"in=[{string.Join(",", rig.Client.Links.Links.Select(link =>
+                            $"{link.Status}/{link.TeardownReason}/identified={link.RemoteIdentity is not null}"))}] " +
+                        $"linkQueue={rig.Server.Links.QueuedOutboundPackets} " +
+                        $"serverClients={rig.ServerClients} clientConnected={rig.ClientConnected}";
+                    if (links != previousLinks) { previousLinks = links; events.Enqueue($"{clock.ElapsedMilliseconds}ms {links}"); }
+                    return rig.Peer.State == CallState.Ringing;
+                });
+            }
             catch (OperationCanceledException) when (!TestContext.Current.CancellationToken.IsCancellationRequested)
             {
                 throw new Xunit.Sdk.XunitException($"Iteration {iteration}: peer={rig.Peer.State}, service={rig.Service.Snapshot.State}, " +
                     $"serviceBusy={rig.Service.IsBusy}, serverPath={rig.Server.HasPath(rig.Peer.DestinationHash)}, " +
-                    $"clientPath={rig.Client.HasPath(rig.Service.DestinationHash)}; events: {string.Join("; ", events)}");
+                    $"clientPath={rig.Client.HasPath(rig.Service.DestinationHash)}; {rig.PacketStatistics}; events: {string.Join("; ", events)}");
             }
             await rig.Service.HangupAsync(TestContext.Current.CancellationToken);
             await UntilAsync(() => rig.Peer.State == CallState.Available);
@@ -415,6 +431,8 @@ public sealed class SidebandVoiceLifecycleTests
         private readonly TcpServerPacketInterface _serverInterface;
         private readonly PacketInterfaceManager _serverManager;
         private readonly PacketInterfaceManager _clientManager;
+        private readonly Action<string>? _observePackets;
+        private TcpClientPacketInterface? _clientInterface;
         private readonly CancellationTokenSource _stop = new();
         private Task _serverRun = Task.CompletedTask;
         private Task _clientRun = Task.CompletedTask;
@@ -425,11 +443,18 @@ public sealed class SidebandVoiceLifecycleTests
         public Devices Devices { get; } = new();
         public SidebandVoiceService Service { get; }
         public TelephoneEndpoint Peer { get; }
-        public Rig()
+        public int ServerClients => _serverInterface.ClientCount;
+        public bool ClientConnected => _clientInterface?.IsConnected == true;
+        public string PacketStatistics => $"serverStats=[{string.Join(";", _serverManager.GetStatistics())}] " +
+            $"clientStats=[{string.Join(";", _clientManager.GetStatistics())}]";
+        public Rig(Action<string>? observePackets = null)
         {
+            _observePackets = observePackets;
             _serverInterface = new(new IPEndPoint(IPAddress.Loopback, 0));
             _serverManager = new([_serverInterface]);
             _clientManager = new([], keepAlive: true);
+            _serverManager.Diagnostic += (_, error) => _observePackets?.Invoke($"server interface error: {error}");
+            _clientManager.Diagnostic += (_, error) => _observePackets?.Invoke($"client interface error: {error}");
             Server = new(_serverManager, new());
             Client = new(_clientManager, new());
             Service = new(Server, Identity, Devices, new(new() { Ringer = "fake-ringer" }));
@@ -442,7 +467,10 @@ public sealed class SidebandVoiceLifecycleTests
             Assert.InRange(endpoint.Port, 1, ushort.MaxValue);
             _serverRun = Server.RunAsync(_stop.Token);
             await _clientManager.StartAsync(_stop.Token);
-            await _clientManager.AttachAsync(new TcpClientPacketInterface("127.0.0.1", endpoint.Port), _stop.Token);
+            var client = new TcpClientPacketInterface("127.0.0.1", endpoint.Port);
+            _clientInterface = client;
+            IPacketInterface transport = _observePackets is null ? client : new ObservedClient(client, _observePackets);
+            await _clientManager.AttachAsync(transport, _stop.Token);
             _clientRun = Client.RunAsync(_stop.Token);
             await UntilAsync(() => _serverInterface.ClientCount == 1);
             Service.Start();
@@ -465,5 +493,28 @@ public sealed class SidebandVoiceLifecycleTests
             PeerIdentity.Dispose();
             _stop.Dispose();
         }
+    }
+
+    private sealed class ObservedClient(TcpClientPacketInterface inner, Action<string> observe) : IReconnectingPacketInterface
+    {
+        public long Bitrate => inner.Bitrate;
+        public int HardwareMtu => inner.HardwareMtu;
+        public bool SupportsMtuDiscovery => inner.SupportsMtuDiscovery;
+        public bool IsConnected => inner.IsConnected;
+        public event Action? Connected { add => inner.Connected += value; remove => inner.Connected -= value; }
+        public event Action? Disconnected { add => inner.Disconnected += value; remove => inner.Disconnected -= value; }
+        public ValueTask StartAsync(CancellationToken cancellationToken) => inner.StartAsync(cancellationToken);
+        public ValueTask SendAsync(ReadOnlyMemory<byte> packet, CancellationToken cancellationToken) =>
+            inner.SendAsync(packet, cancellationToken);
+        public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveAsync([EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            await foreach (var raw in inner.ReceiveAsync(cancellationToken))
+            {
+                if (Packet.TryParse(raw, out var packet) && packet.PacketType == PacketType.LinkRequest)
+                    observe($"client bearer received link request for {Convert.ToHexStringLower(packet.DestinationHash.Span)}");
+                yield return raw;
+            }
+        }
+        public ValueTask DisposeAsync() => inner.DisposeAsync();
     }
 }

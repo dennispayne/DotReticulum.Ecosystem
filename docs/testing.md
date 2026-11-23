@@ -17,6 +17,55 @@ passed. [Coverage publication 45120420056](https://github.com/dennispayne/DotRet
 also passed. These runs precede the test-only dispatcher-safety refinement
 described below and do not explain the earlier intermittent voice timeout.
 
+The stack is now pinned to `7136c2de0a1655ce8be3761b92622af8bad907b1`.
+It fixes a separately reproduced cancellation race in which an already
+successful stream write or flush closed the shared connection. An interrupted
+write or flush still retires a potentially partial stream. The stack's
+deterministic regression failed before that fix and passed afterward.
+In an instrumented pre-fix Windows failure
+(`artifacts\tests\voice-packet-trace-b-3`), the first cancelled dial's
+51-byte path-request send was reported failed even though the peer received
+the request; the next outbound link stayed pending and its request was not
+observed at the peer before the five-second deadline. This is consistent with
+the stream defect, but the trace did not record the connection's state, so it
+does not prove that defect caused the voice timeout.
+
+For that stack commit, hosted [Build 45127591370](https://github.com/dennispayne/DotReticulum/actions/runs/45127591370)
+and [static analysis 45127591486](https://github.com/dennispayne/DotReticulum/actions/runs/45127591486)
+passed. [Test 45128055077](https://github.com/dennispayne/DotReticulum/actions/runs/45128055077)
+passed on attempt 2, including upstream compatibility; attempt 1 failed that
+job when the upstream Git helper resolved the path but did not establish a
+Reticulum link. The stack's local Windows Release suite passed 1,901 tests
+with 97 skips, and its strict NativeAOT listener completed an encrypted,
+compressed 2,200,017-byte resource round trip.
+
+Several separate test races were also corrected: persistence is reopened after
+the owning window closes; listener and peer shutdown are both awaited; a
+telephone hangup is joined before reusing its endpoint; inbound resource
+tracking is awaited separately from the sender's data gate; editor worker
+waits use a bounded elapsed deadline rather than a fixed yield count; and
+loopback stop accepts either cancellation or end-of-stream. These changes do
+not constitute new live-peer or hardware evidence.
+
+With the updated stack, 12 consecutive Windows Release full-suite runs each
+passed 3,186 tests with 199 skips (`artifacts\tests\voice-updated-stack-1`
+through `-12`). The Release solution build and a further `dotnet test
+DotReticulum.Ecosystem.slnx -c Release --no-build --nologo -v quiet` run
+passed with the same counts. `pwsh -NoProfile -File tests\run-tests.ps1
+-Pester -OutputDirectory artifacts\tests\health-updated-stack` passed its
+managed, selected Pester and catalog gates; native and live cases lacking
+their prerequisites were skipped or not selected. These repetitions do not
+establish the cause of the earlier intermittent voice timeout.
+
+On Windows, a strict `win-x64` NativeAOT Sideband publish using
+`ILLinkTreatWarningsAsErrors=true` and `IlcTreatWarningsAsErrors=true`
+completed with one MSBuild assembly-reference cache write warning. Its
+`sideband.exe` ran `--help` and `--smoke-ui --data-dir
+artifacts\tests\health-updated-stack-smoke`; the latter rendered the initial
+window and an offline status update. The executable SHA-256 was
+`dd3b0426c82bdc198255c81bcb883fe52aa8b85b6810599999729d85ff40d74d`.
+This is not live-peer or hardware acceptance.
+
 Main source `dfa17ba055be1bc6806313d34bb8b6e8bb9be13f` passed hosted
 [Build 45113776779](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45113776779),
 [static analysis 45113776831](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45113776831),
@@ -53,8 +102,12 @@ notifies the desktop after router admission. These are distinct defects, not
 proof of the cause of the earlier unrecorded failure. A separate hosted
 [candidate run 45103069291](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45103069291)
 exposed a voice UI test reading the state file while the UI was saving it.
-That test now waits for the saved peer in the UI before its later persistence
-assertions; 15 isolated Windows repetitions and a full Windows run passed.
+That test now waits for the saved peer and cleared history in the UI, closes
+the window, and only then reopens the persisted state. The updated voice UI,
+cancellation UI and voice lifecycle tests passed 20 combined Windows
+repetitions (`artifacts\tests\health-investigation\voice-window-repeat-*.trx`),
+and the full Windows suite passed 3,186 cases with 199 skips
+(`artifacts\tests\health-windows-voice-final`).
 The same hosted run also saw a different voice lifecycle peer-state timeout;
 its cause remains unverified. With failure-only voice state/error diagnostics
 added, the cancellation UI and voice lifecycle tests passed 100 combined

@@ -41,29 +41,36 @@ public sealed partial class SidebandHeadlessUiTests
                     window.FindControl<TextBox>("VoicePeerNameBox")!.Text = "Renamed voice alias";
                     window.FindControl<CheckBox>("VoicePeerTrustedBox")!.IsChecked = false;
                     window.FindControl<Button>("SaveVoicePeerButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                    await WaitForAsync(async () => (await new SidebandStateStore(root).LoadAsync(cancellationToken: token))
-                        .VoicePeers!.Single().DisplayName == "Renamed voice alias");
+                    await WaitForAsync(() => window.FindControl<ListBox>("VoicePeerList")!.Items.Cast<string>().Any(item =>
+                        item.Contains("Renamed voice alias", StringComparison.Ordinal) &&
+                        item.EndsWith("voice-only untrusted", StringComparison.Ordinal)));
                 }
                 else
                 {
                     Assert.False(window.FindControl<CheckBox>("VoicePeerTrustedBox")!.IsChecked);
                     window.FindControl<CheckBox>("VoicePeerTrustedBox")!.IsChecked = true;
                     window.FindControl<Button>("SaveVoicePeerTrustButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                    await WaitForAsync(async () => (await new SidebandStateStore(root).LoadAsync(cancellationToken: token))
-                        .VoicePeers!.Single().VoiceTrusted);
+                    await WaitForAsync(() => window.FindControl<ListBox>("VoicePeerList")!.Items.Cast<string>().Any(item =>
+                        item.EndsWith("voice-only trusted", StringComparison.Ordinal)));
                     window.FindControl<Button>("DeleteVoicePeerButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     await WaitForAsync(() => window.FindControl<ListBox>("VoicePeerList")!.ItemCount == 0);
                 }
+                await window.CloseAndWaitAsync();
                 var state = await new SidebandStateStore(root).LoadAsync(cancellationToken: token);
                 Assert.Equal("Delivery override", Assert.Single(state.Contacts).DisplayName);
                 Assert.False(state.Contacts[0].Trusted);
                 Assert.False(state.VoiceEnabled);
+                if (restart == 0)
+                {
+                    var peer = Assert.Single(state.VoicePeers!);
+                    Assert.Equal("Renamed voice alias", peer.DisplayName);
+                    Assert.False(peer.VoiceTrusted);
+                }
+                else Assert.Empty(state.VoicePeers!);
                 Assert.False(Directory.Exists(config));
                 Assert.Equal(0, devices.Captures);
                 Assert.Equal(0, devices.Playbacks);
-                await window.CloseAndWaitAsync();
             }
-            Assert.Empty((await new SidebandStateStore(root).LoadAsync(cancellationToken: token)).VoicePeers!);
         }
         finally
         {

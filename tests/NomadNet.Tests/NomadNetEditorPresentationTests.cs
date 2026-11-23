@@ -168,25 +168,25 @@ public sealed class NomadNetEditorPresentationTests
     public async Task ReentrantObserverDisposalReportsRatherThanDeadlockingItsOwnedWorker()
     {
         var clock = new ManualClock();
-        var errors = new List<string>();
-        await using var preview = new NomadNetEditorPreview(text => text, clock) { Log = errors.Add };
+        var errors = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        await using var preview = new NomadNetEditorPreview(text => text, clock) { Log = errors.Enqueue };
         preview.Rendered += _ => preview.Dispose();
         preview.Change("healthy");
         await clock.WaitForTimerAsync();
         clock.Advance(400);
         await UntilAsync(() => errors.Count == 1);
-        Assert.Contains("cannot join its own worker", errors[0]);
+        Assert.Contains("cannot join its own worker", errors.Single());
         Assert.Equal("healthy", preview.Current!.Text);
     }
 
     internal static async Task UntilAsync(Func<bool> ready)
     {
-        for (var count = 0; count < 10000; count++)
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        try { while (!ready()) await Task.Delay(1, timeout.Token); }
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested)
         {
-            if (ready()) return;
-            await Task.Yield();
+            Assert.Fail("In-process worker did not reach the expected state.");
         }
-        Assert.Fail("In-process worker did not reach the expected state.");
     }
 
     private sealed class ManualClock : TimeProvider

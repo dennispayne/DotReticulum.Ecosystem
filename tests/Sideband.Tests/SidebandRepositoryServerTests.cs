@@ -292,7 +292,7 @@ public sealed class SidebandRepositoryServerTests
         await stalled.ConnectAsync(endpoint, TestContext.Current.CancellationToken);
         await WaitUntilAsync(() => environment.Server.ActiveConnections == 1);
         await stop.CancelAsync();
-        await WaitUntilAsync(() => environment.Server.ActiveConnections == 0);
+        await WaitUntilAsync(() => environment.Server.ActiveConnections == 0 && environment.Server.LocalEndpoint is null);
         Assert.Null(environment.Server.LocalEndpoint);
         using var rebound = new TcpListener(endpoint);
         rebound.Start();

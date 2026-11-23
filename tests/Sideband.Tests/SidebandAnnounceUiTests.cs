@@ -47,6 +47,7 @@ public sealed class SidebandAnnounceUiTests
             Click(window, "ConverseAnnounceButton");
             await Until(() => window.FindControl<ScrollViewer>("ConversationsPage")!.IsVisible &&
                 window.FindControl<Button>("RefreshAnnouncesButton")!.IsEnabled);
+            await window.CloseAndWaitAsync();
             var saved = await new SidebandStateStore(root).LoadAsync(cancellationToken: token);
             Assert.Equal(propagation, saved.PropagationNode);
             var contact = Assert.Single(saved.Contacts);
@@ -55,7 +56,6 @@ public sealed class SidebandAnnounceUiTests
             Assert.True(contact.AllowTelemetryRequests);
             Assert.True(contact.SendTelemetry);
             Assert.Empty(saved.Messages);
-            await window.CloseAndWaitAsync();
             window = new MainWindow(root, mediaBackend: devices, reticulumConfig: null);
             window.Show();
             await Ready(window);
@@ -86,6 +86,7 @@ public sealed class SidebandAnnounceUiTests
             await Until(() => Status(window).StartsWith("Offline saved history", StringComparison.Ordinal));
             foreach (var name in new[] { "ConverseAnnounceButton", "UseAnnounceNodeButton", "CopyAnnounceButton", "DeleteAnnounceButton" })
                 Assert.False(window.FindControl<Button>(name)!.IsEnabled);
+            await window.CloseAndWaitAsync();
             Assert.Empty((await new SidebandStateStore(root).LoadAsync(cancellationToken: TestContext.Current.CancellationToken)).Contacts);
         }
         finally

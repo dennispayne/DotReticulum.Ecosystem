@@ -521,7 +521,7 @@ public sealed partial class TelephoneLifecycleTests
         await contender.Completion.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Contains((long)CallState.Busy, signals);
         Assert.Equal(CallState.Established, rig.Phone.State);
-        rig.Phone.Hangup();
+        await rig.Phone.HangupAsync();
         await first.Completion.WaitAsync(TimeSpan.FromSeconds(5));
         await using var next = rig.Connect(out established);
         await established.WaitAsync(TimeSpan.FromSeconds(5));

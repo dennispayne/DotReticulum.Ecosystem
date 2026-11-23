@@ -27,9 +27,10 @@ public sealed class SidebandDeliveryUiTests
             window.FindControl<CheckBox>("LimitIncomingMessagesBox")!.IsChecked = false;
             window.FindControl<Button>("SaveDeliverySettingsButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Until(() => window.FindControl<TextBlock>("DeliverySettingsStatusText")!.Text?.StartsWith("Delivery limit saved", StringComparison.Ordinal) == true);
-            Assert.False(SidebandDeliveryConfiguration.FromState(await new SidebandStateStore(root).LoadAsync(cancellationToken: token)).LimitIncomingToOneMegabyte);
-            Assert.Equal("Sideband", (await new SidebandStateStore(root).LoadAsync(cancellationToken: token)).DisplayName);
             await window.CloseAndWaitAsync();
+            var saved = await new SidebandStateStore(root).LoadAsync(cancellationToken: token);
+            Assert.False(SidebandDeliveryConfiguration.FromState(saved).LimitIncomingToOneMegabyte);
+            Assert.Equal("Sideband", saved.DisplayName);
             window = new MainWindow(root, Path.Combine(root, "unused"), mediaBackend: devices);
             window.Show();
             await Until(() => window.FindControl<TextBlock>("StatusText")!.Text?.StartsWith("Offline", StringComparison.Ordinal) == true);

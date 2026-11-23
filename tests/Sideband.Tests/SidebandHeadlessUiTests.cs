@@ -203,9 +203,6 @@ public sealed partial class SidebandHeadlessUiTests
             window.FindControl<CheckBox>("PropagationDefaultBox")!.IsChecked = true;
             window.FindControl<Button>("SavePropagationButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await WaitForAsync(() => window.FindControl<TextBlock>("SyncStatusText")?.Text?.StartsWith("Propagation settings saved", StringComparison.Ordinal) == true);
-            var propagationState = await new SidebandStateStore(path).LoadAsync();
-            Assert.Equal("00112233445566778899aabbccddeeff", propagationState.PropagationNode);
-            Assert.True(propagationState.PropagationByDefault);
             window.FindControl<Button>("ConnectButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await WaitForAsync(() => window.FindControl<Button>("DisconnectButton")?.IsEnabled == true);
             Assert.Contains("standalone Reticulum node", window.FindControl<TextBlock>("RuntimeModeText")!.Text);
@@ -222,10 +219,6 @@ public sealed partial class SidebandHeadlessUiTests
             window.FindControl<Button>("SavePreferencesButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await WaitForAsync(() => window.FindControl<TextBlock>("PreferencesStatusText")?.Text == "Preferences saved.");
 
-            var state = await new SidebandStateStore(path).LoadAsync();
-            Assert.Equal("Alice", state.DisplayName);
-            Assert.Equal("Light", state.Theme);
-            Assert.Equal(Path.GetFullPath(rnsConfig), state.ReticulumConfigDirectory);
             Assert.Equal(ThemeVariant.Light, Application.Current!.RequestedThemeVariant);
 
             window.FindControl<TextBox>("DisplayNameBox")!.Text = string.Empty;
@@ -234,6 +227,12 @@ public sealed partial class SidebandHeadlessUiTests
             Assert.Contains("Could not save preferences", window.FindControl<TextBlock>("StatusText")!.Text);
 
             await window.CloseAndWaitAsync();
+            var state = await new SidebandStateStore(path).LoadAsync();
+            Assert.Equal("00112233445566778899aabbccddeeff", state.PropagationNode);
+            Assert.True(state.PropagationByDefault);
+            Assert.Equal("Alice", state.DisplayName);
+            Assert.Equal("Light", state.Theme);
+            Assert.Equal(Path.GetFullPath(rnsConfig), state.ReticulumConfigDirectory);
         }
         finally
         {
@@ -469,17 +468,17 @@ public sealed partial class SidebandHeadlessUiTests
                 $"status={window.FindControl<TextBlock>("StatusText")!.Text}");
             Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(2));
             Assert.Equal(0, devices.Captures);
+            Assert.Single(window.FindControl<ListBox>("VoiceHistoryList")!.Items);
+            window.FindControl<Button>("ClearVoiceHistoryButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => window.FindControl<ListBox>("VoiceHistoryList")!.Items.Count == 0);
+            await window.CloseAndWaitAsync();
             var persisted = await new SidebandStateStore(root).LoadAsync(cancellationToken: token);
             Assert.True(persisted.VoiceEnabled);
             Assert.True(persisted.Voice!.TrustedOnly);
             Assert.True(persisted.Voice.DirectPushToTalk);
             Assert.True(Assert.Single(persisted.Contacts).DirectPushToTalk);
             Assert.Equal(peer, Assert.Single(persisted.VoicePeers!).IdentityHash);
-            Assert.Single(window.FindControl<ListBox>("VoiceHistoryList")!.Items);
-            window.FindControl<Button>("ClearVoiceHistoryButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await WaitForAsync(() => window.FindControl<ListBox>("VoiceHistoryList")!.Items.Count == 0);
-            Assert.Empty((await new SidebandStateStore(root).LoadAsync(cancellationToken: token)).Calls!);
-            await window.CloseAndWaitAsync();
+            Assert.Empty(persisted.Calls!);
             Assert.Equal(devices.Captures, devices.CaptureDisposals);
             Assert.Equal(devices.Playbacks, devices.PlaybackDisposals);
         }

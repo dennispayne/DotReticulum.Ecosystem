@@ -37,9 +37,10 @@ public sealed partial class SidebandHeadlessUiTests
                 {
                     window.FindControl<Button>("ClearVoiceHistoryButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     await WaitForAsync(() => window.FindControl<ListBox>("VoiceHistoryList")!.ItemCount == 0);
-                    Assert.Empty((await new SidebandStateStore(root).LoadAsync(cancellationToken: token)).Calls!);
                 }
                 await window.CloseAndWaitAsync();
+                if (restart == 1)
+                    Assert.Empty((await new SidebandStateStore(root).LoadAsync(cancellationToken: token)).Calls!);
             }
         }
         finally

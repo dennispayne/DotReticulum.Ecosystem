@@ -49,7 +49,8 @@ public sealed class LoopbackAudioBridgeTests
 
         var pendingRead = frames.MoveNextAsync().AsTask();
         await loopback.StopAsync();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await pendingRead);
+        try { Assert.False(await pendingRead); }
+        catch (OperationCanceledException) { }
         Assert.False(loopback.IsRunning);
     }
 

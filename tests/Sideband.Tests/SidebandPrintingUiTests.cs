@@ -66,8 +66,8 @@ public sealed partial class SidebandHeadlessUiTests
             Assert.Single(Directory.GetFiles(Path.Combine(root, "captures"), "*.json"));
             Assert.Equal("Unsent draft stays here", window.FindControl<TextBox>("MessageBox")!.Text);
             Assert.Equal("Unsent attachment stays here", window.FindControl<TextBox>("AttachmentPathBox")!.Text);
-            Assert.Equal(2, (await new SidebandStateStore(root).LoadAsync(cancellationToken: TestContext.Current.CancellationToken)).Messages.Count);
             await window.CloseAndWaitAsync();
+            Assert.Equal(2, (await new SidebandStateStore(root).LoadAsync(cancellationToken: TestContext.Current.CancellationToken)).Messages.Count);
             window = new MainWindow(root, Path.Combine(root, "isolated-rns"));
             window.Show();
             await WaitForAsync(() => window.FindControl<ListBox>("MessageList")?.ItemCount == 2);
@@ -155,9 +155,9 @@ public sealed partial class SidebandHeadlessUiTests
             Assert.Single(Directory.GetFiles(Path.Combine(root, "captures"), "*.json"));
             Assert.Equal("Independent unsent draft", window.FindControl<TextBox>("MessageBox")!.Text);
             Assert.Equal("Independent unsent attachment", window.FindControl<TextBox>("AttachmentPathBox")!.Text);
+            await window.CloseAndWaitAsync();
             Assert.Equal(saved.PaperUri, (await new SidebandStateStore(root).LoadAsync(cancellationToken: token))
                 .Messages.Single(message => message.Id == saved.Id).PaperUri);
-            await window.CloseAndWaitAsync();
         }
         finally
         {

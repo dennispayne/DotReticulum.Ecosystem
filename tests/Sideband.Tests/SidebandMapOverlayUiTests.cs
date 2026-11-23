@@ -86,8 +86,8 @@ public sealed class SidebandMapOverlayUiTests
             Assert.False(window.FindControl<CheckBox>("MapInterfacesBox")!.IsChecked);
             Assert.True(window.FindControl<CheckBox>("MapConnectionsBox")!.IsChecked);
             Assert.False(window.FindControl<CheckBox>("MapOnlineConsentBox")!.IsChecked);
-            Assert.Single((await new SidebandStateStore(root).LoadAsync(cancellationToken: token)).MapFixedLocations!);
             await window.CloseAndWaitAsync();
+            Assert.Single((await new SidebandStateStore(root).LoadAsync(cancellationToken: token)).MapFixedLocations!);
             if (Environment.GetEnvironmentVariable("DOTRETICULUM_SIDEBAND_MAP_OBJECT_PROFILE") is { Length: > 0 } export)
             {
                 export = Path.GetFullPath(export);

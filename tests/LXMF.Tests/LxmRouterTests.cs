@@ -760,6 +760,7 @@ public class LxmRouterTests
         await pair.Client.SendAsync(message);
         var gate = Assert.IsType<LxmfPair.ResourceDataGate>(pair.ClientResourceGate);
         await gate.Blocked.WaitAsync(TimeSpan.FromSeconds(20));
+        await pair.WaitAsync(() => pair.Server.InboundResources.Count == 1);
         var incoming = Assert.Single(pair.Server.InboundResources);
         Assert.False(pair.Server.CancelInbound(new byte[32]));
         if (cancelAll) Assert.Equal(1, pair.Server.CancelAllInbound());

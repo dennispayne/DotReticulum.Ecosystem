@@ -52,6 +52,7 @@ public sealed partial class SidebandHeadlessUiTests
             await WaitForAsync(() => StyledRows(window).Any(runs => runs.Any(run => run.Text == "bold" && run.Style.Bold)));
             Assert.True(window.FindControl<CheckBox>("ComposeMarkdownBox")!.IsChecked);
             Assert.True(window.FindControl<CheckBox>("TrustedMarkupOnlyBox")!.IsChecked);
+            await window.CloseAndWaitAsync();
             Assert.Equal(message, Assert.Single((await new SidebandStateStore(root).LoadAsync(cancellationToken: token)).Messages));
         }
         finally

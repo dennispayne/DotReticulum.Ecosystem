@@ -2943,6 +2943,8 @@ persists its certificate rather than regenerating it on every start. Linux uses
 ephemeral imported keys and mode-600 private storage. Windows Schannel rejects
 the tested ephemeral-key mode, so the verified provider uses temporary UserKeySet
 ownership and inherited directory ACLs; restrict the directory to its owner.
+macOS uses a temporary keychain with the default non-persistent import and
+mode-600 private storage; its provider rejects `EphemeralKeySet`.
 Cancellation/stop/window shutdown joins owned clients and disposes the certificate.
 One failing peer or error observer does not disable later service.
 
@@ -2956,7 +2958,10 @@ or absent; neither the reference observations nor loopback TLS prove them.
 These APIs do not load arbitrary Python plugins or provide their ABI.
 
 Independent backend acceptance passed 39 Windows cases with one explicit Unix-mode
-skip, and 40/40 Linux cases. Frozen strict NativeAOT probes on both hosts executed
+skip, and 40/40 Linux cases. Hosted macOS ARM64
+[Integration run 45103069291](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45103069291)
+passed all 36 selected repository-server cases, including TLS and certificate
+restart; the overall macOS Integration job failed on other tests. Frozen strict NativeAOT probes on both hosts executed
 fingerprint-pinned HTTPS index/package/file/404 requests, certificate restart and
 joined disposal. The actual desktop integration additionally verifies consent,
 invalid input, root/profile separation, TLS routes, restart, peer errors and

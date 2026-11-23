@@ -8,6 +8,15 @@ parity. Missing features, skipped cases and untested hardware remain visible.
 
 ## Baseline provenance
 
+Main source `536a6ca3973bb34519e8d800c5be187bca005684` passed hosted
+[Build 45118831983](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45118831983),
+[static analysis 45118831968](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45118831968)
+and [Test 45119519162](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45119519162).
+All three platform Unit and Integration jobs and Windows/Linux Compatibility
+passed. [Coverage publication 45120420056](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45120420056)
+also passed. These runs precede the test-only dispatcher-safety refinement
+described below and do not explain the earlier intermittent voice timeout.
+
 Main source `dfa17ba055be1bc6806313d34bb8b6e8bb9be13f` passed hosted
 [Build 45113776779](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45113776779),
 [static analysis 45113776831](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45113776831),
@@ -52,9 +61,11 @@ added, the cancellation UI and voice lifecycle tests passed 100 combined
 Windows repetitions (`artifacts\tests\health-investigation\repeat-*.trx`).
 After isolating the UI readiness notification from other state refreshes, the
 same pair passed 20 further repetitions (`isolated-repeat-*.trx`); its UI
-readiness wait fails when the notification is removed.
+readiness wait fails when the notification is removed. Ten further repetitions
+force an asynchronous lifecycle admission before blocking the test observer, so
+the test cannot block the UI dispatcher (`ui-lifecycle-gate-*.trx`).
 The Release solution build passed with no warnings and the full Windows suite
-passed 3,186 cases with 199 skips (`artifacts\tests\health-windows-final`).
+passed 3,186 cases with 199 skips (`artifacts\tests\health-windows-lifecycle`).
 `pwsh -NoProfile -File tests\run-tests.ps1 -Pester -OutputDirectory
 artifacts\tests\health-compatibility-current` also passed its managed, Pester
 and catalog gates before the UI regression was isolated; native and live cases

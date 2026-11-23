@@ -263,7 +263,11 @@ public sealed partial class SidebandHeadlessUiTests
                     throw new TimeoutException("The test did not release router admission.");
             };
             draft.Text = "Keep cancelled draft";
-            send.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var lifecycle = Assert.IsType<SemaphoreSlim>(typeof(SidebandClient).GetField("_lifecycle",
+                BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(client));
+            await lifecycle.WaitAsync(token);
+            try { send.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+            finally { lifecycle.Release(); }
             await published.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
             await (Task)typeof(MainWindow).GetMethod("RefreshMessagesAsync",
                 BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [token])!;

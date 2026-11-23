@@ -32,8 +32,9 @@ A project listed as not started is an idea, not a commitment.
 
 Scoped Windows native acceptance is recorded per feature; changed inputs require
 their own frozen replay rather than inheriting an older candidate's receipt.
-Linux replay is blocked by a read-only WSL filesystem and storage I/O errors;
-earlier scoped Linux evidence is not acceptance of subsequent changes. See
+The current WSL-native Linux checkout passes the managed Unit and Integration
+gates and selected Sideband native printing checks. Earlier feature-specific
+Linux evidence is not acceptance of subsequent changes. See
 [testing provenance](docs/testing.md#baseline-provenance).
 
 Project folders and namespaces use `LXMF`, `LXST`, `Telemetry`, `NomadNet` and `Sideband`; the library assemblies include `LXMF` and `LXST`. Executables are named `lxmd`, `rnphone`, `telemetry`, `nomadnet` and `sideband`, including the lowercase `telemetry` assembly name. These names do not imply upstream affiliation.

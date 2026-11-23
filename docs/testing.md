@@ -13,7 +13,8 @@ the Windows Release solution build passed without warnings and the ordinary
 test run passed 3,184 cases with 197 skips. A separate Windows run intermittently
 failed `SelectedActiveCancellationWorksWhileSendOwnsLifecycleAndPreservesDraft`;
 the isolated test and a subsequent full run passed, so its cause remains
-unresolved. WSL-native Linux x64 passed 2,008
+unresolved. Twenty further isolated Windows repetitions passed with individual
+TRX results; this does not explain the earlier failure. WSL-native Linux x64 passed 2,008
 Unit cases and 1,188 Integration cases with 193 Integration skips using the
 solution's `Category=Unit` and `Category!=Unit` filters. Strict Windows and Linux x64
 NativeAOT Sideband builds ran their help and selected software-printing
@@ -1835,6 +1836,8 @@ been exercised on GitHub. The Test workflow now selects Unit and Integration on
 `macos-latest`/`osx-arm64` using the verified managed artifact from the exact
 Build. The latest hosted [Integration job](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/44910941829)
 failed, including paths whose local file selection explicitly supports only
-Windows and Linux; macOS Integration is not accepted. macOS native/tooling
+Windows and Linux, repository TLS certificate imports using unsupported
+`EphemeralKeySet`, and printing paths supported only on Windows and Linux.
+macOS Integration is not accepted. macOS native/tooling
 compatibility is not run and macOS production coverage is not collected. The
 live/GUI/hardware boundaries above remain unchanged.

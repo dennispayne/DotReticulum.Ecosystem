@@ -15,7 +15,9 @@ public static partial class NomadNetLocalFiles
         if (OperatingSystem.IsLinux())
             return LinuxStatx(-100, path, 0x100, 1, out var status) == 0 &&
                 (status.Mask & 1) != 0 && (status.Mode & 0xF000) == 0x8000;
-        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Local file selection is verified on Windows and Linux only.");
+        if (IsMacArm64())
+            return MacLStat(path, out var macStatus) == 0 && (macStatus.Mode & 0xF000) == 0x8000;
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Local file selection supports Windows, Linux and macOS ARM64 only.");
         var file = new FileInfo(path);
         return file.Exists && (file.Attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) == 0;
     }
@@ -50,13 +52,25 @@ public static partial class NomadNetLocalFiles
         if (OperatingSystem.IsLinux())
         {
             // Linux UAPI: O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC; statx uses AT_EMPTY_PATH.
-            var descriptor = LinuxOpen(path, 0x800 | 0x20000 | 0x80000);
+            var descriptor = UnixOpen(path, 0x800 | 0x20000 | 0x80000);
             if (descriptor < 0) throw new IOException("Could not open the selected local file.");
             handle = new SafeFileHandle((nint)descriptor, ownsHandle: true);
             try
             {
                 if (LinuxStatx(descriptor, "", 0x1000, 1, out var status) == 0 &&
                     (status.Mask & 1) != 0 && (status.Mode & 0xF000) == 0x8000) return handle;
+            }
+            catch { handle.Dispose(); throw; }
+        }
+        else if (IsMacArm64())
+        {
+            // Darwin: O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC; verify the opened descriptor.
+            var descriptor = UnixOpen(path, 0x4 | 0x100 | 0x1000000);
+            if (descriptor < 0) throw new IOException("Could not open the selected local file.");
+            handle = new SafeFileHandle((nint)descriptor, ownsHandle: true);
+            try
+            {
+                if (MacFStat(descriptor, out var status) == 0 && (status.Mode & 0xF000) == 0x8000) return handle;
             }
             catch { handle.Dispose(); throw; }
         }
@@ -72,7 +86,7 @@ public static partial class NomadNetLocalFiles
             }
             catch { handle.Dispose(); throw; }
         }
-        else throw new PlatformNotSupportedException("Local file selection is verified on Windows and Linux only.");
+        else throw new PlatformNotSupportedException("Local file selection supports Windows, Linux and macOS ARM64 only.");
         handle.Dispose();
         throw new IOException("Select a readable regular file, not a link, pipe or device.");
     }
@@ -88,11 +102,20 @@ public static partial class NomadNetLocalFiles
         return full;
     }
 
+    private static bool IsMacArm64() => OperatingSystem.IsMacOS() &&
+        RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
+
     [StructLayout(LayoutKind.Explicit, Size = 256)]
     private struct Statx
     {
         [FieldOffset(0)] public uint Mask;
         [FieldOffset(28)] public ushort Mode;
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size = 144)]
+    private struct MacStat
+    {
+        [FieldOffset(4)] public ushort Mode;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -103,10 +126,16 @@ public static partial class NomadNetLocalFiles
     }
 
     [LibraryImport("libc", EntryPoint = "open", StringMarshalling = StringMarshalling.Utf8)]
-    private static partial int LinuxOpen(string path, int flags);
+    private static partial int UnixOpen(string path, int flags);
 
     [LibraryImport("libc", EntryPoint = "statx", StringMarshalling = StringMarshalling.Utf8)]
     private static partial int LinuxStatx(int directory, string path, int flags, uint mask, out Statx status);
+
+    [LibraryImport("libc", EntryPoint = "lstat", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int MacLStat(string path, out MacStat status);
+
+    [LibraryImport("libc", EntryPoint = "fstat")]
+    private static partial int MacFStat(int descriptor, out MacStat status);
 
     [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial SafeFileHandle WindowsOpen(string path, uint access, uint share, nint security,

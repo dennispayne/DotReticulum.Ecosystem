@@ -406,7 +406,9 @@ Intentional native safety boundaries:
 - Exports are staged, Unix owner-read/write, then atomically published without
   replacement. Linux uses `renameat2(RENAME_NOREPLACE)`: ordinary `File.Move` was
   independently found to allow duplicate successful destinations under concurrent
-  Unix calls. Windows uses its non-replacing move. Both treat existing directories
+  Unix calls. Windows uses its non-replacing move; macOS ARM64 uses
+  `renamex_np(RENAME_EXCL)` and fails explicitly if the filesystem does not
+  support it. All treat existing directories
   as occupied names, refuse linked destination ancestors, bound suffix attempts
   to1000, and remove staging files on failure/cancellation. These are stricter
   than primary helper check-then-write behavior. No hostile concurrently replaced
@@ -416,6 +418,10 @@ Intentional native safety boundaries:
 inputs, inert import/persistence, atomic/concurrent collision exhaustion,
 pre-cancelled export, blocked directories, invalid sidecars/checksums,
 non-regular files, Unix permissions/symlinks and healthy recovery. The
+hosted macOS ARM64 [Integration run 45105470510](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45105470510)
+passed four export cases, including concurrent collisions, recovery and links;
+the Linux-only permission/FIFO case skipped. The overall macOS job failed on
+other tests. The
 `AttachmentPath` Pester selection (`T199` and `T208`) executes the actual user terminal
 commands on the selected published binary, primary application file exchange in
 both directions, configured and explicit exports and same-identity restart.
@@ -2471,16 +2477,21 @@ are omitted. Unreadable/changed files fail the whole preparation instead of
 silently sending fewer attachments; primary logs and skips individual read
 failures. These are explicit safety differences, not upstream limits.
 
-Only the **Windows/Linux regular-file adapters** are implemented. Linux uses
+The regular-file adapters support Windows, Linux and macOS ARM64. Linux uses
 source-generated libc `open` with nonblocking/no-follow/close-on-exec flags,
 then `statx(AT_EMPTY_PATH)` on that exact handle; FIFO/device/link rejection
 precedes content reads. Windows uses system `CreateFileW`/handle-type and
-attribute inspection, rejecting device namespaces and reparse points. Reads
+attribute inspection, rejecting device namespaces and reparse points. macOS
+ARM64 uses nonblocking/no-follow/close-on-exec `open`, checks the opened
+descriptor with `fstat`, and uses `lstat` for listings. Reads
 enforce length/cancellation and reject growth beyond the inspected length.
 These are OS APIs, not bundled codecs or new third-party binaries. The Linux
 adapter requires libc `statx` and a supporting kernel; the exercised host has
-Ubuntu glibc2.43. Windows10.0.26300 x64 is exercised. Other libc versions,
-distributions, architectures and macOS are not inferred support.
+Ubuntu glibc2.43. Windows10.0.26300 x64 is exercised. Hosted macOS ARM64
+[Integration run 45103329910](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45103329910)
+passed all five picker cases, including FIFO, device and symlink rejection;
+the overall macOS Integration job failed on other tests. Other libc versions,
+distributions and architectures, including macOS x64, are not inferred support.
 
 ### Images and external codecs
 

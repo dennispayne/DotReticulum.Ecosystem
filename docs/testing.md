@@ -1841,9 +1841,14 @@ PR merge selection, manual/scheduled reuse and inactivity reminders have not
 been exercised on GitHub. The Test workflow now selects Unit and Integration on
 `macos-latest`/`osx-arm64` using the verified managed artifact from the exact
 Build. The latest hosted [Integration job](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/44910941829)
-failed, including paths whose local file selection explicitly supports only
-Windows and Linux, repository TLS certificate imports using unsupported
-`EphemeralKeySet`, and printing paths supported only on Windows and Linux.
+failed, including local-file selection, repository TLS certificate imports
+using unsupported `EphemeralKeySet`, and printing paths supported only on
+Windows and Linux. A subsequent macOS ARM64 candidate passed the five local
+file picker cases and reduced NomadNet Integration failures from 107 to 15
+in [run 45103329910](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45103329910).
+A subsequent candidate passed four macOS ARM64 attachment-export cases in
+[run 45105470510](https://github.com/dennispayne/DotReticulum.Ecosystem/actions/runs/45105470510);
+12 NomadNet printing tests still failed.
 macOS Integration is not accepted. macOS native/tooling
 compatibility is not run and macOS production coverage is not collected. The
 live/GUI/hardware boundaries above remain unchanged.

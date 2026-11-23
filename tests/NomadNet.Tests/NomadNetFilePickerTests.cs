@@ -183,7 +183,7 @@ public sealed class NomadNetFilePickerTests
         finally { Directory.Delete(root, true); }
     }
 
-    [LinuxSpecialFilesFact]
+    [UnixSpecialFilesFact]
     public async Task FifoDevicesAndSymbolicLinksAreRejectedWithoutBlockingOrReading()
     {
         var root = CreateDirectory();
@@ -220,11 +220,13 @@ public sealed class NomadNetFilePickerTests
         return root;
     }
 
-    private sealed class LinuxSpecialFilesFactAttribute : FactAttribute
+    private sealed class UnixSpecialFilesFactAttribute : FactAttribute
     {
-        public LinuxSpecialFilesFactAttribute()
+        public UnixSpecialFilesFactAttribute()
         {
-            if (!OperatingSystem.IsLinux()) Skip = "Requires Linux FIFO/device metadata, symlinks and mkfifo fixture setup.";
+            if (!OperatingSystem.IsLinux() && !(OperatingSystem.IsMacOS() &&
+                System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64))
+                Skip = "Requires supported Unix FIFO/device metadata, symlinks and mkfifo fixture setup.";
         }
 
     }
@@ -233,8 +235,9 @@ public sealed class NomadNetFilePickerTests
     {
         public SupportedFilesFactAttribute()
         {
-            if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
-                Skip = "The safe regular-file adapter is implemented for Windows and Linux; other platforms are not claimed.";
+            if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux() && !(OperatingSystem.IsMacOS() &&
+                System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64))
+                Skip = "The safe regular-file adapter supports Windows, Linux and macOS ARM64 only.";
         }
     }
 }

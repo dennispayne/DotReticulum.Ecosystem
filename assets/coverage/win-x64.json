@@ -1,7 +1,7 @@
 {
-  "schemaVersion": 1,
-  "message": "75.52%",
-  "color": "yellow",
   "label": "Windows line coverage",
-  "cacheSeconds": 300
+  "color": "yellow",
+  "schemaVersion": 1,
+  "cacheSeconds": 300,
+  "message": "75.50%"
 }

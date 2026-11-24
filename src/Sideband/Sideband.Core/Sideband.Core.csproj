@@ -16,7 +16,7 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.157.0" />
     <ProjectReference Include="..\..\LXMF\LXMF.csproj" />
     <ProjectReference Include="..\..\LXST\LXST.csproj" />
-    <ProjectReference Include="..\..\..\external\DotReticulum\src\DotReticulum.Applications\DotReticulum.Applications.csproj" />
+    <PackageReference Include="DotReticulum.Applications" Version="$(DotReticulumVersion)" />
   </ItemGroup>
 
   <ItemGroup>

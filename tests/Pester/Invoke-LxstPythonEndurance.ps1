@@ -15,6 +15,7 @@ if ($env:DOTLXST_PYTHON_ENDURANCE -ne '1') { throw 'Explicit opt-in DOTLXST_PYTH
 if (!$ProbeOnly -and $SteadySeconds -lt 600) { throw 'Acceptance requires at least 600 steady seconds.' }
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 Set-Location $repo
+Import-Module (Join-Path $repo 'tests\StackProvenance.psm1') -Force
 $binaryPath = (Resolve-Path $Binary).Path
 $pythonPath = (Resolve-Path $Python).Path
 $lxstPath = (Resolve-Path $LxstSource).Path
@@ -32,7 +33,7 @@ $receipt = [ordered]@{
     physicalAudio = $false; qualityClaim = $false; impairedOrMultihop = $false; currentLinux = $false
     backendShim = 'Explicit synthetic Python device backend and forwarding public pipeline sink observers; no source/protocol/clock patches. Native --headless-audio synthetic silence/discard.'
     sourceHead = (& git rev-parse HEAD).Trim()
-    stackHead = (& git -C external\DotReticulum rev-parse HEAD).Trim()
+    stack = (Get-DotReticulumStackId -Root $repo)
     historicalNative = @{
         path=$binaryPath; sha256=$expected; currentHeadBuild=$false
         accepted=(Get-Content 'artifacts\tests\core-native-e52\rnphone\accepted.json' -Raw | ConvertFrom-Json)

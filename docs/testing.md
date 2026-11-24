@@ -6,6 +6,25 @@ NativeAOT acceptance, and unioned production-code coverage. A successful command
 means its selected checks passed, **not** that the ecosystem has full upstream
 parity. Missing features, skipped cases and untested hardware remain visible.
 
+## Stack dependency
+
+The Reticulum stack is consumed from NuGet.org as the DotReticulum packages at
+`DotReticulumVersion` **1.5.7.158** (root `Directory.Build.props`; nuspec commit
+`99275e6b5724033fcb3cd3f78befea0ae60c786b`). Acceptance scripts record the stack
+identity as that package version plus the restored `.nupkg` SHA-512 hashes and
+nuspec commit. Evidence below that names a stack commit predates this change and
+refers to the former submodule pin; it is not relabelled as package evidence.
+
+Present-state limitations:
+
+- The stack is consumed as binaries. Version 1.5.7.158 publishes `.snupkg`
+  portable PDBs on the NuGet.org symbol server with SourceLink to the nuspec
+  commit, so source stepping needs the symbol server and SourceLink enabled;
+  stack source is not in this repository and stack tests do not run here.
+- Windows Smart App Control can block locally built, unsigned test fixtures or
+  binaries. It is not disabled to run tests; affected tests are recorded as
+  blocked, not passed or worked around.
+
 ## Baseline provenance
 
 Main source `aebe1e32e73d8a9e4eafe5654b3ea59be89731be` passed hosted
@@ -26,7 +45,7 @@ passed. [Coverage publication 45120420056](https://github.com/dennispayne/DotRet
 also passed. These runs precede the test-only dispatcher-safety refinement
 described below and do not explain the earlier intermittent voice timeout.
 
-The stack is now pinned to `7eb03e7d280d757dc1a3e676e7650c15482f9838`, which
+That baseline pinned the stack submodule to `7eb03e7d280d757dc1a3e676e7650c15482f9838`, which
 adds only coverage badge data to `7136c2de0a1655ce8be3761b92622af8bad907b1`.
 That stack commit fixes a separately reproduced cancellation race in which an already
 successful stream write or flush closed the shared connection. An interrupted
@@ -1709,7 +1728,7 @@ unselected modes are not interoperability passes.
 `-Coverage` uses Coverlet/OpenCover with serial project collection. It instruments
 all seven repository production assemblies: `LXMF`, `LXST`, `lxmd`,
 `rnphone`, `nomadnet`, `Sideband.Core` and `sideband`. It excludes test projects,
-submodule code and third-party assemblies. Missing reports or an uninstrumented
+DotReticulum package assemblies and other third-party assemblies. Missing reports or an uninstrumented
 production module fail the run rather than disappearing from the denominator.
 Assembly names are derived from the production projects, including their
 case-sensitive names. Add a new assembly to `coverage.runsettings` when adding a
@@ -1774,7 +1793,7 @@ The Actions layout follows DotReticulum's workflow controls at
 `c8d36a8b9f97b4f1bc08f0d1a9b533391d5940e3`, adapted without changing the stack pin.
 `.github\workflows\build.yml` runs on relevant pushes and pull requests to `main`,
 or manual dispatch. Documentation-only changes do not trigger Build;
-submodule-pin and build-configuration changes do.
+DotReticulum package-version and build-configuration changes do.
 
 The Build matrix restores and builds the Release solution, then publishes
 NativeAOT with trim/AOT warnings as errors. Windows and Linux publish all four
@@ -1839,7 +1858,7 @@ build/help gate only, not ecosystem feature acceptance. The recorded live and
 hardware evidence requirements still apply to protocol changes.
 
 `.github\workflows\codeql.yml` independently analyzes Actions, C# (manual Release
-build with the pinned stack) and Python using CodeQL, plus tracked repository
+build against the DotReticulum packages) and Python using CodeQL, plus tracked repository
 PowerShell using PSScriptAnalyzer 1.24.0. It runs on relevant changes, manual
 dispatch and Mondays at 05:00 UTC. PowerShell correctness/security findings fail
 after SARIF is written; existing command names are not subjected to a style

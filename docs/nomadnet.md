@@ -4096,8 +4096,8 @@ publication (`NomadNetEditor.ValidateConfiguration`, T458), because the pinned p
 line-oriented grammar. A successfully parsed native application profile does
 not prove that the stack can load the same RNS configuration. This required
 software boundary must be resolved in the separate DotReticulum repository,
-with its tests and a verified pin update, not by bypassing validation or editing
-the submodule in place. No stack fix or authorization to push one is claimed.
+with its tests and a published package release adopted through `DotReticulumVersion`,
+not by bypassing validation or copying stack code into this repository. No stack fix or authorization to push one is claimed.
 The original guide/editor and bounded grammar acceptance above must not be
 described as absent merely because exact Urwid presentation is not reproduced.
 

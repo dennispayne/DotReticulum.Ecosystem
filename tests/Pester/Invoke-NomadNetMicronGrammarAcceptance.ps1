@@ -12,6 +12,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 Set-Location $root
+Import-Module (Join-Path $root 'tests\StackProvenance.psm1') -Force
 $evidenceRoot = Join-Path $root 'artifacts\tests\nomad-micron-contracts'
 $null = New-Item $evidenceRoot -ItemType Directory -Force
 $provenancePath = [IO.Path]::ChangeExtension([IO.Path]::GetFullPath($Candidate), 'build-provenance.json')
@@ -19,9 +20,9 @@ if (($Build -or $Freeze) -and (Test-Path $Candidate)) {
     throw 'Candidate already exists. Preserve it and select new Candidate/Binary/ArtifactsPath paths for intentional changed-input acceptance.'
 }
 function Get-C104ProductionInputs {
-    $files = @(Get-ChildItem src\NomadNet,src\LXMF,external\DotReticulum\src -Recurse -File |
+    $files = @(Get-ChildItem src\NomadNet,src\LXMF -Recurse -File |
         Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' })
-    foreach ($directory in '.','external\DotReticulum') {
+    foreach ($directory in '.') {
         $files += @(Get-ChildItem $directory -File -Force |
             Where-Object { $_.Name -match '^Directory\.|^global.json$|^version.json$|^NuGet.Config$|^.editorconfig$' })
     }
@@ -33,7 +34,7 @@ function Get-C104AcceptanceInputs {
     $files += @(Get-Item tests\Interop\GenerateNomadNetMicronGrammarVectors.py,
         tests\Interop\GenerateNomadNetEditorStateImportVectors.py,
         tests\Interop\GenerateNomadNetClientRuntimeVectors.py,tests\Interop\reference_environment.py,
-        tests\Pester\NomadNetMicronGrammar.Tests.ps1,tests\Pester\Invoke-NomadNetMicronGrammarAcceptance.ps1,
+        tests\Pester\NomadNetMicronGrammar.Tests.ps1,tests\Pester\Invoke-NomadNetMicronGrammarAcceptance.ps1,tests\StackProvenance.psm1,
         tools\PSScriptAnalyzerSettings.psd1)
     @($files | Sort-Object FullName -Unique)
 }
@@ -105,7 +106,7 @@ if ($Build) {
     } | Where-Object { Test-Path $_ })
     if ($compilerFiles.Count -ne 1) { throw 'Expected one actual resolved NativeAOT compiler executable.' }
     $toolFiles += Get-Item $compilerFiles[0],$assetsPath
-    @{Head=$head;Stack=(& git -C external\DotReticulum rev-parse HEAD);Sdk=$sdk;Compiler=$compilerVersion;ImageConverter=$imageConverter;
+    @{Head=$head;Stack=(Get-DotReticulumStackId -Root $root);Sdk=$sdk;Compiler=$compilerVersion;ImageConverter=$imageConverter;
         Toolchain=@(ConvertTo-C104Hashes $toolFiles);Sources=$sources;AcceptanceSources=$acceptance;
         Logs=@(ConvertTo-C104Hashes @(Get-Item (Join-Path $buildLogs build.log),(Join-Path $buildLogs publish.log)));
         Binary=@{Path=$Binary;Sha256=(Get-FileHash $Binary).Hash.ToLowerInvariant()};
@@ -119,6 +120,7 @@ if ($Freeze) {
     $previous = Get-Content artifacts\tests\nomad-guide\candidate.json -Raw | ConvertFrom-Json
     $provenance = Get-Content $provenancePath -Raw | ConvertFrom-Json
     if ((& git rev-parse HEAD) -cne $provenance.Head) { throw 'Build HEAD changed.' }
+    if ((Get-DotReticulumStackId -Root $root) -cne $provenance.Stack) { throw 'Stack package identity changed since build; rebuild rather than relabel.' }
     if (Compare-Object @($provenance.Sources.Path) @((ConvertTo-C104Hashes (Get-C104ProductionInputs)).Path)) {
         throw 'Production input set changed since build.'
     }
@@ -165,8 +167,7 @@ function Assert-C104Frozen {
     Assert-C104Hashes @(@($frozen.Sources) + @($frozen.AcceptanceSources) + @($frozen.ReferenceInputs) +
         @($frozen.Toolchain) + @($frozen.ManagedArtifacts) + @($frozen.Binary))
     if ((Get-FileHash $frozen.BuildProvenance).Hash.ToLowerInvariant() -cne $frozen.BuildProvenanceSha256) { throw 'Build provenance changed.' }
-    if ((& git -C external\DotReticulum rev-parse HEAD) -cne $frozen.Stack) { throw 'Stack pin changed.' }
-    if (& git -C external\DotReticulum status --porcelain) { throw 'Stack source changed.' }
+    if ((Get-DotReticulumStackId -Root $root) -cne $frozen.Stack) { throw 'Stack package identity changed.' }
     foreach ($pair in @(@($frozen.Reference.Primary,$frozen.Reference.PrimaryCommit),
         @($frozen.Reference.Rns,$frozen.Reference.RnsCommit),@($frozen.Reference.Lxmf,$frozen.Reference.LxmfCommit))) {
         if ((& git -C $pair[0] rev-parse HEAD) -cne $pair[1]) { throw "Reference pin changed: $($pair[0])" }

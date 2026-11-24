@@ -106,7 +106,6 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-          submodules: recursive
 
       - name: Require a tagged commit on main
         if: github.ref_type == 'tag'
@@ -152,7 +151,24 @@ jobs:
       - name: Summarize test results
         if: ${{ !cancelled() }}
         run: |
-          $summary = & ./external/DotReticulum/tests/test_summary.ps1 -Path artifacts/tests/release -Title 'Release tests (${{ matrix.rid }})'
+          Import-Module ./tests/Compatibility/Reporting.psm1 -Force
+          $cases = @(if (Test-Path -LiteralPath artifacts/tests/release) { Read-TrxCases artifacts/tests/release })
+          $summary = [Collections.Generic.List[string]]::new()
+          $summary.Add('## Release tests (${{ matrix.rid }})')
+          $summary.Add('')
+          if (!$cases.Count) {
+            $summary.Add('No TRX test results were produced; results are unavailable.')
+          } else {
+            $failed = @($cases | Where-Object Status -eq 'Fail')
+            $summary.Add('| Passed | Failed | Skipped |')
+            $summary.Add('|---:|---:|---:|')
+            $summary.Add("| $(@($cases | Where-Object Status -eq 'Pass').Count) | $($failed.Count) | $(@($cases | Where-Object Status -eq 'Skipped').Count) |")
+            if ($failed.Count) {
+              $summary.Add('')
+              $summary.Add('Failed tests:')
+              foreach ($case in $failed | Select-Object -First 50) { $summary.Add("- ``$($case.Case.Replace('`', "'"))``") }
+            }
+          }
           $summary
           $summary | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
 
@@ -203,7 +219,7 @@ jobs:
 
       - name: Install executable acceptance runner
         run: |
-          & ./external/DotReticulum/tests/Install-Pester.ps1
+          & ./tests/Install-Pester.ps1
 
       - name: Verify native delivery and restart
         if: needs.select.outputs.application == 'lxmd'

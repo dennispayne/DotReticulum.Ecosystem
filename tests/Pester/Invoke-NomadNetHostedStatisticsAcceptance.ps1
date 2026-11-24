@@ -12,12 +12,13 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 Set-Location $root
+Import-Module (Join-Path $root 'tests\StackProvenance.psm1') -Force
 $provenancePath = Join-Path (Split-Path $Candidate -Parent) build-provenance.json
 function Get-C107ProductionInputs {
-    $directories = @('src\NomadNet','src\LXMF','external\DotReticulum\src')
+    $directories = @('src\NomadNet','src\LXMF')
     $paths = @(Get-ChildItem $directories -Recurse -File |
         Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' })
-    foreach ($directory in '.','external\DotReticulum') {
+    foreach ($directory in '.') {
         $paths += @(Get-ChildItem $directory -File -Force |
             Where-Object { $_.Name -match '^Directory\.|^global.json$|^version.json$|^NuGet.Config$|^.editorconfig$' })
     }
@@ -28,7 +29,7 @@ function Get-C107AcceptanceInputs {
         Where-Object { $_.Extension -in '.cs','.csproj','.json','.py' -and $_.FullName -notmatch '\\(bin|obj)\\' })
     $paths += @(Get-Item tests\Interop\GenerateNomadNetClientRuntimeVectors.py,
         tests\Interop\nomadnet_live_node.py,tests\Interop\reference_environment.py,
-        tests\Pester\NomadNetHostedStatistics.Tests.ps1,tests\Pester\Invoke-NomadNetHostedStatisticsAcceptance.ps1)
+        tests\Pester\NomadNetHostedStatistics.Tests.ps1,tests\Pester\Invoke-NomadNetHostedStatisticsAcceptance.ps1,tests\StackProvenance.psm1)
     @($paths | Sort-Object FullName -Unique)
 }
 function ConvertTo-C107Fingerprints($Files) {
@@ -67,7 +68,7 @@ if ($Build) {
     Assert-C107Hashes $sources
     Assert-C107Hashes $acceptanceSources
     if ((& git rev-parse HEAD) -cne $head) { throw 'Build HEAD changed; do not relabel the binary.' }
-    @{Head=$head;Stack=(& git -C external\DotReticulum rev-parse HEAD);Sdk=(& dotnet --version);
+    @{Head=$head;Stack=(Get-DotReticulumStackId -Root $root);Sdk=(& dotnet --version);
         Compiler=($compiler[0] -split '/')[-1];Sources=$sources;AcceptanceSources=$acceptanceSources;Binary=@{Path=$Binary;Sha256=(Get-FileHash $Binary).Hash.ToLowerInvariant()};
         ManagedCommand="dotnet build tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release -warnaserror --artifacts-path $ArtifactsPath";
         NativeCommand="dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64 --artifacts-path $ArtifactsPath -o $nativeDirectory -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror";
@@ -79,6 +80,7 @@ if ($Freeze) {
     $previous = Get-Content artifacts\tests\nomad-guide\candidate.json -Raw | ConvertFrom-Json
     $provenance = Get-Content $provenancePath -Raw | ConvertFrom-Json
     if ((& git rev-parse HEAD) -cne $provenance.Head) { throw 'Build HEAD changed; rebuild rather than relabel.' }
+    if ((Get-DotReticulumStackId -Root $root) -cne $provenance.Stack) { throw 'Stack package identity changed since build; rebuild rather than relabel.' }
     $sources = @(ConvertTo-C107Fingerprints (Get-C107ProductionInputs))
     if (Compare-Object @($provenance.Sources.Path) @($sources.Path)) { throw 'Production input set changed since build.' }
     Assert-C107Hashes $provenance.Sources
@@ -123,6 +125,7 @@ if (Compare-Object @($frozen.Sources.Path) @((ConvertTo-C107Fingerprints (Get-C1
 if ((Get-FileHash $frozen.BuildProvenance).Hash.ToLowerInvariant() -cne $frozen.BuildProvenanceSha256) {
     throw 'Frozen build provenance changed.'
 }
+if ((Get-DotReticulumStackId -Root $root) -cne $frozen.Stack) { throw 'Stack package identity changed.' }
 $env:DOTRETICULUM_LIVE = '1'
 $env:DOTRETICULUM_NOMADNET_HOST_STATISTICS = '1'
 $env:DOTRETICULUM_NOMADNET_HOST_STATISTICS_ROOT = $root

@@ -37,7 +37,7 @@ try {
             branches = @{ covered = $totals.Branches[0]; total = $totals.Branches[1] }
         } | ConvertTo-Json | Set-Content -LiteralPath $JsonPath -Encoding utf8
     }
-    "`nMerged $($reports.Count) reports by source line and branch identity, not averaged suite percentages. Excludes DotReticulum submodule and third-party code."
+    "`nMerged $($reports.Count) reports by source line and branch identity, not averaged suite percentages. Excludes DotReticulum package and third-party code."
     exit 0
 }
 catch {

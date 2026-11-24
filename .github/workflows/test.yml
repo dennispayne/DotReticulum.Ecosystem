@@ -100,13 +100,12 @@ jobs:
             os: macos-latest
             rid: osx-arm64
     steps:
-      - name: Checkout exact producing source and pinned stack
+      - name: Checkout exact producing source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.source.outputs.commit }}
           fetch-depth: 0
           persist-credentials: false
-          submodules: recursive
 
       - name: Set up .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -156,13 +155,12 @@ jobs:
           - os: windows-latest
             rid: win-x64
     steps:
-      - name: Checkout exact producing source and pinned stack
+      - name: Checkout exact producing source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.source.outputs.commit }}
           fetch-depth: 0
           persist-credentials: false
-          submodules: recursive
 
       - name: Set up .NET for tooling fixtures
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -194,7 +192,7 @@ jobs:
 
       - name: Run native acceptance and tooling with scoped compatibility
         run: |
-          ./external/DotReticulum/tests/Install-Pester.ps1
+          ./tests/Install-Pester.ps1
           Import-Module Pester -RequiredVersion 5.7.1
           ./tests/run-compatibility.ps1 -SkipManaged -Pester -OutputDirectory artifacts/tests/compatibility
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -221,7 +219,6 @@ jobs:
         with:
           ref: ${{ needs.source.outputs.commit }}
           persist-credentials: false
-          submodules: recursive
 
       - name: Download independent evidence
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2

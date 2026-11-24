@@ -10,6 +10,7 @@ Set-StrictMode -Version Latest
 if (-not $Live) { throw 'Explicit -Live is required for the real five-minute workload.' }
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 Set-Location $root
+Import-Module (Join-Path $root 'tests\StackProvenance.psm1') -Force
 $candidatePath = (Resolve-Path $Candidate).Path
 $candidateHash = (Get-FileHash $candidatePath).Hash.ToLowerInvariant()
 $frozen = Get-Content $candidatePath -Raw | ConvertFrom-Json
@@ -19,7 +20,7 @@ $output = [IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path $output) { throw 'Select fresh output; never overwrite candidate or failed receipts.' }
 $null = New-Item $output -ItemType Directory
 $head = (& git rev-parse HEAD)
-$stack = (& git -C external\DotReticulum rev-parse HEAD)
+$stack = (Get-DotReticulumStackId -Root $root)
 $clock = [Diagnostics.Stopwatch]::StartNew()
 $processes = [Collections.Generic.List[object]]::new()
 $observations = [Collections.Generic.List[object]]::new()
@@ -37,12 +38,12 @@ function AssertHashes($Files) {
 }
 function AssertProvenance {
     if ((Get-FileHash $candidatePath).Hash.ToLowerInvariant() -cne $candidateHash) { throw 'Historical candidate changed.' }
-    if ((& git rev-parse HEAD) -cne $head -or (& git -C external\DotReticulum rev-parse HEAD) -cne $stack) {
+    if ((& git rev-parse HEAD) -cne $head -or (Get-DotReticulumStackId -Root $root) -cne $stack) {
         throw 'Current HEAD/stack changed during the workload.'
     }
-    $directories = @('src\Sideband\Sideband.Core','src\Sideband\Sideband.Desktop','src\LXMF','src\LXST','external\DotReticulum\src')
+    $directories = @('src\Sideband\Sideband.Core','src\Sideband\Sideband.Desktop','src\LXMF','src\LXST')
     $files = @(Get-ChildItem $directories -File -Recurse | Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' })
-    foreach ($directory in '.','external\DotReticulum') {
+    foreach ($directory in '.') {
         $files += @(Get-ChildItem $directory -File -Force |
             Where-Object { $_.Name -match '^Directory\.|^global\.json$|^version\.json$|^NuGet\.Config$|^\.editorconfig$' })
     }

@@ -12,13 +12,14 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 Set-Location $root
+Import-Module (Join-Path $root 'tests\StackProvenance.psm1') -Force
 $provenancePath = Join-Path (Split-Path $Candidate -Parent) build-provenance.json
 if ($Freeze -and (Test-Path $Candidate)) { throw 'Refusing to overwrite an existing frozen candidate.' }
 function Get-C102ProductionInputs {
-    $directories = @('src\NomadNet','src\LXMF','external\DotReticulum\src')
+    $directories = @('src\NomadNet','src\LXMF')
     $paths = @(Get-ChildItem $directories -Recurse -File |
         Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' })
-    foreach ($directory in '.','external\DotReticulum') {
+    foreach ($directory in '.') {
         $paths += @(Get-ChildItem $directory -File -Force |
             Where-Object { $_.Name -match '^Directory\.|^global.json$|^version.json$|^NuGet.Config$|^.editorconfig$' })
     }
@@ -29,7 +30,7 @@ function Get-C102AcceptanceInputs {
         Where-Object { $_.Extension -in '.cs','.csproj','.json' -and $_.FullName -notmatch '\\(bin|obj)\\' })
     $paths += @(Get-Item tests\Interop\GenerateNomadNetGuideVectors.py,
         tests\Interop\GenerateNomadNetClientRuntimeVectors.py,tests\Interop\reference_environment.py,
-        tests\Pester\NomadNetGuide.Tests.ps1,tests\Pester\Invoke-NomadNetGuideAcceptance.ps1,
+        tests\Pester\NomadNetGuide.Tests.ps1,tests\Pester\Invoke-NomadNetGuideAcceptance.ps1,tests\StackProvenance.psm1,
         tools\PSScriptAnalyzerSettings.psd1)
     @($paths | Sort-Object FullName -Unique)
 }
@@ -67,7 +68,7 @@ if ($Build) {
     if ($compiler.Count -ne 1) { throw 'Expected one explicit NativeAOT compiler package.' }
     Assert-C102Hashes @($sources + $acceptance)
     if ((& git rev-parse HEAD) -cne $head) { throw 'Build HEAD changed; do not relabel the binary.' }
-    @{Head=$head;Stack=(& git -C external\DotReticulum rev-parse HEAD);Sdk=(& dotnet --version);
+    @{Head=$head;Stack=(Get-DotReticulumStackId -Root $root);Sdk=(& dotnet --version);
         Compiler=($compiler[0] -split '/')[-1];Sources=$sources;AcceptanceSources=$acceptance;Binary=@{Path=$Binary;Sha256=(Get-FileHash $Binary).Hash.ToLowerInvariant()};
         ManagedCommand="dotnet build tests\NomadNet.Tests\NomadNet.Tests.csproj -c Release -warnaserror --artifacts-path $ArtifactsPath";
         NativeCommand="dotnet publish src\NomadNet\NomadNet.csproj -c Release -r win-x64 --artifacts-path $ArtifactsPath -o $nativeDirectory -p:ILLinkTreatWarningsAsErrors=true -p:IlcTreatWarningsAsErrors=true -warnaserror";
@@ -80,6 +81,7 @@ if ($Freeze) {
     $provenance = Get-Content $provenancePath -Raw | ConvertFrom-Json
     if (-not $provenance.PSObject.Properties['AcceptanceSources']) { throw 'Rebuild with pre-build acceptance fingerprints before freezing.' }
     if ((& git rev-parse HEAD) -cne $provenance.Head) { throw 'Build HEAD changed; rebuild rather than relabel.' }
+    if ((Get-DotReticulumStackId -Root $root) -cne $provenance.Stack) { throw 'Stack package identity changed since build; rebuild rather than relabel.' }
     $sources = @(ConvertTo-C102Fingerprints (Get-C102ProductionInputs))
     if (Compare-Object @($provenance.Sources.Path) @($sources.Path)) { throw 'Production input set changed since build.' }
     $acceptance = @(ConvertTo-C102Fingerprints (Get-C102AcceptanceInputs))
@@ -122,8 +124,7 @@ function Assert-C102Frozen {
     }
     Assert-C102Hashes @(@($frozen.Sources) + @($frozen.AcceptanceSources) + @($frozen.ManagedArtifacts) + @($frozen.Binary))
     if ((Get-FileHash $frozen.BuildProvenance).Hash.ToLowerInvariant() -cne $frozen.BuildProvenanceSha256) { throw 'Build provenance changed.' }
-    if ((& git -C external\DotReticulum rev-parse HEAD) -cne $frozen.Stack) { throw 'Stack pin changed.' }
-    if (& git -C external\DotReticulum status --porcelain) { throw 'Stack has uncommitted inputs.' }
+    if ((Get-DotReticulumStackId -Root $root) -cne $frozen.Stack) { throw 'Stack package identity changed.' }
     foreach ($pair in @(@($frozen.Reference.Primary,$frozen.Reference.PrimaryCommit),
         @($frozen.Reference.Rns,$frozen.Reference.RnsCommit),@($frozen.Reference.Lxmf,$frozen.Reference.LxmfCommit))) {
         if ((& git -C $pair[0] rev-parse HEAD) -cne $pair[1]) { throw "Reference pin changed: $($pair[0])" }
@@ -131,7 +132,7 @@ function Assert-C102Frozen {
     }
 }
 function Write-C102Snapshot([string] $Path) {
-    @{Head=(& git rev-parse HEAD);Stack=(& git -C external\DotReticulum rev-parse HEAD);
+    @{Head=(& git rev-parse HEAD);Stack=(Get-DotReticulumStackId -Root $root);
         CandidateSha256=(Get-FileHash $candidatePath).Hash.ToLowerInvariant()
         Sources=@(ConvertTo-C102Fingerprints (Get-C102ProductionInputs))
         AcceptanceSources=@(ConvertTo-C102Fingerprints (Get-C102AcceptanceInputs))
@@ -232,7 +233,7 @@ try {
         'NomadNetWindowsAuthorizationNativeTests.PublishedHostAuthorizesActualPrimaryWithPeOptInRecoveryAndRestart'
     )
     $unexpectedOutcomes = @($trx.TestRun.Results.UnitTestResult | Where-Object outcome -NotIn Passed,NotExecuted)
-    if ([int]$counts.failed -ne 0 -or [int]$counts.passed -ne 494 -or $unexpectedOutcomes.Count -ne 0 -or
+    if ([int]$counts.failed -ne 0 -or [int]$counts.passed -ne 460 -or $unexpectedOutcomes.Count -ne 0 -or
         $skipped -ne $expectedSkips.Count -or
         (Compare-Object $expectedSkips @($skipResults | ForEach-Object { $_.testName -replace '^NomadNet\.Tests\.', '' })) -or
         @($skipResults | Where-Object { [string]::IsNullOrWhiteSpace($_.Output.ErrorInfo.Message) }).Count -ne 0) {

@@ -11,10 +11,11 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 Set-Location $root
+Import-Module (Join-Path $root 'tests\StackProvenance.psm1') -Force
 function Get-C100ProductionInputs {
-    $paths = @(Get-ChildItem src\NomadNet,src\LXMF,external\DotReticulum\src -Recurse -File |
+    $paths = @(Get-ChildItem src\NomadNet,src\LXMF -Recurse -File |
         Where-Object { $_.Extension -in '.cs','.csproj','.props','.targets','.json','.txt' -and $_.FullName -notmatch '\\(bin|obj)\\' })
-    foreach ($directory in '.','external\DotReticulum') {
+    foreach ($directory in '.') {
         $paths += @(Get-ChildItem $directory -File -Force |
             Where-Object { $_.Name -match '^Directory\.|^global.json$|^version.json$|^NuGet.Config$|^.editorconfig$' })
     }
@@ -25,7 +26,7 @@ function Get-C100AcceptanceInputs {
         Where-Object { $_.Extension -in '.cs','.csproj','.json' -and $_.FullName -notmatch '\\(bin|obj)\\' })
     $paths += @(Get-Item tests\Interop\GenerateNomadNetEditorStateImportVectors.py,
         tests\Interop\GenerateNomadNetClientRuntimeVectors.py,tests\Interop\reference_environment.py,
-        tests\Pester\NomadNetEditorStateImport.Tests.ps1,tests\Pester\Invoke-NomadNetEditorStateImportAcceptance.ps1,
+        tests\Pester\NomadNetEditorStateImport.Tests.ps1,tests\Pester\Invoke-NomadNetEditorStateImportAcceptance.ps1,tests\StackProvenance.psm1,
         docs\nomadnet.md,tools\PSScriptAnalyzerSettings.psd1)
     @($paths | Sort-Object FullName -Unique)
 }
@@ -38,6 +39,9 @@ if ($Freeze) {
     $previous = Get-Content artifacts\tests\nomad-editor-scrolling\candidate.json -Raw | ConvertFrom-Json
     $provenance = Get-Content artifacts\tests\nomad-editor-state-import\build-provenance.json -Raw | ConvertFrom-Json
     if ((& git rev-parse HEAD) -cne $provenance.Head) { throw 'Build HEAD changed; rebuild rather than relabel the old native artifact.' }
+    if ((Get-DotReticulumStackId -Root $root) -cne $provenance.Stack) {
+        throw 'Build provenance Stack does not match the restored stack package identity (record Get-DotReticulumStackId at build); rebuild rather than relabel.'
+    }
     $sources = @(ConvertTo-C100Fingerprints (Get-C100ProductionInputs))
     if (Compare-Object @($provenance.Sources.Path) @($sources.Path)) { throw 'Production input set changed since build.' }
     foreach ($source in $provenance.Sources) {
@@ -46,7 +50,7 @@ if ($Freeze) {
     $assemblies = @(Get-ChildItem (Join-Path $ArtifactsPath bin) -Recurse -Filter NomadNet.Tests.dll -File)
     if ($assemblies.Count -ne 1) { throw 'Expected one isolated Release Nomad test assembly.' }
     @{
-        Claim='C100';Head=$provenance.Head;Stack=(& git -C external\DotReticulum rev-parse HEAD)
+        Claim='C100';Head=$provenance.Head;Stack=(Get-DotReticulumStackId -Root $root)
         Sdk=(& dotnet --version);Compiler='10.0.14';Reference=$previous.Reference
         Sources=$sources;AcceptanceSources=@(ConvertTo-C100Fingerprints (Get-C100AcceptanceInputs))
         BuildProvenance='artifacts\tests\nomad-editor-state-import\build-provenance.json'
@@ -83,8 +87,7 @@ function Assert-C100Frozen {
     }
     if ((Get-FileHash $frozen.Binary.Path).Hash.ToLowerInvariant() -cne $frozen.Binary.Sha256) { throw 'Native hash changed.' }
     if ((Get-FileHash $frozen.BuildProvenance).Hash.ToLowerInvariant() -cne $frozen.BuildProvenanceSha256) { throw 'Build provenance changed.' }
-    if ((& git -C external\DotReticulum rev-parse HEAD) -cne $frozen.Stack) { throw 'Stack pin changed.' }
-    if (& git -C external\DotReticulum status --porcelain) { throw 'Stack has uncommitted inputs.' }
+    if ((Get-DotReticulumStackId -Root $root) -cne $frozen.Stack) { throw 'Stack package identity changed.' }
     foreach ($pair in @(@($frozen.Reference.Primary,$frozen.Reference.PrimaryCommit),
         @($frozen.Reference.Rns,$frozen.Reference.RnsCommit),@($frozen.Reference.Lxmf,$frozen.Reference.LxmfCommit))) {
         if ((& git -C $pair[0] rev-parse HEAD) -cne $pair[1]) { throw "Reference pin changed: $($pair[0])" }

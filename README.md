@@ -50,16 +50,16 @@ NomadNet and Sideband references were also retrieved directly over Reticulum wit
 
 ## Getting the code
 
-DotReticulum is included as a git submodule, pinned to a specific commit:
+The Reticulum stack is consumed from NuGet.org as the [DotReticulum](https://github.com/dennispayne/DotReticulum) packages `DotReticulum.Crypto`, `DotReticulum.Core`, `DotReticulum.Transport`, `DotReticulum.Interfaces` and `DotReticulum.Applications` (which includes the `ReticulumNode` runtime APIs). Their version is set once as `DotReticulumVersion` in `Directory.Build.props`, currently **1.5.7.158** (nuspec source commit `99275e6b5724033fcb3cd3f78befea0ae60c786b`).
 
 ```sh
-git clone --recurse-submodules https://github.com/dennispayne/DotReticulum.Ecosystem
+git clone https://github.com/dennispayne/DotReticulum.Ecosystem
 cd DotReticulum.Ecosystem
 dotnet build DotReticulum.Ecosystem.slnx -c Release
 dotnet test DotReticulum.Ecosystem.slnx -c Release
 ```
 
-If you cloned without `--recurse-submodules`, run `git submodule update --init`. Building requires the .NET 10 SDK (pinned in `global.json`).
+Building requires the .NET 10 SDK (pinned in `global.json`) and access to NuGet.org for restore.
 
 Live interoperability tests are opt-in and need the pinned Python reference: set `DOTRETICULUM_LIVE=1`, `DOTRETICULUM_PYTHON` (a venv with `lxmf` 1.2.1) and `DOTRETICULUM_UPSTREAM` (a checkout of the pinned RNS revision). Without them those tests are skipped. See [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
@@ -145,6 +145,8 @@ contracts.
 ## Versioning
 
 Each project carries the **upstream release it targets, plus a build number**, like DotReticulum does. `LXMF` and `lxmd` target `1.2.1.<height>`; `LXST` and `rnphone` target `0.5.4.<height>`; `NomadNet` targets `1.4.4.<height>` and `Sideband` targets `2.2.0.<height>`. The first three components are the upstream release, entered by hand in each project's `version.json`; the last is the git height from [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning), which resets when the upstream number changes. A version names the target, not completed parity.
+
+The Reticulum stack dependency is the DotReticulum package version `$(DotReticulumVersion)` in `Directory.Build.props` (currently 1.5.7.158). Its first three components name the RNS release that `tests/Interop/reference_environment.py` pins. Test evidence records the stack as that package version plus the restored packages' SHA-512 hashes and nuspec source commit.
 
 ### Releases
 

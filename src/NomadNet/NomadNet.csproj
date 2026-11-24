@@ -15,7 +15,7 @@
   <ItemGroup>
     <PackageReference Include="System.Formats.Cbor" Version="11.0.0" />
     <ProjectReference Include="..\LXMF\LXMF.csproj" />
-    <ProjectReference Include="..\..\external\DotReticulum\src\DotReticulum.Applications\DotReticulum.Applications.csproj" />
+    <PackageReference Include="DotReticulum.Applications" Version="$(DotReticulumVersion)" />
     <None Update="ThirdPartyNotices\System.IO.Ports.MIT.txt" CopyToPublishDirectory="PreserveNewest" />
     <None Update="ThirdPartyNotices\System.Formats.Cbor.MIT.txt" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

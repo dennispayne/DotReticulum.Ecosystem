@@ -9,6 +9,8 @@
     <Deterministic>true</Deterministic>
     <IsAotCompatible Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">true</IsAotCompatible>
     <IsTrimmable Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">true</IsTrimmable>
+    <!-- Single version for every DotReticulum.* NuGet.org package reference (Reticulum stack). -->
+    <DotReticulumVersion>1.5.7.158</DotReticulumVersion>
   </PropertyGroup>
   <!-- Version = pinned upstream RNS release (version.json) + git height as the final component. -->
   <ItemGroup>

@@ -1,5 +1,6 @@
 BeforeAll {
     $script:C95Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+    Import-Module (Join-Path $script:C95Root 'tests\StackProvenance.psm1') -Force
     $script:C95Evidence = $env:DOTRETICULUM_NOMADNET_TERMINAL_EVIDENCE
     if (-not $script:C95Evidence) {
         $script:C95Evidence = Join-Path $script:C95Root ('artifacts\tests\nomad-terminal-controls\acceptance-' + [guid]::NewGuid().ToString('N'))
@@ -16,7 +17,7 @@ BeforeAll {
         foreach ($source in $candidate.Sources) {
             (Get-FileHash (Join-Path $script:C95Root $source.Path)).Hash.ToLowerInvariant() | Should -BeExactly $source.Sha256
         }
-        (& git -C (Join-Path $script:C95Root 'external\DotReticulum') rev-parse HEAD) | Should -BeExactly $candidate.Stack
+        Get-DotReticulumStackId -Root $script:C95Root | Should -BeExactly $candidate.Stack -Because 'the frozen candidate must match the restored DotReticulum package identity'
     }
     function Start-C95([string] $Label, [string] $Executable, [string[]] $Arguments) {
         $info = [Diagnostics.ProcessStartInfo]::new($Executable)

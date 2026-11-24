@@ -13,12 +13,13 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 Set-Location $root
+Import-Module (Join-Path $root 'tests\StackProvenance.psm1') -Force
 $provenancePath = Join-Path (Split-Path $Candidate -Parent) build-provenance.json
 function Get-ProductionInputs {
-    $directories = @('src\Sideband\Sideband.Core','src\Sideband\Sideband.Desktop','src\LXMF','src\LXST','external\DotReticulum\src')
+    $directories = @('src\Sideband\Sideband.Core','src\Sideband\Sideband.Desktop','src\LXMF','src\LXST')
     $files = @(Get-ChildItem $directories -Recurse -File |
         Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' })
-    foreach ($directory in '.','external\DotReticulum') {
+    foreach ($directory in '.') {
         $files += @(Get-ChildItem $directory -File -Force |
             Where-Object { $_.Name -match '^Directory\.|^global\.json$|^version\.json$|^NuGet\.Config$|^\.editorconfig$' })
     }
@@ -30,7 +31,7 @@ function Get-AcceptanceInputs {
     $files += @(Get-ChildItem tests\Interop -File |
         Where-Object { $_.Extension -in '.py','.cs' -and $_.Name -notmatch 'nomad' })
     $files += @(Get-Item tests\Pester\SidebandMessageTelemetry.Tests.ps1,tests\Pester\SidebandMessageCopy.Tests.ps1,
-        tests\Pester\Invoke-SidebandMessageTelemetryAcceptance.ps1,tools\PSScriptAnalyzerSettings.psd1,.gitattributes)
+        tests\Pester\Invoke-SidebandMessageTelemetryAcceptance.ps1,tests\StackProvenance.psm1,tools\PSScriptAnalyzerSettings.psd1,.gitattributes)
     @($files | Sort-Object FullName -Unique)
 }
 function Get-Fingerprints($Files) {
@@ -67,7 +68,7 @@ if ($Build) {
     if ($compiler.Count -ne 1) { throw 'Expected one explicit NativeAOT compiler package.' }
     Assert-Hashes @($sources + $acceptance)
     if ((& git rev-parse HEAD) -cne $head) { throw 'Versioning HEAD changed during build.' }
-    @{Head=$head;Sdk=(& dotnet --version);Stack=(& git -C external\DotReticulum rev-parse HEAD);
+    @{Head=$head;Sdk=(& dotnet --version);Stack=(Get-DotReticulumStackId -Root $root);
         Compiler=($compiler[0] -split '/')[-1];Sources=$sources;Acceptance=$acceptance;
         ArtifactsPath=$ArtifactsPath;Binary=@{Path=[IO.Path]::GetFullPath($Binary);Sha256=(Get-FileHash $Binary).Hash.ToLowerInvariant()};
         Boundary='Dirty implementation is identified by exact source hashes; HEAD is versioning provenance, not a clean-tree claim.'} |
@@ -79,6 +80,7 @@ if ($Freeze) {
     $provenance = Get-Content $provenancePath -Raw | ConvertFrom-Json
     Assert-Hashes @($provenance.Sources + $provenance.Acceptance + $provenance.Binary)
     if ((& git rev-parse HEAD) -cne $provenance.Head) { throw 'Versioning HEAD changed; rebuild rather than relabel.' }
+    if ((Get-DotReticulumStackId -Root $root) -cne $provenance.Stack) { throw 'Stack package identity changed since build; rebuild rather than relabel.' }
     $reference = @{}
     foreach ($key in 'DOTRETICULUM_UPSTREAM','DOTRETICULUM_PYTHON','DOTRETICULUM_LXST_UPSTREAM','DOTRETICULUM_SIDEBAND_UPSTREAM') {
         $value = [Environment]::GetEnvironmentVariable($key)
@@ -116,7 +118,7 @@ $provenance = $frozen.Provenance
 function Assert-Frozen {
     if ((Get-FileHash $candidatePath).Hash.ToLowerInvariant() -cne $candidateHash) { throw 'Candidate manifest changed.' }
     if ((& git rev-parse HEAD) -cne $provenance.Head -or (& dotnet --version) -cne $provenance.Sdk) { throw 'Versioning HEAD/SDK changed.' }
-    if ((& git -C external\DotReticulum rev-parse HEAD) -cne $provenance.Stack -or (& git -C external\DotReticulum status --porcelain)) {
+    if ((Get-DotReticulumStackId -Root $root) -cne $provenance.Stack) {
         throw 'Stack pin/source changed.'
     }
     if (Compare-Object @($provenance.Sources.Path) @((Get-Fingerprints (Get-ProductionInputs)).Path)) { throw 'Production inventory changed.' }

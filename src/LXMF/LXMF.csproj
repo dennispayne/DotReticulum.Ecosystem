@@ -7,8 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\external\DotReticulum\src\DotReticulum.Core\DotReticulum.Core.csproj" />
-    <ProjectReference Include="..\..\external\DotReticulum\src\DotReticulum.Transport\DotReticulum.Transport.csproj" />
+    <PackageReference Include="DotReticulum.Core" Version="$(DotReticulumVersion)" />
+    <PackageReference Include="DotReticulum.Transport" Version="$(DotReticulumVersion)" />
   </ItemGroup>
 
   <ItemGroup>

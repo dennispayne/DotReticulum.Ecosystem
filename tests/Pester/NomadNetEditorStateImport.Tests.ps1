@@ -1,5 +1,6 @@
 BeforeAll {
     $script:C100Root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+    Import-Module (Join-Path $script:C100Root 'tests\StackProvenance.psm1') -Force
     $script:C100Evidence = if ($env:DOTRETICULUM_NOMADNET_STATE_EVIDENCE) {
         $env:DOTRETICULUM_NOMADNET_STATE_EVIDENCE
     } else { Join-Path $script:C100Root ('artifacts\tests\nomad-editor-state-import\pester-' + [guid]::NewGuid().ToString('N')) }
@@ -12,7 +13,7 @@ BeforeAll {
         foreach ($source in @($candidate.Sources) + @($candidate.AcceptanceSources)) {
             (Get-FileHash (Join-Path $script:C100Root $source.Path)).Hash.ToLowerInvariant() | Should -BeExactly $source.Sha256
         }
-        (& git -C (Join-Path $script:C100Root 'external\DotReticulum') rev-parse HEAD) | Should -BeExactly $candidate.Stack
+        Get-DotReticulumStackId -Root $script:C100Root | Should -BeExactly $candidate.Stack -Because 'the frozen candidate must match the restored DotReticulum package identity'
     }
     function Invoke-C100([string] $Label, [string[]] $Arguments, [string[]] $Commands = @(), [int] $Expected = 0) {
         $info = [Diagnostics.ProcessStartInfo]::new($env:DOTRETICULUM_NOMADNET_BINARY)

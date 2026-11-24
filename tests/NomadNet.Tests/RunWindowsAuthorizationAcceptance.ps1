@@ -5,6 +5,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+$repositoryRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+Import-Module (Join-Path $repositoryRoot 'tests\StackProvenance.psm1') -Force
 $candidate = Get-Content -LiteralPath $Manifest -Raw | ConvertFrom-Json
 $resultsPath = [IO.Path]::GetFullPath($Results)
 if (Test-Path -LiteralPath $resultsPath) { throw "Fresh results directory required: $resultsPath" }
@@ -15,7 +17,7 @@ function Assert-Frozen {
         if ($actual -cne $inputFile.Sha256) { throw "Frozen input changed: $($inputFile.Path)" }
     }
     if ((git rev-parse HEAD).Trim() -cne $candidate.Head) { throw 'Root HEAD changed.' }
-    if ((git -C external\DotReticulum rev-parse HEAD).Trim() -cne $candidate.Stack) { throw 'Stack HEAD changed.' }
+    if ((Get-DotReticulumStackId -Root $repositoryRoot) -cne $candidate.Stack) { throw 'Stack package identity changed.' }
 }
 function Invoke-Cases([string]$Name, [string]$Filter, [int]$ExpectedPassed, [int]$ExpectedSkipped) {
     Assert-Frozen

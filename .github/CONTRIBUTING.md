@@ -17,7 +17,6 @@ exercise selected native binaries, retaining their exact hashes and toolchain
 provenance. Do not suppress NuGet audit warnings to reuse the affected compiler.
 
 ```sh
-git submodule update --init
 dotnet build DotReticulum.Ecosystem.slnx -c Release
 dotnet test DotReticulum.Ecosystem.slnx -c Release
 ```
@@ -49,7 +48,7 @@ or speakers; real codecs may still require separately installed native libraries
 Do not use these isolated configurations for live interoperability acceptance.
 The checked-in task and launch paths target Windows; use VS Code in WSL with
 platform-appropriate local overrides for Linux development. Search and watchers
-exclude generated outputs but not the stack submodule; Explorer still shows them.
+exclude generated outputs; Explorer still shows them.
 
 ### Copilot CLI language servers
 
@@ -116,16 +115,18 @@ The desktop applications add `src/NomadNet` (the `nomadnet` terminal executable)
 
 ## The DotReticulum dependency
 
-DotReticulum is a git submodule at `external/DotReticulum`, referenced by project. Its commit is the version of the Reticulum stack this repository is built and tested against. To move to a newer DotReticulum:
+The Reticulum stack comes from the public NuGet.org packages `DotReticulum.Crypto`, `DotReticulum.Core`, `DotReticulum.Transport`, `DotReticulum.Interfaces` and `DotReticulum.Applications` (including the `ReticulumNode` runtime APIs). The version is set once in the root `Directory.Build.props` as `<DotReticulumVersion>1.5.7.158</DotReticulumVersion>`, and every DotReticulum `PackageReference` uses `$(DotReticulumVersion)`. Version 1.5.7.158's nuspec records repository `https://github.com/dennispayne/DotReticulum` commit `99275e6b5724033fcb3cd3f78befea0ae60c786b`. Dependabot (NuGet) may propose bumps.
 
-```sh
-git -C external/DotReticulum fetch
-git -C external/DotReticulum checkout <commit>
-dotnet test DotReticulum.Ecosystem.slnx -c Release
-git add external/DotReticulum
-```
+If the stack lacks something, implement it in the DotReticulum repository with its own tests and publish a new package release there. Never copy stack code into this repository. To move to a newer release:
 
-Commit the new pin once the build and tests pass.
+1. Change `DotReticulumVersion` in `Directory.Build.props`.
+2. Run `dotnet build DotReticulum.Ecosystem.slnx -c Release` and `dotnet test DotReticulum.Ecosystem.slnx -c Release`.
+3. If the RNS release (the version's first three components) changed, move the RNS pin in `tests/Interop/reference_environment.py` to match and rerun the affected live tests.
+4. Commit the version bump only once the build and tests pass.
+
+Acceptance scripts record the stack identity as the package version plus the restored `.nupkg` SHA-512 hashes and nuspec commit. The packages are published with symbol packages (`.snupkg`) on the NuGet.org symbol server whose portable PDBs carry SourceLink to the nuspec commit; enable the NuGet.org symbol server and SourceLink in your debugger to step into stack code.
+
+Windows Smart App Control can block locally built, unsigned test fixtures or binaries. Do not disable it; record affected tests as blocked rather than working around the block.
 
 ## Live interoperability tests
 
@@ -135,7 +136,7 @@ Live tests compare against the actual Python reference and are skipped unless en
 - `DOTRETICULUM_PYTHON` - a Python venv containing `lxmf` 1.2.1 (and the RNS it needs)
 - `DOTRETICULUM_UPSTREAM` - a working checkout of the pinned RNS revision; the harness verifies the imported source and Git revision
 
-`tests/Interop/reference_environment.py` holds the pins. Keep its RNS commit identical to the one in the submodule. The verifier checks the actual RNS module path, version, Git revision and clean source tree, including untracked files. Use a native Linux checkout when running in WSL: a Windows checkout with CRLF conversion can appear modified to Linux Git.
+`tests/Interop/reference_environment.py` holds the pins. Its RNS pin must be the RNS release named by the first three components of `DotReticulumVersion` (currently RNS 1.5.7, `a29bfb51c468945c96a1ee22cae0114e993e2391`). The verifier checks the actual RNS module path, version, Git revision and clean source tree, including untracked files. Use a native Linux checkout when running in WSL: a Windows checkout with CRLF conversion can appear modified to Linux Git.
 
 LXMF 1.2.1 targets primary-host commit `e8ba02483217af43be284a72f1c059c730b7d047`, tree `f5ad44f221707dacf600edcbeeffee57f2c9cc43`. The history was fetched with native .NET `rngit` from `rns://7649a50d84610232d1416b41d2896aff/reticulum/lxmf`: a disclosed GitHub-mirror seed plus 13,622 newly transferred bundle bytes, verified by strict Git fsck. This proves object consistency, not publisher authentication. The fetched HEAD was already 1.2.2; the compatibility target remains 1.2.1.
 
@@ -157,7 +158,7 @@ Run provenance acceptance and rejection tests with the reference environment var
 pwsh -NoProfile -File tests\run-pester.ps1
 ```
 
-The Pester suite requires Pester 5.7.1 or later. Reference-dependent cases explicitly skip when the environment variables are absent; with them set, a missing or incorrect reference fails.
+The Pester suite requires Pester 5.7.1 or later; install it explicitly with `pwsh -NoProfile -File tests\Install-Pester.ps1`. Reference-dependent cases explicitly skip when the environment variables are absent; with them set, a missing or incorrect reference fails.
 
 LXST live session/telephone cases have their own opt-in, `DOTLXST_LIVE=1`, in addition to the Python/RNS/LXST source paths above. Enabling LXMF live mode alone does not enable them.
 

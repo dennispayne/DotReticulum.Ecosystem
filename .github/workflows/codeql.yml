@@ -14,8 +14,6 @@ on:
       - '**.psd1'
       - '.github/workflows/**'
       - '.github/actions/**'
-      - 'external/DotReticulum'
-      - '.gitmodules'
       - 'global.json'
       - 'DotReticulum.Ecosystem.slnx'
   pull_request:
@@ -31,8 +29,6 @@ on:
       - '**.psd1'
       - '.github/workflows/**'
       - '.github/actions/**'
-      - 'external/DotReticulum'
-      - '.gitmodules'
       - 'global.json'
       - 'DotReticulum.Ecosystem.slnx'
   schedule:
@@ -68,12 +64,11 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - name: Checkout pinned stack and analysis source
+      - name: Checkout analysis source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-          submodules: recursive
 
       - name: Set up .NET
         if: matrix.language == 'csharp'
@@ -124,7 +119,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          submodules: recursive
 
       - name: Install pinned PSScriptAnalyzer
         run: Install-Module PSScriptAnalyzer -RequiredVersion 1.24.0 -Scope CurrentUser -Repository PSGallery -Force -ErrorAction Stop
@@ -135,7 +129,7 @@ jobs:
       - name: Verify analysis reporting
         if: ${{ !cancelled() }}
         run: |
-          ./external/DotReticulum/tests/Install-Pester.ps1
+          ./tests/Install-Pester.ps1
           Import-Module Pester -RequiredVersion 5.7.1
           $configuration = New-PesterConfiguration
           $configuration.Run.Path = 'tests/Pester/BuildArtifacts.Tests.ps1'

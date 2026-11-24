@@ -199,8 +199,30 @@ exit 0
             $reference = $catalog.references | Where-Object id -eq $id
             $verifier | Should -Match ('PINNED_' + $id + '_SHA = "' + $reference.revision + '"')
         }
-        $stack = Get-Content -Raw -LiteralPath (Join-Path $testsRoot '..\external\DotReticulum\tests\Interop\reference_environment.py')
-        $stack | Should -Match ('PINNED_RNS_SHA = "' + ($catalog.references | Where-Object id -eq RNS).revision + '"')
+        Import-Module (Join-Path $testsRoot 'StackProvenance.psm1') -Force
+        $stack = Get-DotReticulumStackReference
+        $version = Get-DotReticulumStackVersion -Root (Split-Path $testsRoot -Parent)
+        $version | Should -BeExactly $stack.Version -Because 'a stack package bump must re-verify the recorded stack RNS pin'
+        ($version -split '\.')[0..2] -join '.' | Should -BeExactly $stack.RnsVersion
+        $verifier | Should -Match ('PINNED_RNS_SHA = "' + $stack.RnsSha + '"')
+        $verifier | Should -Match ('RNS\.__version__ != "' + [regex]::Escape($stack.RnsVersion) + '"')
+        ($catalog.references | Where-Object id -eq RNS).revision | Should -BeExactly $stack.RnsSha
+    }
+
+    It 'records the stack RNS pin for the source commit of the restored DotReticulum packages' {
+        Import-Module (Join-Path $testsRoot 'StackProvenance.psm1') -Force
+        $root = Split-Path $testsRoot -Parent
+        $version = Get-DotReticulumStackVersion -Root $root
+        $missing = @('applications', 'core', 'crypto', 'interfaces', 'transport') | Where-Object {
+            -not (Test-Path -LiteralPath (Join-Path (Get-NuGetPackagesRoot) "dotreticulum.$_\$version\dotreticulum.$_.$version.nupkg.sha512"))
+        }
+        if ($missing) {
+            Set-ItResult -Skipped -Because "DotReticulum $version packages are not restored ($($missing -join ', ')); run dotnet restore."
+            return
+        }
+        $identity = Get-DotReticulumStackIdentity -Root $root
+        $identity.Version | Should -BeExactly (Get-DotReticulumStackReference).Version
+        $identity.Commit | Should -BeExactly (Get-DotReticulumStackReference).Commit
     }
 
     It 'writes failure evidence and restores process flags after failed live preflight' {

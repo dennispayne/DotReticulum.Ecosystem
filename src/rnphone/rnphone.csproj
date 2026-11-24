@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LXST\LXST.csproj" />
-    <ProjectReference Include="..\..\external\DotReticulum\src\DotReticulum.Applications\DotReticulum.Applications.csproj" />
+    <PackageReference Include="DotReticulum.Applications" Version="$(DotReticulumVersion)" />
   </ItemGroup>
 
 </Project>

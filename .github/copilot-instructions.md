@@ -1,6 +1,6 @@
 # DotReticulum.Ecosystem agent instructions
 
-You are building the **Reticulum-ecosystem layer** in native C# 13 / .NET 10, on top of [DotReticulum](https://github.com/dennispayne/DotReticulum) (the .NET Reticulum Network Stack, included here as the git submodule `external/DotReticulum`). The two current goals are:
+You are building the **Reticulum-ecosystem layer** in native C# 13 / .NET 10, on top of [DotReticulum](https://github.com/dennispayne/DotReticulum) (the .NET Reticulum Network Stack, consumed here as the NuGet.org packages `DotReticulum.Crypto`, `DotReticulum.Core`, `DotReticulum.Transport`, `DotReticulum.Interfaces` and `DotReticulum.Applications` at `$(DotReticulumVersion)`, currently 1.5.7.158). The two current goals are:
 
 1. **LXMF**: bring the existing partial LXMF implementation to high-fidelity feature and wire parity with upstream LXMF **1.2.1**.
 2. **LXST**: implement LXST (Mark Qvist's Reticulum signal/voice transport) from scratch, with the same standard of parity against its pinned upstream.
@@ -16,7 +16,7 @@ The target is wire and behavioral parity with the pinned Python reference, not a
 ## Start / resume protocol (every session)
 
 1. `git status`, `git log --oneline -20`, read `README.md`, `.github\CONTRIBUTING.md`, `docs\*.md` and the existing code. Finish or fix uncommitted work, then commit it.
-2. Run `git submodule update --init`, then `dotnet build DotReticulum.Ecosystem.slnx -c Release` and `dotnet test DotReticulum.Ecosystem.slnx -c Release`. Fix any red baseline before adding features.
+2. Run `dotnet build DotReticulum.Ecosystem.slnx -c Release` and `dotnet test DotReticulum.Ecosystem.slnx -c Release`. Fix any red baseline before adding features.
 3. Never trust a checkbox, doc claim or README table over code and tests. If they disagree, fix the claim.
 4. Re-run this protocol after any interruption, context compaction or new session.
 
@@ -31,13 +31,13 @@ tests\LXMF.Tests    xUnit
 tests\LXST.Tests    xUnit (create)
 tests\Interop          reference_environment.py (pins), thin Python adapters
 docs\<project>.md      one reference doc per project (present-state, not history)
-external\DotReticulum  submodule; the Reticulum stack
+Directory.Build.props  DotReticulumVersion: the DotReticulum NuGet package version (the Reticulum stack)
 ```
 
-- Solution file is **`DotReticulum.Ecosystem.slnx`**. **Edit it by hand to list only this repo's projects.** `dotnet sln add` pulls the submodule's projects into the file; remove any such entries.
+- Solution file is **`DotReticulum.Ecosystem.slnx`**. **Edit it by hand to list only this repo's projects.**
 - Each project has its own `version.json` (Nerdbank.GitVersioning): `<upstream release>.<height>` (for example `LXMF` is `1.2.1.<height>`). The first three components are the upstream release, set by hand, and change only when the target upstream changes. Set `LXST` to the upstream release actually targeted. A version names the target, not completed parity.
 - `.editorconfig`, nullable warnings as errors, file-scoped namespaces, 4-space indent. `IsAotCompatible`/`IsTrimmable` stay true for non-test projects. Executables set `PublishAot=true`; library projects must still pass the trim/AOT analyzers.
-- **Do not edit files under `external\DotReticulum` in place.** If the stack lacks something you need (a transport behavior, a link/resource option, an API), implement it in the DotReticulum repository with its own tests, commit and push it there, then bump the pin here (see CONTRIBUTING). If you can use the existing public API, prefer that. Record any stack gap you hit in the project's doc.
+- **The stack is consumed only as DotReticulum NuGet packages; never copy stack code into this repo.** The version is set once in root `Directory.Build.props` as `<DotReticulumVersion>`, and every DotReticulum `PackageReference` uses `$(DotReticulumVersion)` (Dependabot may propose bumps). If the stack lacks something you need (a transport behavior, a link/resource option, an API), implement it in the DotReticulum repository with its own tests, publish a new package release there, then bump `DotReticulumVersion` here after build and tests pass (see CONTRIBUTING). If you can use the existing public API, prefer that. Record any stack gap you hit in the project's doc.
 - Language ownership: C# implements and verifies; PowerShell 7 operates the workflow and CLI end-to-end tests; Python only bridges to the upstream reference (thin adapters for actual API calls, callback observations, actual-import checks, independent vector generation, disclosed shims). Never replace the reference with our own implementation, and never embed Python in PowerShell strings.
 - Executable names match their upstream names (for example `lxmd`, not `dotlxmd`).
 
@@ -46,7 +46,7 @@ external\DotReticulum  submodule; the Reticulum stack
 - **Never invent a wire format, constant, default or behavior.** Read the upstream Python source at the pinned revision, write down the exact format, then code. If you are unsure, execute the upstream code to produce evidence.
 - Generate reference vectors **by executing upstream Python** (never by hand, never from your own C# output). Store the generator next to the tests (`Generate*.py`) and record the upstream revision and method in the test file. Record the actual upstream SHA (and source-file SHA-256 where relevant) for new vectors.
 - Verify against a **live unmodified Python node** in both directions, including direct links, multi-hop paths via a Python transport node and a .NET transport node, packet loss, retries, teardown and recovery, with multi-megabyte payloads where the protocol has transfers. Unexercised topologies and failure paths must be recorded as such.
-- The live reference environment is pinned in `tests\Interop\reference_environment.py` (RNS `a29bfb51c468945c96a1ee22cae0114e993e2391` = 1.5.7, LXMF 1.2.1). Use an isolated Python venv, verify the actual imported module paths and versions, and never let `PYTHONPATH` or an installed package silently select other source. Add the LXST pin there (and to the harness checks) when you start LXST, with the exact upstream commit you read. Keep the RNS pin identical to the submodule's copy of the same file. Disclose any reference-side shim and which unmodified-upstream claim it prevents.
+- The live reference environment is pinned in `tests\Interop\reference_environment.py` (RNS `a29bfb51c468945c96a1ee22cae0114e993e2391` = 1.5.7, LXMF 1.2.1). Use an isolated Python venv, verify the actual imported module paths and versions, and never let `PYTHONPATH` or an installed package silently select other source. Add the LXST pin there (and to the harness checks) when you start LXST, with the exact upstream commit you read. The RNS pin must be the RNS release named by the first three components of `DotReticulumVersion`. Acceptance evidence records the stack identity as the package version plus the restored `.nupkg` SHA-512s and nuspec commit. Disclose any reference-side shim and which unmodified-upstream claim it prevents.
 - Distinguish wire errors from peer configuration limits and authorization/rejection policy (for example `lxmd`'s `delivery_transfer_max_accepted_size`). Record non-default peer settings used in a test. Delivery-endpoint interoperability, interaction with `lxmd`, and propagation-node synchronization are **separate capabilities**; one does not prove another. If a daemon does not originate messages, use a suitable client to verify the reverse direction rather than claiming bidirectional coverage from a one-way test.
 - An unsupported test mode must explicitly **skip with a reason or fail**, never return early and appear to pass. Live tests are opt-in (`DOTRETICULUM_LIVE=1`, `DOTRETICULUM_PYTHON`, `DOTRETICULUM_UPSTREAM`; add equivalents for LXST).
 - Security: zero secret buffers (`CryptographicOperations.ZeroMemory`), constant-time comparisons, never log or commit private keys, credentials or captured private traffic. Callback exceptions are reported through the logging/error mechanism with context; one failing observer must not disable core processing, and core processing must run with no subscriber registered (test that path).
@@ -94,13 +94,12 @@ Definition of done: documented inventory with statuses and evidence; a library t
 ## Docs, README and versioning
 
 - Keep `README.md` (project table, Compatibility table, Versioning) and `docs\<project>.md` as **present-state reference**, not chronology. Update them in the same commit as the behavior. When later work resolves a limitation, replace the stale statement.
-- Contributor docs stay in sync with reality; `.github\CONTRIBUTING.md` already describes the submodule bump and live-test environment.
+- Contributor docs stay in sync with reality; `.github\CONTRIBUTING.md` already describes the DotReticulum package version bump and live-test environment.
 - Do not maintain duplicate trackers or notes files. Do not create planning markdown unless asked.
 
 ## Commands
 
 ```sh
-git submodule update --init
 dotnet restore DotReticulum.Ecosystem.slnx
 dotnet build DotReticulum.Ecosystem.slnx -c Release
 dotnet test DotReticulum.Ecosystem.slnx -c Release
@@ -122,7 +121,8 @@ Copilot-Session: <current session id>
 ```
 
 - Never force-push or rewrite history. LF to CRLF warnings are harmless.
-- The submodule pin is part of the commit: bump it only after the build and tests pass against the new DotReticulum commit.
+- The `DotReticulumVersion` bump is part of the commit: bump it only after the build and tests pass against the new DotReticulum package release.
+- Windows Smart App Control can block locally built, unsigned test fixtures or binaries. Never disable it; record affected tests as blocked rather than working around the block.
 - Never comment `@dependabot rebase` on grouped Dependabot PRs; it spawns a PR per package. Dependabot here is NuGet only.
 
 ## Reporting

@@ -11,15 +11,16 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 Set-Location $root
+Import-Module (Join-Path $root 'tests\StackProvenance.psm1') -Force
 function Fingerprints($Files) {
     @($Files | Sort-Object FullName -Unique | ForEach-Object {
         @{Path=$_.FullName;Sha256=(Get-FileHash -LiteralPath $_.FullName).Hash.ToLowerInvariant()}
     })
 }
 function ProductionInputs {
-    $directories = @('src\Sideband\Sideband.Core','src\Sideband\Sideband.Desktop','src\LXMF','src\LXST','external\DotReticulum\src')
+    $directories = @('src\Sideband\Sideband.Core','src\Sideband\Sideband.Desktop','src\LXMF','src\LXST')
     $files = @(Get-ChildItem $directories -File -Recurse | Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' })
-    foreach ($directory in '.','external\DotReticulum') {
+    foreach ($directory in '.') {
         $files += @(Get-ChildItem $directory -File -Force |
             Where-Object { $_.Name -match '^Directory\.|^global\.json$|^version\.json$|^NuGet\.Config$|^\.editorconfig$' })
     }
@@ -29,7 +30,7 @@ function AcceptanceInputs {
     $files = @(Get-ChildItem tests\Sideband.Tests -File -Recurse |
         Where-Object { $_.FullName -notmatch '\\(bin|obj|__pycache__)\\' -and $_.Extension -in '.cs','.csproj','.json','.py' })
     $files += @(Get-Item tests\Interop\PyLinkNode.cs,tests\Interop\live_lxmf_node.py,
-        tests\Interop\reference_environment.py,tests\Interop\sideband_propagation_telemetry_node.py,$PSCommandPath)
+        tests\Interop\reference_environment.py,tests\Interop\sideband_propagation_telemetry_node.py,tests\StackProvenance.psm1,$PSCommandPath)
     @($files | Sort-Object FullName -Unique)
 }
 function AssertHashes($Files) {
@@ -84,7 +85,7 @@ if ($Build) {
     $libraries = (Get-Content $assets[0].FullName -Raw | ConvertFrom-Json).libraries
     $compiler = @($libraries.PSObject.Properties.Name | Where-Object { $_ -match '^Microsoft\.DotNet\.ILCompiler/' })
     if ($compiler.Count -ne 1) { throw 'Expected one identified NativeAOT compiler.' }
-    @{Head=$head;Stack=(& git -C external\DotReticulum rev-parse HEAD);Sdk=(& dotnet --version);
+    @{Head=$head;Stack=(Get-DotReticulumStackId -Root $root);Sdk=(& dotnet --version);
         Compiler=$compiler[0];Sources=$sources;Acceptance=$acceptance;Reference=$reference;
         ReferenceFiles=@(Fingerprints $references);ArtifactsPath=[IO.Path]::GetFullPath($ArtifactsPath);
         ManagedArtifacts=@(Fingerprints @(Get-ChildItem $assembly[0].DirectoryName -File));
@@ -102,7 +103,7 @@ $null = New-Item $output -ItemType Directory
 function AssertFrozen {
     if ((Get-FileHash $candidatePath).Hash.ToLowerInvariant() -cne $candidateHash) { throw 'Candidate manifest changed.' }
     if ((& git rev-parse HEAD) -cne $frozen.Head -or (& dotnet --version) -cne $frozen.Sdk) { throw 'HEAD/SDK changed.' }
-    if ((& git -C external\DotReticulum rev-parse HEAD) -cne $frozen.Stack -or (& git -C external\DotReticulum status --porcelain)) {
+    if ((Get-DotReticulumStackId -Root $root) -cne $frozen.Stack) {
         throw 'External stack changed.'
     }
     if (Compare-Object @($frozen.Sources.Path) @((ProductionInputs).FullName)) { throw 'Production inventory changed.' }

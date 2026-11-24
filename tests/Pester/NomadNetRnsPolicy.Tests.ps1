@@ -163,7 +163,7 @@ Describe 'Selected Nomad RNS owner configuration acceptance' -Tag 'RnsPolicy' {
         $probe = Read-C93Policy $native 'RNS owner policy: transport=True; respond_to_probes=True; use_implicit_proof=False'
         $probe | Should -Match '^[0-9a-f]{32}$'
         $python = Start-C93 python $env:DOTRETICULUM_PYTHON @('-u',
-            (Join-Path $script:C93Root 'external\DotReticulum\tests\Interop\proof_probe_node.py'),
+            (Join-Path $script:C93Root 'tests\Interop\proof_probe_node.py'),
             '--config',(Join-Path $script:C93Evidence python),'--rnsd-port',"$port",'--implicit-proof','no')
         $ready = ((Read-C93 $python '"event"\s*:\s*"ready"').Substring(2) | ConvertFrom-Json)
         $ready.revision | Should -Be '1.5.7'

@@ -22,8 +22,15 @@ Present-state limitations:
   commit, so source stepping needs the symbol server and SourceLink enabled;
   stack source is not in this repository and stack tests do not run here.
 - Windows Smart App Control can block locally built, unsigned test fixtures or
-  binaries. It is not disabled to run tests; affected tests are recorded as
-  blocked, not passed or worked around.
+  binaries (observed for the Guide replay test assembly and native `lxmd` and
+  `nomadnet`). Automation never disables it; while it is on, affected tests are
+  recorded as blocked, not passed or worked around. With it turned off by the
+  machine owner, the package-based stack at `962924b` passed the NomadNet Guide
+  build/freeze/replay (460 managed passed, 40 expected skips; native T822-T825
+  4/4) and win-x64 NativeAOT publish, `--help` and native Pester suites for
+  `lxmd` (6/6, including Python delivery, propagation, control and multi-daemon
+  sync), `nomadnet` (4/4) and `sideband` (5 passed, 1 skipped for a missing
+  generated primary map profile). `rnphone` native audio was not run.
 
 ## Baseline provenance
 
